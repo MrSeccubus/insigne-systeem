@@ -7,7 +7,7 @@
 ## Running the app
 From the project root:
 ```
-venv/bin/uvicorn api.main:app --reload
+venv/bin/uvicorn main:app --app-dir api --reload
 ```
 Then open http://localhost:8000.
 

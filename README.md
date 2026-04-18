@@ -20,7 +20,12 @@ A web application for scouts to track their progress through the [Scouting Neder
 ```bash
 python3 -m venv venv
 venv/bin/pip install -r requirements.txt
-venv/bin/uvicorn api.main:app --reload
+```
+
+Run the development server from the **project root**:
+
+```bash
+venv/bin/uvicorn main:app --app-dir api --reload
 ```
 
 Then open [http://localhost:8000](http://localhost:8000).

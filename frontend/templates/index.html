@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Home — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main>
+    <h1>Insigne Systeem</h1>
+
+    <section x-data="{ open: false }">
+        <button @click="open = !open">Toggle (Alpine.js)</button>
+        <p x-show="open">Alpine.js is working.</p>
+    </section>
+
+    <section>
+        <button hx-get="/ping" hx-target="#ping-result">Ping API (HTMX)</button>
+        <div id="ping-result"></div>
+    </section>
+</main>
+{% endblock %}

@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from .models import ProgressEntry, SignoffRequest, User
+from .models import ProgressEntry, SignoffRejection, SignoffRequest, User
 
 
 class NotFound(Exception):
@@ -167,7 +167,7 @@ def request_signoff(
     return entry, mentor, created
 
 
-def confirm_signoff(db: Session, mentor_id: str, entry_id: str) -> ProgressEntry:
+def confirm_signoff(db: Session, mentor_id: str, entry_id: str, comment: str | None = None) -> ProgressEntry:
     """Confirm sign-off as the authenticated mentor."""
     entry = db.query(ProgressEntry).filter(ProgressEntry.id == entry_id).first()
     if entry is None:
@@ -185,10 +185,46 @@ def confirm_signoff(db: Session, mentor_id: str, entry_id: str) -> ProgressEntry
     entry.status = "signed_off"
     entry.signed_off_by_id = mentor_id
     entry.signed_off_at = datetime.now(timezone.utc)
+    entry.mentor_comment = comment or None
 
     db.query(SignoffRequest).filter(
         SignoffRequest.progress_entry_id == entry_id
     ).delete()
+
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+def reject_signoff(db: Session, mentor_id: str, entry_id: str, message: str) -> ProgressEntry:
+    """Reject a sign-off request as the authenticated mentor."""
+    entry = db.query(ProgressEntry).filter(ProgressEntry.id == entry_id).first()
+    if entry is None:
+        raise NotFound("entry_not_found")
+    if entry.status == "signed_off":
+        raise Conflict("already_signed_off")
+
+    request = db.query(SignoffRequest).filter(
+        SignoffRequest.progress_entry_id == entry_id,
+        SignoffRequest.mentor_id == mentor_id,
+    ).first()
+    if request is None:
+        raise Forbidden("not_invited")
+
+    mentor = db.query(User).filter(User.id == mentor_id).first()
+    db.add(SignoffRejection(
+        progress_entry_id=entry_id,
+        mentor_name=mentor.name or mentor.email,
+        message=message,
+    ))
+    db.delete(request)
+    db.flush()
+
+    remaining = db.query(SignoffRequest).filter(
+        SignoffRequest.progress_entry_id == entry_id
+    ).count()
+    if remaining == 0:
+        entry.status = "work_done"
 
     db.commit()
     db.refresh(entry)

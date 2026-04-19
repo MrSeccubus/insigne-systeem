@@ -1,6 +1,10 @@
 {% if confirmed is defined %}
     {# Response after confirming — show brief success then remove #}
-    {% if confirmed %}
+    {% if rejected is defined and rejected %}
+    <div class="signoff-card" x-data x-init="setTimeout(() => $el.remove(), 1500)">
+        <p class="signoff-confirmed">✓ Afwijzing verstuurd.</p>
+    </div>
+    {% elif confirmed %}
     <div class="signoff-card" x-data x-init="setTimeout(() => $el.remove(), 1500)">
         <p class="signoff-confirmed">✓ Afgetekend!</p>
     </div>
@@ -11,21 +15,56 @@
     {% endif %}
 {% else %}
     {# Normal render (initial page load) #}
-    <div id="request-{{ req.entry_id }}" class="signoff-card">
+    <div id="request-{{ req.entry_id }}" class="signoff-card"
+         x-data="{ action: null }">
         <div class="signoff-card-header">
             <span class="signoff-scout">{{ req.scout_name }}</span>
         </div>
-        <p class="signoff-badge-info">{{ req.badge_title }} › {{ req.level_name }}</p>
+        <p class="signoff-badge-info">{{ req.badge_title }} — Niveau {{ req.niveau_number }}</p>
+        <p class="signoff-requested-at">Aangevraagd op {{ req.requested_at }}</p>
+        <p class="signoff-level-name">Opdracht/eis {{ req.level_number }}: {{ req.level_name }}</p>
         <div class="signoff-step-text">{{ req.step_text }}</div>
         {% if req.notes %}
-        <p class="signoff-notes">"{{ req.notes }}"</p>
+        <div class="signoff-notes-section">
+            <span class="signoff-notes-label">Notitie van de scout</span>
+            <p class="signoff-notes">{{ req.notes }}</p>
+        </div>
         {% endif %}
-        <form hx-post="/progress/{{ req.entry_id }}/confirm-signoff"
+
+        {# ── action buttons ── #}
+        <div class="step-actions" x-show="action === null">
+            <button type="button" class="btn-secondary btn-sm"
+                    @click="action = 'signoff'">Aftekenen</button>
+            <button type="button" class="btn-secondary btn-sm"
+                    @click="action = 'reject'">Afwijzen</button>
+        </div>
+
+        {# ── sign-off form ── #}
+        <form x-show="action === 'signoff'" x-cloak
+              class="inline-form"
+              hx-post="/progress/{{ req.entry_id }}/confirm-signoff"
               hx-target="#request-{{ req.entry_id }}"
               hx-swap="outerHTML">
-            <button type="submit" class="btn-primary" style="width:auto;padding:0.5rem 1.25rem;">
-                Aftekenen
-            </button>
+            <textarea name="comment" placeholder="Opmerking voor de scout (optioneel)"></textarea>
+            <div class="step-actions">
+                <button type="button" class="btn-secondary btn-sm"
+                        @click="action = null">Annuleren</button>
+                <button type="submit" class="btn-secondary btn-sm">Bevestigen</button>
+            </div>
+        </form>
+
+        {# ── reject form ── #}
+        <form x-show="action === 'reject'" x-cloak
+              class="inline-form"
+              hx-post="/progress/{{ req.entry_id }}/reject-signoff"
+              hx-target="#request-{{ req.entry_id }}"
+              hx-swap="outerHTML">
+            <textarea name="message" placeholder="Geef aan wat de scout nog moet doen" required></textarea>
+            <div class="step-actions">
+                <button type="button" class="btn-secondary btn-sm"
+                        @click="action = null">Annuleren</button>
+                <button type="submit" class="btn-secondary btn-sm">Versturen</button>
+            </div>
         </form>
     </div>
 {% endif %}

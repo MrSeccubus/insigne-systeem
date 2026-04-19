@@ -76,6 +76,11 @@ section {
     color: #333;
 }
 
+.nav-badge {
+    font-size: 0.7rem;
+    vertical-align: super;
+}
+
 .nav-logout-form {
     margin: 0;
 }
@@ -575,8 +580,8 @@ button:hover {
     user-select: none;
 }
 .step-check-in_progress    { background: #3b82f6; border-color: #3b82f6; color: white; }
-.step-check-work_done      { background: #16a34a; border-color: #16a34a; color: white; }
-.step-check-pending_signoff { background: #16a34a; border-color: #16a34a; color: white; }
+.step-check-work_done      { background: #86efac; border-color: #86efac; color: white; }
+.step-check-pending_signoff { background: #4ade80; border-color: #4ade80; color: white; }
 .step-check-signed_off     { background: #16a34a; border-color: #16a34a; color: white; }
 
 .niveau-checks {
@@ -776,11 +781,88 @@ button:hover {
     margin-bottom: 0.7rem;
 }
 
+.step-mentor-comment {
+    margin-top: 0.5rem;
+    background: #f0fdf4;
+    border-left: 3px solid #00A651;
+    padding: 0.4rem 0.6rem;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.85rem;
+}
+
+.step-mentor-comment-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #166534;
+    margin-bottom: 0.2rem;
+}
+
+.step-mentor-comment p {
+    margin: 0;
+    color: #333;
+    line-height: 1.5;
+}
+
+.step-rejections {
+    margin-bottom: 0.5rem;
+}
+
+.step-rejection {
+    background: #fff7ed;
+    border-left: 3px solid #f97316;
+    padding: 0.4rem 0.6rem;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+}
+
+.step-rejection-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #9a3412;
+    margin-bottom: 0.2rem;
+}
+
+.step-rejection p {
+    margin: 0;
+    color: #333;
+    line-height: 1.5;
+}
+
+.signoff-requested-at {
+    font-size: 0.78rem;
+    color: #aaa;
+    margin-bottom: 0.6rem;
+}
+
+.signoff-level-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #444;
+    margin-bottom: 0.4rem;
+}
+
+.signoff-notes-section {
+    margin-bottom: 0.7rem;
+}
+
+.signoff-notes-label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #888;
+    margin-bottom: 0.2rem;
+}
+
 .signoff-notes {
     font-size: 0.82rem;
     color: #555;
     font-style: italic;
-    margin-bottom: 0.7rem;
+    margin: 0;
+    white-space: pre-line;
 }
 
 .signoff-confirmed {

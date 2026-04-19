@@ -42,12 +42,11 @@ async def index(request: Request, db: Session = Depends(get_db)):
 
     all_badges = list_badges(DATA_DIR)
     signoff_count = 0
-    completed_set: set[tuple[str, int, int]] = set()
+    all_progress: dict[str, dict] = {}
 
     if current_user:
         for entry in progress_svc.list_progress(db, current_user.id):
-            if entry.status == "signed_off":
-                completed_set.add((entry.badge_slug, entry.level_index, entry.step_index))
+            all_progress.setdefault(entry.badge_slug, {})[(entry.level_index, entry.step_index)] = entry
         signoff_count = len(progress_svc.list_signoff_requests(db, current_user.id))
 
     # Enrich each badge with 3 niveau cards (one per a/b/c sub-task level)
@@ -63,7 +62,8 @@ async def index(request: Request, db: Session = Depends(get_db)):
                     "total": n_eisen,
                     "completed": sum(
                         1 for eis_idx in range(n_eisen)
-                        if (badge["slug"], eis_idx, niveau_idx) in completed_set
+                        if all_progress.get(badge["slug"], {}).get((eis_idx, niveau_idx)) and
+                           all_progress[badge["slug"]][(eis_idx, niveau_idx)].status == "signed_off"
                     ),
                 }
                 for niveau_idx in range(3)
@@ -75,6 +75,7 @@ async def index(request: Request, db: Session = Depends(get_db)):
         context={
             "current_user": current_user,
             "all_badges": all_badges,
+            "all_progress": all_progress,
             "signoff_count": signoff_count,
         },
     )

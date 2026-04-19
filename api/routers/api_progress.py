@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from insigne import progress as progress_svc
 from insigne.badges import get_badge
 from insigne.database import get_db
-from insigne.email import send_mentor_signoff_invite_email
+from insigne.email import send_mentor_signoff_invite_email, send_mentor_signoff_request_email
 from insigne.models import ProgressEntry, SignoffRequest, User
 
 _DATA_DIR = Path(__file__).parent.parent / "data"
@@ -152,12 +152,14 @@ async def request_signoff(
         )
         raise HTTPException(status_code=409, detail=detail)
 
+    badge = get_badge(_DATA_DIR, entry.badge_slug)
+    level = badge["levels"][entry.level_index]
+    step_text = level["steps"][entry.step_index]["text"]
+    scout_name = current_user.name or current_user.email.split("@")[0]
     if created:
-        badge = get_badge(_DATA_DIR, entry.badge_slug)
-        level = badge["levels"][entry.level_index]
-        step_text = level["steps"][entry.step_index]["text"]
-        scout_name = current_user.name or current_user.email.split("@")[0]
-        send_mentor_signoff_invite_email(mentor.email, scout_name, badge["title"], step_text)
+        send_mentor_signoff_invite_email(mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
+    else:
+        send_mentor_signoff_request_email(mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
     return {"detail": "Sign-off request sent."}
 
 

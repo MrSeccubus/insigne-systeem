@@ -27,6 +27,24 @@
         ✓ Afgetekend door {{ entry.signed_off_by.name or entry.signed_off_by.email }}
         op {{ entry.signed_off_at.strftime("%d-%m-%Y") }}
     </p>
+    {% if entry.mentor_comment %}
+    <div class="step-mentor-comment">
+        <span class="step-mentor-comment-label">Opmerking van de leider</span>
+        <p>{{ entry.mentor_comment }}</p>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {# ── rejection messages — server-rendered, shown in work_done and pending_signoff ── #}
+    {% if entry and entry.signoff_rejections %}
+    <div class="step-rejections">
+        {% for rejection in entry.signoff_rejections %}
+        <div class="step-rejection">
+            <span class="step-rejection-label">Afgewezen door {{ rejection.mentor_name }}</span>
+            <p>{{ rejection.message }}</p>
+        </div>
+        {% endfor %}
+    </div>
     {% endif %}
 
     {# ── pending_signoff — server-rendered, only present when card loads in this state ── #}
@@ -68,7 +86,7 @@
 
     {# ── work_done — Alpine-driven ── #}
     <div x-show="status === 'work_done'">
-        <div x-show="notes" class="step-notes">
+        <div x-show="notes && !signoffOpen" class="step-notes">
             <span x-text="notes"></span>
         </div>
         {% if error %}
@@ -79,15 +97,14 @@
             <button type="button" class="btn-secondary btn-sm" @click="save('in_progress')">
                 Ik ben toch niet klaar
             </button>
-            <button type="button" class="btn-secondary btn-sm" @click="signoffOpen = !signoffOpen">
+            <button type="button" class="btn-secondary btn-sm"
+                    @click="signoffOpen = !signoffOpen"
+                    :disabled="!entryId || saving">
                 Aftekenen...
             </button>
         </div>
-        <form x-show="signoffOpen" x-cloak
-              class="inline-form"
-              :hx-post="'/progress/' + entryId + '/request-signoff'"
-              hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
-              hx-swap="outerHTML">
+        <div x-show="signoffOpen" x-cloak class="inline-form">
+            <textarea x-model="notes" placeholder="Notities (optioneel)"></textarea>
             {% if previous_mentors %}
             <datalist id="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-wd">
                 {% for mentor in previous_mentors %}
@@ -95,11 +112,14 @@
                 {% endfor %}
             </datalist>
             {% endif %}
-            <input type="email" name="mentor_email" x-model="mentorEmail"
-                   placeholder="e-mail van (bege-)leider" required
+            <input type="email" x-model="mentorEmail"
+                   placeholder="e-mail van (bege-)leider"
                    {% if previous_mentors %}list="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-wd"{% endif %}>
-            <button type="submit" class="btn-secondary btn-sm">Versturen</button>
-        </form>
+            <div class="step-actions">
+                <button type="button" class="btn-secondary btn-sm" @click="signoffOpen = false">Annuleren</button>
+                <button type="button" class="btn-secondary btn-sm" @click="requestSignoff()">Versturen</button>
+            </div>
+        </div>
         {% endif %}
     </div>
 

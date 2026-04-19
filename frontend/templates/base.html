@@ -14,6 +14,7 @@
             savedNotes: initNotes,
             entryId: initEntryId,
             editing: false,
+            saving: false,
             showNotePrompt: false,
             pendingStatus: '',
             signoffOpen: false,
@@ -42,6 +43,7 @@
                 this.status = targetStatus;
                 this.showNotePrompt = false;
                 this.editing = false;
+                this.saving = true;
 
                 const fd = new FormData();
                 fd.append('level_index', levelIndex);
@@ -59,8 +61,18 @@
                         if (m) this.entryId = m[1];
                     }
                 } catch (e) { this.status = prevStatus; return; }
+                finally { this.saving = false; }
 
                 htmx.trigger(document.body, 'niveau-updated');
+            },
+
+            requestSignoff() {
+                if (!this.entryId || this.saving) return;
+                htmx.ajax('POST', `/progress/${this.entryId}/request-signoff`, {
+                    target: this.$root,
+                    swap: 'outerHTML',
+                    values: { mentor_email: this.mentorEmail, notes: this.notes },
+                });
             },
 
             async remove() {
@@ -88,7 +100,7 @@
         <nav class="site-nav">
             {% if current_user %}
                 <a href="/" class="nav-username">{{ current_user.name }}</a>
-                <a href="/signoff-requests">Aftekeningen</a>
+                <a href="/signoff-requests">Aftekeningen <span hx-get="/signoff-requests/count" hx-trigger="load" hx-swap="outerHTML"></span></a>
                 <a href="/profile">Mijn profiel</a>
                 <form method="post" action="/logout" class="nav-logout-form">
                     <button type="submit">Uitloggen</button>

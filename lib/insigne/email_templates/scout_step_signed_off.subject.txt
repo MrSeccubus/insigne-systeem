@@ -1,0 +1,1 @@
+Afgetekend: {{ badge_title }} — Niveau {{ niveau_number }}

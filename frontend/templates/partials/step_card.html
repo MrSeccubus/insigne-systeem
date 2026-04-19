@@ -60,9 +60,17 @@
             {% endfor %}
         </p>
         {% if current_user %}
-        <button type="button" class="btn-secondary btn-sm" @click="signoffOpen = !signoffOpen">
-            Nog iemand uitnodigen
-        </button>
+        <div class="step-actions">
+            <button type="button" class="btn-secondary btn-sm"
+                    hx-post="/progress/{{ entry.id }}/cancel-signoff"
+                    hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+                    hx-swap="outerHTML">
+                Verzoek intrekken
+            </button>
+            <button type="button" class="btn-secondary btn-sm" @click="signoffOpen = !signoffOpen">
+                Nog iemand uitnodigen
+            </button>
+        </div>
         <form x-show="signoffOpen" x-cloak
               class="inline-form"
               :hx-post="'/progress/' + entryId + '/request-signoff'"

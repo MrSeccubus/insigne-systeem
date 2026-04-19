@@ -125,6 +125,28 @@ def delete_progress(db: Session, user_id: str, entry_id: str) -> None:
     db.commit()
 
 
+def cancel_signoff_requests(db: Session, user_id: str, entry_id: str) -> ProgressEntry:
+    """Cancel all pending sign-off requests, reverting entry to work_done."""
+    entry = db.query(ProgressEntry).filter(
+        ProgressEntry.id == entry_id,
+        ProgressEntry.user_id == user_id,
+    ).first()
+    if entry is None:
+        raise NotFound("entry_not_found")
+    if entry.status == "signed_off":
+        raise Forbidden("entry_signed_off")
+    if entry.status != "pending_signoff":
+        raise Conflict("not_pending_signoff")
+
+    db.query(SignoffRequest).filter(
+        SignoffRequest.progress_entry_id == entry_id
+    ).delete()
+    entry.status = "work_done"
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
 def request_signoff(
     db: Session, scout_id: str, entry_id: str, mentor_email: str
 ) -> tuple[ProgressEntry, User, bool]:

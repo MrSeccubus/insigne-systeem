@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:system-ui,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:2rem 1rem;">
+    <tr><td align="center">
+      <table width="100%" style="max-width:520px;background:#fff;border-radius:4px;border:1px solid #ddd;border-top:3px solid #00A651;padding:2rem;">
+        <tr><td style="text-align:center;">
+          <p style="margin:0 0 0.5rem;font-size:3rem;line-height:1;">&#127942;</p>
+          <h1 style="margin:0 0 1.5rem;font-size:1.5rem;color:#1a1a1a;">Niveau {{ niveau_number }} voltooid!</h1>
+          <p style="margin:0 0 1rem;color:#333;line-height:1.6;text-align:left;">Hoi {{ scout_name }},</p>
+          <p style="margin:0 0 1.5rem;color:#333;line-height:1.6;text-align:left;">
+            Geweldig nieuws — je hebt alle eisen voor
+            <strong>Niveau {{ niveau_number }}</strong> van <strong>{{ badge_title }}</strong>
+            afgerond en afgetekend gekregen. Wat een prestatie!
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0"
+                 style="margin:0 0 1.5rem;background:#f0faf4;border:1px solid #86efac;border-radius:4px;padding:1rem;">
+            <tr><td style="text-align:center;">
+              <p style="margin:0 0 0.25rem;font-size:0.85rem;color:#16a34a;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">Behaald niveau</p>
+              <p style="margin:0;font-size:1.3rem;font-weight:700;color:#16a34a;">{{ badge_title }} — Niveau {{ niveau_number }}</p>
+            </td></tr>
+          </table>
+          <p style="margin:0 0 1.5rem;color:#333;line-height:1.6;text-align:left;">
+            Bekijk je volledige voortgang in het Insigne Systeem en ga op naar het volgende niveau!
+          </p>
+          <div style="text-align:center;margin:0 0 1.5rem;">
+            <a href="{{ badge_url }}"
+               style="display:inline-block;background:#00A651;color:#fff;text-decoration:none;
+                      font-weight:600;padding:0.75rem 2rem;border-radius:4px;font-size:1rem;">
+              Naar mijn insignes
+            </a>
+          </div>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

@@ -272,9 +272,24 @@ button:hover {
     border-bottom: 2px solid #00A651;
 }
 
+.badge-group-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+}
+
+.badge-group-title a {
+    color: #1a1a1a;
+    text-decoration: none;
+}
+
+.badge-group-title a:hover {
+    color: #00A651;
+}
+
 .badge-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.25rem;
     margin-bottom: 2rem;
 }
@@ -293,6 +308,23 @@ button:hover {
 .badge-card:hover {
     box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     border-color: #00A651;
+}
+
+.badge-card-image {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    border-radius: 3px;
+    margin-bottom: 0.75rem;
+    display: block;
+}
+
+.badge-card-level {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 0.75rem;
+    margin-top: -0.5rem;
 }
 
 .badge-card .badge-category {
@@ -373,6 +405,64 @@ button:hover {
     border-radius: 4px;
     margin-top: 2rem;
     white-space: pre-line;
+}
+
+/* ── Badge overview grid (3 niveaus × 5 eisen) ───────────────────────────── */
+
+.badge-overview-grid {
+    display: grid;
+    grid-template-columns: 160px repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    align-items: start;
+}
+
+.niveau-col-header {
+    text-align: center;
+    padding: 0.5rem 0.25rem 0.75rem;
+}
+
+.niveau-header-image {
+    max-width: 100px;
+    max-height: 100px;
+    object-fit: contain;
+    border-radius: 3px;
+    margin: 0 auto 0.4rem;
+    display: block;
+}
+
+.niveau-col-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #1a1a1a;
+}
+
+.eis-row-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.75rem 0.5rem;
+    border-right: 2px solid #e5e7eb;
+}
+
+.eis-row-number {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #00A651;
+}
+
+.eis-row-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.eis-row-progress {
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 0.2rem;
 }
 
 /* ── Levels ──────────────────────────────────────────────────────────────── */
@@ -467,21 +557,39 @@ button:hover {
     color: #333;
 }
 
-.step-badge {
-    font-size: 0.72rem;
-    font-weight: 600;
-    padding: 0.2rem 0.55rem;
-    border-radius: 999px;
-    white-space: nowrap;
+.step-check {
+    width: 22px;
+    height: 22px;
+    border-radius: 3px;
+    border: 2px solid #d1d5db;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
     flex-shrink: 0;
-    margin-top: 0.15rem;
+    line-height: 1;
+    color: transparent;
+    background: white;
+    cursor: default;
+    user-select: none;
+}
+.step-check-in_progress    { background: #3b82f6; border-color: #3b82f6; color: white; }
+.step-check-work_done      { background: #16a34a; border-color: #16a34a; color: white; }
+.step-check-pending_signoff { background: #16a34a; border-color: #16a34a; color: white; }
+.step-check-signed_off     { background: #16a34a; border-color: #16a34a; color: white; }
+
+.niveau-checks {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    margin-top: 0.5rem;
 }
 
-.step-badge-open      { background: #fef3c7; color: #92400e; }
-.step-badge-pending   { background: #dbeafe; color: #1e40af; }
-.step-badge-completed { background: #dcfce7; color: #166534; }
-
 .step-notes {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
     font-size: 0.85rem;
     color: #555;
     background: #f9fafb;
@@ -490,6 +598,21 @@ button:hover {
     margin-bottom: 0.6rem;
     white-space: pre-line;
 }
+
+.step-notes span { flex: 1; }
+
+.btn-icon {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: #9ca3af;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+.btn-icon:hover { color: #374151; }
 
 .step-signoff-info {
     font-size: 0.82rem;

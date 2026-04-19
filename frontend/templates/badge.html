@@ -1,16 +1,31 @@
 {% extends "base.html" %}
 
-{% block title %}{{ badge.title }} — Insigne Systeem{% endblock %}
+{% block title %}{{ badge.title }}{% if selected_niveaus | length == 1 %} — Niveau {{ selected_niveaus[0] + 1 }}{% endif %} — Insigne Systeem{% endblock %}
 
 {% block content %}
-<main>
+<main style="max-width:1100px;">
     <nav class="breadcrumb">
         <a href="/">Home</a> › {{ badge.title }}
     </nav>
 
     <header class="badge-header">
         <div class="badge-category">{{ badge.category }}</div>
-        <h1>{{ badge.title }}</h1>
+        {% if selected_niveaus | length == 1 %}
+        <div style="text-align:center;margin-bottom:0.75rem;">
+            <img src="/images/{{ badge.slug }}.{{ selected_niveaus[0] + 1 }}.png"
+                 alt="Niveau {{ selected_niveaus[0] + 1 }}"
+                 class="niveau-header-image" style="max-width:200px;max-height:200px;"
+                 onerror="this.style.display='none'">
+            {% if current_user %}
+            {% set slug = badge.slug %}
+            {% set niveau_index = selected_niveaus[0] %}
+            {% set n_eisen = badge.levels | length %}
+            {% set style = "justify-content:center;margin-top:0.5rem;" %}
+            {% include "partials/niveau_checks.html" %}
+            {% endif %}
+        </div>
+        {% endif %}
+        <h1>{{ badge.title }}{% if selected_niveaus | length == 1 %} — Niveau {{ selected_niveaus[0] + 1 }}{% endif %}</h1>
         {% if badge.introduction %}
         <div class="badge-introduction">{{ badge.introduction }}</div>
         {% endif %}
@@ -22,29 +37,50 @@
     </div>
     {% endif %}
 
-    <div class="badge-levels">
-        {% for level in badge.levels %}
+    <div class="badge-overview-grid" style="grid-template-columns: 160px repeat({{ selected_niveaus | length }}, 1fr);">
+
+        {# ── Column headers (only when showing all niveaus) ── #}
+        {% if selected_niveaus | length > 1 %}
+        <div></div>
+        {% for i in selected_niveaus %}
+        <div class="niveau-col-header">
+            <img src="/images/{{ badge.slug }}.{{ i + 1 }}.png"
+                 alt="Niveau {{ i + 1 }}"
+                 class="niveau-header-image"
+                 onerror="this.style.display='none'">
+            <div class="niveau-col-title">Niveau {{ i + 1 }}</div>
+            {% if current_user %}
+            {% set slug = badge.slug %}
+            {% set niveau_index = i %}
+            {% set n_eisen = badge.levels | length %}
+            {% set style = None %}
+            {% include "partials/niveau_checks.html" %}
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {# ── One row per eis ── #}
+        {% for eis in badge.levels %}
         {% set level_index = loop.index0 %}
-        {% set level_name = level.name %}
-        {% set stats = level_stats[level_index] %}
-        <section class="level-section" x-data="{ open: {{ 'true' if loop.first else 'false' }} }">
-            <button type="button" class="level-header" @click="open = !open">
-                <span>{{ loop.index }}. {{ level.name }}</span>
-                {% if current_user %}
-                <span class="level-stats">{{ stats.completed }}/{{ stats.total }}</span>
-                {% endif %}
-                <span style="font-size:0.75rem;color:#888;" x-text="open ? '▲' : '▼'"></span>
-            </button>
-            <div class="level-steps" x-show="open" x-cloak>
-                {% for step in level.steps %}
-                {% set step_index = step.index %}
-                {% set step_text = step.text %}
-                {% set entry = progress_map.get((level_index, step_index)) %}
-                {% set error = "" %}
-                {% include "partials/step_card.html" %}
-                {% endfor %}
-            </div>
-        </section>
+        {% set level_name = eis.name %}
+
+        {# Row header #}
+        <div class="eis-row-header">
+            <span class="eis-row-number">Eis {{ loop.index }}</span>
+            <span class="eis-row-name">{{ eis.name }}</span>
+        </div>
+
+        {# niveau cells (filtered by selected_niveaus) #}
+        {% set slug = badge.slug %}
+        {% for step in eis.steps if step.index in selected_niveaus %}
+        {% set step_index = step.index %}
+        {% set step_text = step.text %}
+        {% set entry = progress_map.get((level_index, step_index)) %}
+        {% set error = "" %}
+        {% include "partials/step_card.html" %}
+        {% endfor %}
+
         {% endfor %}
     </div>
 

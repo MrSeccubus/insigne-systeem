@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -24,7 +24,7 @@ def _partial(request: Request, name: str, **ctx):
 
 
 def _step_card(request, slug, level_index, level_name, step_index, step_text, entry, previous_mentors=None, error=""):
-    return _partial(
+    response = _partial(
         request, "step_card.html",
         slug=slug,
         level_index=level_index,
@@ -35,12 +35,38 @@ def _step_card(request, slug, level_index, level_name, step_index, step_text, en
         previous_mentors=previous_mentors or [],
         error=error,
     )
+    response.headers["HX-Trigger"] = "niveau-updated"
+    return response
+
+
+# ── Niveau progress checks (HTMX partial) ────────────────────────────────────
+
+@router.get("/badges/{slug}/niveau-checks/{niveau_index}", response_class=HTMLResponse)
+async def niveau_checks(request: Request, slug: str, niveau_index: int, db: Session = Depends(get_db)):
+    current_user = _get_current_user(request, db)
+    badge = get_badge(_DATA_DIR, slug)
+    if badge is None:
+        return HTMLResponse("")
+
+    progress_map: dict[tuple[int, int], ProgressEntry] = {}
+    if current_user:
+        for entry in progress_svc.list_progress(db, current_user.id, badge_slug=slug):
+            progress_map[(entry.level_index, entry.step_index)] = entry
+
+    return _partial(
+        request, "niveau_checks.html",
+        slug=slug,
+        niveau_index=niveau_index,
+        n_eisen=len(badge["levels"]),
+        progress_map=progress_map,
+        style=None,
+    )
 
 
 # ── Badge detail ──────────────────────────────────────────────────────────────
 
 @router.get("/badges/{slug}", response_class=HTMLResponse)
-async def badge_detail(request: Request, slug: str, db: Session = Depends(get_db)):
+async def badge_detail(request: Request, slug: str, niveau: int | None = Query(None), db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)
     badge = get_badge(_DATA_DIR, slug)
     if badge is None:
@@ -55,14 +81,28 @@ async def badge_detail(request: Request, slug: str, db: Session = Depends(get_db
             progress_map[(entry.level_index, entry.step_index)] = entry
         previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
 
+    n_eisen = len(badge["levels"])
     for i, level in enumerate(badge["levels"]):
         total = len(level["steps"])
         completed = sum(
             1 for step in level["steps"]
             if progress_map.get((i, step["index"])) and
-               progress_map[(i, step["index"])].status == "completed"
+               progress_map[(i, step["index"])].status == "signed_off"
         )
         level_stats.append({"completed": completed, "total": total})
+
+    # Per-niveau: how many of the 5 eisen are completed at each niveau
+    niveau_stats = [
+        {
+            "completed": sum(
+                1 for eis_idx in range(n_eisen)
+                if progress_map.get((eis_idx, niveau_idx)) and
+                   progress_map[(eis_idx, niveau_idx)].status == "signed_off"
+            ),
+            "total": n_eisen,
+        }
+        for niveau_idx in range(3)
+    ]
 
     return _TEMPLATES.TemplateResponse(
         request=request,
@@ -73,6 +113,8 @@ async def badge_detail(request: Request, slug: str, db: Session = Depends(get_db
             "progress_map": progress_map,
             "previous_mentors": previous_mentors,
             "level_stats": level_stats,
+            "niveau_stats": niveau_stats,
+            "selected_niveaus": [niveau - 1] if niveau in (1, 2, 3) else [0, 1, 2],
         },
     )
 
@@ -85,6 +127,7 @@ async def log_step(
     slug: str,
     level_index: int = Form(...),
     step_index: int = Form(...),
+    status: str = Form("in_progress"),
     notes: str = Form(""),
     db: Session = Depends(get_db),
 ):
@@ -97,12 +140,16 @@ async def log_step(
     step_text = level["steps"][step_index]["text"]
     previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
 
+    if status not in ("in_progress", "work_done"):
+        status = "in_progress"
+
     try:
-        entry = progress_svc.create_progress(
+        entry = progress_svc.log_progress(
             db, current_user.id,
             badge_slug=slug,
             level_index=level_index,
             step_index=step_index,
+            status=status,
             notes=notes.strip() or None,
         )
     except progress_svc.Conflict:
@@ -149,7 +196,12 @@ async def request_signoff(
             flush=True,
         )
     except progress_svc.Conflict as exc:
-        error = "Deze stap is al afgetekend." if str(exc) == "already_completed" else "Dit e-mailadres is al uitgenodigd."
+        if str(exc) == "already_signed_off":
+            error = "Deze stap is al afgetekend."
+        elif str(exc) == "not_work_done":
+            error = "Je kunt pas aftekening aanvragen als je de stap als 'Klaar' hebt gemeld."
+        else:
+            error = "Dit e-mailadres is al uitgenodigd."
         db.refresh(entry)
     except progress_svc.NotFound:
         return RedirectResponse(url="/", status_code=303)

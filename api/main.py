@@ -41,26 +41,33 @@ async def index(request: Request, db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)
 
     all_badges = list_badges(DATA_DIR)
-    badge_stats: dict[str, dict] = {}
     signoff_count = 0
+    completed_set: set[tuple[str, int, int]] = set()
 
     if current_user:
-        all_entries = progress_svc.list_progress(db, current_user.id)
-        completed_by_slug: dict[str, int] = {}
-        for entry in all_entries:
-            if entry.status == "completed":
-                completed_by_slug[entry.badge_slug] = completed_by_slug.get(entry.badge_slug, 0) + 1
-
-        for badges in all_badges.values():
-            for badge in badges:
-                detail = get_badge(DATA_DIR, badge["slug"])
-                total = sum(len(level["steps"]) for level in detail["levels"])
-                badge_stats[badge["slug"]] = {
-                    "total": total,
-                    "completed": completed_by_slug.get(badge["slug"], 0),
-                }
-
+        for entry in progress_svc.list_progress(db, current_user.id):
+            if entry.status == "signed_off":
+                completed_set.add((entry.badge_slug, entry.level_index, entry.step_index))
         signoff_count = len(progress_svc.list_signoff_requests(db, current_user.id))
+
+    # Enrich each badge with 3 niveau cards (one per a/b/c sub-task level)
+    for badges in all_badges.values():
+        for badge in badges:
+            detail = get_badge(DATA_DIR, badge["slug"])
+            n_eisen = len(detail["levels"])  # always 5
+            badge["level_cards"] = [
+                {
+                    "index": niveau_idx,
+                    "name": f"Niveau {niveau_idx + 1}",
+                    "image": f"/images/{badge['slug']}.{niveau_idx + 1}.png",
+                    "total": n_eisen,
+                    "completed": sum(
+                        1 for eis_idx in range(n_eisen)
+                        if (badge["slug"], eis_idx, niveau_idx) in completed_set
+                    ),
+                }
+                for niveau_idx in range(3)
+            ]
 
     return templates.TemplateResponse(
         request=request,
@@ -68,7 +75,6 @@ async def index(request: Request, db: Session = Depends(get_db)):
         context={
             "current_user": current_user,
             "all_badges": all_badges,
-            "badge_stats": badge_stats,
             "signoff_count": signoff_count,
         },
     )

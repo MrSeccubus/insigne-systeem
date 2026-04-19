@@ -1,125 +1,165 @@
 {% set _status = entry.status if entry else "none" %}
 <div id="step-{{ slug }}-{{ level_index }}-{{ step_index }}"
-     class="step-card{% if entry %} status-{{ entry.status }}{% endif %}">
+     data-entry-id="{{ entry.id if entry else '' }}"
+     class="step-card"
+     :class="'status-' + status"
+     x-data='stepCard(
+         {{ _status | tojson }},
+         {{ (entry.notes or "") | tojson }},
+         {{ (entry.id if entry else "") | tojson }},
+         {{ slug | tojson }},
+         {{ level_index }},
+         {{ step_index }}
+     )'>
 
     <div class="step-header">
-        <span class="step-number">{{ step_index + 1 }}</span>
+        <span class="step-number">N{{ step_index + 1 }}</span>
         <div class="step-text">{{ step_text }}</div>
-        {% if entry %}
-            {% if entry.status == "completed" %}
-                <span class="step-badge step-badge-completed">✓ Afgetekend</span>
-            {% elif entry.status == "pending_signoff" %}
-                <span class="step-badge step-badge-pending">⏳ Wacht op aftekening</span>
-            {% else %}
-                <span class="step-badge step-badge-open">Bezig</span>
+        <span :class="'step-check step-check-' + status"
+              :title="({'signed_off':'Afgetekend','pending_signoff':'Wacht op aftekening','work_done':'Klaar gemeld','in_progress':'Bezig','none':'Niet gestart'})[status] || 'Niet gestart'">
+            <span x-text="status === 'signed_off' ? '✓' : (status === 'pending_signoff' ? '?' : '')"></span>
+        </span>
+    </div>
+
+    {# ── signed_off — server-rendered, only present when card loads in this state ── #}
+    {% if _status == "signed_off" %}
+    <p class="step-signoff-info">
+        ✓ Afgetekend door {{ entry.signed_off_by.name or entry.signed_off_by.email }}
+        op {{ entry.signed_off_at.strftime("%d-%m-%Y") }}
+    </p>
+    {% endif %}
+
+    {# ── pending_signoff — server-rendered, only present when card loads in this state ── #}
+    {% if _status == "pending_signoff" %}
+    <div>
+        {% if entry.notes %}
+        <div class="step-notes"><span>{{ entry.notes }}</span></div>
+        {% endif %}
+        <p class="step-mentor-list">
+            Wacht op aftekening van:
+            {% for sr in entry.signoff_requests %}
+                {{ sr.mentor.name or sr.mentor.email }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+        </p>
+        {% if current_user %}
+        <button type="button" class="btn-secondary btn-sm" @click="signoffOpen = !signoffOpen">
+            Nog iemand uitnodigen
+        </button>
+        <form x-show="signoffOpen" x-cloak
+              class="inline-form"
+              :hx-post="'/progress/' + entryId + '/request-signoff'"
+              hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+              hx-swap="outerHTML">
+            {% if previous_mentors %}
+            <div class="mentor-suggestions">
+                <span class="field-hint">Eerder:</span>
+                {% for mentor in previous_mentors %}
+                <button type="button" class="mentor-chip"
+                        @click="mentorEmail = '{{ mentor.email }}'">
+                    {{ mentor.name or mentor.email }}
+                </button>
+                {% endfor %}
+            </div>
             {% endif %}
+            <input type="email" name="mentor_email" x-model="mentorEmail"
+                   placeholder="e-mail van (bege-)leider" required>
+            <button type="submit" class="btn-secondary btn-sm">Versturen</button>
+        </form>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# ── work_done — Alpine-driven ── #}
+    <div x-show="status === 'work_done'">
+        <div x-show="notes" class="step-notes">
+            <span x-text="notes"></span>
+        </div>
+        {% if error %}
+        <p class="form-error" style="font-size:0.85rem;padding:0.4rem 0.6rem;">{{ error }}</p>
+        {% endif %}
+        {% if current_user %}
+        <div class="step-actions">
+            <button type="button" class="btn-primary btn-sm" @click="signoffOpen = !signoffOpen">
+                Aftekening aanvragen
+            </button>
+            <button type="button" class="btn-secondary btn-sm" @click="remove()">
+                Verwijderen
+            </button>
+        </div>
+        <form x-show="signoffOpen" x-cloak
+              class="inline-form"
+              :hx-post="'/progress/' + entryId + '/request-signoff'"
+              hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+              hx-swap="outerHTML">
+            {% if previous_mentors %}
+            <div class="mentor-suggestions">
+                <span class="field-hint">Eerder:</span>
+                {% for mentor in previous_mentors %}
+                <button type="button" class="mentor-chip"
+                        @click="mentorEmail = '{{ mentor.email }}'">
+                    {{ mentor.name or mentor.email }}
+                </button>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <input type="email" name="mentor_email" x-model="mentorEmail"
+                   placeholder="e-mail van (bege-)leider" required>
+            <button type="submit" class="btn-secondary btn-sm">Versturen</button>
+        </form>
         {% endif %}
     </div>
 
-    {% if entry %}
-        {% if entry.notes %}
-        <div class="step-notes">{{ entry.notes }}</div>
-        {% endif %}
-
-        {% if entry.status == "completed" %}
-            <p class="step-signoff-info">
-                ✓ Afgetekend door {{ entry.signed_off_by.name or entry.signed_off_by.email }}
-                op {{ entry.signed_off_at.strftime("%d-%m-%Y") }}
-            </p>
-
-        {% elif entry.status == "pending_signoff" %}
-            <p class="step-mentor-list">
-                Wacht op aftekening van:
-                {% for sr in entry.signoff_requests %}
-                    {{ sr.mentor.name or sr.mentor.email }}{% if not loop.last %}, {% endif %}
-                {% endfor %}
-            </p>
+    {# ── in_progress — Alpine-driven ── #}
+    <div x-show="status === 'in_progress'">
+        <div x-show="notes && !editing" class="step-notes">
+            <span x-text="notes"></span>
             {% if current_user %}
-            <div x-data="{ open: false, mentor_email: '' }">
-                <button type="button" class="btn-secondary btn-sm" @click="open = !open">
-                    Nog iemand uitnodigen
-                </button>
-                <form x-show="open" x-cloak
-                      class="inline-form"
-                      hx-post="/progress/{{ entry.id }}/request-signoff"
-                      hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
-                      hx-swap="outerHTML">
-                    {% if previous_mentors %}
-                    <div class="mentor-suggestions">
-                        <span class="field-hint">Eerder:</span>
-                        {% for mentor in previous_mentors %}
-                        <button type="button" class="mentor-chip"
-                                @click="mentor_email = '{{ mentor.email }}'">
-                            {{ mentor.name or mentor.email }}
-                        </button>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                    <input type="email" name="mentor_email" x-model="mentor_email"
-                           placeholder="e-mail van (bege-)leider" required>
-                    <button type="submit" class="btn-secondary btn-sm">Versturen</button>
-                </form>
-            </div>
-            {% endif %}
-
-        {% else %}
-            {# open status #}
-            {% if error %}
-            <p class="form-error" style="font-size:0.85rem;padding:0.4rem 0.6rem;">{{ error }}</p>
-            {% endif %}
-            {% if current_user %}
-            <div class="step-actions" x-data="{ open: false, mentor_email: '' }">
-                <button type="button" class="btn-secondary btn-sm" @click="open = !open">
-                    Aftekening aanvragen
-                </button>
-                <form hx-post="/progress/{{ entry.id }}/delete"
-                      hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
-                      hx-swap="outerHTML">
-                    <button type="submit" class="btn-danger-link">Verwijderen</button>
-                </form>
-            </div>
-            <form x-show="open" x-cloak
-                  class="inline-form"
-                  hx-post="/progress/{{ entry.id }}/request-signoff"
-                  hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
-                  hx-swap="outerHTML">
-                {% if previous_mentors %}
-                <div class="mentor-suggestions">
-                    <span class="field-hint">Eerder:</span>
-                    {% for mentor in previous_mentors %}
-                    <button type="button" class="mentor-chip"
-                            @click="mentor_email = '{{ mentor.email }}'">
-                        {{ mentor.name or mentor.email }}
-                    </button>
-                    {% endfor %}
-                </div>
-                {% endif %}
-                <input type="email" name="mentor_email" x-model="mentor_email"
-                       placeholder="e-mail van (bege-)leider" required>
-                <button type="submit" class="btn-secondary btn-sm">Versturen</button>
-            </form>
-            {% endif %}
-        {% endif %}
-
-    {% else %}
-        {# Not started #}
-        {% if current_user %}
-        <div x-data="{ open: false }">
-            <button type="button" class="btn-secondary btn-sm" @click="open = !open">
-                Voortgang loggen
+            <button type="button" class="btn-icon" @click="editing = true" title="Notitie bewerken">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
             </button>
-            <form x-show="open" x-cloak
-                  class="inline-form"
-                  hx-post="/badges/{{ slug }}/log"
-                  hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
-                  hx-swap="outerHTML">
-                <input type="hidden" name="level_index" value="{{ level_index }}">
-                <input type="hidden" name="step_index" value="{{ step_index }}">
-                <textarea name="notes" placeholder="Notities (optioneel)"></textarea>
-                <button type="submit" class="btn-secondary btn-sm">Opslaan</button>
-            </form>
+            {% endif %}
+        </div>
+        {% if current_user %}
+        <textarea x-show="editing" x-cloak x-model="notes"
+                  placeholder="Notities (optioneel)"></textarea>
+        <div class="step-actions">
+            <button type="button" class="btn-secondary btn-sm"
+                    x-show="notes || editing"
+                    @click="editing ? cancelEdit() : (editing = true)"
+                    x-text="editing ? 'Annuleren' : 'Notities bewerken'">Notities bewerken</button>
+            <button type="button" class="btn-secondary btn-sm"
+                    x-show="editing" x-cloak
+                    @click="save('in_progress')">Opslaan</button>
+            <button type="button" class="btn-secondary btn-sm"
+                    @click="remove()">Ik ben toch niet bezig</button>
+            <button type="button" class="btn-secondary btn-sm"
+                    @click="save('work_done')">Ik ben klaar</button>
         </div>
         {% endif %}
-    {% endif %}
+    </div>
+
+    {# ── none / not started — Alpine-driven ── #}
+    <div x-show="status === 'none' || status === ''">
+        {% if current_user %}
+        <div x-show="!showNotePrompt" class="step-actions">
+            <button type="button" class="btn-secondary btn-sm"
+                    @click="prompt('in_progress')">Ik ben bezig</button>
+            <button type="button" class="btn-secondary btn-sm"
+                    @click="prompt('work_done')">Ik ben klaar</button>
+        </div>
+        <div x-show="showNotePrompt" x-cloak class="inline-form">
+            <textarea x-model="notes" placeholder="Notities (optioneel)"></textarea>
+            <div class="step-actions">
+                <button type="button" class="btn-secondary btn-sm"
+                        @click="cancelPrompt()">Annuleren</button>
+                <button type="button" class="btn-secondary btn-sm"
+                        @click="save()">Opslaan</button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
 
 </div>

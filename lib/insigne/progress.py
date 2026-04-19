@@ -217,14 +217,10 @@ def reject_signoff(db: Session, mentor_id: str, entry_id: str, message: str) -> 
         mentor_name=mentor.name or mentor.email,
         message=message,
     ))
-    db.delete(request)
-    db.flush()
-
-    remaining = db.query(SignoffRequest).filter(
+    db.query(SignoffRequest).filter(
         SignoffRequest.progress_entry_id == entry_id
-    ).count()
-    if remaining == 0:
-        entry.status = "work_done"
+    ).delete()
+    entry.status = "work_done"
 
     db.commit()
     db.refresh(entry)

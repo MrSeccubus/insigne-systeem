@@ -1,7 +1,7 @@
 import pytest
 
 from insigne import progress as progress_svc
-from insigne.models import ConfirmationToken, ProgressEntry, SignoffRequest, User
+from insigne.models import ConfirmationToken, ProgressEntry, SignoffRejection, SignoffRequest, User
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -345,6 +345,82 @@ class TestConfirmSignoff:
         mentor = _active_user(db, "mentor@example.com")
         with pytest.raises(progress_svc.NotFound):
             progress_svc.confirm_signoff(db, mentor.id, "nonexistent")
+
+
+# ── reject_signoff ───────────────────────────────────────────────────────────
+
+class TestRejectSignoff:
+    def _invite(self, db, scout, mentor, e):
+        db.add(SignoffRequest(progress_entry_id=e.id, mentor_id=mentor.id))
+        e.status = "pending_signoff"
+        db.commit()
+
+    def test_reverts_entry_to_work_done(self, db):
+        scout = _active_user(db)
+        mentor = _active_user(db, "mentor@example.com", "Leider Piet")
+        e = _entry(db, scout)
+        self._invite(db, scout, mentor, e)
+        progress_svc.reject_signoff(db, mentor.id, e.id, "Nog niet af")
+        db.refresh(e)
+        assert e.status == "work_done"
+
+    def test_creates_rejection_record(self, db):
+        scout = _active_user(db)
+        mentor = _active_user(db, "mentor@example.com", "Leider Piet")
+        e = _entry(db, scout)
+        self._invite(db, scout, mentor, e)
+        progress_svc.reject_signoff(db, mentor.id, e.id, "Nog niet af")
+        rejection = db.query(SignoffRejection).filter_by(progress_entry_id=e.id).first()
+        assert rejection is not None
+        assert rejection.message == "Nog niet af"
+        assert rejection.mentor_name == "Leider Piet"
+
+    def test_removes_all_signoff_requests(self, db):
+        scout = _active_user(db)
+        mentor = _active_user(db, "mentor@example.com", "Leider Piet")
+        other_mentor = _active_user(db, "other@example.com", "Leider Klaas")
+        e = _entry(db, scout)
+        self._invite(db, scout, mentor, e)
+        db.add(SignoffRequest(progress_entry_id=e.id, mentor_id=other_mentor.id))
+        db.commit()
+        progress_svc.reject_signoff(db, mentor.id, e.id, "Nog niet af")
+        assert db.query(SignoffRequest).filter_by(progress_entry_id=e.id).count() == 0
+
+    def test_reverts_to_work_done_even_with_multiple_mentors(self, db):
+        scout = _active_user(db)
+        mentor = _active_user(db, "mentor@example.com", "Leider Piet")
+        other_mentor = _active_user(db, "other@example.com", "Leider Klaas")
+        e = _entry(db, scout)
+        self._invite(db, scout, mentor, e)
+        db.add(SignoffRequest(progress_entry_id=e.id, mentor_id=other_mentor.id))
+        db.commit()
+        progress_svc.reject_signoff(db, mentor.id, e.id, "Nog niet af")
+        db.refresh(e)
+        assert e.status == "work_done"
+
+    def test_raises_forbidden_if_not_invited(self, db):
+        scout = _active_user(db)
+        mentor = _active_user(db, "mentor@example.com")
+        uninvited = _active_user(db, "uninvited@example.com")
+        e = _entry(db, scout)
+        self._invite(db, scout, mentor, e)
+        with pytest.raises(progress_svc.Forbidden):
+            progress_svc.reject_signoff(db, uninvited.id, e.id, "Nope")
+
+    def test_raises_conflict_if_already_signed_off(self, db):
+        scout = _active_user(db)
+        mentor = _active_user(db, "mentor@example.com")
+        e = _entry(db, scout)
+        e.status = "signed_off"
+        e.signed_off_by_id = mentor.id
+        db.commit()
+        with pytest.raises(progress_svc.Conflict):
+            progress_svc.reject_signoff(db, mentor.id, e.id, "Te laat")
+
+    def test_raises_not_found_for_unknown_entry(self, db):
+        mentor = _active_user(db, "mentor@example.com")
+        with pytest.raises(progress_svc.NotFound):
+            progress_svc.reject_signoff(db, mentor.id, "nonexistent", "Nope")
 
 
 # ── list_signoff_requests ─────────────────────────────────────────────────────

@@ -51,12 +51,12 @@ class TestListProgress:
     def test_filter_by_status(self, db):
         scout = _active_user(db)
         e = _entry(db, scout)
-        e.status = "completed"
+        e.status = "signed_off"
         db.commit()
         _entry(db, scout, step_index=1)
-        completed = progress_svc.list_progress(db, scout.id, status="completed")
-        assert len(completed) == 1
-        assert completed[0].status == "completed"
+        signed_off = progress_svc.list_progress(db, scout.id, status="signed_off")
+        assert len(signed_off) == 1
+        assert signed_off[0].status == "signed_off"
 
     def test_returns_newest_first(self, db):
         scout = _active_user(db)
@@ -73,7 +73,7 @@ class TestCreateProgress:
         scout = _active_user(db)
         entry = progress_svc.create_progress(db, scout.id, badge_slug="cybersecurity", level_index=0, step_index=0)
         assert entry.id is not None
-        assert entry.status == "open"
+        assert entry.status == "in_progress"
 
     def test_stores_notes(self, db):
         scout = _active_user(db)
@@ -92,7 +92,7 @@ class TestCreateProgress:
     def test_raises_conflict_if_step_already_completed(self, db):
         scout = _active_user(db)
         e = _entry(db, scout)
-        e.status = "completed"
+        e.status = "signed_off"
         db.commit()
         with pytest.raises(progress_svc.Conflict):
             progress_svc.create_progress(db, scout.id, badge_slug="cybersecurity", level_index=0, step_index=0)
@@ -100,7 +100,7 @@ class TestCreateProgress:
     def test_different_steps_do_not_conflict(self, db):
         scout = _active_user(db)
         e = _entry(db, scout, step_index=0)
-        e.status = "completed"
+        e.status = "signed_off"
         db.commit()
         entry = progress_svc.create_progress(db, scout.id, badge_slug="cybersecurity", level_index=0, step_index=1)
         assert entry is not None
@@ -148,7 +148,7 @@ class TestUpdateProgress:
     def test_raises_forbidden_when_completed(self, db):
         scout = _active_user(db)
         e = _entry(db, scout)
-        e.status = "completed"
+        e.status = "signed_off"
         db.commit()
         with pytest.raises(progress_svc.Forbidden):
             progress_svc.update_progress(db, scout.id, e.id, notes="updated")
@@ -181,7 +181,7 @@ class TestDeleteProgress:
     def test_raises_forbidden_when_completed(self, db):
         scout = _active_user(db)
         e = _entry(db, scout)
-        e.status = "completed"
+        e.status = "signed_off"
         db.commit()
         with pytest.raises(progress_svc.Forbidden):
             progress_svc.delete_progress(db, scout.id, e.id)
@@ -201,6 +201,8 @@ class TestRequestSignoff:
         scout = _active_user(db)
         mentor = _active_user(db, "mentor@example.com", "Leider Piet")
         e = _entry(db, scout)
+        e.status = "work_done"
+        db.commit()
         progress_svc.request_signoff(db, scout.id, e.id, "mentor@example.com")
         assert db.query(SignoffRequest).filter_by(progress_entry_id=e.id).count() == 1
 
@@ -208,6 +210,8 @@ class TestRequestSignoff:
         scout = _active_user(db)
         _active_user(db, "mentor@example.com", "Leider Piet")
         e = _entry(db, scout)
+        e.status = "work_done"
+        db.commit()
         progress_svc.request_signoff(db, scout.id, e.id, "mentor@example.com")
         db.refresh(e)
         assert e.status == "pending_signoff"
@@ -215,6 +219,8 @@ class TestRequestSignoff:
     def test_creates_pending_user_for_unknown_mentor(self, db):
         scout = _active_user(db)
         e = _entry(db, scout)
+        e.status = "work_done"
+        db.commit()
         _, mentor, created = progress_svc.request_signoff(db, scout.id, e.id, "new@example.com")
         assert created is True
         assert mentor.status == "pending"
@@ -223,18 +229,24 @@ class TestRequestSignoff:
         scout = _active_user(db)
         _active_user(db, "mentor@example.com")
         e = _entry(db, scout)
+        e.status = "work_done"
+        db.commit()
         _, mentor, created = progress_svc.request_signoff(db, scout.id, e.id, "mentor@example.com")
         assert created is False
 
     def test_normalises_mentor_email(self, db):
         scout = _active_user(db)
         e = _entry(db, scout)
+        e.status = "work_done"
+        db.commit()
         _, mentor, _ = progress_svc.request_signoff(db, scout.id, e.id, "  MENTOR@EXAMPLE.COM  ")
         assert mentor.email == "mentor@example.com"
 
     def test_multiple_mentors_can_be_invited(self, db):
         scout = _active_user(db)
         e = _entry(db, scout)
+        e.status = "work_done"
+        db.commit()
         progress_svc.request_signoff(db, scout.id, e.id, "mentor1@example.com")
         progress_svc.request_signoff(db, scout.id, e.id, "mentor2@example.com")
         assert db.query(SignoffRequest).filter_by(progress_entry_id=e.id).count() == 2
@@ -242,6 +254,8 @@ class TestRequestSignoff:
     def test_raises_conflict_if_mentor_already_invited(self, db):
         scout = _active_user(db)
         e = _entry(db, scout)
+        e.status = "work_done"
+        db.commit()
         progress_svc.request_signoff(db, scout.id, e.id, "mentor@example.com")
         with pytest.raises(progress_svc.Conflict):
             progress_svc.request_signoff(db, scout.id, e.id, "mentor@example.com")
@@ -249,7 +263,7 @@ class TestRequestSignoff:
     def test_raises_conflict_if_entry_completed(self, db):
         scout = _active_user(db)
         e = _entry(db, scout)
-        e.status = "completed"
+        e.status = "signed_off"
         db.commit()
         with pytest.raises(progress_svc.Conflict):
             progress_svc.request_signoff(db, scout.id, e.id, "mentor@example.com")
@@ -277,7 +291,7 @@ class TestConfirmSignoff:
         self._invite(db, scout, mentor, e)
         progress_svc.confirm_signoff(db, mentor.id, e.id)
         db.refresh(e)
-        assert e.status == "completed"
+        assert e.status == "signed_off"
 
     def test_records_signed_off_by(self, db):
         scout = _active_user(db)
@@ -321,7 +335,7 @@ class TestConfirmSignoff:
         scout = _active_user(db)
         mentor = _active_user(db, "mentor@example.com")
         e = _entry(db, scout)
-        e.status = "completed"
+        e.status = "signed_off"
         e.signed_off_by_id = mentor.id
         db.commit()
         with pytest.raises(progress_svc.Conflict):
@@ -351,7 +365,7 @@ class TestListSignoffRequests:
         mentor = _active_user(db, "mentor@example.com")
         e = _entry(db, scout)
         db.add(SignoffRequest(progress_entry_id=e.id, mentor_id=mentor.id))
-        e.status = "completed"
+        e.status = "signed_off"
         db.commit()
         assert progress_svc.list_signoff_requests(db, mentor.id) == []
 
@@ -373,7 +387,7 @@ class TestListPreviousMentors:
         scout = _active_user(db)
         mentor = _active_user(db, "mentor@example.com")
         e = _entry(db, scout)
-        e.status = "completed"
+        e.status = "signed_off"
         e.signed_off_by_id = mentor.id
         db.commit()
         result = progress_svc.list_previous_mentors(db, scout.id)
@@ -385,7 +399,7 @@ class TestListPreviousMentors:
         mentor = _active_user(db, "mentor@example.com")
         for i in range(3):
             e = _entry(db, scout, step_index=i)
-            e.status = "completed"
+            e.status = "signed_off"
             e.signed_off_by_id = mentor.id
         db.commit()
         result = progress_svc.list_previous_mentors(db, scout.id)

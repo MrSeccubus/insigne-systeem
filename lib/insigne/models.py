@@ -62,7 +62,7 @@ class ProgressEntry(Base):
     level_index: Mapped[int] = mapped_column(Integer, nullable=False)
     step_index: Mapped[int] = mapped_column(Integer, nullable=False)
     notes: Mapped[str | None] = mapped_column(String, nullable=True)
-    status: Mapped[str] = mapped_column(String, nullable=False, default="open")
+    status: Mapped[str] = mapped_column(String, nullable=False, default="in_progress")
     signed_off_by_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id"), nullable=True
     )

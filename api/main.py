@@ -7,19 +7,23 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 import insigne.models  # noqa: F401 — registers all ORM classes on Base.metadata
+from insigne import progress as progress_svc
+from insigne.badges import get_badge, list_badges
 from insigne.database import Base, engine, get_db
-from routers import api_auth, api_badges, api_progress, api_users, users
+from routers import api_auth, api_badges, api_progress, api_users, html_badges, users
 from routers.users import _get_current_user
 
 BASE_DIR = Path(__file__).parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
-IMAGES_DIR = Path(__file__).parent / "data" / "images"
+DATA_DIR = Path(__file__).parent / "data"
+IMAGES_DIR = DATA_DIR / "images"
 
 app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
 
 app.include_router(users.router)
+app.include_router(html_badges.router)
 app.include_router(api_users.router, prefix="/api")
 app.include_router(api_auth.router, prefix="/api")
 app.include_router(api_progress.router, prefix="/api")
@@ -29,15 +33,50 @@ IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="static")
 app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 templates = Jinja2Templates(directory=FRONTEND_DIR / "templates")
+templates.env.globals["current_user"] = None
 
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)
+
+    all_badges = list_badges(DATA_DIR)
+    signoff_count = 0
+    completed_set: set[tuple[str, int, int]] = set()
+
+    if current_user:
+        for entry in progress_svc.list_progress(db, current_user.id):
+            if entry.status == "signed_off":
+                completed_set.add((entry.badge_slug, entry.level_index, entry.step_index))
+        signoff_count = len(progress_svc.list_signoff_requests(db, current_user.id))
+
+    # Enrich each badge with 3 niveau cards (one per a/b/c sub-task level)
+    for badges in all_badges.values():
+        for badge in badges:
+            detail = get_badge(DATA_DIR, badge["slug"])
+            n_eisen = len(detail["levels"])  # always 5
+            badge["level_cards"] = [
+                {
+                    "index": niveau_idx,
+                    "name": f"Niveau {niveau_idx + 1}",
+                    "image": f"/images/{badge['slug']}.{niveau_idx + 1}.png",
+                    "total": n_eisen,
+                    "completed": sum(
+                        1 for eis_idx in range(n_eisen)
+                        if (badge["slug"], eis_idx, niveau_idx) in completed_set
+                    ),
+                }
+                for niveau_idx in range(3)
+            ]
+
     return templates.TemplateResponse(
         request=request,
         name="index.html",
-        context={"current_user": current_user},
+        context={
+            "current_user": current_user,
+            "all_badges": all_badges,
+            "signoff_count": signoff_count,
+        },
     )
 
 

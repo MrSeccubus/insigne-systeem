@@ -5,6 +5,11 @@ import pytest
 from insigne.badges import get_badge, list_badges
 
 FIXTURES = Path(__file__).parent / "fixtures"
+DATA_DIR = Path(__file__).parent.parent / "api" / "data"
+
+
+def _all_slugs(data_dir: Path) -> list[str]:
+    return [p.stem for p in (data_dir / "badges").glob("*.yml")]
 
 
 # ── list_badges ──────────────────────────────────────────────────────────────
@@ -167,3 +172,21 @@ class TestGetBadge:
             "Delen",
             "Meester worden",
         ]
+
+
+# ── Badge structure validation (runs against real api/data/) ─────────────────
+
+@pytest.mark.parametrize("slug", _all_slugs(DATA_DIR))
+class TestBadgeStructure:
+    def test_has_five_eisen(self, slug):
+        badge = get_badge(DATA_DIR, slug)
+        assert len(badge["levels"]) == 5, (
+            f"{slug}: verwacht 5 eisen, gevonden {len(badge['levels'])}"
+        )
+
+    def test_each_eis_has_three_niveaus(self, slug):
+        badge = get_badge(DATA_DIR, slug)
+        for eis in badge["levels"]:
+            assert len(eis["steps"]) == 3, (
+                f"{slug} / '{eis['name']}': verwacht 3 niveaus, gevonden {len(eis['steps'])}"
+            )

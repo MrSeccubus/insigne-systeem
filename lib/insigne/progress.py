@@ -32,6 +32,52 @@ def list_progress(
     return q.order_by(ProgressEntry.created_at.desc()).all()
 
 
+def log_progress(
+    db: Session,
+    user_id: str,
+    *,
+    badge_slug: str,
+    level_index: int,
+    step_index: int,
+    status: str,
+    notes: str | None = None,
+) -> ProgressEntry:
+    """Create or update a progress entry.
+
+    status must be 'in_progress' or 'work_done'.
+    Raises Conflict if the entry is already pending_signoff or signed_off.
+    """
+    if status not in ("in_progress", "work_done"):
+        raise ValueError(f"Invalid status: {status}")
+
+    existing = db.query(ProgressEntry).filter(
+        ProgressEntry.user_id == user_id,
+        ProgressEntry.badge_slug == badge_slug,
+        ProgressEntry.level_index == level_index,
+        ProgressEntry.step_index == step_index,
+    ).first()
+
+    if existing:
+        if existing.status in ("pending_signoff", "signed_off"):
+            raise Conflict(existing.status)
+        existing.status = status
+        existing.notes = notes
+        db.commit()
+        return existing
+
+    entry = ProgressEntry(
+        user_id=user_id,
+        badge_slug=badge_slug,
+        level_index=level_index,
+        step_index=step_index,
+        status=status,
+        notes=notes,
+    )
+    db.add(entry)
+    db.commit()
+    return entry
+
+
 def create_progress(
     db: Session,
     user_id: str,
@@ -41,31 +87,18 @@ def create_progress(
     step_index: int,
     notes: str | None = None,
 ) -> ProgressEntry:
-    """Log a completed step. Raises Conflict if the step is already completed."""
-    existing = db.query(ProgressEntry).filter(
-        ProgressEntry.user_id == user_id,
-        ProgressEntry.badge_slug == badge_slug,
-        ProgressEntry.level_index == level_index,
-        ProgressEntry.step_index == step_index,
-        ProgressEntry.status == "completed",
-    ).first()
-    if existing:
-        raise Conflict("already_completed")
-
-    entry = ProgressEntry(
-        user_id=user_id,
+    """JSON API compatibility wrapper — creates an in_progress entry."""
+    return log_progress(
+        db, user_id,
         badge_slug=badge_slug,
         level_index=level_index,
         step_index=step_index,
+        status="in_progress",
         notes=notes,
     )
-    db.add(entry)
-    db.commit()
-    return entry
 
 
 def get_progress(db: Session, user_id: str, entry_id: str) -> ProgressEntry:
-    """Raises NotFound if the entry doesn't exist or isn't owned by user_id."""
     entry = db.query(ProgressEntry).filter(
         ProgressEntry.id == entry_id,
         ProgressEntry.user_id == user_id,
@@ -76,20 +109,18 @@ def get_progress(db: Session, user_id: str, entry_id: str) -> ProgressEntry:
 
 
 def update_progress(db: Session, user_id: str, entry_id: str, *, notes: str | None) -> ProgressEntry:
-    """Update notes. Raises Forbidden if the entry is already completed."""
     entry = get_progress(db, user_id, entry_id)
-    if entry.status == "completed":
-        raise Forbidden("entry_completed")
+    if entry.status == "signed_off":
+        raise Forbidden("entry_signed_off")
     entry.notes = notes
     db.commit()
     return entry
 
 
 def delete_progress(db: Session, user_id: str, entry_id: str) -> None:
-    """Delete entry. Raises Forbidden if the entry is already completed."""
     entry = get_progress(db, user_id, entry_id)
-    if entry.status == "completed":
-        raise Forbidden("entry_completed")
+    if entry.status == "signed_off":
+        raise Forbidden("entry_signed_off")
     db.delete(entry)
     db.commit()
 
@@ -99,9 +130,9 @@ def request_signoff(
 ) -> tuple[ProgressEntry, User, bool]:
     """Invite a mentor to sign off a progress entry.
 
-    Returns (entry, mentor, created) where created=True means the mentor had
-    no account and was just created as a pending user.
-    Raises NotFound, Conflict("already_completed"), Conflict("already_invited").
+    Only allowed when the entry status is 'work_done' or already 'pending_signoff'.
+    Raises NotFound, Conflict("not_work_done"), Conflict("already_invited"),
+    Conflict("already_signed_off").
     """
     entry = db.query(ProgressEntry).filter(
         ProgressEntry.id == entry_id,
@@ -109,8 +140,10 @@ def request_signoff(
     ).first()
     if entry is None:
         raise NotFound("entry_not_found")
-    if entry.status == "completed":
-        raise Conflict("already_completed")
+    if entry.status == "signed_off":
+        raise Conflict("already_signed_off")
+    if entry.status not in ("work_done", "pending_signoff"):
+        raise Conflict("not_work_done")
 
     mentor_email = mentor_email.strip().lower()
     mentor = db.query(User).filter(User.email == mentor_email).first()
@@ -135,17 +168,12 @@ def request_signoff(
 
 
 def confirm_signoff(db: Session, mentor_id: str, entry_id: str) -> ProgressEntry:
-    """Confirm sign-off as the authenticated mentor.
-
-    Marks the entry completed, records the mentor, and removes all pending
-    sign-off requests for this entry.
-    Raises NotFound, Forbidden("not_invited"), Conflict("already_completed").
-    """
+    """Confirm sign-off as the authenticated mentor."""
     entry = db.query(ProgressEntry).filter(ProgressEntry.id == entry_id).first()
     if entry is None:
         raise NotFound("entry_not_found")
-    if entry.status == "completed":
-        raise Conflict("already_completed")
+    if entry.status == "signed_off":
+        raise Conflict("already_signed_off")
 
     request = db.query(SignoffRequest).filter(
         SignoffRequest.progress_entry_id == entry_id,
@@ -154,11 +182,10 @@ def confirm_signoff(db: Session, mentor_id: str, entry_id: str) -> ProgressEntry
     if request is None:
         raise Forbidden("not_invited")
 
-    entry.status = "completed"
+    entry.status = "signed_off"
     entry.signed_off_by_id = mentor_id
     entry.signed_off_at = datetime.now(timezone.utc)
 
-    # Remove all sign-off requests for this entry — no longer pending
     db.query(SignoffRequest).filter(
         SignoffRequest.progress_entry_id == entry_id
     ).delete()
@@ -169,18 +196,16 @@ def confirm_signoff(db: Session, mentor_id: str, entry_id: str) -> ProgressEntry
 
 
 def list_signoff_requests(db: Session, mentor_id: str) -> list[SignoffRequest]:
-    """Return open sign-off requests for the authenticated mentor."""
     return (
         db.query(SignoffRequest)
         .filter(SignoffRequest.mentor_id == mentor_id)
         .join(SignoffRequest.progress_entry)
-        .filter(ProgressEntry.status != "completed")
+        .filter(ProgressEntry.status != "signed_off")
         .all()
     )
 
 
 def list_previous_mentors(db: Session, user_id: str) -> list[User]:
-    """Return deduplicated mentors who signed off this scout, most recent first."""
     entries = (
         db.query(ProgressEntry)
         .filter(

@@ -1,0 +1,31 @@
+{% if confirmed is defined %}
+    {# Response after confirming — show brief success then remove #}
+    {% if confirmed %}
+    <div class="signoff-card" x-data x-init="setTimeout(() => $el.remove(), 1500)">
+        <p class="signoff-confirmed">✓ Afgetekend!</p>
+    </div>
+    {% else %}
+    <div class="signoff-card">
+        <p class="form-error" style="font-size:0.85rem;margin:0;">{{ error }}</p>
+    </div>
+    {% endif %}
+{% else %}
+    {# Normal render (initial page load) #}
+    <div id="request-{{ req.entry_id }}" class="signoff-card">
+        <div class="signoff-card-header">
+            <span class="signoff-scout">{{ req.scout_name }}</span>
+        </div>
+        <p class="signoff-badge-info">{{ req.badge_title }} › {{ req.level_name }}</p>
+        <div class="signoff-step-text">{{ req.step_text }}</div>
+        {% if req.notes %}
+        <p class="signoff-notes">"{{ req.notes }}"</p>
+        {% endif %}
+        <form hx-post="/progress/{{ req.entry_id }}/confirm-signoff"
+              hx-target="#request-{{ req.entry_id }}"
+              hx-swap="outerHTML">
+            <button type="submit" class="btn-primary" style="width:auto;padding:0.5rem 1.25rem;">
+                Aftekenen
+            </button>
+        </form>
+    </div>
+{% endif %}

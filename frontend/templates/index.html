@@ -1,19 +1,58 @@
 {% extends "base.html" %}
 
-{% block title %}Home — Insigne Systeem{% endblock %}
+{% block title %}Insigne Systeem{% endblock %}
 
 {% block content %}
 <main>
-    <h1>Insigne Systeem</h1>
+    {% if current_user %}
+        <h1>Welkom terug, {{ current_user.name }}!</h1>
 
-    <section x-data="{ open: false }">
-        <button @click="open = !open">Toggle (Alpine.js)</button>
-        <p x-show="open">Alpine.js is working.</p>
-    </section>
+        {% if signoff_count > 0 %}
+        <div class="notification-bar">
+            Je hebt <strong>{{ signoff_count }} afteken{{ 'verzoek' if signoff_count == 1 else 'verzoeken' }}</strong> die op je wachten.
+            <a href="/signoff-requests">Bekijken →</a>
+        </div>
+        {% endif %}
+    {% else %}
+        <h1>Insigne Systeem</h1>
+        <p style="color:#555;margin-bottom:2rem;">Volg je voortgang voor Scouting insignes en vraag aftekening aan bij je (bege-)leiders.</p>
+    {% endif %}
 
-    <section>
-        <button hx-get="/ping" hx-target="#ping-result">Ping API (HTMX)</button>
-        <div id="ping-result"></div>
-    </section>
+    {% set category_labels = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes"} %}
+
+    {% for category, badges in all_badges.items() %}
+    <h2 class="section-header">{{ category_labels.get(category, category ~ ' insignes') }}</h2>
+
+    {% for badge in badges %}
+    <h3 class="badge-group-title"><a href="/badges/{{ badge.slug }}">{{ badge.title }}</a></h3>
+    <div class="badge-grid">
+        {% for card in badge.level_cards %}
+        <a href="/badges/{{ badge.slug }}?niveau={{ card.index + 1 }}" class="badge-card">
+            <img src="{{ card.image }}" alt="{{ badge.title }} {{ card.name }}"
+                 class="badge-card-image"
+                 onerror="this.style.display='none'">
+            <h3 class="badge-card-level">{{ card.name }}</h3>
+            {% if current_user %}
+                {% set pct = ((card.completed / card.total) * 100) | int if card.total > 0 else 0 %}
+                <div class="progress-bar-wrap">
+                    <div class="progress-bar-fill" style="width: {{ pct }}%"></div>
+                </div>
+                <div class="progress-label">{{ card.completed }} van {{ card.total }} eisen afgerond</div>
+            {% else %}
+                <div class="progress-label">Bekijk de eisen →</div>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+    {% endfor %}
+
+    {% if not current_user %}
+    <div style="margin-top:2rem;display:flex;gap:1rem;">
+        <a href="/register" class="btn-primary" style="width:auto;padding:0.6rem 1.5rem;text-decoration:none;display:inline-block;">Account aanmaken</a>
+        <a href="/login" class="btn-secondary" style="text-decoration:none;display:inline-block;">Inloggen</a>
+    </div>
+    {% endif %}
 </main>
 {% endblock %}

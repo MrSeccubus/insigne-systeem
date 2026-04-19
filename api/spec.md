@@ -563,7 +563,7 @@ These shapes are derived from YAML files at runtime — they are not stored in t
 | `level_index` | integer | Zero-based level index (0–4) |
 | `step_index` | integer | Zero-based step index within the level (0–2) |
 | `notes` | string | Scout's notes |
-| `status` | string | `open` \| `pending_signoff` \| `completed` |
+| `status` | string | `open` \| `in_progress` \| `pending_signoff` \| `signed-off` |
 | `pending_mentors` | `{user_id, name}`[] | Users with an outstanding sign-off request |
 | `signed_off_by` | `{user_id, name}` \| null | User who signed off |
 | `signed_off_at` | datetime \| null | When it was signed off |

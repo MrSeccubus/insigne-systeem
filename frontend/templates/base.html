@@ -6,6 +6,80 @@
     <title>{% block title %}Insigne Systeem{% endblock %}</title>
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('stepCard', (initStatus, initNotes, initEntryId, slug, levelIndex, stepIndex) => ({
+            status: initStatus,
+            notes: initNotes,
+            savedNotes: initNotes,
+            entryId: initEntryId,
+            editing: false,
+            showNotePrompt: false,
+            pendingStatus: '',
+            signoffOpen: false,
+            mentorEmail: '',
+
+            prompt(newStatus) {
+                this.pendingStatus = newStatus;
+                this.notes = '';
+                this.showNotePrompt = true;
+            },
+
+            cancelPrompt() {
+                this.showNotePrompt = false;
+                this.notes = this.savedNotes;
+                this.pendingStatus = '';
+            },
+
+            cancelEdit() {
+                this.editing = false;
+                this.notes = this.savedNotes;
+            },
+
+            async save(newStatus) {
+                const targetStatus = newStatus !== undefined ? newStatus : this.pendingStatus;
+                const prevStatus = this.status;
+                this.status = targetStatus;
+                this.showNotePrompt = false;
+                this.editing = false;
+
+                const fd = new FormData();
+                fd.append('level_index', levelIndex);
+                fd.append('step_index', stepIndex);
+                fd.append('status', targetStatus);
+                fd.append('notes', this.notes);
+
+                try {
+                    const r = await fetch(`/badges/${slug}/log`, { method: 'POST', body: fd });
+                    if (!r.ok) { this.status = prevStatus; return; }
+                    this.savedNotes = this.notes;
+                    if (!this.entryId) {
+                        const html = await r.text();
+                        const m = html.match(/data-entry-id="([a-z0-9-]+)"/);
+                        if (m) this.entryId = m[1];
+                    }
+                } catch (e) { this.status = prevStatus; return; }
+
+                htmx.trigger(document.body, 'niveau-updated');
+            },
+
+            async remove() {
+                if (!this.entryId) return;
+                const id = this.entryId;
+                const prev = { status: this.status, notes: this.notes, savedNotes: this.savedNotes, entryId: this.entryId };
+                this.status = 'none';
+                this.entryId = '';
+                this.notes = '';
+                this.savedNotes = '';
+                try {
+                    const r = await fetch(`/progress/${id}/delete`, { method: 'POST' });
+                    if (!r.ok) { Object.assign(this, prev); return; }
+                } catch (e) { Object.assign(this, prev); return; }
+                htmx.trigger(document.body, 'niveau-updated');
+            }
+        }));
+    });
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
 </head>
 <body>
@@ -14,6 +88,7 @@
         <nav class="site-nav">
             {% if current_user %}
                 <a href="/" class="nav-username">{{ current_user.name }}</a>
+                <a href="/signoff-requests">Aftekeningen</a>
                 <a href="/profile">Mijn profiel</a>
                 <form method="post" action="/logout" class="nav-logout-form">
                     <button type="submit">Uitloggen</button>

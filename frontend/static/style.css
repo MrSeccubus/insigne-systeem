@@ -10,12 +10,12 @@ body {
     line-height: 1.6;
     color: #1a1a1a;
     background: #f5f5f5;
-    padding: 2rem;
 }
 
 main {
     max-width: 800px;
     margin: 0 auto;
+    padding: 2rem;
 }
 
 h1 {
@@ -26,6 +26,78 @@ section {
     margin-bottom: 1.5rem;
 }
 
+/* Header & nav */
+.site-header {
+    background: #fff;
+    border-bottom: 3px solid #00A651;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2rem;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.site-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #00A651;
+    text-decoration: none;
+    letter-spacing: -0.01em;
+}
+
+.site-title:hover {
+    color: #008a44;
+}
+
+.site-nav {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.site-nav a {
+    color: #333;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.site-nav a:hover {
+    color: #00A651;
+}
+
+.nav-username {
+    font-weight: 500;
+    font-size: 0.95rem;
+    color: #333;
+}
+
+.nav-logout-form {
+    margin: 0;
+}
+
+.nav-logout-form button {
+    padding: 0.35rem 0.9rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    color: #333;
+    font-weight: 500;
+}
+
+.nav-logout-form button:hover {
+    border-color: #00A651;
+    color: #00A651;
+    background: #fff;
+}
+
+/* Generic buttons */
 button {
     padding: 0.4rem 1rem;
     font-size: 0.95rem;
@@ -41,7 +113,7 @@ button:hover {
 
 /* Auth pages */
 .auth-page {
-    min-height: 100vh;
+    min-height: calc(100vh - 64px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -51,15 +123,18 @@ button:hover {
 .auth-card {
     background: #fff;
     border: 1px solid #ddd;
-    border-radius: 8px;
+    border-top: 3px solid #00A651;
+    border-radius: 4px;
     padding: 2rem;
     width: 100%;
     max-width: 400px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
 .auth-card h1 {
     margin-bottom: 1.5rem;
-    font-size: 1.5rem;
+    font-size: 1.4rem;
+    color: #1a1a1a;
 }
 
 /* Form elements */
@@ -84,7 +159,7 @@ button:hover {
 }
 
 .field input:focus {
-    outline: 2px solid #555;
+    outline: 2px solid #00A651;
     outline-offset: 1px;
     border-color: transparent;
 }
@@ -108,12 +183,12 @@ button:hover {
     cursor: pointer;
     border: none;
     border-radius: 4px;
-    background: #1a1a1a;
+    background: #00A651;
     color: #fff;
 }
 
 .btn-primary:hover {
-    background: #333;
+    background: #008a44;
 }
 
 .form-error {
@@ -130,4 +205,58 @@ button:hover {
     color: #555;
     font-size: 0.95rem;
     margin-bottom: 1.2rem;
+}
+
+.form-success {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    color: #166534;
+    border-radius: 4px;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.field-password {
+    position: relative;
+}
+
+.field-password input {
+    padding-right: 5rem;
+}
+
+.btn-show-password {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 0.2rem 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #00A651;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-show-password:hover {
+    background: none;
+    text-decoration: underline;
+}
+
+.auth-footer {
+    margin-top: 1.25rem;
+    font-size: 0.88rem;
+    color: #666;
+    text-align: center;
+}
+
+.auth-footer a {
+    color: #00A651;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.auth-footer a:hover {
+    text-decoration: underline;
 }

@@ -111,7 +111,10 @@ def activate_account(db: Session, setup_token: str, password: str, name: str = "
 
     user = db.get(User, token.user_id)
     is_new = user.status == "pending"
-    user.name = name.strip() or _local_part(user.email)
+    if name.strip():
+        user.name = name.strip()
+    elif is_new:
+        user.name = _local_part(user.email)
     user.password_hash = hash_password(password)
     user.status = "active"
     token.used_at = now

@@ -5,10 +5,15 @@ from pathlib import Path
 from urllib.parse import quote_plus
 
 from jinja2 import ChoiceLoader, Environment, FileSystemLoader
+from markupsafe import Markup, escape
 
 from .config import config
 
 _DEFAULT_TEMPLATES = Path(__file__).parent / "email_templates"
+
+
+def _nl2br(value: str) -> Markup:
+    return Markup(escape(value).replace("\n", Markup("<br>\n")))
 
 
 def _env() -> Environment:
@@ -16,7 +21,9 @@ def _env() -> Environment:
     if config.email.templates_dir:
         loaders.append(FileSystemLoader(config.email.templates_dir))
     loaders.append(FileSystemLoader(str(_DEFAULT_TEMPLATES)))
-    return Environment(loader=ChoiceLoader(loaders), autoescape=True)
+    env = Environment(loader=ChoiceLoader(loaders), autoescape=True)
+    env.filters["nl2br"] = _nl2br
+    return env
 
 
 def _send_smtp(to: str, subject: str, html: str) -> None:
@@ -99,3 +106,41 @@ def send_mentor_signoff_request_email(to: str, scout_name: str, badge_title: str
          step_text=step_text,
          notes=notes,
          signoff_url=signoff_url)
+
+
+def send_scout_signed_off_email(to: str, scout_name: str, badge_slug: str, badge_title: str, niveau_number: int, level_name: str, step_text: str, mentor_name: str, mentor_comment: str | None = None) -> None:
+    badge_url = f"{config.base_url}/badges/{badge_slug}?niveau={niveau_number}"
+    send(to, "scout_step_signed_off",
+         email=to,
+         scout_name=scout_name,
+         badge_title=badge_title,
+         niveau_number=niveau_number,
+         level_name=level_name,
+         step_text=step_text,
+         mentor_name=mentor_name,
+         mentor_comment=mentor_comment,
+         badge_url=badge_url)
+
+
+def send_scout_rejected_email(to: str, scout_name: str, badge_title: str, niveau_number: int, level_name: str, step_text: str, mentor_name: str, message: str) -> None:
+    badge_url = f"{config.base_url}/badges"
+    send(to, "scout_step_rejected",
+         email=to,
+         scout_name=scout_name,
+         badge_title=badge_title,
+         niveau_number=niveau_number,
+         level_name=level_name,
+         step_text=step_text,
+         mentor_name=mentor_name,
+         message=message,
+         badge_url=badge_url)
+
+
+def send_scout_niveau_completed_email(to: str, scout_name: str, badge_title: str, niveau_number: int) -> None:
+    badge_url = f"{config.base_url}/badges"
+    send(to, "scout_niveau_completed",
+         email=to,
+         scout_name=scout_name,
+         badge_title=badge_title,
+         niveau_number=niveau_number,
+         badge_url=badge_url)

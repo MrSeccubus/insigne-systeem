@@ -1,0 +1,1 @@
+Gefeliciteerd! Je hebt Niveau {{ niveau_number }} van {{ badge_title }} voltooid!

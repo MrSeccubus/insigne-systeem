@@ -19,10 +19,10 @@
               <p style="margin:0 0 0.5rem;font-size:0.85rem;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Niveau</p>
               <p style="margin:0 0 1rem;font-weight:600;color:#1a1a1a;">Niveau {{ niveau_number }}</p>
               <p style="margin:0 0 0.5rem;font-size:0.85rem;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Opdracht/eis</p>
-              <p style="margin:0 {% if notes %}0 1rem{% endif %};color:#333;line-height:1.5;">{{ step_text }}</p>
+              <p style="margin:0 {% if notes %}0 1rem{% endif %};color:#333;line-height:1.5;">{{ step_text | nl2br }}</p>
               {% if notes %}
               <p style="margin:0 0 0.5rem;font-size:0.85rem;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Notities van de scout</p>
-              <p style="margin:0;color:#333;line-height:1.5;white-space:pre-line;">{{ notes }}</p>
+              <p style="margin:0;color:#333;line-height:1.5;">{{ notes | nl2br }}</p>
               {% endif %}
             </td></tr>
           </table>

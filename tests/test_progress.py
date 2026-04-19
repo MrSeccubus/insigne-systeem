@@ -347,6 +347,62 @@ class TestConfirmSignoff:
             progress_svc.confirm_signoff(db, mentor.id, "nonexistent")
 
 
+# ── cancel_signoff_requests ───────────────────────────────────────────────────
+
+class TestCancelSignoffRequests:
+    def _invite(self, db, scout, mentor, e):
+        db.add(SignoffRequest(progress_entry_id=e.id, mentor_id=mentor.id))
+        e.status = "pending_signoff"
+        db.commit()
+
+    def test_reverts_entry_to_work_done(self, db):
+        scout = _active_user(db)
+        mentor = _active_user(db, "mentor@example.com")
+        e = _entry(db, scout)
+        self._invite(db, scout, mentor, e)
+        progress_svc.cancel_signoff_requests(db, scout.id, e.id)
+        db.refresh(e)
+        assert e.status == "work_done"
+
+    def test_removes_all_signoff_requests(self, db):
+        scout = _active_user(db)
+        mentor1 = _active_user(db, "mentor1@example.com")
+        mentor2 = _active_user(db, "mentor2@example.com")
+        e = _entry(db, scout)
+        self._invite(db, scout, mentor1, e)
+        db.add(SignoffRequest(progress_entry_id=e.id, mentor_id=mentor2.id))
+        db.commit()
+        progress_svc.cancel_signoff_requests(db, scout.id, e.id)
+        assert db.query(SignoffRequest).filter_by(progress_entry_id=e.id).count() == 0
+
+    def test_raises_not_found_for_wrong_user(self, db):
+        scout = _active_user(db)
+        other = _active_user(db, "other@example.com")
+        mentor = _active_user(db, "mentor@example.com")
+        e = _entry(db, scout)
+        self._invite(db, scout, mentor, e)
+        with pytest.raises(progress_svc.NotFound):
+            progress_svc.cancel_signoff_requests(db, other.id, e.id)
+
+    def test_raises_forbidden_when_signed_off(self, db):
+        scout = _active_user(db)
+        mentor = _active_user(db, "mentor@example.com")
+        e = _entry(db, scout)
+        e.status = "signed_off"
+        e.signed_off_by_id = mentor.id
+        db.commit()
+        with pytest.raises(progress_svc.Forbidden):
+            progress_svc.cancel_signoff_requests(db, scout.id, e.id)
+
+    def test_raises_conflict_when_not_pending(self, db):
+        scout = _active_user(db)
+        e = _entry(db, scout)
+        e.status = "work_done"
+        db.commit()
+        with pytest.raises(progress_svc.Conflict):
+            progress_svc.cancel_signoff_requests(db, scout.id, e.id)
+
+
 # ── reject_signoff ───────────────────────────────────────────────────────────
 
 class TestRejectSignoff:

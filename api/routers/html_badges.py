@@ -8,7 +8,13 @@ from sqlalchemy.orm import Session
 from insigne import progress as progress_svc
 from insigne.badges import get_badge
 from insigne.database import get_db
-from insigne.email import send_mentor_signoff_invite_email, send_mentor_signoff_request_email
+from insigne.email import (
+    send_mentor_signoff_invite_email,
+    send_mentor_signoff_request_email,
+    send_scout_niveau_completed_email,
+    send_scout_rejected_email,
+    send_scout_signed_off_email,
+)
 from insigne.models import ProgressEntry
 
 from routers.users import _get_current_user
@@ -217,6 +223,38 @@ async def request_signoff(
     return _step_card(request, entry.badge_slug, entry.level_index, level["name"], entry.step_index, step_text, entry, previous_mentors, error=error, current_user=current_user)
 
 
+# ── Cancel sign-off requests ─────────────────────────────────────────────────
+
+@router.post("/progress/{entry_id}/cancel-signoff", response_class=HTMLResponse)
+async def cancel_signoff(
+    request: Request,
+    entry_id: str,
+    db: Session = Depends(get_db),
+):
+    current_user = _get_current_user(request, db)
+    if current_user is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    entry = db.query(ProgressEntry).filter(
+        ProgressEntry.id == entry_id,
+        ProgressEntry.user_id == current_user.id,
+    ).first()
+    if entry is None:
+        return RedirectResponse(url="/", status_code=303)
+
+    badge = get_badge(_DATA_DIR, entry.badge_slug)
+    level = badge["levels"][entry.level_index]
+    step_text = level["steps"][entry.step_index]["text"]
+    previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
+
+    try:
+        entry = progress_svc.cancel_signoff_requests(db, current_user.id, entry_id)
+    except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict):
+        db.refresh(entry)
+
+    return _step_card(request, entry.badge_slug, entry.level_index, level["name"], entry.step_index, step_text, entry, previous_mentors, current_user=current_user)
+
+
 # ── Delete entry ──────────────────────────────────────────────────────────────
 
 @router.post("/progress/{entry_id}/delete", response_class=HTMLResponse)
@@ -316,9 +354,49 @@ async def confirm_signoff(
         return RedirectResponse(url="/login", status_code=303)
 
     try:
-        progress_svc.confirm_signoff(db, current_user.id, entry_id, comment=comment.strip() or None)
+        entry = progress_svc.confirm_signoff(db, current_user.id, entry_id, comment=comment.strip() or None)
         confirmed = True
         error = ""
+
+        scout = entry.user
+        badge = get_badge(_DATA_DIR, entry.badge_slug)
+        level = badge["levels"][entry.level_index]
+        step_text = level["steps"][entry.step_index]["text"]
+        mentor_name = current_user.name or current_user.email
+
+        try:
+            send_scout_signed_off_email(
+                scout.email,
+                scout.name or scout.email,
+                entry.badge_slug,
+                badge["title"],
+                entry.step_index + 1,
+                level["name"],
+                step_text,
+                mentor_name,
+                mentor_comment=entry.mentor_comment,
+            )
+        except Exception:
+            pass
+
+        n_eisen = len(badge["levels"])
+        signed_count = db.query(ProgressEntry).filter(
+            ProgressEntry.user_id == entry.user_id,
+            ProgressEntry.badge_slug == entry.badge_slug,
+            ProgressEntry.step_index == entry.step_index,
+            ProgressEntry.status == "signed_off",
+        ).count()
+        if signed_count == n_eisen:
+            try:
+                send_scout_niveau_completed_email(
+                    scout.email,
+                    scout.name or scout.email,
+                    badge["title"],
+                    entry.step_index + 1,
+                )
+            except Exception:
+                pass
+
     except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict) as exc:
         confirmed = False
         error = "Kon niet aftekenen." if not isinstance(exc, progress_svc.Conflict) else "Al afgetekend."
@@ -338,7 +416,28 @@ async def reject_signoff(
         return RedirectResponse(url="/login", status_code=303)
 
     try:
-        progress_svc.reject_signoff(db, current_user.id, entry_id, message.strip())
+        entry = progress_svc.reject_signoff(db, current_user.id, entry_id, message.strip())
+
+        scout = entry.user
+        badge = get_badge(_DATA_DIR, entry.badge_slug)
+        level = badge["levels"][entry.level_index]
+        step_text = level["steps"][entry.step_index]["text"]
+        mentor_name = current_user.name or current_user.email
+
+        try:
+            send_scout_rejected_email(
+                scout.email,
+                scout.name or scout.email,
+                badge["title"],
+                entry.step_index + 1,
+                level["name"],
+                step_text,
+                mentor_name,
+                message.strip(),
+            )
+        except Exception:
+            pass
+
         return _partial(request, "signoff_request_item.html", entry_id=entry_id, confirmed=False, error="", rejected=True)
     except (progress_svc.NotFound, progress_svc.Forbidden) as exc:
         error = "Kon niet afwijzen."

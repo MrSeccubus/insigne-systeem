@@ -1,0 +1,14 @@
+base_url: "http://localhost:8000"
+
+database:
+  url: "sqlite:///:memory:"
+
+jwt:
+  secret_key: "test-secret-key-not-for-production"
+  algorithm: HS256
+  expire_days: 30
+
+email:
+  smtp_host: ""
+  from_address: "noreply@insigne.nl"
+  from_name: "Insigne Systeem"

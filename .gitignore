@@ -3,7 +3,7 @@ venv/
 __pycache__/
 *.pyc
 *.pyo
-config.yml
+/config.yml
 api/data/insigne.db
 api/data/insigne.db-shm
 api/data/insigne.db-wal

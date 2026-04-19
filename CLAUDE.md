@@ -35,6 +35,15 @@ Tables are created via `Base.metadata.create_all()` on startup.
 
 ## Structure
 - `api/` — FastAPI application (`api/main.py` is the entry point)
+- `lib/insigne/` — installable Python library containing all business logic
 - `frontend/templates/` — Jinja2 HTML templates
 - `frontend/static/` — CSS and static assets
+- `tests/` — pytest unit tests (library) and API tests (via TestClient)
 - `venv/` — Python 3.13 virtual environment (not committed)
+
+## Keeping the JSON API in sync with the library
+
+Every public function added to `lib/insigne/` must have a corresponding JSON API
+endpoint in `api/routers/` and at least one API-layer test in `tests/test_api_*.py`.
+The unit tests verify correctness of what exists but do not detect missing endpoints,
+so this is enforced by convention in code review.

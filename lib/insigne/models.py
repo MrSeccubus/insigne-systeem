@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -63,6 +63,7 @@ class ProgressEntry(Base):
     step_index: Mapped[int] = mapped_column(Integer, nullable=False)
     notes: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default="in_progress")
+    mentor_comment: Mapped[str | None] = mapped_column(String, nullable=True)
     signed_off_by_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id"), nullable=True
     )
@@ -76,6 +77,9 @@ class ProgressEntry(Base):
         foreign_keys=[signed_off_by_id], back_populates="signoffs_given"
     )
     signoff_requests: Mapped[list["SignoffRequest"]] = relationship(
+        back_populates="progress_entry", cascade="all, delete-orphan"
+    )
+    signoff_rejections: Mapped[list["SignoffRejection"]] = relationship(
         back_populates="progress_entry", cascade="all, delete-orphan"
     )
 
@@ -94,3 +98,17 @@ class SignoffRequest(Base):
 
     progress_entry: Mapped["ProgressEntry"] = relationship(back_populates="signoff_requests")
     mentor: Mapped["User"] = relationship(back_populates="signoff_requests")
+
+
+class SignoffRejection(Base):
+    __tablename__ = "signoff_rejections"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    progress_entry_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("progress_entries.id"), nullable=False, index=True
+    )
+    mentor_name: Mapped[str] = mapped_column(String, nullable=False)
+    message: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+
+    progress_entry: Mapped["ProgressEntry"] = relationship(back_populates="signoff_rejections")

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:system-ui,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:2rem 1rem;">
+    <tr><td align="center">
+      <table width="100%" style="max-width:520px;background:#fff;border-radius:4px;border:1px solid #ddd;border-top:3px solid #00A651;padding:2rem;">
+        <tr><td>
+          <h1 style="margin:0 0 1.5rem;font-size:1.4rem;color:#1a1a1a;">Aftekeningverzoek van {{ scout_name }}</h1>
+          <p style="margin:0 0 1rem;color:#333;line-height:1.6;">Hoi,</p>
+          <p style="margin:0 0 1rem;color:#333;line-height:1.6;">
+            Je ontvangt dit e-mailbericht omdat <strong>{{ scout_name }}</strong> jou heeft gevraagd
+            om een stap voor een scouting insigne af te tekenen.
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0"
+                 style="margin:1.5rem 0;background:#f9f9f9;border:1px solid #ddd;border-radius:4px;padding:1rem;">
+            <tr><td>
+              <p style="margin:0 0 0.5rem;font-size:0.85rem;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Insigne</p>
+              <p style="margin:0 0 1rem;font-weight:600;color:#1a1a1a;">{{ badge_title }}</p>
+              <p style="margin:0 0 0.5rem;font-size:0.85rem;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Niveau</p>
+              <p style="margin:0 0 1rem;font-weight:600;color:#1a1a1a;">Niveau {{ niveau_number }}</p>
+              <p style="margin:0 0 0.5rem;font-size:0.85rem;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Opdracht/eis</p>
+              <p style="margin:0 {% if notes %}0 1rem{% endif %};color:#333;line-height:1.5;">{{ step_text }}</p>
+              {% if notes %}
+              <p style="margin:0 0 0.5rem;font-size:0.85rem;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Notities van de scout</p>
+              <p style="margin:0;color:#333;line-height:1.5;white-space:pre-line;">{{ notes }}</p>
+              {% endif %}
+            </td></tr>
+          </table>
+          <p style="margin:0 0 1.5rem;color:#333;line-height:1.6;">
+            Om de stap af te tekenen, maak je eerst een account aan in het Insigne Systeem.
+            Daarna kun je het aftekeningverzoek bevestigen via de pagina <em>Aftekeningen</em>.
+          </p>
+          <div style="text-align:center;margin:0 0 1.5rem;">
+            <a href="{{ register_url }}"
+               style="display:inline-block;background:#00A651;color:#fff;text-decoration:none;
+                      font-weight:600;padding:0.75rem 2rem;border-radius:4px;font-size:1rem;">
+              Account aanmaken
+            </a>
+          </div>
+          <p style="margin:0 0 1.5rem;color:#555;font-size:0.85rem;text-align:center;">
+            Of open deze link in je browser:<br>
+            <a href="{{ register_url }}" style="color:#00A651;">{{ register_url }}</a>
+          </p>
+          <p style="margin:0;color:#888;font-size:0.85rem;">
+            Ken je {{ scout_name }} niet, of heb je dit verzoek niet verwacht?
+            Dan kun je dit e-mailbericht negeren.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

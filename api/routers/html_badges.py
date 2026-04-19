@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from insigne import progress as progress_svc
 from insigne.badges import get_badge
 from insigne.database import get_db
+from insigne.email import send_mentor_signoff_invite_email, send_mentor_signoff_request_email
 from insigne.models import ProgressEntry
 
 from routers.users import _get_current_user
@@ -171,6 +172,7 @@ async def request_signoff(
     request: Request,
     entry_id: str,
     mentor_email: str = Form(...),
+    notes: str = Form(""),
     db: Session = Depends(get_db),
 ):
     current_user = _get_current_user(request, db)
@@ -184,6 +186,10 @@ async def request_signoff(
     if entry is None:
         return RedirectResponse(url="/", status_code=303)
 
+    if entry.status not in ("pending_signoff", "signed_off"):
+        entry.notes = notes.strip() or None
+        db.commit()
+
     badge = get_badge(_DATA_DIR, entry.badge_slug)
     level = badge["levels"][entry.level_index]
     step_text = level["steps"][entry.step_index]["text"]
@@ -192,10 +198,11 @@ async def request_signoff(
     error = ""
     try:
         entry, mentor, created = progress_svc.request_signoff(db, current_user.id, entry_id, mentor_email)
-        print(
-            f"\n[DEV] {'Invitation' if created else 'Sign-off request'} → {mentor.email} for entry {entry.id}\n",
-            flush=True,
-        )
+        scout_name = current_user.name or current_user.email.split("@")[0]
+        if created:
+            send_mentor_signoff_invite_email(mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
+        else:
+            send_mentor_signoff_request_email(mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
     except progress_svc.Conflict as exc:
         if str(exc) == "already_signed_off":
             error = "Deze stap is al afgetekend."
@@ -246,6 +253,17 @@ async def delete_progress(
 
 # ── Sign-off requests (mentor view) ──────────────────────────────────────────
 
+@router.get("/signoff-requests/count", response_class=HTMLResponse)
+async def signoff_requests_count(request: Request, db: Session = Depends(get_db)):
+    current_user = _get_current_user(request, db)
+    if current_user is None:
+        return HTMLResponse("")
+    count = len(progress_svc.list_signoff_requests(db, current_user.id))
+    if count == 0:
+        return HTMLResponse("")
+    return HTMLResponse(f'<span class="nav-badge">({count})</span>')
+
+
 @router.get("/signoff-requests", response_class=HTMLResponse)
 async def signoff_requests_page(request: Request, db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)
@@ -253,6 +271,9 @@ async def signoff_requests_page(request: Request, db: Session = Depends(get_db))
         return RedirectResponse(url="/login", status_code=303)
 
     raw_requests = progress_svc.list_signoff_requests(db, current_user.id)
+
+    _nl_months = ["januari","februari","maart","april","mei","juni",
+                  "juli","augustus","september","oktober","november","december"]
 
     enriched = []
     for sr in raw_requests:
@@ -262,13 +283,18 @@ async def signoff_requests_page(request: Request, db: Session = Depends(get_db))
             continue
         level = badge["levels"][pe.level_index]
         step = level["steps"][pe.step_index]
+        _dt = sr.created_at
+        requested_at = f"{_dt.day} {_nl_months[_dt.month - 1]} {_dt.year} om {_dt.strftime('%H:%M')}"
         enriched.append({
             "entry_id": pe.id,
             "scout_name": pe.user.name or pe.user.email,
             "badge_title": badge["title"],
+            "niveau_number": pe.step_index + 1,
+            "level_number": pe.level_index + 1,
             "level_name": level["name"],
             "step_text": step["text"],
             "notes": pe.notes,
+            "requested_at": requested_at,
         })
 
     return _TEMPLATES.TemplateResponse(
@@ -282,6 +308,7 @@ async def signoff_requests_page(request: Request, db: Session = Depends(get_db))
 async def confirm_signoff(
     request: Request,
     entry_id: str,
+    comment: str = Form(""),
     db: Session = Depends(get_db),
 ):
     current_user = _get_current_user(request, db)
@@ -289,7 +316,7 @@ async def confirm_signoff(
         return RedirectResponse(url="/login", status_code=303)
 
     try:
-        progress_svc.confirm_signoff(db, current_user.id, entry_id)
+        progress_svc.confirm_signoff(db, current_user.id, entry_id, comment=comment.strip() or None)
         confirmed = True
         error = ""
     except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict) as exc:
@@ -297,3 +324,22 @@ async def confirm_signoff(
         error = "Kon niet aftekenen." if not isinstance(exc, progress_svc.Conflict) else "Al afgetekend."
 
     return _partial(request, "signoff_request_item.html", entry_id=entry_id, confirmed=confirmed, error=error)
+
+
+@router.post("/progress/{entry_id}/reject-signoff", response_class=HTMLResponse)
+async def reject_signoff(
+    request: Request,
+    entry_id: str,
+    message: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    current_user = _get_current_user(request, db)
+    if current_user is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    try:
+        progress_svc.reject_signoff(db, current_user.id, entry_id, message.strip())
+        return _partial(request, "signoff_request_item.html", entry_id=entry_id, confirmed=False, error="", rejected=True)
+    except (progress_svc.NotFound, progress_svc.Forbidden) as exc:
+        error = "Kon niet afwijzen."
+        return _partial(request, "signoff_request_item.html", entry_id=entry_id, confirmed=False, error=error)

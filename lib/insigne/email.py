@@ -75,3 +75,27 @@ def send_password_reset_email(to: str, naam: str, code: str) -> None:
 
 def send_welcome_email(to: str, naam: str) -> None:
     send(to, "welcome", email=to, naam=naam)
+
+
+def send_mentor_signoff_invite_email(to: str, scout_name: str, badge_title: str, niveau_number: int, step_text: str, notes: str | None = None) -> None:
+    register_url = f"{config.base_url}/register"
+    send(to, "mentor_signoff_invite",
+         email=to,
+         scout_name=scout_name,
+         badge_title=badge_title,
+         niveau_number=niveau_number,
+         step_text=step_text,
+         notes=notes,
+         register_url=register_url)
+
+
+def send_mentor_signoff_request_email(to: str, scout_name: str, badge_title: str, niveau_number: int, step_text: str, notes: str | None = None) -> None:
+    signoff_url = f"{config.base_url}/signoff-requests"
+    send(to, "mentor_signoff_request",
+         email=to,
+         scout_name=scout_name,
+         badge_title=badge_title,
+         niveau_number=niveau_number,
+         step_text=step_text,
+         notes=notes,
+         signoff_url=signoff_url)

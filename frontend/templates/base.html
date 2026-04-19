@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="nl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +9,21 @@
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
 </head>
 <body>
+    <header class="site-header">
+        <a class="site-title" href="/">Insigne Systeem</a>
+        <nav class="site-nav">
+            {% if current_user %}
+                <a href="/" class="nav-username">{{ current_user.name }}</a>
+                <a href="/profile">Mijn profiel</a>
+                <form method="post" action="/logout" class="nav-logout-form">
+                    <button type="submit">Uitloggen</button>
+                </form>
+            {% else %}
+                <a href="/login">Inloggen</a>
+                <a href="/register">Registreren</a>
+            {% endif %}
+        </nav>
+    </header>
     {% block content %}{% endblock %}
 </body>
 </html>

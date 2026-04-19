@@ -1,13 +1,15 @@
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
 
 import insigne.models  # noqa: F401 — registers all ORM classes on Base.metadata
-from insigne.database import Base, engine
+from insigne.database import Base, engine, get_db
 from routers import api_auth, api_badges, api_progress, api_users, users
+from routers.users import _get_current_user
 
 BASE_DIR = Path(__file__).parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -30,8 +32,13 @@ templates = Jinja2Templates(directory=FRONTEND_DIR / "templates")
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
-    return templates.TemplateResponse(request=request, name="index.html")
+async def index(request: Request, db: Session = Depends(get_db)):
+    current_user = _get_current_user(request, db)
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={"current_user": current_user},
+    )
 
 
 @app.get("/ping")

@@ -2,6 +2,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
+from urllib.parse import quote_plus
 
 from jinja2 import ChoiceLoader, Environment, FileSystemLoader
 
@@ -63,11 +64,13 @@ def send(to: str, template_name: str, **context) -> None:
 
 
 def send_registration_email(to: str, naam: str, code: str) -> None:
-    send(to, "registration", email=to, naam=naam, code=code)
+    confirm_url = f"{config.base_url}/register/confirm/{quote_plus(code)}"
+    send(to, "registration", email=to, naam=naam, code=code, confirm_url=confirm_url)
 
 
 def send_password_reset_email(to: str, naam: str, code: str) -> None:
-    send(to, "password_reset", email=to, naam=naam, code=code)
+    confirm_url = f"{config.base_url}/forgot-password/confirm/{quote_plus(code)}"
+    send(to, "password_reset", email=to, naam=naam, code=code, confirm_url=confirm_url)
 
 
 def send_welcome_email(to: str, naam: str) -> None:

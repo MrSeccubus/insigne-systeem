@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Inloggen — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main class="auth-page">
+    <div class="auth-card">
+        <h1>Inloggen</h1>
+        <div id="form-area">
+            {% include "partials/login_form.html" %}
+        </div>
+    </div>
+</main>
+{% endblock %}

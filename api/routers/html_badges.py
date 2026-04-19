@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from insigne import progress as progress_svc
 from insigne.badges import get_badge
 from insigne.database import get_db
+from insigne.email import send_mentor_signoff_invite_email
 from insigne.models import ProgressEntry
 
 from routers.users import _get_current_user
@@ -192,10 +193,9 @@ async def request_signoff(
     error = ""
     try:
         entry, mentor, created = progress_svc.request_signoff(db, current_user.id, entry_id, mentor_email)
-        print(
-            f"\n[DEV] {'Invitation' if created else 'Sign-off request'} → {mentor.email} for entry {entry.id}\n",
-            flush=True,
-        )
+        if created:
+            scout_name = current_user.name or current_user.email.split("@")[0]
+            send_mentor_signoff_invite_email(mentor.email, scout_name, badge["title"], step_text)
     except progress_svc.Conflict as exc:
         if str(exc) == "already_signed_off":
             error = "Deze stap is al afgetekend."

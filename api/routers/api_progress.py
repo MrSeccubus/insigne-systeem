@@ -1,10 +1,16 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, Response
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from insigne import progress as progress_svc
+from insigne.badges import get_badge
 from insigne.database import get_db
+from insigne.email import send_mentor_signoff_invite_email
 from insigne.models import ProgressEntry, SignoffRequest, User
+
+_DATA_DIR = Path(__file__).parent.parent / "data"
 
 from deps import get_current_user
 from schemas import (
@@ -147,9 +153,11 @@ async def request_signoff(
         raise HTTPException(status_code=409, detail=detail)
 
     if created:
-        print(f"\n[DEV] Invitation for new mentor {mentor.email} on entry {entry.id}\n", flush=True)
-    else:
-        print(f"\n[DEV] Sign-off request sent to {mentor.email} for entry {entry.id}\n", flush=True)
+        badge = get_badge(_DATA_DIR, entry.badge_slug)
+        level = badge["levels"][entry.level_index]
+        step_text = level["steps"][entry.step_index]["text"]
+        scout_name = current_user.name or current_user.email.split("@")[0]
+        send_mentor_signoff_invite_email(mentor.email, scout_name, badge["title"], step_text)
     return {"detail": "Sign-off request sent."}
 
 

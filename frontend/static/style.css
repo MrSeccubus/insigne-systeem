@@ -260,3 +260,420 @@ button:hover {
 .auth-footer a:hover {
     text-decoration: underline;
 }
+
+/* ── Badge grid ─────────────────────────────────────────────────────────── */
+
+.section-header {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 1rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 2px solid #00A651;
+}
+
+.badge-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+.badge-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 1.25rem;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.badge-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-color: #00A651;
+}
+
+.badge-card .badge-category {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #00A651;
+    margin-bottom: 0.4rem;
+}
+
+.badge-card h2 {
+    font-size: 1rem;
+    margin-bottom: 0.9rem;
+}
+
+.progress-bar-wrap {
+    background: #e5e7eb;
+    border-radius: 999px;
+    height: 7px;
+    overflow: hidden;
+    margin-bottom: 0.3rem;
+}
+
+.progress-bar-fill {
+    background: #00A651;
+    height: 100%;
+    border-radius: 999px;
+}
+
+.progress-label {
+    font-size: 0.78rem;
+    color: #666;
+}
+
+/* ── Badge detail ────────────────────────────────────────────────────────── */
+
+.breadcrumb {
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 1.25rem;
+}
+
+.breadcrumb a {
+    color: #00A651;
+    text-decoration: none;
+}
+
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.badge-header {
+    margin-bottom: 2rem;
+}
+
+.badge-header h1 {
+    font-size: 1.7rem;
+    margin-bottom: 0.25rem;
+}
+
+.badge-introduction {
+    color: #444;
+    line-height: 1.7;
+    white-space: pre-line;
+    border-left: 3px solid #00A651;
+    padding-left: 1rem;
+    margin-top: 1rem;
+    font-size: 0.95rem;
+}
+
+.badge-afterword {
+    color: #555;
+    font-size: 0.875rem;
+    line-height: 1.7;
+    padding: 1rem 1.25rem;
+    background: #f9fafb;
+    border-radius: 4px;
+    margin-top: 2rem;
+    white-space: pre-line;
+}
+
+/* ── Levels ──────────────────────────────────────────────────────────────── */
+
+.badge-levels {
+    margin-bottom: 1.5rem;
+}
+
+.level-section {
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+}
+
+.level-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1.1rem;
+    background: #f9fafb;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-align: left;
+    color: #1a1a1a;
+}
+
+.level-header:hover {
+    background: #f0fdf4;
+}
+
+.level-stats {
+    margin-left: auto;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #666;
+}
+
+.level-steps {
+    padding: 0.5rem;
+}
+
+/* ── Step cards ──────────────────────────────────────────────────────────── */
+
+.step-card {
+    border: 1px solid #e5e7eb;
+    border-left: 3px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 0.4rem;
+    background: #fff;
+}
+
+.step-card.status-open       { border-left-color: #f59e0b; }
+.step-card.status-pending_signoff { border-left-color: #3b82f6; }
+.step-card.status-completed  { border-left-color: #00A651; background: #f0fdf4; }
+
+.step-header {
+    display: flex;
+    gap: 0.7rem;
+    align-items: flex-start;
+    margin-bottom: 0.6rem;
+}
+
+.step-number {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #fff;
+    background: #ccc;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 0.2rem;
+}
+
+.status-open            .step-number { background: #f59e0b; }
+.status-pending_signoff .step-number { background: #3b82f6; }
+.status-completed       .step-number { background: #00A651; }
+
+.step-text {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    white-space: pre-line;
+    flex: 1;
+    color: #333;
+}
+
+.step-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+}
+
+.step-badge-open      { background: #fef3c7; color: #92400e; }
+.step-badge-pending   { background: #dbeafe; color: #1e40af; }
+.step-badge-completed { background: #dcfce7; color: #166534; }
+
+.step-notes {
+    font-size: 0.85rem;
+    color: #555;
+    background: #f9fafb;
+    border-radius: 4px;
+    padding: 0.45rem 0.7rem;
+    margin-bottom: 0.6rem;
+    white-space: pre-line;
+}
+
+.step-signoff-info {
+    font-size: 0.82rem;
+    color: #166534;
+    margin-top: 0.1rem;
+}
+
+.step-mentor-list {
+    font-size: 0.82rem;
+    color: #1e40af;
+    margin-bottom: 0.5rem;
+}
+
+.step-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.btn-secondary {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid #00A651;
+    border-radius: 4px;
+    background: #fff;
+    color: #00A651;
+}
+
+.btn-secondary:hover {
+    background: #f0fdf4;
+}
+
+.btn-sm {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.82rem;
+}
+
+.btn-danger-link {
+    background: none;
+    border: none;
+    color: #b91c1c;
+    font-size: 0.82rem;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.btn-danger-link:hover {
+    color: #7f1d1d;
+}
+
+/* ── Inline forms ────────────────────────────────────────────────────────── */
+
+.inline-form {
+    margin-top: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    max-width: 380px;
+}
+
+.inline-form input,
+.inline-form textarea {
+    font-size: 0.875rem;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: inherit;
+}
+
+.inline-form input:focus,
+.inline-form textarea:focus {
+    outline: 2px solid #00A651;
+    outline-offset: 1px;
+    border-color: transparent;
+}
+
+.inline-form textarea {
+    resize: vertical;
+    min-height: 56px;
+}
+
+.mentor-suggestions {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.mentor-chip {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.55rem;
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 999px;
+    cursor: pointer;
+    color: #166534;
+}
+
+.mentor-chip:hover {
+    background: #dcfce7;
+    border-color: #00A651;
+}
+
+/* ── Notifications ───────────────────────────────────────────────────────── */
+
+.notification-bar {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 4px;
+    padding: 0.7rem 1rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    color: #1e40af;
+}
+
+.notification-bar a {
+    color: #1e40af;
+    font-weight: 600;
+}
+
+/* ── Sign-off requests page ──────────────────────────────────────────────── */
+
+.signoff-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 1.1rem 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.signoff-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.4rem;
+}
+
+.signoff-scout {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.signoff-badge-info {
+    font-size: 0.8rem;
+    color: #888;
+    margin-bottom: 0.6rem;
+}
+
+.signoff-step-text {
+    font-size: 0.875rem;
+    color: #333;
+    white-space: pre-line;
+    line-height: 1.55;
+    background: #f9fafb;
+    padding: 0.5rem 0.7rem;
+    border-radius: 4px;
+    margin-bottom: 0.7rem;
+}
+
+.signoff-notes {
+    font-size: 0.82rem;
+    color: #555;
+    font-style: italic;
+    margin-bottom: 0.7rem;
+}
+
+.signoff-confirmed {
+    color: #166534;
+    font-weight: 500;
+    font-size: 0.95rem;
+    padding: 0.25rem 0;
+}
+
+.empty-state {
+    color: #666;
+    font-size: 0.9rem;
+    padding: 2rem;
+    text-align: center;
+    background: #f9fafb;
+    border-radius: 4px;
+}
+
+[x-cloak] { display: none !important; }

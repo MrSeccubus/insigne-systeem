@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}{{ badge.title }} — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main>
+    <nav class="breadcrumb">
+        <a href="/">Home</a> › {{ badge.title }}
+    </nav>
+
+    <header class="badge-header">
+        <div class="badge-category">{{ badge.category }}</div>
+        <h1>{{ badge.title }}</h1>
+        {% if badge.introduction %}
+        <div class="badge-introduction">{{ badge.introduction }}</div>
+        {% endif %}
+    </header>
+
+    {% if not current_user %}
+    <div class="notification-bar" style="margin-bottom:1.5rem;">
+        <a href="/login">Log in</a> of <a href="/register">maak een account aan</a> om je voortgang bij te houden.
+    </div>
+    {% endif %}
+
+    <div class="badge-levels">
+        {% for level in badge.levels %}
+        {% set level_index = loop.index0 %}
+        {% set level_name = level.name %}
+        {% set stats = level_stats[level_index] %}
+        <section class="level-section" x-data="{ open: {{ 'true' if loop.first else 'false' }} }">
+            <button type="button" class="level-header" @click="open = !open">
+                <span>{{ loop.index }}. {{ level.name }}</span>
+                {% if current_user %}
+                <span class="level-stats">{{ stats.completed }}/{{ stats.total }}</span>
+                {% endif %}
+                <span style="font-size:0.75rem;color:#888;" x-text="open ? '▲' : '▼'"></span>
+            </button>
+            <div class="level-steps" x-show="open" x-cloak>
+                {% for step in level.steps %}
+                {% set step_index = step.index %}
+                {% set step_text = step.text %}
+                {% set entry = progress_map.get((level_index, step_index)) %}
+                {% set error = "" %}
+                {% include "partials/step_card.html" %}
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    </div>
+
+    {% if badge.afterword %}
+    <div class="badge-afterword">{{ badge.afterword }}</div>
+    {% endif %}
+</main>
+{% endblock %}

@@ -1,0 +1,125 @@
+{% set _status = entry.status if entry else "none" %}
+<div id="step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+     class="step-card{% if entry %} status-{{ entry.status }}{% endif %}">
+
+    <div class="step-header">
+        <span class="step-number">{{ step_index + 1 }}</span>
+        <div class="step-text">{{ step_text }}</div>
+        {% if entry %}
+            {% if entry.status == "completed" %}
+                <span class="step-badge step-badge-completed">✓ Afgetekend</span>
+            {% elif entry.status == "pending_signoff" %}
+                <span class="step-badge step-badge-pending">⏳ Wacht op aftekening</span>
+            {% else %}
+                <span class="step-badge step-badge-open">Bezig</span>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    {% if entry %}
+        {% if entry.notes %}
+        <div class="step-notes">{{ entry.notes }}</div>
+        {% endif %}
+
+        {% if entry.status == "completed" %}
+            <p class="step-signoff-info">
+                ✓ Afgetekend door {{ entry.signed_off_by.name or entry.signed_off_by.email }}
+                op {{ entry.signed_off_at.strftime("%d-%m-%Y") }}
+            </p>
+
+        {% elif entry.status == "pending_signoff" %}
+            <p class="step-mentor-list">
+                Wacht op aftekening van:
+                {% for sr in entry.signoff_requests %}
+                    {{ sr.mentor.name or sr.mentor.email }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </p>
+            {% if current_user %}
+            <div x-data="{ open: false, mentor_email: '' }">
+                <button type="button" class="btn-secondary btn-sm" @click="open = !open">
+                    Nog iemand uitnodigen
+                </button>
+                <form x-show="open" x-cloak
+                      class="inline-form"
+                      hx-post="/progress/{{ entry.id }}/request-signoff"
+                      hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+                      hx-swap="outerHTML">
+                    {% if previous_mentors %}
+                    <div class="mentor-suggestions">
+                        <span class="field-hint">Eerder:</span>
+                        {% for mentor in previous_mentors %}
+                        <button type="button" class="mentor-chip"
+                                @click="mentor_email = '{{ mentor.email }}'">
+                            {{ mentor.name or mentor.email }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <input type="email" name="mentor_email" x-model="mentor_email"
+                           placeholder="e-mail van (bege-)leider" required>
+                    <button type="submit" class="btn-secondary btn-sm">Versturen</button>
+                </form>
+            </div>
+            {% endif %}
+
+        {% else %}
+            {# open status #}
+            {% if error %}
+            <p class="form-error" style="font-size:0.85rem;padding:0.4rem 0.6rem;">{{ error }}</p>
+            {% endif %}
+            {% if current_user %}
+            <div class="step-actions" x-data="{ open: false, mentor_email: '' }">
+                <button type="button" class="btn-secondary btn-sm" @click="open = !open">
+                    Aftekening aanvragen
+                </button>
+                <form hx-post="/progress/{{ entry.id }}/delete"
+                      hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+                      hx-swap="outerHTML">
+                    <button type="submit" class="btn-danger-link">Verwijderen</button>
+                </form>
+            </div>
+            <form x-show="open" x-cloak
+                  class="inline-form"
+                  hx-post="/progress/{{ entry.id }}/request-signoff"
+                  hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+                  hx-swap="outerHTML">
+                {% if previous_mentors %}
+                <div class="mentor-suggestions">
+                    <span class="field-hint">Eerder:</span>
+                    {% for mentor in previous_mentors %}
+                    <button type="button" class="mentor-chip"
+                            @click="mentor_email = '{{ mentor.email }}'">
+                        {{ mentor.name or mentor.email }}
+                    </button>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <input type="email" name="mentor_email" x-model="mentor_email"
+                       placeholder="e-mail van (bege-)leider" required>
+                <button type="submit" class="btn-secondary btn-sm">Versturen</button>
+            </form>
+            {% endif %}
+        {% endif %}
+
+    {% else %}
+        {# Not started #}
+        {% if current_user %}
+        <div x-data="{ open: false }">
+            <button type="button" class="btn-secondary btn-sm" @click="open = !open">
+                Voortgang loggen
+            </button>
+            <form x-show="open" x-cloak
+                  class="inline-form"
+                  hx-post="/badges/{{ slug }}/log"
+                  hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+                  hx-swap="outerHTML">
+                <input type="hidden" name="level_index" value="{{ level_index }}">
+                <input type="hidden" name="step_index" value="{{ step_index }}">
+                <textarea name="notes" placeholder="Notities (optioneel)"></textarea>
+                <button type="submit" class="btn-secondary btn-sm">Opslaan</button>
+            </form>
+        </div>
+        {% endif %}
+    {% endif %}
+
+</div>

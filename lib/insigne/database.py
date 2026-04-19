@@ -1,21 +1,17 @@
-from pathlib import Path
 from typing import Generator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
-DB_PATH = Path(__file__).parent / "data" / "insigne.db"
+from .config import config
+from .models import Base  # noqa: F401 — re-exported for callers
 
 engine = create_engine(
-    f"sqlite:///{DB_PATH}",
-    connect_args={"check_same_thread": False},
+    config.database_url,
+    connect_args={"check_same_thread": False} if config.database_url.startswith("sqlite") else {},
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=True, bind=engine)
-
-
-class Base(DeclarativeBase):
-    pass
 
 
 def get_db() -> Generator[Session, None, None]:

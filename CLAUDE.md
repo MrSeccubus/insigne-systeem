@@ -4,12 +4,19 @@
 - Always use `venv/bin/python` and `venv/bin/pip` — never system Python.
 - Install dependencies: `venv/bin/pip install -r requirements.txt`
 
-## Environment variables
-Create a `.env` file in the project root (never commit it):
+## Configuration
+Create a `config.yml` file in the project root (never commit it — it is gitignored):
+```yaml
+database:
+  url: sqlite:///api/data/insigne.db
+
+jwt:
+  secret_key: "<any long random string>"
+  algorithm: HS256
+  expire_days: 30
 ```
-JWT_SECRET_KEY=<any long random string>
-```
-`serve_dev.sh` loads this automatically.
+The app reads `config.yml` from the working directory on startup.
+Override the path with the `INSIGNE_CONFIG` environment variable.
 
 ## Running the app
 From the project root:

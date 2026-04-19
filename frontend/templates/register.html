@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Sign up — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main class="auth-page">
+    <div class="auth-card">
+        <h1>Sign up</h1>
+        <div id="form-area">
+            {% include "partials/register_step1.html" %}
+        </div>
+    </div>
+</main>
+{% endblock %}

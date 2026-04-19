@@ -51,18 +51,15 @@
               hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
               hx-swap="outerHTML">
             {% if previous_mentors %}
-            <div class="mentor-suggestions">
-                <span class="field-hint">Eerder:</span>
+            <datalist id="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-ps">
                 {% for mentor in previous_mentors %}
-                <button type="button" class="mentor-chip"
-                        @click="mentorEmail = '{{ mentor.email }}'">
-                    {{ mentor.name or mentor.email }}
-                </button>
+                <option value="{{ mentor.email }}">{{ mentor.name or mentor.email }}</option>
                 {% endfor %}
-            </div>
+            </datalist>
             {% endif %}
             <input type="email" name="mentor_email" x-model="mentorEmail"
-                   placeholder="e-mail van (bege-)leider" required>
+                   placeholder="e-mail van (bege-)leider" required
+                   {% if previous_mentors %}list="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-ps"{% endif %}>
             <button type="submit" class="btn-secondary btn-sm">Versturen</button>
         </form>
         {% endif %}
@@ -79,11 +76,11 @@
         {% endif %}
         {% if current_user %}
         <div class="step-actions">
-            <button type="button" class="btn-primary btn-sm" @click="signoffOpen = !signoffOpen">
-                Aftekening aanvragen
+            <button type="button" class="btn-secondary btn-sm" @click="save('in_progress')">
+                Ik ben toch niet klaar
             </button>
-            <button type="button" class="btn-secondary btn-sm" @click="remove()">
-                Verwijderen
+            <button type="button" class="btn-secondary btn-sm" @click="signoffOpen = !signoffOpen">
+                Aftekenen...
             </button>
         </div>
         <form x-show="signoffOpen" x-cloak
@@ -92,18 +89,15 @@
               hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
               hx-swap="outerHTML">
             {% if previous_mentors %}
-            <div class="mentor-suggestions">
-                <span class="field-hint">Eerder:</span>
+            <datalist id="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-wd">
                 {% for mentor in previous_mentors %}
-                <button type="button" class="mentor-chip"
-                        @click="mentorEmail = '{{ mentor.email }}'">
-                    {{ mentor.name or mentor.email }}
-                </button>
+                <option value="{{ mentor.email }}">{{ mentor.name or mentor.email }}</option>
                 {% endfor %}
-            </div>
+            </datalist>
             {% endif %}
             <input type="email" name="mentor_email" x-model="mentorEmail"
-                   placeholder="e-mail van (bege-)leider" required>
+                   placeholder="e-mail van (bege-)leider" required
+                   {% if previous_mentors %}list="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-wd"{% endif %}>
             <button type="submit" class="btn-secondary btn-sm">Versturen</button>
         </form>
         {% endif %}
@@ -129,7 +123,7 @@
             <button type="button" class="btn-secondary btn-sm"
                     x-show="notes || editing"
                     @click="editing ? cancelEdit() : (editing = true)"
-                    x-text="editing ? 'Annuleren' : 'Notities bewerken'">Notities bewerken</button>
+                    x-text="editing ? 'Annuleren' : 'Notitie bewerken'">Notitie bewerken</button>
             <button type="button" class="btn-secondary btn-sm"
                     x-show="editing" x-cloak
                     @click="save('in_progress')">Opslaan</button>

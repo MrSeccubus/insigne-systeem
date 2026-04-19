@@ -23,7 +23,7 @@ def _partial(request: Request, name: str, **ctx):
     return _TEMPLATES.TemplateResponse(request=request, name=f"partials/{name}", context=ctx)
 
 
-def _step_card(request, slug, level_index, level_name, step_index, step_text, entry, previous_mentors=None, error=""):
+def _step_card(request, slug, level_index, level_name, step_index, step_text, entry, previous_mentors=None, error="", current_user=None):
     response = _partial(
         request, "step_card.html",
         slug=slug,
@@ -34,6 +34,7 @@ def _step_card(request, slug, level_index, level_name, step_index, step_text, en
         entry=entry,
         previous_mentors=previous_mentors or [],
         error=error,
+        current_user=current_user,
     )
     response.headers["HX-Trigger"] = "niveau-updated"
     return response
@@ -160,7 +161,7 @@ async def log_step(
             ProgressEntry.step_index == step_index,
         ).first()
 
-    return _step_card(request, slug, level_index, level["name"], step_index, step_text, entry, previous_mentors)
+    return _step_card(request, slug, level_index, level["name"], step_index, step_text, entry, previous_mentors, current_user=current_user)
 
 
 # ── Request sign-off ──────────────────────────────────────────────────────────
@@ -206,7 +207,7 @@ async def request_signoff(
     except progress_svc.NotFound:
         return RedirectResponse(url="/", status_code=303)
 
-    return _step_card(request, entry.badge_slug, entry.level_index, level["name"], entry.step_index, step_text, entry, previous_mentors, error=error)
+    return _step_card(request, entry.badge_slug, entry.level_index, level["name"], entry.step_index, step_text, entry, previous_mentors, error=error, current_user=current_user)
 
 
 # ── Delete entry ──────────────────────────────────────────────────────────────
@@ -240,7 +241,7 @@ async def delete_progress(
     except (progress_svc.NotFound, progress_svc.Forbidden):
         db.refresh(entry)
 
-    return _step_card(request, slug, level_index, level_name, step_index, step_text, entry, previous_mentors)
+    return _step_card(request, slug, level_index, level_name, step_index, step_text, entry, previous_mentors, current_user=current_user)
 
 
 # ── Sign-off requests (mentor view) ──────────────────────────────────────────

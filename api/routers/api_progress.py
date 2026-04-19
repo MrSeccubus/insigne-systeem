@@ -141,7 +141,7 @@ async def request_signoff(
     except progress_svc.Conflict as exc:
         detail = (
             "This step is already completed."
-            if str(exc) == "already_completed"
+            if str(exc) == "already_signed_off"
             else "This mentor has already been invited."
         )
         raise HTTPException(status_code=409, detail=detail)

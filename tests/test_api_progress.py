@@ -32,12 +32,18 @@ def _completed_entry(db, user_id, badge_slug="kantklossen", level_index=0, step_
         badge_slug=badge_slug,
         level_index=level_index,
         step_index=step_index,
-        status="completed",
+        status="signed_off",
         signed_off_at=datetime.now(timezone.utc),
     )
     db.add(entry)
     db.commit()
     return entry
+
+
+def _set_work_done(db, entry_id):
+    entry = db.query(ProgressEntry).filter_by(id=entry_id).first()
+    entry.status = "work_done"
+    db.commit()
 
 
 # ── GET /api/progress ─────────────────────────────────────────────────────────
@@ -69,8 +75,8 @@ class TestListProgress:
         _create_entry(client, token, level_index=0, step_index=1)
         user = db.query(User).filter_by(email="jan@example.com").first()
         _completed_entry(db, user.id, level_index=0, step_index=2)
-        r = client.get("/api/progress?status=open", headers=_auth(token))
-        assert all(e["status"] == "open" for e in r.json())
+        r = client.get("/api/progress?status=in_progress", headers=_auth(token))
+        assert all(e["status"] == "in_progress" for e in r.json())
         assert len(r.json()) == 2
 
 
@@ -82,7 +88,7 @@ class TestCreateProgress:
         r = _create_entry(client, token)
         assert r.status_code == 201
         data = r.json()
-        assert data["status"] == "open"
+        assert data["status"] == "in_progress"
         assert data["badge_slug"] == "kantklossen"
         assert data["level_index"] == 0
         assert data["step_index"] == 0
@@ -178,6 +184,7 @@ class TestRequestSignoff:
     def test_returns_202(self, client, db):
         token = _full_register(client, db)
         entry_id = _create_entry(client, token).json()["id"]
+        _set_work_done(db, entry_id)
         r = client.post(f"/api/progress/{entry_id}/signoff",
                         json={"mentor_email": "mentor@example.com"},
                         headers=_auth(token))
@@ -186,6 +193,7 @@ class TestRequestSignoff:
     def test_entry_becomes_pending_signoff(self, client, db):
         token = _full_register(client, db)
         entry_id = _create_entry(client, token).json()["id"]
+        _set_work_done(db, entry_id)
         client.post(f"/api/progress/{entry_id}/signoff",
                     json={"mentor_email": "mentor@example.com"},
                     headers=_auth(token))
@@ -195,6 +203,7 @@ class TestRequestSignoff:
     def test_pending_mentor_appears_in_entry(self, client, db):
         token = _full_register(client, db)
         entry_id = _create_entry(client, token).json()["id"]
+        _set_work_done(db, entry_id)
         client.post(f"/api/progress/{entry_id}/signoff",
                     json={"mentor_email": "mentor@example.com"},
                     headers=_auth(token))
@@ -213,6 +222,7 @@ class TestRequestSignoff:
     def test_duplicate_invite_returns_409(self, client, db):
         token = _full_register(client, db)
         entry_id = _create_entry(client, token).json()["id"]
+        _set_work_done(db, entry_id)
         client.post(f"/api/progress/{entry_id}/signoff",
                     json={"mentor_email": "mentor@example.com"},
                     headers=_auth(token))
@@ -236,6 +246,7 @@ class TestConfirmSignoff:
         scout_token = _full_register(client, db, "scout@example.com", name="Scout")
         mentor_token = _full_register(client, db, "mentor@example.com", name="Mentor")
         entry_id = _create_entry(client, scout_token).json()["id"]
+        _set_work_done(db, entry_id)
         client.post(f"/api/progress/{entry_id}/signoff",
                     json={"mentor_email": "mentor@example.com"},
                     headers=_auth(scout_token))
@@ -247,7 +258,7 @@ class TestConfirmSignoff:
                         headers=_auth(mentor_token))
         assert r.status_code == 200
         data = r.json()
-        assert data["status"] == "completed"
+        assert data["status"] == "signed_off"
         assert data["signed_off_by"] is not None
 
     def test_not_invited_returns_403(self, client, db):
@@ -280,6 +291,7 @@ class TestListSignoffRequests:
         scout_token = _full_register(client, db, "scout@example.com")
         mentor_token = _full_register(client, db, "mentor@example.com")
         entry_id = _create_entry(client, scout_token).json()["id"]
+        _set_work_done(db, entry_id)
         client.post(f"/api/progress/{entry_id}/signoff",
                     json={"mentor_email": "mentor@example.com"},
                     headers=_auth(scout_token))
@@ -306,6 +318,7 @@ class TestListMentors:
         scout_token = _full_register(client, db, "scout@example.com")
         mentor_token = _full_register(client, db, "mentor@example.com", name="Mentor")
         entry_id = _create_entry(client, scout_token).json()["id"]
+        _set_work_done(db, entry_id)
         client.post(f"/api/progress/{entry_id}/signoff",
                     json={"mentor_email": "mentor@example.com"},
                     headers=_auth(scout_token))

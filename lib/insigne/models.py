@@ -2,9 +2,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from database import Base
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 def _uuid() -> str:
@@ -13,6 +11,10 @@ def _uuid() -> str:
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+class Base(DeclarativeBase):
+    pass
 
 
 class User(Base):
@@ -43,7 +45,7 @@ class ConfirmationToken(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     token: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
-    type: Mapped[str] = mapped_column(String, nullable=False)  # email_confirmation | setup | password_reset
+    type: Mapped[str] = mapped_column(String, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)

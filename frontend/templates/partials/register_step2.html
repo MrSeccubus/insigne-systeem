@@ -1,0 +1,12 @@
+{% if error %}
+<p class="form-error">{{ error }}</p>
+{% endif %}
+<p class="form-hint">We sent a confirmation code to <strong>{{ email }}</strong>.</p>
+<form hx-post="/register/confirm" hx-target="#form-area" hx-swap="innerHTML">
+    <input type="hidden" name="email" value="{{ email }}">
+    <div class="field">
+        <label for="code">Confirmation code</label>
+        <input type="text" id="code" name="code" required autofocus autocomplete="one-time-code" spellcheck="false">
+    </div>
+    <button type="submit" class="btn-primary">Confirm</button>
+</form>

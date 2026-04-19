@@ -293,7 +293,7 @@ Returns an object with two keys: `gewoon` and `buitengewoon`, each containing an
     "/images/cybersecurity.3.png"
   ],
   "introduction": "Het insigne Cyber Security is...",
-  "step_groups": [
+  "levels": [
     {
       "name": "Ontdek de digitale wereld",
       "steps": [
@@ -523,7 +523,7 @@ These shapes are derived from YAML files at runtime — they are not stored in t
 | `category` | string | `gewoon` or `buitengewoon` |
 | `images` | string[3] | URLs to the three badge images |
 | `introduction` | string | Introductory text |
-| `step_groups` | StepGroup[] | Named groups of steps |
+| `levels` | StepGroup[] | Named groups of steps |
 | `afterword` | string | Closing text |
 
 ### `StepGroup`

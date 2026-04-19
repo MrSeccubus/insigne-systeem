@@ -1,9 +1,10 @@
+-e lib/
+pytest>=7.0
 fastapi>=0.115.0
 uvicorn[standard]>=0.34.0
 jinja2>=3.1.0
 python-multipart>=0.0.9
 pyyaml>=6.0
 sqlalchemy>=2.0
-passlib[bcrypt]>=1.7.4
+bcrypt>=4.0
 PyJWT>=2.8.0
-python-dotenv>=1.0

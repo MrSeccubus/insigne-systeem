@@ -1,15 +1,13 @@
 from pathlib import Path
 
-from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-load_dotenv()
-
-import models  # noqa: F401 — registers all ORM classes on Base.metadata
-from database import Base, engine
+import insigne.models  # noqa: F401 — registers all ORM classes on Base.metadata
+from insigne.database import Base, engine
+from routers import api_auth, api_progress, api_users, users
 
 BASE_DIR = Path(__file__).parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -18,6 +16,11 @@ IMAGES_DIR = Path(__file__).parent / "data" / "images"
 app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
+
+app.include_router(users.router)
+app.include_router(api_users.router, prefix="/api")
+app.include_router(api_auth.router, prefix="/api")
+app.include_router(api_progress.router, prefix="/api")
 
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="static")
 app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")

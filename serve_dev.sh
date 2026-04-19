@@ -7,10 +7,11 @@ if [ ! -f venv/bin/uvicorn ]; then
     venv/bin/pip install -r requirements.txt
 fi
 
-if [ -f .env ]; then
-    set -a
-    source .env
-    set +a
+venv/bin/pip install -q -e lib/
+
+if [ ! -f config.yml ]; then
+    echo "ERROR: config.yml not found. See CLAUDE.md for setup instructions." >&2
+    exit 1
 fi
 
 venv/bin/uvicorn main:app --app-dir api --reload

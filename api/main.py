@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 
 import insigne.models  # noqa: F401 — registers all ORM classes on Base.metadata
 from insigne.database import Base, engine
-from routers import api_auth, api_progress, api_users, users
+from routers import api_auth, api_badges, api_progress, api_users, users
 
 BASE_DIR = Path(__file__).parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -21,7 +21,9 @@ app.include_router(users.router)
 app.include_router(api_users.router, prefix="/api")
 app.include_router(api_auth.router, prefix="/api")
 app.include_router(api_progress.router, prefix="/api")
+app.include_router(api_badges.router, prefix="/api")
 
+IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="static")
 app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 templates = Jinja2Templates(directory=FRONTEND_DIR / "templates")

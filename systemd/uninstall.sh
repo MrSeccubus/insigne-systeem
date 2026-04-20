@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# Required for systemctl --user to work in non-login shells (e.g. SSH)
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=/run/user/$(id -u)/bus}"
+
 SERVICE_NAME="insigne"
 SERVICE_FILE="$HOME/.config/systemd/user/$SERVICE_NAME.service"
 

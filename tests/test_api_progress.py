@@ -19,14 +19,14 @@ def _auth(token):
     return {"Authorization": f"Bearer {token}"}
 
 
-def _create_entry(client, token, badge_slug="kantklossen", level_index=0, step_index=0, notes=None):
+def _create_entry(client, token, badge_slug="sport_spel", level_index=0, step_index=0, notes=None):
     body = {"badge_slug": badge_slug, "level_index": level_index, "step_index": step_index}
     if notes is not None:
         body["notes"] = notes
     return client.post("/api/progress", json=body, headers=_auth(token))
 
 
-def _completed_entry(db, user_id, badge_slug="kantklossen", level_index=0, step_index=0):
+def _completed_entry(db, user_id, badge_slug="sport_spel", level_index=0, step_index=0):
     entry = ProgressEntry(
         user_id=user_id,
         badge_slug=badge_slug,
@@ -61,13 +61,13 @@ class TestListProgress:
 
     def test_filters_by_badge_slug(self, client, db):
         token = _full_register(client, db)
-        _create_entry(client, token, badge_slug="kantklossen", level_index=0, step_index=0)
+        _create_entry(client, token, badge_slug="sport_spel", level_index=0, step_index=0)
         _create_entry(client, token, badge_slug="cybersecurity", level_index=0, step_index=0)
-        r = client.get("/api/progress?badge_slug=kantklossen", headers=_auth(token))
+        r = client.get("/api/progress?badge_slug=sport_spel", headers=_auth(token))
         assert r.status_code == 200
         results = r.json()
         assert len(results) == 1
-        assert results[0]["badge_slug"] == "kantklossen"
+        assert results[0]["badge_slug"] == "sport_spel"
 
     def test_filters_by_status(self, client, db):
         token = _full_register(client, db)
@@ -89,7 +89,7 @@ class TestCreateProgress:
         assert r.status_code == 201
         data = r.json()
         assert data["status"] == "in_progress"
-        assert data["badge_slug"] == "kantklossen"
+        assert data["badge_slug"] == "sport_spel"
         assert data["level_index"] == 0
         assert data["step_index"] == 0
 
@@ -106,7 +106,7 @@ class TestCreateProgress:
         assert r.status_code == 409
 
     def test_requires_auth(self, client, db):
-        r = client.post("/api/progress", json={"badge_slug": "kantklossen", "level_index": 0, "step_index": 0})
+        r = client.post("/api/progress", json={"badge_slug": "sport_spel", "level_index": 0, "step_index": 0})
         assert r.status_code == 401
 
 
@@ -298,7 +298,7 @@ class TestListSignoffRequests:
         r = client.get("/api/signoff-requests", headers=_auth(mentor_token))
         assert r.status_code == 200
         assert len(r.json()) == 1
-        assert r.json()[0]["badge_slug"] == "kantklossen"
+        assert r.json()[0]["badge_slug"] == "sport_spel"
 
     def test_requires_auth(self, client, db):
         r = client.get("/api/signoff-requests")

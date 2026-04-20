@@ -90,6 +90,39 @@ class TestLogStep:
         )
         assert r.headers.get("HX-Trigger") == "niveau-updated"
 
+    def test_out_of_bounds_level_index_redirects_to_home(self, client, db):
+        user = _active_user(db)
+        _set_auth(client, user)
+        r = client.post(
+            f"/badges/{_BADGE}/log",
+            data={"level_index": 999, "step_index": _STEP, "status": "in_progress"},
+            follow_redirects=False,
+        )
+        assert r.status_code == 303
+        assert r.headers["location"] == "/"
+
+    def test_out_of_bounds_step_index_redirects_to_home(self, client, db):
+        user = _active_user(db)
+        _set_auth(client, user)
+        r = client.post(
+            f"/badges/{_BADGE}/log",
+            data={"level_index": _LEVEL, "step_index": 999, "status": "in_progress"},
+            follow_redirects=False,
+        )
+        assert r.status_code == 303
+        assert r.headers["location"] == "/"
+
+    def test_negative_level_index_redirects_to_home(self, client, db):
+        user = _active_user(db)
+        _set_auth(client, user)
+        r = client.post(
+            f"/badges/{_BADGE}/log",
+            data={"level_index": -1, "step_index": _STEP, "status": "in_progress"},
+            follow_redirects=False,
+        )
+        assert r.status_code == 303
+        assert r.headers["location"] == "/"
+
 
 # ── request signoff ───────────────────────────────────────────────────────────
 

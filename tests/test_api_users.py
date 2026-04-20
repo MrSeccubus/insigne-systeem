@@ -36,6 +36,14 @@ class TestRegister:
         r = client.post("/api/users", json={"email": "jan@example.com"})
         assert r.status_code == 202
 
+    def test_invalid_email_returns_422(self, client, db):
+        r = client.post("/api/users", json={"email": "not-an-email"})
+        assert r.status_code == 422
+
+    def test_email_without_domain_returns_422(self, client, db):
+        r = client.post("/api/users", json={"email": "noatsign"})
+        assert r.status_code == 422
+
 
 # ── POST /api/users/confirm ───────────────────────────────────────────────────
 

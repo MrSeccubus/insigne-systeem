@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 110" width="110" height="110">
+  <!-- 3 hexagons arranged: 2 top, 1 bottom-center -->
+
+  <!-- Hex 1 top-left: Yellow border, globe -->
+  <g transform="translate(30,30)">
+    <polygon fill="#1D9E75" points="0,-28 24.2,-14 24.2,14 0,28 -24.2,14 -24.2,-14"/>
+    <polygon fill="none" stroke="#EF9F27" stroke-width="3" points="0,-28 24.2,-14 24.2,14 0,28 -24.2,14 -24.2,-14"/>
+    <!-- Globe -->
+    <circle fill="none" stroke="white" stroke-width="1.5" cx="0" cy="0" r="11"/>
+    <ellipse fill="none" stroke="white" stroke-width="1.5" cx="0" cy="0" rx="5" ry="11"/>
+    <line x1="-11" y1="0" x2="11" y2="0" stroke="white" stroke-width="1.5"/>
+  </g>
+
+  <!-- Hex 2 top-right: Orange border, boat -->
+  <g transform="translate(80,30)">
+    <polygon fill="#1D9E75" points="0,-28 24.2,-14 24.2,14 0,28 -24.2,14 -24.2,-14"/>
+    <polygon fill="none" stroke="#D85A30" stroke-width="3" points="0,-28 24.2,-14 24.2,14 0,28 -24.2,14 -24.2,-14"/>
+    <!-- Boat hull -->
+    <path fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M-10,4 L-13,10 Q0,14 13,10 L10,4 Z"/>
+    <!-- Sail -->
+    <path fill="white" opacity="0.9" d="M0,-10 L0,4 L-9,4 Z"/>
+    <path fill="white" opacity="0.6" d="M0,-8 L0,4 L8,4 Z"/>
+    <!-- Mast -->
+    <line x1="0" y1="-11" x2="0" y2="5" stroke="white" stroke-width="1.5"/>
+  </g>
+
+  <!-- Hex 3 bottom-center: Purple border, person -->
+  <g transform="translate(55,78)">
+    <polygon fill="#1D9E75" points="0,-28 24.2,-14 24.2,14 0,28 -24.2,14 -24.2,-14"/>
+    <polygon fill="none" stroke="#7F77DD" stroke-width="3" points="0,-28 24.2,-14 24.2,14 0,28 -24.2,14 -24.2,-14"/>
+    <!-- Person head -->
+    <circle fill="white" cx="0" cy="-9" r="5"/>
+    <!-- Body -->
+    <path fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" d="M0,-4 L0,6"/>
+    <!-- Arms -->
+    <path fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" d="M-7,0 L0,-2 L7,0"/>
+    <!-- Legs -->
+    <path fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" d="M0,6 L-5,14 M0,6 L5,14"/>
+  </g>
+</svg>

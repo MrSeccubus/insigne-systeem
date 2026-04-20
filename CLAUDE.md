@@ -14,6 +14,12 @@ jwt:
   secret_key: "<any long random string>"
   algorithm: HS256
   expire_days: 30
+
+server:
+  host: 127.0.0.1   # bind address for run_prod.sh (default: 127.0.0.1)
+  port: 8000        # bind port for run_prod.sh (default: 8000)
+
+base_url: "http://localhost:8000"  # public URL used in emails and links
 ```
 The app reads `config.yml` from the working directory on startup.
 Override the path with the `INSIGNE_CONFIG` environment variable.

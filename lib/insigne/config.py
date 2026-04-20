@@ -24,6 +24,8 @@ class Config:
     jwt_algorithm: str = "HS256"
     jwt_expire_days: int = 30
     base_url: str = "http://localhost:8000"
+    server_host: str = "127.0.0.1"
+    server_port: int = 8000
     email: EmailConfig = field(default_factory=EmailConfig)
 
 
@@ -44,6 +46,8 @@ def _load() -> Config:
         jwt_algorithm=data["jwt"].get("algorithm", "HS256"),
         jwt_expire_days=data["jwt"].get("expire_days", 30),
         base_url=data.get("base_url", "http://localhost:8000").rstrip("/"),
+        server_host=data.get("server", {}).get("host", "127.0.0.1"),
+        server_port=int(data.get("server", {}).get("port", 8000)),
         email=EmailConfig(
             smtp_host=email_data.get("smtp_host", ""),
             smtp_port=int(email_data.get("smtp_port", 587)),

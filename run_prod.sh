@@ -17,8 +17,9 @@ if [ ! -f config.yml ]; then
     exit 1
 fi
 
-HOST="${INSIGNE_HOST:-127.0.0.1}"
-PORT="${INSIGNE_PORT:-8000}"
+# Read host/port from config.yml, allow env var overrides
+HOST="${INSIGNE_HOST:-$(venv/bin/python -c "from insigne.config import config; print(config.server_host)")}"
+PORT="${INSIGNE_PORT:-$(venv/bin/python -c "from insigne.config import config; print(config.server_port)")}"
 
 exec venv/bin/uvicorn main:app \
     --app-dir api \

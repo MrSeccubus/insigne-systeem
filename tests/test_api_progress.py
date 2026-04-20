@@ -62,7 +62,7 @@ class TestListProgress:
     def test_filters_by_badge_slug(self, client, db):
         token = _full_register(client, db)
         _create_entry(client, token, badge_slug="sport_spel", level_index=0, step_index=0)
-        _create_entry(client, token, badge_slug="cybersecurity", level_index=0, step_index=0)
+        _create_entry(client, token, badge_slug="vredeslicht", level_index=0, step_index=0)
         r = client.get("/api/progress?badge_slug=sport_spel", headers=_auth(token))
         assert r.status_code == 200
         results = r.json()

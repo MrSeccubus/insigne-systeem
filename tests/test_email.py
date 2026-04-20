@@ -147,18 +147,18 @@ class TestConvenienceFunctions:
 
     def test_send_mentor_signoff_invite_uses_correct_template(self):
         with self._patched_send() as mock:
-            send_mentor_signoff_invite_email("m@example.com", "Scout", "Cybersecurity", 1, "Stap tekst")
+            send_mentor_signoff_invite_email("m@example.com", "Scout", "Vredeslicht", 1, "Stap tekst")
         assert mock.call_args[0][1] == "mentor_signoff_invite"
 
     def test_send_mentor_signoff_request_uses_correct_template(self):
         with self._patched_send() as mock:
-            send_mentor_signoff_request_email("m@example.com", "Scout", "Cybersecurity", 1, "Stap tekst")
+            send_mentor_signoff_request_email("m@example.com", "Scout", "Vredeslicht", 1, "Stap tekst")
         assert mock.call_args[0][1] == "mentor_signoff_request"
 
     def test_send_scout_signed_off_uses_correct_template(self):
         with self._patched_send() as mock:
             send_scout_signed_off_email(
-                "s@example.com", "Scout", "cybersecurity", "Cybersecurity",
+                "s@example.com", "Scout", "vredeslicht", "Vredeslicht",
                 1, "Niveau 1", "Stap tekst", "Leider Piet"
             )
         assert mock.call_args[0][1] == "scout_step_signed_off"
@@ -166,14 +166,14 @@ class TestConvenienceFunctions:
     def test_send_scout_rejected_uses_correct_template(self):
         with self._patched_send() as mock:
             send_scout_rejected_email(
-                "s@example.com", "Scout", "Cybersecurity", 1,
+                "s@example.com", "Scout", "Vredeslicht", 1,
                 "Niveau 1", "Stap tekst", "Leider Piet", "Nog niet klaar"
             )
         assert mock.call_args[0][1] == "scout_step_rejected"
 
     def test_send_scout_niveau_completed_uses_correct_template(self):
         with self._patched_send() as mock:
-            send_scout_niveau_completed_email("s@example.com", "Scout", "Cybersecurity", 1)
+            send_scout_niveau_completed_email("s@example.com", "Scout", "Vredeslicht", 1)
         assert mock.call_args[0][1] == "scout_niveau_completed"
 
     def test_registration_confirm_url_contains_code(self):

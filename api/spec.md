@@ -253,13 +253,13 @@ Returns an object with two keys: `gewoon` and `buitengewoon`, each containing an
   ],
   "buitengewoon": [
     {
-      "slug": "cybersecurity",
-      "title": "Insigne Cybersecurity",
+      "slug": "vredeslicht",
+      "title": "Insigne Vredeslicht",
       "category": "buitengewoon",
       "images": [
-        "/images/cybersecurity.1.png",
-        "/images/cybersecurity.2.png",
-        "/images/cybersecurity.3.png"
+        "/images/vredeslicht.1.png",
+        "/images/vredeslicht.2.png",
+        "/images/vredeslicht.3.png"
       ]
     }
   ]
@@ -274,21 +274,21 @@ Returns an object with two keys: `gewoon` and `buitengewoon`, each containing an
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `slug` | string | Badge slug (e.g. `cybersecurity`) |
+| `slug` | string | Badge slug (e.g. `vredeslicht`) |
 
 **Response `200`:**
 
 ```json
 {
-  "slug": "cybersecurity",
-  "title": "Insigne Cybersecurity",
+  "slug": "vredeslicht",
+  "title": "Insigne Vredeslicht",
   "category": "buitengewoon",
   "images": [
-    "/images/cybersecurity.1.png",
-    "/images/cybersecurity.2.png",
-    "/images/cybersecurity.3.png"
+    "/images/vredeslicht.1.png",
+    "/images/vredeslicht.2.png",
+    "/images/vredeslicht.3.png"
   ],
-  "introduction": "Het insigne Cyber Security is...",
+  "introduction": "Het insigne Vredeslicht is...",
   "levels": [
     {
       "name": "Ontdek de digitale wereld",
@@ -299,7 +299,7 @@ Returns an object with two keys: `gewoon` and `buitengewoon`, each containing an
       ]
     }
   ],
-  "afterword": "Toelichting Insigne Cyber Security ..."
+  "afterword": "Toelichting Insigne Vredeslicht ..."
 }
 ```
 
@@ -345,7 +345,7 @@ Returns all progress entries for the authenticated scout.
 [
   {
     "id": "p1p2p3p4-...",
-    "badge_slug": "cybersecurity",
+    "badge_slug": "vredeslicht",
     "level_index": 0,
     "step_index": 0,
     "notes": "Gemaakt tijdens zomerkamp.",
@@ -368,7 +368,7 @@ Records that the authenticated scout has started or completed a step.
 
 ```json
 {
-  "badge_slug": "cybersecurity",
+  "badge_slug": "vredeslicht",
   "level_index": 0,
   "step_index": 0,
   "notes": "Gemaakt tijdens zomerkamp."
@@ -380,7 +380,7 @@ Records that the authenticated scout has started or completed a step.
 ```json
 {
   "id": "p1p2p3p4-...",
-  "badge_slug": "cybersecurity",
+  "badge_slug": "vredeslicht",
   "level_index": 0,
   "step_index": 0,
   "notes": "Gemaakt tijdens zomerkamp.",
@@ -483,7 +483,7 @@ Returns all progress entries where the authenticated user has been invited to si
   {
     "id": "sr1sr2-...",
     "scout": { "user_id": "a1b2c3d4-...", "name": "Jan" },
-    "badge_slug": "cybersecurity",
+    "badge_slug": "vredeslicht",
     "level_index": 0,
     "step_index": 0,
     "notes": "Gemaakt tijdens zomerkamp.",

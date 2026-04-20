@@ -6,7 +6,7 @@ The API allows a scout to maintain their progress through the badge system of Sc
 It consists of three areas:
 
 - **Users** — account registration and management.
-- **Badges** — a catalogue of badges, each with 3 levels and 5 *steps* (requirements) per level.
+- **Badges** — a catalogue of badges, each with 5 *eisen* (requirements) and 3 *niveaus* (difficulty levels) per eis.
 - **Progress** — a scout's log of completed steps, which can be signed off by registered mentors.
 
 ## Architecture: hybrid JSON + HTML
@@ -20,7 +20,7 @@ The server exposes two parallel layers:
 
 All JSON endpoints described in the **Resources** section are mounted under `/api/` (e.g. `GET /api/badges`).
 
-The HTML layer serves full pages on initial load and HTML fragments for HTMX partial updates. HTMX requests are identified by the `HX-Request: true` header — the server returns only the relevant fragment rather than the full page.
+The HTML layer serves full pages on initial load and HTML fragments for HTMX partial updates.
 
 ## Base URL
 
@@ -31,7 +31,7 @@ http://localhost:8000
 ## Authentication
 
 - Registered users authenticate with their email address and password and receive a JWT.
-- The JWT is renewed on every API call. Session timeout is 30 days of inactivity.
+- The JWT is valid for 30 days (configurable via `jwt.expire_days` in `config.yml`).
 - Protected endpoints require the header: `Authorization: Bearer <token>`
 - Sign-off requires a registered account. If the mentor is not yet registered, they receive an invitation email and can sign off after completing registration.
 
@@ -46,14 +46,14 @@ http://localhost:8000
 Registration is a three-step process. The forgot-password flow reuses steps 2 and 3.
 
 ```
-Step 1: POST /users              — provide email, receive confirmation email
-Step 2: POST /users/confirm      — submit code from email, receive setup token
-Step 3: POST /users/activate     — submit setup token + password
+Step 1: POST /api/users              — provide email, receive confirmation email
+Step 2: POST /api/users/confirm      — submit code from email, receive setup token
+Step 3: POST /api/users/activate     — submit setup token + password
 ```
 
 ---
 
-#### `POST /users` — Step 1: Request account (registration)
+#### `POST /api/users` — Step 1: Request account (registration)
 
 Accepts an email address and sends a confirmation email containing a secret code.
 Public endpoint (no token required).
@@ -72,7 +72,7 @@ Public endpoint (no token required).
 
 ---
 
-#### `POST /users/confirm` — Step 2: Confirm email
+#### `POST /api/users/confirm` — Step 2: Confirm email
 
 Validates the secret code from the confirmation email.
 Returns a short-lived setup token (valid 1 hour) used in step 3.
@@ -97,7 +97,7 @@ Returns a short-lived setup token (valid 1 hour) used in step 3.
 
 ---
 
-#### `POST /users/activate` — Step 3: Set password
+#### `POST /api/users/activate` — Step 3: Set password
 
 Completes registration. The setup token from step 2 authorises this call.
 Returns a JWT so the user is immediately logged in.
@@ -128,7 +128,7 @@ Returns a JWT so the user is immediately logged in.
 
 ---
 
-#### `POST /auth/token` — Login
+#### `POST /api/auth/token` — Login
 
 Authenticates a user and returns a JWT.
 
@@ -155,7 +155,7 @@ Authenticates a user and returns a JWT.
 
 ---
 
-#### `POST /auth/forgot-password` — Request password reset
+#### `POST /api/auth/forgot-password` — Request password reset
 
 Sends a reset email to the address if it belongs to an active account.
 Reuses steps 2 and 3 of the registration flow.
@@ -171,12 +171,12 @@ Reuses steps 2 and 3 of the registration flow.
 **Response `202`:** Always returned, even if the email is not found.
 
 > After this call the user follows the same steps 2 and 3:
-> `POST /users/confirm` to exchange the code for a setup token, then
-> `POST /users/activate` to set the new password.
+> `POST /api/users/confirm` to exchange the code for a setup token, then
+> `POST /api/users/activate` to set the new password.
 
 ---
 
-#### `GET /users/me` — Get own profile 🔒
+#### `GET /api/users/me` — Get own profile 🔒
 
 **Response `200`:**
 
@@ -191,9 +191,9 @@ Reuses steps 2 and 3 of the registration flow.
 
 ---
 
-#### `PUT /users/me` — Update own profile 🔒
+#### `PUT /api/users/me` — Update own profile 🔒
 
-All relationships (progress, sign-offs) are stored against `user_id`, so changing email is safe and has no side effects.
+All fields are optional. Progress and sign-offs are stored against `user_id`, so changing email is safe.
 
 **Request body** (all fields optional):
 
@@ -205,20 +205,15 @@ All relationships (progress, sign-offs) are stored against `user_id`, so changin
 }
 ```
 
-**Response `200`:**
+**Response `200`:** Updated user object (same shape as `GET /api/users/me`).
 
-```json
-{
-  "id": "a1b2c3d4-...",
-  "email": "jan@example.com",
-  "name": "Jan de Vries",
-  "created_at": "2026-04-18T10:00:00Z"
-}
-```
+**Response `400`:** Password too short (minimum 8 characters).
+
+**Response `409`:** Email address already in use.
 
 ---
 
-#### `DELETE /users/me` — Delete own account 🔒
+#### `DELETE /api/users/me` — Delete own account 🔒
 
 **Response `204`:** No content.
 
@@ -227,17 +222,18 @@ All relationships (progress, sign-offs) are stored against `user_id`, so changin
 ### Badges
 
 Badge data is read from YAML files on disk — there is no database table for badges.
+
 - `api/data/badges.yml` — index of all badges, grouped by category
 - `api/data/badges/<slug>.yml` — full detail for one badge
-- `api/data/images/<slug>.{1,2,3}.png` — badge images, served as static files under `/images/`
+- `api/data/images/<slug>.{1,2,3}.png` — badge images, served under `/images/`
 
-All badge endpoints require authentication (🔒).
+Badge endpoints are **public** (no authentication required).
 
 ---
 
-#### `GET /badges` — List all badges
+#### `GET /api/badges` — List all badges
 
-Returns an object with two keys: `gewoon` and `buitengewoon`, each containing an ordered list of badges in the order defined in `badges.yml`. No query parameters.
+Returns an object with two keys: `gewoon` and `buitengewoon`, each containing an ordered list of badges.
 
 **Response `200`:**
 
@@ -245,13 +241,13 @@ Returns an object with two keys: `gewoon` and `buitengewoon`, each containing an
 {
   "gewoon": [
     {
-      "slug": "klantklossen",
-      "title": "Insigne Klantklossen",
+      "slug": "sport_spel",
+      "title": "Insigne Sport & Spel",
       "category": "gewoon",
       "images": [
-        "/images/klantklossen.1.png",
-        "/images/klantklossen.2.png",
-        "/images/klantklossen.3.png"
+        "/images/sport_spel.1.png",
+        "/images/sport_spel.2.png",
+        "/images/sport_spel.3.png"
       ]
     }
   ],
@@ -272,7 +268,7 @@ Returns an object with two keys: `gewoon` and `buitengewoon`, each containing an
 
 ---
 
-#### `GET /badges/{slug}` — Get badge detail
+#### `GET /api/badges/{slug}` — Get badge detail
 
 **Path parameters:**
 
@@ -315,11 +311,24 @@ Returns an object with two keys: `gewoon` and `buitengewoon`, each containing an
 
 All progress endpoints require authentication (🔒).
 
-A *progress entry* records that a scout has completed a specific step and is awaiting or has received sign-off.
+A *progress entry* records that a scout is working on or has completed a specific eis at a specific niveau.
+
+**Status lifecycle:**
+
+```
+in_progress → work_done → pending_signoff → signed_off
+```
+
+| Status | Meaning |
+|--------|---------|
+| `in_progress` | Scout has started the step |
+| `work_done` | Scout has marked the step as done, not yet sent for sign-off |
+| `pending_signoff` | One or more mentors have been invited to sign off |
+| `signed_off` | A mentor has confirmed the step |
 
 ---
 
-#### `GET /progress` — List own progress 🔒
+#### `GET /api/progress` — List own progress 🔒
 
 Returns all progress entries for the authenticated scout.
 
@@ -328,7 +337,7 @@ Returns all progress entries for the authenticated scout.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `badge_slug` | string | No | Filter by badge |
-| `status` | string | No | Filter by status: `open`, `pending_signoff`, `completed` |
+| `status` | string | No | Filter by status |
 
 **Response `200`:**
 
@@ -340,7 +349,7 @@ Returns all progress entries for the authenticated scout.
     "level_index": 0,
     "step_index": 0,
     "notes": "Gemaakt tijdens zomerkamp.",
-    "status": "completed",
+    "status": "signed_off",
     "pending_mentors": [],
     "signed_off_by": { "user_id": "m1m2m3m4-...", "name": "Leider Piet" },
     "signed_off_at": "2026-04-10T14:00:00Z",
@@ -351,9 +360,9 @@ Returns all progress entries for the authenticated scout.
 
 ---
 
-#### `POST /progress` — Log progress 🔒
+#### `POST /api/progress` — Create a progress entry 🔒
 
-Records that the authenticated scout has completed a step.
+Records that the authenticated scout has started or completed a step.
 
 **Request body:**
 
@@ -375,18 +384,19 @@ Records that the authenticated scout has completed a step.
   "level_index": 0,
   "step_index": 0,
   "notes": "Gemaakt tijdens zomerkamp.",
-  "status": "open",
+  "status": "in_progress",
+  "pending_mentors": [],
   "signed_off_by": null,
   "signed_off_at": null,
   "created_at": "2026-04-18T10:00:00Z"
 }
 ```
 
-**Response `409`:** Progress for this step already exists and is completed.
+**Response `409`:** Progress for this step is already `signed_off`.
 
 ---
 
-#### `GET /progress/{id}` — Get a progress entry 🔒
+#### `GET /api/progress/{id}` — Get a progress entry 🔒
 
 **Response `200`:** Single progress entry (same shape as above).
 
@@ -394,9 +404,9 @@ Records that the authenticated scout has completed a step.
 
 ---
 
-#### `PUT /progress/{id}` — Edit a progress entry 🔒
+#### `PUT /api/progress/{id}` — Edit a progress entry 🔒
 
-Only `notes` can be edited. Only allowed when `status` is `open` or `pending_signoff`.
+Only `notes` can be edited. Not allowed when status is `signed_off`.
 
 **Request body:**
 
@@ -406,7 +416,7 @@ Only `notes` can be edited. Only allowed when `status` is `open` or `pending_sig
 }
 ```
 
-**Response `200`:** Updated progress entry (same shape as `POST /progress` response).
+**Response `200`:** Updated progress entry.
 
 **Response `403`:** Entry has been signed off and can no longer be edited.
 
@@ -414,24 +424,22 @@ Only `notes` can be edited. Only allowed when `status` is `open` or `pending_sig
 
 ---
 
-#### `DELETE /progress/{id}` — Delete a progress entry 🔒
+#### `DELETE /api/progress/{id}` — Delete a progress entry 🔒
 
-Only allowed when `status` is `open` or `pending_signoff`.
+Not allowed when status is `signed_off`.
 
 **Response `204`:** No content.
 
-**Response `403`:** Cannot delete a completed (signed-off) entry.
+**Response `403`:** Cannot delete a signed-off entry.
 
 ---
 
-#### `POST /progress/{id}/signoff` — Request sign-off from a mentor 🔒
+#### `POST /api/progress/{id}/signoff` — Request sign-off from a mentor 🔒
 
-The scout submits one mentor's email address. This endpoint can be called multiple times to invite additional mentors. The entry is completed as soon as any one mentor confirms.
+The scout submits one mentor's email address. Can be called multiple times to invite additional mentors. The entry is completed as soon as any one mentor confirms.
 
-The server then:
-
-1. If the mentor **has an account** — sends them a sign-off link by email.
-2. If the mentor **has no account** — automatically creates a `pending` user record for them (no password yet), then sends an invitation email. After completing registration (step 2 + 3 of the registration flow) they are redirected to the sign-off link.
+1. If the mentor **has an account** — sends them a sign-off notification by email.
+2. If the mentor **has no account** — creates a `pending` user record, sends an invitation email. After completing registration they can sign off.
 
 **Request body:**
 
@@ -445,18 +453,18 @@ The server then:
 
 **Response `404`:** Progress entry not found.
 
-**Response `409`:** This mentor has already been invited, or the entry is already completed.
+**Response `409`:** This mentor has already been invited, or the entry is already `signed_off`, or the entry is not in `work_done`/`pending_signoff` status.
 
 ---
 
-#### `POST /progress/{id}/signoff/confirm` — Confirm sign-off 🔒
+#### `POST /api/progress/{id}/signoff/confirm` — Confirm sign-off 🔒
 
-Called by the mentor after following the link in their email. Marks the entry as completed and cancels any outstanding sign-off requests to other mentors.
-The mentor must be authenticated (either via existing session or immediately after registration).
+Called by the mentor. Marks the entry as `signed_off` and removes all outstanding sign-off requests.
+The mentor must be authenticated and must have been invited.
 
-**Response `200`:** Updated progress entry with `status: "completed"`.
+**Response `200`:** Updated progress entry with `status: "signed_off"`.
 
-**Response `403`:** Authenticated user is not the invited mentor.
+**Response `403`:** Authenticated user is not an invited mentor.
 
 **Response `404`:** Progress entry not found.
 
@@ -464,16 +472,16 @@ The mentor must be authenticated (either via existing session or immediately aft
 
 ---
 
-#### `GET /signoff-requests` — Open sign-off requests for the authenticated mentor 🔒
+#### `GET /api/signoff-requests` — Open sign-off requests for the authenticated mentor 🔒
 
-Returns all progress entries where the authenticated user has been invited to sign off and has not yet done so.
+Returns all progress entries where the authenticated user has been invited to sign off.
 
 **Response `200`:**
 
 ```json
 [
   {
-    "id": "p1p2p3p4-...",
+    "id": "sr1sr2-...",
     "scout": { "user_id": "a1b2c3d4-...", "name": "Jan" },
     "badge_slug": "cybersecurity",
     "level_index": 0,
@@ -487,9 +495,9 @@ Returns all progress entries where the authenticated user has been invited to si
 
 ---
 
-#### `GET /progress/mentors` — Mentors who have previously signed off this scout 🔒
+#### `GET /api/progress/mentors` — Previously used mentors 🔒
 
-Returns a deduplicated list of mentors who have signed off at least one progress entry for the authenticated scout, ordered by most recent sign-off first. Intended for easy re-selection when requesting a new sign-off.
+Returns a deduplicated list of mentors who have signed off at least one step for the authenticated scout, ordered by most recent sign-off first. Used to pre-populate the sign-off request form.
 
 **Response `200`:**
 
@@ -503,8 +511,6 @@ Returns a deduplicated list of mentors who have signed off at least one progress
 
 ## Badge Response Shapes
 
-These shapes are derived from YAML files at runtime — they are not stored in the database.
-
 ### `Badge` (list item)
 
 | Field | Type | Description |
@@ -512,7 +518,7 @@ These shapes are derived from YAML files at runtime — they are not stored in t
 | `slug` | string | URL identifier, matches YAML filename |
 | `title` | string | Badge title |
 | `category` | string | `gewoon` or `buitengewoon` |
-| `images` | string[3] | URLs to the three badge images (`/images/{slug}.1.png` etc.) |
+| `images` | string[3] | URLs to the three badge images |
 
 ### `BadgeDetail`
 
@@ -522,22 +528,22 @@ These shapes are derived from YAML files at runtime — they are not stored in t
 | `title` | string | Badge title |
 | `category` | string | `gewoon` or `buitengewoon` |
 | `images` | string[3] | URLs to the three badge images |
-| `introduction` | string | Introductory text |
-| `levels` | StepGroup[] | Named groups of steps |
-| `afterword` | string | Closing text |
+| `introduction` | string | Introductory text (optional) |
+| `levels` | StepGroup[] | 5 named requirement groups (*eisen*) |
+| `afterword` | string | Closing text (optional) |
 
-### `StepGroup`
+### `StepGroup` (one eis)
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `name` | string | Group name |
-| `steps` | Step[] | Ordered list of steps |
+| `name` | string | Eis name |
+| `steps` | Step[] | 3 steps — one per niveau |
 
 ### `Step`
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `index` | integer | Zero-based position within the group |
+| `index` | integer | Niveau index (0 = niveau 1, 1 = niveau 2, 2 = niveau 3) |
 | `text` | string | Full step description |
 
 ---
@@ -560,10 +566,10 @@ These shapes are derived from YAML files at runtime — they are not stored in t
 |-------|------|-------------|
 | `id` | UUID | Unique identifier |
 | `badge_slug` | string | The badge being worked on |
-| `level_index` | integer | Zero-based level index (0–4) |
-| `step_index` | integer | Zero-based step index within the level (0–2) |
-| `notes` | string | Scout's notes |
-| `status` | string | `open` \| `in_progress` \| `pending_signoff` \| `signed-off` |
+| `level_index` | integer | Zero-based eis index (0–4, one of the 5 requirement groups) |
+| `step_index` | integer | Zero-based niveau index (0–2, one of the 3 difficulty levels) |
+| `notes` | string \| null | Scout's notes |
+| `status` | string | `in_progress` \| `work_done` \| `pending_signoff` \| `signed_off` |
 | `pending_mentors` | `{user_id, name}`[] | Users with an outstanding sign-off request |
 | `signed_off_by` | `{user_id, name}` \| null | User who signed off |
 | `signed_off_at` | datetime \| null | When it was signed off |
@@ -595,40 +601,47 @@ All errors follow the same shape:
 
 ## HTML Endpoints
 
-These endpoints serve the HTMX frontend. Full pages are returned on direct navigation; HTML fragments are returned when the request includes `HX-Request: true`.
+These endpoints serve the HTMX frontend. Full pages are returned on direct navigation; HTML fragments (partials) are returned for HTMX requests. Authentication is via an `access_token` httponly cookie set on login/activation.
 
-### Authentication
+### Pages
 
 | Method | Path | Description |
 |--------|------|-------------|
+| `GET` | `/` | Home — badge catalogue with progress overview |
 | `GET` | `/login` | Login page |
-| `POST` | `/login` | Submit credentials — redirects to `/` on success or re-renders form with error |
-| `POST` | `/logout` | Clears session, redirects to `/login` |
-| `GET` | `/register` | Registration page (step 1) |
-| `POST` | `/register` | Submit email — renders confirmation prompt |
-| `GET` | `/register/confirm` | Confirm email page (step 2 — user arrives via link in email) |
-| `POST` | `/register/confirm` | Submit code — renders set-password form |
-| `POST` | `/register/activate` | Submit password — logs user in, redirects to `/` |
+| `GET` | `/register` | Registration page |
+| `GET` | `/register/confirm` | Confirm-code entry page (step 2) |
+| `GET` | `/register/confirm/{code}` | Confirm link from email — redirects to set-password step |
+| `GET` | `/profile` | Profile page (auth required) |
 | `GET` | `/forgot-password` | Forgot password page |
+| `GET` | `/forgot-password/confirm` | Reset-code entry page |
+| `GET` | `/forgot-password/confirm/{code}` | Reset link from email — redirects to set-password step |
+| `GET` | `/badges/{slug}` | Badge detail — all eisen and niveaus |
+| `GET` | `/signoff-requests` | Mentor dashboard — open sign-off requests (auth required) |
+
+### Form submissions (return HTML partials)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/register` | Submit email — renders confirmation prompt |
+| `POST` | `/register/confirm` | Submit code — renders set-password form or error |
+| `POST` | `/register/activate` | Submit password — sets cookie, sends `HX-Redirect: /` |
+| `POST` | `/login` | Submit credentials — sets cookie + `HX-Redirect: /`, or re-renders form with error |
+| `POST` | `/logout` | Clears cookie, redirects to `/login` |
+| `POST` | `/profile` | Update name / email / password (auth required) |
 | `POST` | `/forgot-password` | Submit email — renders confirmation prompt |
+| `POST` | `/forgot-password/confirm` | Submit code — renders set-password form or error |
+| `POST` | `/forgot-password/reset` | Submit new password — sets cookie, sends `HX-Redirect: /` |
 
-### Badges
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/badges` | Badge catalogue — renders full badge list grouped by category |
-| `GET` | `/badges/{slug}` | Badge detail page — shows all levels and steps |
-
-### Progress
+### Badge / progress partials
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/progress` | Progress overview — all logged steps for the current user |
-| `POST` | `/progress` | Log a completed step — returns updated step fragment |
-| `PUT` | `/progress/{id}` | Edit notes on a progress entry — returns updated entry fragment |
-| `DELETE` | `/progress/{id}` | Delete a progress entry — returns updated step fragment |
-| `POST` | `/progress/{id}/signoff` | Submit mentor email — sends sign-off or invitation email |
-| `GET` | `/progress/{id}/signoff/confirm` | Mentor lands here from email link — shows confirmation page |
-| `POST` | `/progress/{id}/signoff/confirm` | Mentor confirms sign-off — returns updated entry fragment |
-| `GET` | `/signoff-requests` | Mentor's dashboard — lists all open sign-off requests |
-| `GET` | `/progress/mentors` | Returns mentor list fragment for sign-off form pre-population |
+| `GET` | `/badges/{slug}/niveau-checks/{niveau_index}` | Niveau progress check icons partial |
+| `POST` | `/badges/{slug}/log` | Log a step (auth required) — returns updated step card partial |
+| `POST` | `/progress/{id}/request-signoff` | Request sign-off from mentor (auth required) |
+| `POST` | `/progress/{id}/cancel-signoff` | Cancel all pending sign-off requests (auth required) |
+| `POST` | `/progress/{id}/delete` | Delete a progress entry (auth required) |
+| `GET` | `/signoff-requests/count` | Pending sign-off count badge for nav (auth required) |
+| `POST` | `/progress/{id}/confirm-signoff` | Mentor confirms sign-off (auth required) |
+| `POST` | `/progress/{id}/reject-signoff` | Mentor rejects sign-off (auth required) |

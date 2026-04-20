@@ -4,13 +4,17 @@ import jwt
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from insigne import users as user_svc
 from insigne.auth import create_access_token, decode_access_token
+from insigne.config import config
 from insigne.database import get_db
 from insigne.email import send_password_reset_email, send_registration_email, send_welcome_email
 from insigne.models import User
+
+_secure_cookies = config.base_url.startswith("https://")
 
 router = APIRouter()
 
@@ -133,6 +137,7 @@ async def register_activate(
         value=access_token,
         httponly=True,
         samesite="lax",
+        secure=_secure_cookies,
         max_age=30 * 24 * 3600,
     )
     return response
@@ -170,6 +175,10 @@ async def profile_update(
     except ValueError:
         return _page(request, "profile.html", db,
                      error="Wachtwoord moet minimaal 8 tekens bevatten.")
+    except IntegrityError:
+        db.rollback()
+        return _page(request, "profile.html", db,
+                     error="Dit e-mailadres is al in gebruik.")
     return _page(request, "profile.html", db, success="Wijzigingen opgeslagen.")
 
 
@@ -199,6 +208,7 @@ async def login(
         value=access_token,
         httponly=True,
         samesite="lax",
+        secure=_secure_cookies,
         max_age=30 * 24 * 3600,
     )
     return response
@@ -298,6 +308,7 @@ async def forgot_password_reset(
         value=access_token,
         httponly=True,
         samesite="lax",
+        secure=_secure_cookies,
         max_age=30 * 24 * 3600,
     )
     return response

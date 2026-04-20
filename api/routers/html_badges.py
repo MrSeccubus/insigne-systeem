@@ -144,6 +144,10 @@ async def log_step(
         return RedirectResponse(url="/login", status_code=303)
 
     badge = get_badge(_DATA_DIR, slug)
+    if (badge is None
+            or not (0 <= level_index < len(badge["levels"]))
+            or not (0 <= step_index < len(badge["levels"][level_index]["steps"]))):
+        return RedirectResponse(url="/", status_code=303)
     level = badge["levels"][level_index]
     step_text = level["steps"][step_index]["text"]
     previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)

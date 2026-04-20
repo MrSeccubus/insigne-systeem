@@ -1,8 +1,11 @@
+import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 from urllib.parse import quote_plus
+
+logger = logging.getLogger(__name__)
 
 from jinja2 import ChoiceLoader, Environment, FileSystemLoader
 from markupsafe import Markup, escape
@@ -70,7 +73,10 @@ def send(to: str, template_name: str, **context) -> None:
         )
         return
 
-    _send_smtp(to, subject, html)
+    try:
+        _send_smtp(to, subject, html)
+    except Exception:
+        logger.exception("Failed to send email to %s (template=%s)", to, template_name)
 
 
 def send_registration_email(to: str, naam: str, code: str) -> None:

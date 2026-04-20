@@ -153,6 +153,14 @@ class TestProfile:
         assert r.status_code == 200
         assert "8" in r.text
 
+    def test_post_profile_with_duplicate_email_returns_error(self, client, db):
+        _register_and_activate(db, email="jan@example.com")
+        user2 = _register_and_activate(db, email="other@example.com")
+        client.cookies.set("access_token", create_access_token(user2.id)[0])
+        r = client.post("/profile", data={"name": "Other", "email": "jan@example.com", "password": ""})
+        assert r.status_code == 200
+        assert "gebruik" in r.text.lower()
+
 
 # ── forgot password ───────────────────────────────────────────────────────────
 

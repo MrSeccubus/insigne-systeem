@@ -1,10 +1,10 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 
 class RegisterRequest(BaseModel):
-    email: str
+    email: EmailStr
 
 
 class ConfirmRequest(BaseModel):
@@ -18,17 +18,17 @@ class ActivateRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 
 class ForgotPasswordRequest(BaseModel):
-    email: str
+    email: EmailStr
 
 
 class UpdateUserRequest(BaseModel):
     name: str | None = None
-    email: str | None = None
+    email: EmailStr | None = None
     password: str | None = None
 
 
@@ -58,17 +58,17 @@ class UserRefResponse(BaseModel):
 
 class CreateProgressRequest(BaseModel):
     badge_slug: str
-    level_index: int
-    step_index: int
-    notes: str | None = None
+    level_index: int = Field(..., ge=0)
+    step_index: int = Field(..., ge=0)
+    notes: str | None = Field(None, max_length=10_000)
 
 
 class UpdateProgressRequest(BaseModel):
-    notes: str | None = None
+    notes: str | None = Field(None, max_length=10_000)
 
 
 class RequestSignoffRequest(BaseModel):
-    mentor_email: str
+    mentor_email: EmailStr
 
 
 class ProgressEntryResponse(BaseModel):

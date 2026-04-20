@@ -330,6 +330,7 @@ button:hover {
     color: #555;
     margin-bottom: 0.75rem;
     margin-top: -0.5rem;
+    text-align: center;
 }
 
 .badge-card .badge-category {

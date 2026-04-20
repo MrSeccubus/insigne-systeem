@@ -420,7 +420,7 @@ button:hover {
     grid-template-columns: 160px repeat(3, 1fr);
     gap: 0.5rem;
     margin-bottom: 2rem;
-    align-items: start;
+    align-items: stretch;
 }
 
 .niveau-col-header {

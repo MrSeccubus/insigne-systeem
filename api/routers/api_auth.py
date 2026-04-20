@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from insigne import users as user_svc
@@ -22,11 +22,11 @@ async def login(body: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/forgot-password", status_code=202)
-async def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
+async def forgot_password(body: ForgotPasswordRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     code = user_svc.forgot_password(db, body.email)
     if code is not None:
         email = body.email.strip().lower()
         user = db.query(User).filter_by(email=email).first()
         naam = user.name or email.split("@")[0]
-        send_password_reset_email(email, naam, code)
+        background_tasks.add_task(send_password_reset_email, email, naam, code)
     return {"detail": "If this email is registered, a reset code has been sent."}

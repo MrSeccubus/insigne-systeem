@@ -45,5 +45,5 @@ systemctl --user start "$SERVICE_NAME"
 
 echo ""
 echo "Done. Service is enabled and running."
-echo "  Status : $(dirname "$0")/../insigne status"
-echo "  Logs   : $(dirname "$0")/../insigne logs -f"
+echo "  Status : $(dirname "$0")/../insigne-ctl status"
+echo "  Logs   : $(dirname "$0")/../insigne-ctl logs -f"

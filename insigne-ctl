@@ -1,6 +1,6 @@
 #!/bin/bash
 # Control script for the Insigne Systeem service.
-# Usage: ./insigne {start|stop|restart|status|logs [journalctl-args]}
+# Usage: ./insigne-ctl {start|stop|restart|status|logs [journalctl-args]}
 
 SERVICE_NAME="insigne"
 

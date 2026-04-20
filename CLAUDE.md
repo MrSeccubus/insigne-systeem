@@ -49,14 +49,14 @@ Install once (requires `config.yml` to exist first):
 This writes `~/.config/systemd/user/insigne.service`, enables lingering so the
 service starts at boot even without a login session, then enables and starts it.
 
-Use the `./insigne` control script afterwards:
+Use the `./insigne-ctl` control script afterwards:
 ```
-./insigne start
-./insigne stop
-./insigne restart
-./insigne status
-./insigne logs -f        # live log tail
-./insigne logs -n 100    # last 100 lines
+./insigne-ctl start
+./insigne-ctl stop
+./insigne-ctl restart
+./insigne-ctl status
+./insigne-ctl logs -f        # live log tail
+./insigne-ctl logs -n 100    # last 100 lines
 ```
 
 To remove the service:

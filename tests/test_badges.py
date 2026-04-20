@@ -24,10 +24,10 @@ class TestListBadges:
         slugs = [b["slug"] for b in result["gewoon"]]
         assert "sport_spel" in slugs
 
-    def test_buitengewoon_contains_cybersecurity(self):
+    def test_buitengewoon_contains_vredeslicht(self):
         result = list_badges(DATA_DIR)
         slugs = [b["slug"] for b in result["buitengewoon"]]
-        assert "cybersecurity" in slugs
+        assert "vredeslicht" in slugs
 
     def test_category_field_matches_group(self):
         result = list_badges(DATA_DIR)
@@ -39,9 +39,9 @@ class TestListBadges:
     def test_title_matches_yml(self):
         result = list_badges(DATA_DIR)
         sport_spel = next(b for b in result["gewoon"] if b["slug"] == "sport_spel")
-        cybersecurity = next(b for b in result["buitengewoon"] if b["slug"] == "cybersecurity")
+        vredeslicht = next(b for b in result["buitengewoon"] if b["slug"] == "vredeslicht")
         assert sport_spel["title"] == "Insigne Sport & Spel"
-        assert cybersecurity["title"] == "Insigne Cybersecurity"
+        assert vredeslicht["title"] == "Insigne Vredeslicht"
 
     def test_images_are_three_urls(self):
         result = list_badges(DATA_DIR)
@@ -78,60 +78,59 @@ class TestGetBadge:
         assert get_badge(DATA_DIR, "nonexistent") is None
 
     def test_returns_dict_for_known_slug(self):
-        assert get_badge(DATA_DIR, "cybersecurity") is not None
+        assert get_badge(DATA_DIR, "vredeslicht") is not None
         assert get_badge(DATA_DIR, "sport_spel") is not None
 
     def test_slug_field(self):
-        badge = get_badge(DATA_DIR, "cybersecurity")
-        assert badge["slug"] == "cybersecurity"
+        badge = get_badge(DATA_DIR, "vredeslicht")
+        assert badge["slug"] == "vredeslicht"
 
     def test_title_matches_yml(self):
-        assert get_badge(DATA_DIR, "cybersecurity")["title"] == "Insigne Cybersecurity"
+        assert get_badge(DATA_DIR, "vredeslicht")["title"] == "Insigne Vredeslicht"
         assert get_badge(DATA_DIR, "sport_spel")["title"] == "Insigne Sport & Spel"
 
     def test_category_from_index(self):
-        assert get_badge(DATA_DIR, "cybersecurity")["category"] == "buitengewoon"
+        assert get_badge(DATA_DIR, "vredeslicht")["category"] == "buitengewoon"
         assert get_badge(DATA_DIR, "sport_spel")["category"] == "gewoon"
 
     def test_images_are_three_urls(self):
-        badge = get_badge(DATA_DIR, "cybersecurity")
+        badge = get_badge(DATA_DIR, "vredeslicht")
         assert len(badge["images"]) == 3
 
     def test_image_urls_use_slug(self):
-        badge = get_badge(DATA_DIR, "cybersecurity")
+        badge = get_badge(DATA_DIR, "vredeslicht")
         assert badge["images"] == [
-            "/images/cybersecurity.1.png",
-            "/images/cybersecurity.2.png",
-            "/images/cybersecurity.3.png",
+            "/images/vredeslicht.1.png",
+            "/images/vredeslicht.2.png",
+            "/images/vredeslicht.3.png",
         ]
 
     def test_introduction_present(self):
-        badge = get_badge(DATA_DIR, "cybersecurity")
-        assert "Cyber Security" in badge["introduction"]
+        badge = get_badge(DATA_DIR, "vredeslicht")
+        assert "Vredeslicht" in badge["introduction"]
 
     def test_afterword_present(self):
-        badge = get_badge(DATA_DIR, "cybersecurity")
+        badge = get_badge(DATA_DIR, "vredeslicht")
         assert badge["afterword"] != ""
-        assert "Cyber Security" in badge["afterword"]
 
     def test_five_levels(self):
-        for slug in ("cybersecurity", "sport_spel"):
+        for slug in ("vredeslicht", "sport_spel"):
             badge = get_badge(DATA_DIR, slug)
             assert len(badge["levels"]) == 5, f"{slug} should have 5 step groups"
 
     def test_step_group_names_match_yml(self):
-        badge = get_badge(DATA_DIR, "cybersecurity")
+        badge = get_badge(DATA_DIR, "vredeslicht")
         names = [g["name"] for g in badge["levels"]]
         assert names == [
-            "Ontdek de digitale wereld",
-            "Samen en sociaal",
-            "Veilig en verantwoord",
+            "Geschiedenis",
+            "Reis en verspreiding",
+            "Betekenis en vredesgedachte",
             "Creatief en duurzaam",
-            "Samen sterker!",
+            "Evenement en eigen bijdrage",
         ]
 
     def test_each_group_has_three_steps(self):
-        for slug in ("cybersecurity", "sport_spel"):
+        for slug in ("vredeslicht", "sport_spel"):
             badge = get_badge(DATA_DIR, slug)
             for group in badge["levels"]:
                 assert len(group["steps"]) == 3, (
@@ -139,27 +138,27 @@ class TestGetBadge:
                 )
 
     def test_step_indices_are_zero_based(self):
-        badge = get_badge(DATA_DIR, "cybersecurity")
+        badge = get_badge(DATA_DIR, "vredeslicht")
         for group in badge["levels"]:
             indices = [s["index"] for s in group["steps"]]
             assert indices == [0, 1, 2]
 
     def test_step_text_is_non_empty(self):
-        badge = get_badge(DATA_DIR, "cybersecurity")
+        badge = get_badge(DATA_DIR, "vredeslicht")
         for group in badge["levels"]:
             for step in group["steps"]:
                 assert step["text"].strip() != ""
 
     def test_step_text_is_stripped(self):
-        badge = get_badge(DATA_DIR, "cybersecurity")
+        badge = get_badge(DATA_DIR, "vredeslicht")
         for group in badge["levels"]:
             for step in group["steps"]:
                 assert step["text"] == step["text"].strip()
 
-    def test_first_step_of_first_group_cybersecurity(self):
-        badge = get_badge(DATA_DIR, "cybersecurity")
+    def test_first_step_of_first_group_vredeslicht(self):
+        badge = get_badge(DATA_DIR, "vredeslicht")
         first_step = badge["levels"][0]["steps"][0]["text"]
-        assert first_step.startswith("Een digitale wereld vol kansen!")
+        assert first_step.startswith("Niveau 1.")
 
     def test_sport_spel_step_group_names_match_yml(self):
         badge = get_badge(DATA_DIR, "sport_spel")

@@ -12,7 +12,7 @@ from insigne.models import ConfirmationToken, ProgressEntry, SignoffRequest, Use
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-_BADGE = "cybersecurity"
+_BADGE = "vredeslicht"
 _LEVEL = 0
 _STEP = 0
 

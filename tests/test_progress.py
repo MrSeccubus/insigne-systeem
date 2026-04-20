@@ -13,7 +13,7 @@ def _active_user(db, email="scout@example.com", name="Scout Jan") -> User:
     return user
 
 
-def _entry(db, user, *, badge_slug="cybersecurity", level_index=0, step_index=0, notes=None):
+def _entry(db, user, *, badge_slug="vredeslicht", level_index=0, step_index=0, notes=None):
     e = ProgressEntry(
         user_id=user.id,
         badge_slug=badge_slug,
@@ -34,7 +34,7 @@ class TestLogProgress:
         with pytest.raises(ValueError, match="Invalid status"):
             progress_svc.log_progress(
                 db, scout.id,
-                badge_slug="cybersecurity", level_index=0, step_index=0,
+                badge_slug="vredeslicht", level_index=0, step_index=0,
                 status="signed_off",
             )
 
@@ -55,10 +55,10 @@ class TestListProgress:
 
     def test_filter_by_badge_slug(self, db):
         scout = _active_user(db)
-        _entry(db, scout, badge_slug="cybersecurity")
+        _entry(db, scout, badge_slug="vredeslicht")
         _entry(db, scout, badge_slug="kantklossen", level_index=0, step_index=1)
-        result = progress_svc.list_progress(db, scout.id, badge_slug="cybersecurity")
-        assert all(e.badge_slug == "cybersecurity" for e in result)
+        result = progress_svc.list_progress(db, scout.id, badge_slug="vredeslicht")
+        assert all(e.badge_slug == "vredeslicht" for e in result)
         assert len(result) == 1
 
     def test_filter_by_status(self, db):
@@ -84,22 +84,22 @@ class TestListProgress:
 class TestCreateProgress:
     def test_creates_entry(self, db):
         scout = _active_user(db)
-        entry = progress_svc.create_progress(db, scout.id, badge_slug="cybersecurity", level_index=0, step_index=0)
+        entry = progress_svc.create_progress(db, scout.id, badge_slug="vredeslicht", level_index=0, step_index=0)
         assert entry.id is not None
         assert entry.status == "in_progress"
 
     def test_stores_notes(self, db):
         scout = _active_user(db)
         entry = progress_svc.create_progress(
-            db, scout.id, badge_slug="cybersecurity", level_index=0, step_index=0, notes="Zomerkamp"
+            db, scout.id, badge_slug="vredeslicht", level_index=0, step_index=0, notes="Zomerkamp"
         )
         assert entry.notes == "Zomerkamp"
 
     def test_allows_same_step_if_not_completed(self, db):
         scout = _active_user(db)
-        progress_svc.create_progress(db, scout.id, badge_slug="cybersecurity", level_index=0, step_index=0)
+        progress_svc.create_progress(db, scout.id, badge_slug="vredeslicht", level_index=0, step_index=0)
         # Second entry for same step is allowed if first is not completed
-        entry = progress_svc.create_progress(db, scout.id, badge_slug="cybersecurity", level_index=0, step_index=0)
+        entry = progress_svc.create_progress(db, scout.id, badge_slug="vredeslicht", level_index=0, step_index=0)
         assert entry is not None
 
     def test_raises_conflict_if_step_already_completed(self, db):
@@ -108,14 +108,14 @@ class TestCreateProgress:
         e.status = "signed_off"
         db.commit()
         with pytest.raises(progress_svc.Conflict):
-            progress_svc.create_progress(db, scout.id, badge_slug="cybersecurity", level_index=0, step_index=0)
+            progress_svc.create_progress(db, scout.id, badge_slug="vredeslicht", level_index=0, step_index=0)
 
     def test_different_steps_do_not_conflict(self, db):
         scout = _active_user(db)
         e = _entry(db, scout, step_index=0)
         e.status = "signed_off"
         db.commit()
-        entry = progress_svc.create_progress(db, scout.id, badge_slug="cybersecurity", level_index=0, step_index=1)
+        entry = progress_svc.create_progress(db, scout.id, badge_slug="vredeslicht", level_index=0, step_index=1)
         assert entry is not None
 
 

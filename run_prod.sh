@@ -10,6 +10,8 @@ if [ ! -f venv/bin/uvicorn ]; then
     venv/bin/pip install -r requirements.txt
 fi
 
+rm -rf lib/*.egg-info
+venv/bin/pip uninstall -y insigne 2>/dev/null || true
 venv/bin/pip install -q -e lib/
 
 if [ ! -f config.yml ]; then

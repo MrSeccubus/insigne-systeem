@@ -26,6 +26,9 @@ def _env() -> Environment:
     return env
 
 
+_SMTP_TIMEOUT = 10  # seconds — prevents SMTP from blocking indefinitely
+
+
 def _send_smtp(to: str, subject: str, html: str) -> None:
     cfg = config.email
     msg = MIMEMultipart("alternative")
@@ -35,9 +38,9 @@ def _send_smtp(to: str, subject: str, html: str) -> None:
     msg.attach(MIMEText(html, "html", "utf-8"))
 
     if cfg.security == "ssl":
-        smtp = smtplib.SMTP_SSL(cfg.smtp_host, cfg.smtp_port)
+        smtp = smtplib.SMTP_SSL(cfg.smtp_host, cfg.smtp_port, timeout=_SMTP_TIMEOUT)
     else:
-        smtp = smtplib.SMTP(cfg.smtp_host, cfg.smtp_port)
+        smtp = smtplib.SMTP(cfg.smtp_host, cfg.smtp_port, timeout=_SMTP_TIMEOUT)
         if cfg.security == "starttls":
             smtp.starttls()
 

@@ -1,0 +1,16 @@
+[Unit]
+Description=Insigne Systeem — scouting badge tracking application
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=__INSTALL_DIR__
+ExecStart=__INSTALL_DIR__/run_prod.sh
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=insigne
+
+[Install]
+WantedBy=default.target

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import jwt
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -78,15 +78,16 @@ async def register_confirm_link(request: Request, code: str, db: Session = Depen
 @router.post("/register", response_class=HTMLResponse)
 async def register(
     request: Request,
+    background_tasks: BackgroundTasks,
     email: str = Form(...),
     db: Session = Depends(get_db),
 ):
     code, token_type, user = user_svc.start_registration(db, email)
     naam = user.name or user.email.split("@")[0]
     if token_type == "email_confirmation":
-        send_registration_email(user.email, naam, code)
+        background_tasks.add_task(send_registration_email, user.email, naam, code)
     else:
-        send_password_reset_email(user.email, naam, code)
+        background_tasks.add_task(send_password_reset_email, user.email, naam, code)
     return _partial(request, "register_step2.html", email=email.strip().lower())
 
 
@@ -107,6 +108,7 @@ async def register_confirm(
 @router.post("/register/activate", response_class=HTMLResponse)
 async def register_activate(
     request: Request,
+    background_tasks: BackgroundTasks,
     setup_token: str = Form(...),
     password: str = Form(...),
     name: str = Form(""),
@@ -122,7 +124,7 @@ async def register_activate(
         return _partial(request, "register_step3.html", setup_token=setup_token, error=error)
 
     if is_new:
-        send_welcome_email(user.email, user.name or user.email.split("@")[0])
+        background_tasks.add_task(send_welcome_email, user.email, user.name or user.email.split("@")[0])
     access_token, _ = create_access_token(user.id)
     response = HTMLResponse(content="")
     response.headers["HX-Redirect"] = "/"
@@ -221,6 +223,7 @@ async def forgot_password_page(request: Request, db: Session = Depends(get_db)):
 @router.post("/forgot-password", response_class=HTMLResponse)
 async def forgot_password(
     request: Request,
+    background_tasks: BackgroundTasks,
     email: str = Form(...),
     db: Session = Depends(get_db),
 ):
@@ -228,7 +231,7 @@ async def forgot_password(
     if code is not None:
         user = db.query(User).filter(User.email == email.strip().lower()).first()
         naam = user.name or user.email.split("@")[0]
-        send_password_reset_email(user.email, naam, code)
+        background_tasks.add_task(send_password_reset_email, user.email, naam, code)
     return _partial(request, "forgot_password_step2.html", email=email.strip().lower())
 
 

@@ -1,7 +1,6 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Response
-from fastapi import HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from insigne import progress as progress_svc
@@ -135,6 +134,7 @@ async def delete_progress(
 async def request_signoff(
     entry_id: str,
     body: RequestSignoffRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -157,9 +157,9 @@ async def request_signoff(
     step_text = level["steps"][entry.step_index]["text"]
     scout_name = current_user.name or current_user.email.split("@")[0]
     if created:
-        send_mentor_signoff_invite_email(mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
+        background_tasks.add_task(send_mentor_signoff_invite_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
     else:
-        send_mentor_signoff_request_email(mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
+        background_tasks.add_task(send_mentor_signoff_request_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
     return {"detail": "Sign-off request sent."}
 
 

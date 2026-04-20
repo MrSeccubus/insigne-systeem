@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Form, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -177,6 +177,7 @@ async def log_step(
 async def request_signoff(
     request: Request,
     entry_id: str,
+    background_tasks: BackgroundTasks,
     mentor_email: str = Form(...),
     notes: str = Form(""),
     db: Session = Depends(get_db),
@@ -206,9 +207,9 @@ async def request_signoff(
         entry, mentor, created = progress_svc.request_signoff(db, current_user.id, entry_id, mentor_email)
         scout_name = current_user.name or current_user.email.split("@")[0]
         if created:
-            send_mentor_signoff_invite_email(mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
+            background_tasks.add_task(send_mentor_signoff_invite_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
         else:
-            send_mentor_signoff_request_email(mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
+            background_tasks.add_task(send_mentor_signoff_request_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
     except progress_svc.Conflict as exc:
         if str(exc) == "already_signed_off":
             error = "Deze stap is al afgetekend."
@@ -346,6 +347,7 @@ async def signoff_requests_page(request: Request, db: Session = Depends(get_db))
 async def confirm_signoff(
     request: Request,
     entry_id: str,
+    background_tasks: BackgroundTasks,
     comment: str = Form(""),
     db: Session = Depends(get_db),
 ):
@@ -364,20 +366,18 @@ async def confirm_signoff(
         step_text = level["steps"][entry.step_index]["text"]
         mentor_name = current_user.name or current_user.email
 
-        try:
-            send_scout_signed_off_email(
-                scout.email,
-                scout.name or scout.email,
-                entry.badge_slug,
-                badge["title"],
-                entry.step_index + 1,
-                level["name"],
-                step_text,
-                mentor_name,
-                mentor_comment=entry.mentor_comment,
-            )
-        except Exception:
-            pass
+        background_tasks.add_task(
+            send_scout_signed_off_email,
+            scout.email,
+            scout.name or scout.email,
+            entry.badge_slug,
+            badge["title"],
+            entry.step_index + 1,
+            level["name"],
+            step_text,
+            mentor_name,
+            mentor_comment=entry.mentor_comment,
+        )
 
         n_eisen = len(badge["levels"])
         signed_count = db.query(ProgressEntry).filter(
@@ -387,15 +387,13 @@ async def confirm_signoff(
             ProgressEntry.status == "signed_off",
         ).count()
         if signed_count == n_eisen:
-            try:
-                send_scout_niveau_completed_email(
-                    scout.email,
-                    scout.name or scout.email,
-                    badge["title"],
-                    entry.step_index + 1,
-                )
-            except Exception:
-                pass
+            background_tasks.add_task(
+                send_scout_niveau_completed_email,
+                scout.email,
+                scout.name or scout.email,
+                badge["title"],
+                entry.step_index + 1,
+            )
 
     except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict) as exc:
         confirmed = False
@@ -408,6 +406,7 @@ async def confirm_signoff(
 async def reject_signoff(
     request: Request,
     entry_id: str,
+    background_tasks: BackgroundTasks,
     message: str = Form(""),
     db: Session = Depends(get_db),
 ):
@@ -424,19 +423,17 @@ async def reject_signoff(
         step_text = level["steps"][entry.step_index]["text"]
         mentor_name = current_user.name or current_user.email
 
-        try:
-            send_scout_rejected_email(
-                scout.email,
-                scout.name or scout.email,
-                badge["title"],
-                entry.step_index + 1,
-                level["name"],
-                step_text,
-                mentor_name,
-                message.strip(),
-            )
-        except Exception:
-            pass
+        background_tasks.add_task(
+            send_scout_rejected_email,
+            scout.email,
+            scout.name or scout.email,
+            badge["title"],
+            entry.step_index + 1,
+            level["name"],
+            step_text,
+            mentor_name,
+            message.strip(),
+        )
 
         return _partial(request, "signoff_request_item.html", entry_id=entry_id, confirmed=False, error="", rejected=True)
     except (progress_svc.NotFound, progress_svc.Forbidden) as exc:

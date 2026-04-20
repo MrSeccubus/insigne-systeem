@@ -14,12 +14,20 @@ jwt:
   secret_key: "<any long random string>"
   algorithm: HS256
   expire_days: 30
+
+server:
+  host: 127.0.0.1   # bind address for run_prod.sh (default: 127.0.0.1)
+  port: 8000        # bind port for run_prod.sh (default: 8000)
+  keepalive: 2      # uvicorn --timeout-keep-alive in seconds (default: 2; set low behind a proxy)
+
+base_url: "http://localhost:8000"  # public URL used in emails and links
 ```
 The app reads `config.yml` from the working directory on startup.
 Override the path with the `INSIGNE_CONFIG` environment variable.
 
 ## Running the app
-From the project root:
+
+**Development** (auto-reload):
 ```
 ./serve_dev.sh
 ```
@@ -27,7 +35,41 @@ Or manually:
 ```
 venv/bin/uvicorn main:app --app-dir api --reload
 ```
+
+**Production** (single run, no reload):
+```
+./run_prod.sh
+```
+Binds to `127.0.0.1:8000` by default. Override with env vars:
+```
+INSIGNE_HOST=0.0.0.0 INSIGNE_PORT=9000 ./run_prod.sh
+```
+
 Then open http://localhost:8000.
+
+## Running as a systemd user service
+
+Install once (requires `config.yml` to exist first):
+```
+./systemd/install.sh
+```
+This writes `~/.config/systemd/user/insigne.service`, enables lingering so the
+service starts at boot even without a login session, then enables and starts it.
+
+Use the `./insigne-ctl` control script afterwards:
+```
+./insigne-ctl start
+./insigne-ctl stop
+./insigne-ctl restart
+./insigne-ctl status
+./insigne-ctl logs -f        # live log tail
+./insigne-ctl logs -n 100    # last 100 lines
+```
+
+To remove the service:
+```
+./systemd/uninstall.sh
+```
 
 ## Database
 SQLite database is created automatically at `api/data/insigne.db` on first run.

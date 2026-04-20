@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -27,13 +27,13 @@ def _user_response(user: User) -> UserResponse:
 
 
 @router.post("", status_code=202)
-async def register(body: RegisterRequest, db: Session = Depends(get_db)):
+async def register(body: RegisterRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     code, token_type, user = user_svc.start_registration(db, body.email)
     naam = user.name or user.email.split("@")[0]
     if token_type == "email_confirmation":
-        send_registration_email(user.email, naam, code)
+        background_tasks.add_task(send_registration_email, user.email, naam, code)
     else:
-        send_password_reset_email(user.email, naam, code)
+        background_tasks.add_task(send_password_reset_email, user.email, naam, code)
     return {"detail": "Confirmation email sent."}
 
 
@@ -46,7 +46,7 @@ async def confirm(body: ConfirmRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/activate", response_model=TokenResponse)
-async def activate(body: ActivateRequest, db: Session = Depends(get_db)):
+async def activate(body: ActivateRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     try:
         user, is_new = user_svc.activate_account(db, body.setup_token, body.password, body.name)
     except user_svc.ActivationError as exc:
@@ -57,7 +57,7 @@ async def activate(body: ActivateRequest, db: Session = Depends(get_db)):
         )
         raise HTTPException(status_code=400, detail=detail)
     if is_new:
-        send_welcome_email(user.email, user.name or user.email.split("@")[0])
+        background_tasks.add_task(send_welcome_email, user.email, user.name or user.email.split("@")[0])
     access_token, expires_at = create_access_token(user.id)
     return TokenResponse(access_token=access_token, expires_at=expires_at)
 

@@ -17,12 +17,14 @@ if [ ! -f config.yml ]; then
     exit 1
 fi
 
-# Read host/port from config.yml, allow env var overrides
+# Read server settings from config.yml, allow env var overrides
 HOST="${INSIGNE_HOST:-$(venv/bin/python -c "from insigne.config import config; print(config.server_host)")}"
 PORT="${INSIGNE_PORT:-$(venv/bin/python -c "from insigne.config import config; print(config.server_port)")}"
+KEEPALIVE="${INSIGNE_KEEPALIVE:-$(venv/bin/python -c "from insigne.config import config; print(config.server_keepalive)")}"
 
 exec venv/bin/uvicorn main:app \
     --app-dir api \
     --host "$HOST" \
     --port "$PORT" \
-    --workers 1
+    --workers 1 \
+    --timeout-keep-alive "$KEEPALIVE"

@@ -18,6 +18,7 @@ jwt:
 server:
   host: 127.0.0.1   # bind address for run_prod.sh (default: 127.0.0.1)
   port: 8000        # bind port for run_prod.sh (default: 8000)
+  keepalive: 2      # uvicorn --timeout-keep-alive in seconds (default: 2; set low behind a proxy)
 
 base_url: "http://localhost:8000"  # public URL used in emails and links
 ```

@@ -364,6 +364,7 @@ button:hover {
 .progress-label {
     font-size: 0.78rem;
     color: #666;
+    text-align: center;
 }
 
 /* ── Badge detail ────────────────────────────────────────────────────────── */

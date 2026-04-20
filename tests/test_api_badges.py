@@ -20,17 +20,17 @@ class TestListBadges:
 
 class TestGetBadge:
     def test_returns_badge_detail(self, client, db):
-        r = client.get("/api/badges/kantklossen")
+        r = client.get("/api/badges/sport_spel")
         assert r.status_code == 200
         data = r.json()
-        assert data["slug"] == "kantklossen"
+        assert data["slug"] == "sport_spel"
         assert "title" in data
         assert "levels" in data
         assert "introduction" in data
         assert "afterword" in data
 
     def test_levels_have_steps(self, client, db):
-        data = client.get("/api/badges/kantklossen").json()
+        data = client.get("/api/badges/sport_spel").json()
         assert len(data["levels"]) > 0
         for level in data["levels"]:
             assert "name" in level

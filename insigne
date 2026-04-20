@@ -1,0 +1,36 @@
+#!/bin/bash
+# Control script for the Insigne Systeem service.
+# Usage: ./insigne {start|stop|restart|status|logs [journalctl-args]}
+
+SERVICE_NAME="insigne"
+
+case "${1:-}" in
+    start)
+        systemctl --user start "$SERVICE_NAME"
+        systemctl --user status "$SERVICE_NAME" --no-pager
+        ;;
+    stop)
+        systemctl --user stop "$SERVICE_NAME"
+        ;;
+    restart)
+        systemctl --user restart "$SERVICE_NAME"
+        systemctl --user status "$SERVICE_NAME" --no-pager
+        ;;
+    status)
+        systemctl --user status "$SERVICE_NAME" --no-pager
+        ;;
+    logs)
+        # Pass any extra arguments directly to journalctl (e.g. -f, -n 100)
+        journalctl --user -u "$SERVICE_NAME" "${@:2}"
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status|logs}"
+        echo ""
+        echo "  start    Start the service"
+        echo "  stop     Stop the service"
+        echo "  restart  Restart the service"
+        echo "  status   Show service status"
+        echo "  logs     Show logs (pass extra flags, e.g. -f or -n 50)"
+        exit 1
+        ;;
+esac

@@ -19,7 +19,8 @@ The app reads `config.yml` from the working directory on startup.
 Override the path with the `INSIGNE_CONFIG` environment variable.
 
 ## Running the app
-From the project root:
+
+**Development** (auto-reload):
 ```
 ./serve_dev.sh
 ```
@@ -27,7 +28,41 @@ Or manually:
 ```
 venv/bin/uvicorn main:app --app-dir api --reload
 ```
+
+**Production** (single run, no reload):
+```
+./run_prod.sh
+```
+Binds to `127.0.0.1:8000` by default. Override with env vars:
+```
+INSIGNE_HOST=0.0.0.0 INSIGNE_PORT=9000 ./run_prod.sh
+```
+
 Then open http://localhost:8000.
+
+## Running as a systemd user service
+
+Install once (requires `config.yml` to exist first):
+```
+./systemd/install.sh
+```
+This writes `~/.config/systemd/user/insigne.service`, enables lingering so the
+service starts at boot even without a login session, then enables and starts it.
+
+Use the `./insigne` control script afterwards:
+```
+./insigne start
+./insigne stop
+./insigne restart
+./insigne status
+./insigne logs -f        # live log tail
+./insigne logs -n 100    # last 100 lines
+```
+
+To remove the service:
+```
+./systemd/uninstall.sh
+```
 
 ## Database
 SQLite database is created automatically at `api/data/insigne.db` on first run.

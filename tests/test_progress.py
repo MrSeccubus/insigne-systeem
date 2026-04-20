@@ -26,6 +26,19 @@ def _entry(db, user, *, badge_slug="cybersecurity", level_index=0, step_index=0,
     return e
 
 
+# ── log_progress ─────────────────────────────────────────────────────────────
+
+class TestLogProgress:
+    def test_invalid_status_raises_value_error(self, db):
+        scout = _active_user(db)
+        with pytest.raises(ValueError, match="Invalid status"):
+            progress_svc.log_progress(
+                db, scout.id,
+                badge_slug="cybersecurity", level_index=0, step_index=0,
+                status="signed_off",
+            )
+
+
 # ── list_progress ─────────────────────────────────────────────────────────────
 
 class TestListProgress:
@@ -265,6 +278,13 @@ class TestRequestSignoff:
         e = _entry(db, scout)
         e.status = "signed_off"
         db.commit()
+        with pytest.raises(progress_svc.Conflict):
+            progress_svc.request_signoff(db, scout.id, e.id, "mentor@example.com")
+
+    def test_raises_conflict_if_entry_not_work_done(self, db):
+        scout = _active_user(db)
+        e = _entry(db, scout)
+        # status is "in_progress" (default) — not work_done or pending_signoff
         with pytest.raises(progress_svc.Conflict):
             progress_svc.request_signoff(db, scout.id, e.id, "mentor@example.com")
 

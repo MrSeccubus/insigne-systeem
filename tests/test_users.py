@@ -311,3 +311,37 @@ class TestForgotPassword:
         user_svc.activate_account(db, setup, "newpassword!")
         assert user_svc.authenticate(db, "jan@example.com", "oldpassword") is None
         assert user_svc.authenticate(db, "jan@example.com", "newpassword!") is not None
+
+
+# ── update_user ───────────────────────────────────────────────────────────────
+
+class TestUpdateUser:
+    def test_updates_name(self, db):
+        user = _register_and_activate(db, name="Oud Naam")
+        user_svc.update_user(db, user, name="Nieuw Naam")
+        db.refresh(user)
+        assert user.name == "Nieuw Naam"
+
+    def test_updates_email(self, db):
+        user = _register_and_activate(db)
+        user_svc.update_user(db, user, email="nieuw@example.com")
+        db.refresh(user)
+        assert user.email == "nieuw@example.com"
+
+    def test_updates_password(self, db):
+        user = _register_and_activate(db, password="oldpassword1")
+        user_svc.update_user(db, user, password="newpassword1")
+        db.refresh(user)
+        assert verify_password("newpassword1", user.password_hash)
+
+    def test_short_password_raises(self, db):
+        user = _register_and_activate(db)
+        with pytest.raises(ValueError, match="password_too_short"):
+            user_svc.update_user(db, user, password="short")
+
+    def test_none_fields_are_not_updated(self, db):
+        user = _register_and_activate(db, name="Jan")
+        original_name = user.name
+        user_svc.update_user(db, user, email="other@example.com")
+        db.refresh(user)
+        assert user.name == original_name

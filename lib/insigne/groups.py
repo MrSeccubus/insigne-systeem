@@ -1,3 +1,6 @@
+import re
+import unicodedata
+
 from sqlalchemy.orm import Session
 
 from insigne.models import (
@@ -7,6 +10,16 @@ from insigne.models import (
     SpeltakMembership,
     User,
 )
+
+
+# ── Slug helpers ──────────────────────────────────────────────────────────────
+
+def name_to_slug(name: str) -> str:
+    """Convert a human-readable name to a URL-safe slug."""
+    nfkd = unicodedata.normalize("NFD", name)
+    ascii_only = "".join(c for c in nfkd if unicodedata.category(c) != "Mn")
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_only.lower()).strip("-")
+    return slug or "groep"
 
 
 # ── Authorization helpers ──────────────────────────────────────────────────────

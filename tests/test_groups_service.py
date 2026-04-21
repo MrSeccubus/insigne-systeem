@@ -49,6 +49,22 @@ def test_get_group_by_slug_not_found(db):
     assert svc.get_group_by_slug(db, "nonexistent") is None
 
 
+def test_name_to_slug_basic(db):
+    assert svc.name_to_slug("Groep Amsterdam") == "groep-amsterdam"
+
+
+def test_name_to_slug_diacritics(db):
+    assert svc.name_to_slug("Spültàk Ë") == "spultak-e"
+
+
+def test_name_to_slug_special_chars(db):
+    assert svc.name_to_slug("Groep & Zonen!") == "groep-zonen"
+
+
+def test_name_to_slug_empty_fallback(db):
+    assert svc.name_to_slug("!!!") == "groep"
+
+
 def test_unique_group_slug_no_collision(db):
     assert svc.unique_group_slug(db, "groep-a") == "groep-a"
 

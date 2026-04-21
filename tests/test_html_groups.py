@@ -48,15 +48,15 @@ class TestGroupNew:
 class TestGroupCreate:
     def test_creates_group_and_redirects(self, client, db):
         user = _user(db)
-        r = client.post("/groups/new", data={"name": "Groep A", "slug": "groep-a"},
+        r = client.post("/groups/new", data={"name": "Groep A"},
                         cookies=_cookie(user), follow_redirects=False)
         assert r.status_code == 303
         assert svc.get_group_by_slug(db, "groep-a") is not None
 
-    def test_duplicate_slug_auto_deduplicates(self, client, db):
+    def test_duplicate_name_auto_deduplicates_slug(self, client, db):
         user = _user(db)
-        svc.create_group(db, name="Oud", slug="groep-a")
-        r = client.post("/groups/new", data={"name": "Nieuw", "slug": "groep-a"},
+        svc.create_group(db, name="Groep A", slug="groep-a")
+        r = client.post("/groups/new", data={"name": "Groep A"},
                         cookies=_cookie(user), follow_redirects=False)
         assert r.status_code == 303
         assert svc.get_group_by_slug(db, "groep-a-2") is not None

@@ -52,7 +52,6 @@ def group_new_form(request: Request, db: Session = Depends(get_db)):
 def group_create(
     request: Request,
     name: str = Form(...),
-    slug: str = Form(...),
     db: Session = Depends(get_db),
 ):
     user, redirect = _require_user(request, db)
@@ -60,7 +59,7 @@ def group_create(
         return redirect
     if not user.is_admin and not config.allow_any_user_to_create_groups:
         return RedirectResponse("/groups", status_code=303)
-    slug = groups_svc.unique_group_slug(db, slug)
+    slug = groups_svc.unique_group_slug(db, groups_svc.name_to_slug(name))
     groups_svc.create_group(db, name=name, slug=slug, created_by_id=user.id)
     return RedirectResponse(f"/groups/{slug}", status_code=303)
 
@@ -95,7 +94,6 @@ def group_edit(
     slug: str,
     request: Request,
     name: str = Form(...),
-    new_slug: str = Form(...),
     db: Session = Depends(get_db),
 ):
     user, redirect = _require_user(request, db)
@@ -104,12 +102,8 @@ def group_edit(
     group = groups_svc.get_group_by_slug(db, slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse("/groups", status_code=303)
-    existing = groups_svc.get_group_by_slug(db, new_slug)
-    if existing and existing.id != group.id:
-        return _page(request, "group_edit.html", db,
-                     group=group, error="Deze slug is al in gebruik.")
-    groups_svc.update_group(db, group, name=name, slug=new_slug)
-    return RedirectResponse(f"/groups/{new_slug}", status_code=303)
+    groups_svc.update_group(db, group, name=name, slug=group.slug)
+    return RedirectResponse(f"/groups/{slug}", status_code=303)
 
 
 @router.post("/groups/{slug}/delete", response_class=HTMLResponse)

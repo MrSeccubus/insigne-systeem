@@ -5,20 +5,35 @@
 {% block content %}
 <main>
     <h1>{% if group %}Groep bewerken{% else %}Nieuwe groep{% endif %}</h1>
-    <div style="max-width:480px;">
+    <div style="max-width:480px;"
+         x-data="{
+             slug: '{{ form_slug if form_slug is defined else (group.slug if group else '') }}',
+             slugLocked: {{ 'true' if group else 'false' }},
+             nameToSlug(v) {
+                 return v.toLowerCase()
+                     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                     .replace(/[^a-z0-9\s-]/g, '')
+                     .trim().replace(/\s+/g, '-').replace(/-+/g, '-');
+             }
+         }">
         <form method="post" action="{% if group %}/groups/{{ group.slug }}/edit{% else %}/groups/new{% endif %}">
             {% if error %}
                 <p class="form-error">{{ error }}</p>
             {% endif %}
             <div class="field">
                 <label for="name">Naam</label>
-                <input type="text" id="name" name="name" value="{{ form_name if form_name is defined else (group.name if group else '') }}" required maxlength="200">
+                <input type="text" id="name" name="name"
+                       value="{{ form_name if form_name is defined else (group.name if group else '') }}"
+                       required maxlength="200"
+                       @input="if (!slugLocked) slug = nameToSlug($event.target.value)">
             </div>
             <div class="field">
                 <label for="slug">Slug <span class="optional">(alleen kleine letters, cijfers en koppeltekens)</span></label>
                 <input type="text" id="slug" name="{% if group %}new_slug{% else %}slug{% endif %}"
-                       value="{{ form_slug if form_slug is defined else (group.slug if group else '') }}"
-                       required maxlength="100" pattern="[a-z0-9-]+">
+                       x-model="slug"
+                       required maxlength="100" pattern="[a-z0-9-]+"
+                       @input="slugLocked = true"
+                       @blur="if (!slug) slugLocked = false">
             </div>
             <div style="display:flex;gap:1rem;margin-top:1rem;">
                 <button type="submit" class="btn-success">Opslaan</button>

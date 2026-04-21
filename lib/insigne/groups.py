@@ -64,6 +64,16 @@ def get_group_by_slug(db: Session, slug: str) -> Group | None:
     return db.query(Group).filter_by(slug=slug).first()
 
 
+def unique_group_slug(db: Session, base_slug: str) -> str:
+    """Return base_slug if unused, otherwise base_slug-2, -3, … until unique."""
+    if not get_group_by_slug(db, base_slug):
+        return base_slug
+    i = 2
+    while get_group_by_slug(db, f"{base_slug}-{i}"):
+        i += 1
+    return f"{base_slug}-{i}"
+
+
 def list_groups(db: Session) -> list[Group]:
     return db.query(Group).order_by(Group.name).all()
 

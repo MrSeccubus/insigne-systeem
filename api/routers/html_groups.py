@@ -60,11 +60,9 @@ def group_create(
         return redirect
     if not user.is_admin and not config.allow_any_user_to_create_groups:
         return RedirectResponse("/groups", status_code=303)
-    if groups_svc.get_group_by_slug(db, slug):
-        return _page(request, "group_edit.html", db,
-                     group=None, error="Deze slug is al in gebruik.", form_name=name, form_slug=slug)
+    slug = groups_svc.unique_group_slug(db, slug)
     groups_svc.create_group(db, name=name, slug=slug, created_by_id=user.id)
-    return RedirectResponse("/groups", status_code=303)
+    return RedirectResponse(f"/groups/{slug}", status_code=303)
 
 
 # ── Group detail / edit ───────────────────────────────────────────────────────

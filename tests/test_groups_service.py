@@ -49,6 +49,22 @@ def test_get_group_by_slug_not_found(db):
     assert svc.get_group_by_slug(db, "nonexistent") is None
 
 
+def test_unique_group_slug_no_collision(db):
+    assert svc.unique_group_slug(db, "groep-a") == "groep-a"
+
+
+def test_unique_group_slug_single_collision(db):
+    svc.create_group(db, name="G", slug="groep-a")
+    assert svc.unique_group_slug(db, "groep-a") == "groep-a-2"
+
+
+def test_unique_group_slug_multiple_collisions(db):
+    svc.create_group(db, name="G1", slug="groep-a")
+    svc.create_group(db, name="G2", slug="groep-a-2")
+    svc.create_group(db, name="G3", slug="groep-a-3")
+    assert svc.unique_group_slug(db, "groep-a") == "groep-a-4"
+
+
 def test_list_groups_ordered_by_name(db):
     svc.create_group(db, name="Zwolle", slug="zwolle")
     svc.create_group(db, name="Amsterdam", slug="amsterdam")

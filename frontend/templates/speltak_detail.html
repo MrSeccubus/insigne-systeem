@@ -37,11 +37,14 @@
         {% if members %}
             <ul class="item-list">
                 {% for m in members %}
-                <li class="item-list-row">
+                <li class="item-list-row" x-data="{ showEmail: false }">
                     <span>{{ m.user.name or m.user.email or '(onbekend)' }}</span>
                     <span class="row-actions">
                         <span class="role-badge">{{ m.role }}</span>
                         {% if can_manage %}
+                            {% if not m.user.email %}
+                            <button type="button" class="btn-neutral btn-sm" @click="showEmail = !showEmail">E-mail koppelen</button>
+                            {% endif %}
                             {% if m.user.email %}
                             <form method="post" action="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/{{ m.user_id }}/role" class="inline-form" style="width:auto;">
                                 <select name="role" onchange="this.form.submit()" class="role-select">
@@ -65,6 +68,20 @@
                             </form>
                         {% endif %}
                     </span>
+                    {% if can_manage and not m.user.email %}
+                    <form x-show="showEmail" x-cloak method="post"
+                          action="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/{{ m.user_id }}/set-email"
+                          style="width:100%;padding-top:0.25rem;"
+                          x-data="{ sending: false }" @submit="sending = true">
+                        <input type="email" name="email" required placeholder="E-mailadres"
+                               style="width:100%;padding:0.5rem 0.75rem;font-size:1rem;border:1px solid #ccc;border-radius:4px;font-family:inherit;background:#fff;box-sizing:border-box;margin-bottom:0.4rem;">
+                        <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
+                            <button type="submit" class="btn-success btn-sm" :disabled="sending"
+                                    x-text="sending ? 'Bezig…' : 'Opslaan'"></button>
+                            <button type="button" class="btn-cancel btn-sm" @click="showEmail = false">Annuleren</button>
+                        </div>
+                    </form>
+                    {% endif %}
                 </li>
                 {% endfor %}
             </ul>

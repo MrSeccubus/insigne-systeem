@@ -108,7 +108,7 @@
                         <button type="submit" class="btn-success" :disabled="inviting"
                                 x-text="inviting ? 'Bezig…' : 'Uitnodigen'"
                                 @click="inviting = true"></button>
-                        <button type="button" @click="notFound = false; email = ''" class="btn-cancel">Annuleren</button>
+                        <button type="button" @click="notFound = false; email = ''; inviting = false" class="btn-cancel">Annuleren</button>
                     </div>
                 </form>
             </div>

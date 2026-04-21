@@ -267,6 +267,7 @@ def set_group_role(
     if m:
         m.role = role
         m.approved = True
+        m.withdrawn = False
     else:
         m = GroupMembership(user_id=user_id, group_id=group_id, role=role, approved=True)
         db.add(m)
@@ -331,6 +332,7 @@ def set_speltak_role(
     if m:
         m.role = role
         m.approved = True
+        m.withdrawn = False
     else:
         m = SpeltakMembership(user_id=user_id, speltak_id=speltak_id, role=role, approved=True)
         db.add(m)

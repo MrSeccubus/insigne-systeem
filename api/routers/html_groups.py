@@ -246,6 +246,7 @@ def group_invite_member(
         if m:
             m.role = "groepsleider"
             m.approved = False
+            m.withdrawn = False
             m.invited_by_id = user.id
         else:
             db.add(GroupMembership(user_id=invitee.id, group_id=group.id,
@@ -264,6 +265,7 @@ def group_invite_member(
         if m:
             m.role = "groepsleider"
             m.approved = False
+            m.withdrawn = False
             m.invited_by_id = user.id
         else:
             db.add(GroupMembership(user_id=invitee.id, group_id=group.id,
@@ -466,6 +468,7 @@ def speltak_invite_member(
         if m:
             m.role = role
             m.approved = False
+            m.withdrawn = False
             m.invited_by_id = user.id
         else:
             db.add(SpeltakMembership(user_id=invitee.id, speltak_id=speltak.id,
@@ -484,6 +487,7 @@ def speltak_invite_member(
         if m:
             m.role = role
             m.approved = False
+            m.withdrawn = False
             m.invited_by_id = user.id
         else:
             db.add(SpeltakMembership(user_id=invitee.id, speltak_id=speltak.id,

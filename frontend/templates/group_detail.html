@@ -52,7 +52,7 @@
                     {% if can_manage %}
                     <span class="row-actions">
                         <span class="role-badge">groepsleider</span>
-                        <form method="post" action="/groups/{{ group.slug }}/members/{{ m.user_id }}/remove" class="inline-form" style="width:auto;">
+                        <form method="post" action="/groups/{{ group.slug }}/members/{{ m.user_id }}/remove" style="display:contents;">
                             <button type="submit" class="btn-danger btn-sm"
                                     onclick="return confirm('Groepsleider verwijderen?')">Verwijderen</button>
                         </form>

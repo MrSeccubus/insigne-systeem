@@ -14,4 +14,5 @@ if [ ! -f config.yml ]; then
     exit 1
 fi
 
+venv/bin/alembic -c api/alembic.ini upgrade head
 INSIGNE_DEV=1 venv/bin/uvicorn main:app --app-dir api --reload

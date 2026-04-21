@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 import insigne.models  # noqa: F401 — registers all ORM classes on Base.metadata
 from insigne import progress as progress_svc
 from insigne.badges import get_badge, list_badges
-from insigne.database import Base, engine, get_db
+from insigne.database import get_db
 from routers import api_auth, api_badges, api_progress, api_users, html_badges, users
 from routers.users import _get_current_user
 from templates import templates
@@ -19,8 +19,6 @@ DATA_DIR = Path(__file__).parent / "data"
 IMAGES_DIR = DATA_DIR / "images"
 
 app = FastAPI()
-
-Base.metadata.create_all(bind=engine)
 
 app.include_router(users.router)
 app.include_router(html_badges.router)

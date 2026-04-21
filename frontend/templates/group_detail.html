@@ -102,12 +102,12 @@
             <div class="invite-panel" x-show="notFound" x-cloak>
                 <p>Geen account gevonden voor <strong x-text="email"></strong>.
                    Wil je deze persoon uitnodigen als groepsleider voor <strong>{{ group.name }}</strong>?</p>
-                <form method="post" action="/groups/{{ group.slug }}/members/invite" style="display:contents;">
+                <form x-ref="inviteForm" method="post" action="/groups/{{ group.slug }}/members/invite" style="display:contents;">
                     <input type="hidden" name="email" :value="email">
                     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                        <button type="submit" class="btn-success" :disabled="inviting"
+                        <button type="button" class="btn-success" :disabled="inviting"
                                 x-text="inviting ? 'Bezig…' : 'Uitnodigen'"
-                                @click="inviting = true"></button>
+                                @click="inviting = true; $refs.inviteForm.submit()"></button>
                         <button type="button" @click="notFound = false; email = ''; inviting = false" class="btn-cancel">Annuleren</button>
                     </div>
                 </form>

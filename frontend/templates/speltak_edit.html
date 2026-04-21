@@ -16,7 +16,7 @@
                        value="{{ speltak.name if speltak else '' }}"
                        required maxlength="200" autofocus>
             </div>
-            <div class="field" style="margin-top:1rem;">
+            <div style="margin-top:0.5rem;margin-bottom:1.2rem;">
                 <label class="toggle-label">
                     <input type="checkbox" name="peer_signoff" value="true"
                            {% if speltak and speltak.peer_signoff %}checked{% endif %}>

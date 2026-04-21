@@ -1,4 +1,4 @@
-"""Tests for system admin detection via config and allow_group_creation flag."""
+"""Tests for system admin detection via config and allow_any_user_to_create_groups flag."""
 from insigne.models import User
 
 
@@ -65,12 +65,12 @@ def test_multiple_admins(db):
     assert u3.is_admin is False
 
 
-# ── allow_group_creation config ───────────────────────────────────────────────
+# ── allow_any_user_to_create_groups config ───────────────────────────────────────────────
 
-def test_allow_group_creation_defaults_to_true():
+def test_allow_any_user_to_create_groups_defaults_to_true():
     from insigne.config import Config
     c = Config(database_url="sqlite://", jwt_secret_key="x")
-    assert c.allow_group_creation is True
+    assert c.allow_any_user_to_create_groups is True
 
 
 def test_admins_defaults_to_empty():

@@ -28,7 +28,7 @@ class Config:
     server_port: int = 8000
     server_keepalive: int = 2
     admins: list = field(default_factory=list)
-    allow_group_creation: bool = True
+    allow_any_user_to_create_groups: bool = True
     email: EmailConfig = field(default_factory=EmailConfig)
 
 
@@ -53,7 +53,7 @@ def _load() -> Config:
         server_port=int(data.get("server", {}).get("port", 8000)),
         server_keepalive=int(data.get("server", {}).get("keepalive", 2)),
         admins=[str(e).lower() for e in data.get("admins", [])],
-        allow_group_creation=bool(data.get("allow_group_creation", True)),
+        allow_any_user_to_create_groups=bool(data.get("allow_any_user_to_create_groups", True)),
         email=EmailConfig(
             smtp_host=email_data.get("smtp_host", ""),
             smtp_port=int(email_data.get("smtp_port", 587)),

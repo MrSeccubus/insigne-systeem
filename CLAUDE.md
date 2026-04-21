@@ -27,7 +27,7 @@ admins:
   - admin@example.com
 
 # Whether any authenticated user may create a group (false = only admins)
-allow_group_creation: true
+allow_any_user_to_create_groups: true
 ```
 The app reads `config.yml` from the working directory on startup.
 Override the path with the `INSIGNE_CONFIG` environment variable.

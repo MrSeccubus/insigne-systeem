@@ -7,7 +7,7 @@ from insigne import groups as groups_svc
 from insigne import users as users_svc
 from insigne.config import config
 from insigne.database import get_db
-from insigne.models import GroupMembership
+from insigne.models import GroupMembership, SpeltakMembership
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
 
@@ -264,6 +264,7 @@ def speltak_detail(
         return RedirectResponse(f"/groups/{group_slug}", status_code=303)
     can_manage = bool(current_user and groups_svc.can_manage_speltak(current_user, db, speltak.id))
     members = groups_svc.list_speltak_members(db, speltak.id)
+    pending_members = groups_svc.list_pending_speltak_members(db, speltak.id) if can_manage else []
     other_speltakken = [s for s in group.speltakken if s.id != speltak.id]
     suggested_users = (
         groups_svc.list_group_users_not_in_speltak(db, group.id, speltak.id)
@@ -271,6 +272,7 @@ def speltak_detail(
     )
     return _page(request, "speltak_detail.html", db,
                  group=group, speltak=speltak, members=members,
+                 pending_members=pending_members,
                  can_manage=can_manage, other_speltakken=other_speltakken,
                  suggested_users=suggested_users)
 
@@ -323,6 +325,76 @@ def speltak_delete(
 
 
 # ── Speltak member actions ────────────────────────────────────────────────────
+
+@router.get("/groups/{group_slug}/speltakken/{speltak_slug}/members/check-email")
+def speltak_check_email(
+    group_slug: str,
+    speltak_slug: str,
+    request: Request,
+    email: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    user = _get_current_user(request, db)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    group = groups_svc.get_group_by_slug(db, group_slug)
+    speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
+    if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    from insigne.models import User as UserModel
+    target = db.query(UserModel).filter_by(email=email.strip().lower()).first()
+    return JSONResponse({"exists": target is not None and target.status == "active"})
+
+
+@router.post("/groups/{group_slug}/speltakken/{speltak_slug}/members/invite",
+             response_class=HTMLResponse)
+def speltak_invite_member(
+    group_slug: str,
+    speltak_slug: str,
+    request: Request,
+    email: str = Form(...),
+    role: str = Form("scout"),
+    db: Session = Depends(get_db),
+):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    group = groups_svc.get_group_by_slug(db, group_slug)
+    speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
+    if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
+        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+    code, token_type, invitee = users_svc.start_registration(db, email)
+    if token_type == "email_confirmation":
+        m = db.query(SpeltakMembership).filter_by(user_id=invitee.id, speltak_id=speltak.id).first()
+        if m:
+            m.role = role
+            m.approved = False
+        else:
+            db.add(SpeltakMembership(user_id=invitee.id, speltak_id=speltak.id,
+                                     role=role, approved=False))
+        db.commit()
+        email_svc.send_speltak_invite_email(
+            to=email,
+            naam=invitee.name or email.split("@")[0],
+            code=code,
+            inviter_name=user.name or user.email,
+            group_name=group.name,
+            speltak_name=speltak.name,
+            role=role,
+        )
+    else:
+        groups_svc.set_speltak_role(db, user_id=invitee.id, speltak_id=speltak.id, role=role)
+    members = groups_svc.list_speltak_members(db, speltak.id)
+    pending_members = groups_svc.list_pending_speltak_members(db, speltak.id)
+    other_speltakken = [s for s in group.speltakken if s.id != speltak.id]
+    suggested_users = groups_svc.list_group_users_not_in_speltak(db, group.id, speltak.id)
+    return _page(request, "speltak_detail.html", db,
+                 group=group, speltak=speltak, members=members,
+                 pending_members=pending_members,
+                 can_manage=True, other_speltakken=other_speltakken,
+                 suggested_users=suggested_users,
+                 success=f"Uitnodiging verstuurd naar {email}.")
+
 
 @router.post("/groups/{group_slug}/speltakken/{speltak_slug}/members/add",
              response_class=HTMLResponse)

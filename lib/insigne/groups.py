@@ -238,6 +238,14 @@ def list_speltak_members(db: Session, speltak_id: str) -> list[SpeltakMembership
     )
 
 
+def list_pending_speltak_members(db: Session, speltak_id: str) -> list[SpeltakMembership]:
+    return (
+        db.query(SpeltakMembership)
+        .filter_by(speltak_id=speltak_id, approved=False)
+        .all()
+    )
+
+
 def set_speltak_role(
     db: Session, *, user_id: str, speltak_id: str, role: str
 ) -> SpeltakMembership:

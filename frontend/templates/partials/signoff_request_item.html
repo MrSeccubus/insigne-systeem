@@ -33,9 +33,9 @@
 
         {# ── action buttons ── #}
         <div class="step-actions" x-show="action === null">
-            <button type="button" class="btn-secondary btn-sm"
+            <button type="button" class="btn-success btn-sm"
                     @click="action = 'signoff'">Aftekenen</button>
-            <button type="button" class="btn-secondary btn-sm"
+            <button type="button" class="btn-danger btn-sm"
                     @click="action = 'reject'">Afwijzen</button>
         </div>
 
@@ -47,9 +47,9 @@
               hx-swap="outerHTML">
             <textarea name="comment" placeholder="Opmerking voor de scout (optioneel)"></textarea>
             <div class="step-actions">
-                <button type="button" class="btn-secondary btn-sm"
+                <button type="submit" class="btn-success btn-sm">Bevestigen</button>
+                <button type="button" class="btn-cancel btn-sm"
                         @click="action = null">Annuleren</button>
-                <button type="submit" class="btn-secondary btn-sm">Bevestigen</button>
             </div>
         </form>
 
@@ -61,9 +61,9 @@
               hx-swap="outerHTML">
             <textarea name="message" placeholder="Geef aan wat de scout nog moet doen" required></textarea>
             <div class="step-actions">
-                <button type="button" class="btn-secondary btn-sm"
+                <button type="submit" class="btn-danger btn-sm">Versturen</button>
+                <button type="button" class="btn-cancel btn-sm"
                         @click="action = null">Annuleren</button>
-                <button type="submit" class="btn-secondary btn-sm">Versturen</button>
             </div>
         </form>
     </div>

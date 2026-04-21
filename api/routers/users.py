@@ -1,9 +1,6 @@
-from pathlib import Path
-
 import jwt
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -13,13 +10,11 @@ from insigne.config import config
 from insigne.database import get_db
 from insigne.email import send_password_reset_email, send_registration_email, send_welcome_email
 from insigne.models import User
+from templates import templates as _TEMPLATES
 
 _secure_cookies = config.base_url.startswith("https://")
 
 router = APIRouter()
-
-_TEMPLATES = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "frontend" / "templates")
-_TEMPLATES.env.globals["current_user"] = None
 
 
 def _partial(request: Request, name: str, **ctx):

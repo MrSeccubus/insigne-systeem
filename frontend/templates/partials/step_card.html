@@ -102,13 +102,13 @@
         {% endif %}
         {% if current_user %}
         <div class="step-actions">
-            <button type="button" class="btn-secondary btn-sm" @click="save('in_progress')">
-                Ik ben toch niet klaar
-            </button>
             <button type="button" class="btn-secondary btn-sm"
                     @click="signoffOpen = !signoffOpen"
                     :disabled="!entryId || saving">
                 Aftekenen...
+            </button>
+            <button type="button" class="btn-cancel btn-sm" @click="save('in_progress')">
+                Ik ben toch niet klaar
             </button>
         </div>
         <div x-show="signoffOpen" x-cloak class="inline-form">
@@ -155,7 +155,7 @@
             <button type="button" class="btn-secondary btn-sm"
                     x-show="editing" x-cloak
                     @click="save('in_progress')">Opslaan</button>
-            <button type="button" class="btn-secondary btn-sm"
+            <button type="button" class="btn-cancel btn-sm"
                     @click="remove()">Ik ben toch niet bezig</button>
             <button type="button" class="btn-secondary btn-sm"
                     @click="save('work_done')">Ik ben klaar</button>

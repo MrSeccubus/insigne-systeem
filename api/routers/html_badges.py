@@ -2,7 +2,6 @@ from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from insigne import progress as progress_svc
@@ -18,12 +17,11 @@ from insigne.email import (
 from insigne.models import ProgressEntry
 
 from routers.users import _get_current_user
+from templates import templates as _TEMPLATES
 
 router = APIRouter()
 
 _DATA_DIR = Path(__file__).parent.parent / "data"
-_TEMPLATES = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "frontend" / "templates")
-_TEMPLATES.env.globals["current_user"] = None
 
 
 def _partial(request: Request, name: str, **ctx):

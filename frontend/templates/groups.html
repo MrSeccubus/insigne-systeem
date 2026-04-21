@@ -6,9 +6,14 @@
 <main>
     <div class="page-header">
         <h1>Groepsbeheer</h1>
-        {% if can_create %}
-            <a href="/groups/new" class="btn-success">Nieuwe groep</a>
-        {% endif %}
+        <div style="display:flex;gap:0.5rem;">
+            {% if current_user %}
+                <a href="/groups/join" class="btn-neutral">Lid worden</a>
+            {% endif %}
+            {% if can_create %}
+                <a href="/groups/new" class="btn-success">Nieuwe groep</a>
+            {% endif %}
+        </div>
     </div>
 
     {% if groups %}

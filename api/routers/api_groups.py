@@ -10,11 +10,13 @@ from schemas import (
     AttachEmailRequest,
     CreateEmaillessScoutRequest,
     CreateGroupRequest,
+    CreateMembershipRequestRequest,
     CreateSpeltakRequest,
     GroupMembershipResponse,
     GroupResponse,
     InvitationListResponse,
     GroupInvitationResponse,
+    MembershipRequestResponse,
     SpeltakInvitationResponse,
     SetMemberRoleRequest,
     SetSpeltakRoleRequest,
@@ -530,3 +532,81 @@ def list_my_invitations(
             for m in speltak_invites
         ],
     )
+
+
+# ── Membership requests ───────────────────────────────────────────────────────
+
+def _req_response(r) -> MembershipRequestResponse:
+    return MembershipRequestResponse(
+        id=r.id, user_id=r.user_id, group_id=r.group_id,
+        speltak_id=r.speltak_id, status=r.status,
+        reviewed_by_id=r.reviewed_by_id,
+        created_at=r.created_at,
+    )
+
+
+@router.post("/{group_id}/requests", response_model=MembershipRequestResponse,
+             status_code=status.HTTP_201_CREATED)
+def create_membership_request(
+    group_id: str,
+    body: CreateMembershipRequestRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not groups_svc.get_group(db, group_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found.")
+    try:
+        req = groups_svc.create_membership_request(
+            db, user_id=current_user.id, group_id=group_id, speltak_id=body.speltak_id
+        )
+    except ValueError as e:
+        detail = {"already_member": "Already a member.", "request_exists": "Request already pending."}.get(str(e), str(e))
+        raise HTTPException(status.HTTP_409_CONFLICT, detail)
+    return _req_response(req)
+
+
+@router.get("/{group_id}/requests", response_model=list[MembershipRequestResponse])
+def list_membership_requests(
+    group_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not groups_svc.get_group(db, group_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found.")
+    if not groups_svc.can_manage_group(current_user, db, group_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed.")
+    return [_req_response(r) for r in groups_svc.list_pending_requests_for_group(db, group_id)]
+
+
+@router.post("/{group_id}/requests/{req_id}/approve", status_code=status.HTTP_204_NO_CONTENT)
+def approve_membership_request(
+    group_id: str,
+    req_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not groups_svc.get_group(db, group_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found.")
+    if not groups_svc.can_manage_group(current_user, db, group_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed.")
+    try:
+        groups_svc.approve_membership_request(db, request_id=req_id, reviewed_by_id=current_user.id)
+    except ValueError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Request not found.")
+
+
+@router.post("/{group_id}/requests/{req_id}/reject", status_code=status.HTTP_204_NO_CONTENT)
+def reject_membership_request(
+    group_id: str,
+    req_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not groups_svc.get_group(db, group_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found.")
+    if not groups_svc.can_manage_group(current_user, db, group_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed.")
+    try:
+        groups_svc.reject_membership_request(db, request_id=req_id, reviewed_by_id=current_user.id)
+    except ValueError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Request not found.")

@@ -47,11 +47,15 @@ async def index(request: Request, db: Session = Depends(get_db)):
 
     group_invites: list = []
     speltak_invites: list = []
+    my_requests: list = []
+    pending_request_count = 0
     if current_user:
         for entry in progress_svc.list_progress(db, current_user.id):
             all_progress.setdefault(entry.badge_slug, {})[(entry.level_index, entry.step_index)] = entry
         signoff_count = len(progress_svc.list_signoff_requests(db, current_user.id))
         group_invites, speltak_invites = groups_svc.list_pending_invitations_for_user(db, current_user.id)
+        my_requests = groups_svc.list_my_membership_requests(db, current_user.id)
+        pending_request_count = groups_svc.count_pending_requests_for_leader(db, current_user.id)
 
     # Enrich each badge with 3 niveau cards (one per a/b/c sub-task level)
     for badges in all_badges.values():
@@ -83,6 +87,8 @@ async def index(request: Request, db: Session = Depends(get_db)):
             "signoff_count": signoff_count,
             "group_invites": group_invites,
             "speltak_invites": speltak_invites,
+            "my_requests": my_requests,
+            "pending_request_count": pending_request_count,
         },
     )
     response.headers["Cache-Control"] = "no-store"

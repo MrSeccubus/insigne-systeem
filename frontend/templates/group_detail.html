@@ -8,6 +8,11 @@
         <h1>{{ group.name }}</h1>
         {% if can_manage %}
             <div style="display:flex;gap:0.5rem;align-items:center;">
+                {% if pending_request_count > 0 %}
+                    <a href="/groups/{{ group.slug }}/requests" class="btn-neutral" style="display:inline-flex;align-items:center;gap:0.4rem;">
+                        Aanvragen <span class="badge-count">{{ pending_request_count }}</span>
+                    </a>
+                {% endif %}
                 <a href="/groups/{{ group.slug }}/edit" class="btn-neutral" style="display:inline-flex;align-items:center;">Bewerken</a>
                 <form method="post" action="/groups/{{ group.slug }}/delete" style="margin:0;display:contents;">
                     <button type="submit" class="btn-danger"

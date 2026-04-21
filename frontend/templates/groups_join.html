@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Lid worden van een groep — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main>
+    <div class="page-header">
+        <div>
+            <p class="breadcrumb"><a href="/groups">Groepen</a></p>
+            <h1>Lid worden van een groep</h1>
+        </div>
+    </div>
+
+    {% if error %}
+        <p class="form-error">{{ error }}</p>
+    {% endif %}
+    {% if success %}
+        <p class="form-success">{{ success }}</p>
+    {% endif %}
+
+    {% if not success %}
+    <div style="max-width:520px;"
+         x-data="{
+             query: '',
+             groups: [],
+             selectedGroup: null,
+             speltakken: [],
+             selectedSpeltak: '',
+             searching: false,
+             async search() {
+                 if (this.query.length < 2) { this.groups = []; return; }
+                 this.searching = true;
+                 try {
+                     const r = await fetch('/groups/search?q=' + encodeURIComponent(this.query));
+                     this.groups = await r.json();
+                 } finally { this.searching = false; }
+             },
+             async select(g) {
+                 this.selectedGroup = g;
+                 this.query = g.name;
+                 this.groups = [];
+                 this.selectedSpeltak = '';
+                 const r = await fetch('/groups/' + g.slug + '/speltakken-list');
+                 this.speltakken = await r.json();
+             },
+             reset() {
+                 this.selectedGroup = null;
+                 this.query = '';
+                 this.groups = [];
+                 this.speltakken = [];
+                 this.selectedSpeltak = '';
+             }
+         }">
+
+        <div class="field" style="position:relative;">
+            <label>Zoek een groep</label>
+            <input type="text" x-model="query" @input.debounce.300ms="search()"
+                   placeholder="Typ een groepsnaam…" autocomplete="off"
+                   :disabled="!!selectedGroup">
+            <ul x-show="groups.length > 0" x-cloak
+                style="position:absolute;z-index:10;background:#fff;border:1px solid #ccc;
+                       border-radius:4px;margin:0;padding:0;list-style:none;width:100%;
+                       box-shadow:0 2px 6px rgba(0,0,0,0.12);">
+                <template x-for="g in groups" :key="g.id">
+                    <li @click="select(g)"
+                        style="padding:0.5rem 0.75rem;cursor:pointer;"
+                        onmouseover="this.style.background='#f0f0f0'"
+                        onmouseout="this.style.background=''"
+                        x-text="g.name"></li>
+                </template>
+            </ul>
+        </div>
+
+        <template x-if="selectedGroup">
+            <form method="post" action="/groups/join">
+                <input type="hidden" name="group_id" :value="selectedGroup.id">
+                <input type="hidden" name="speltak_id" :value="selectedSpeltak">
+
+                <template x-if="speltakken.length > 0">
+                    <div class="field">
+                        <label>Speltak (optioneel)</label>
+                        <select x-model="selectedSpeltak" style="display:block;width:100%;">
+                            <option value="">— geen voorkeur —</option>
+                            <template x-for="s in speltakken" :key="s.id">
+                                <option :value="s.id" x-text="s.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                </template>
+
+                <div style="display:flex;gap:0.5rem;margin-top:1rem;">
+                    <button type="submit" class="btn-success">Aanvraag indienen</button>
+                    <button type="button" class="btn-cancel" @click="reset()">Annuleren</button>
+                </div>
+            </form>
+        </template>
+    </div>
+    {% endif %}
+</main>
+{% endblock %}

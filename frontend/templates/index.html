@@ -14,6 +14,37 @@
         </div>
         {% endif %}
 
+        {% if pending_request_count > 0 %}
+        <div class="notification-bar">
+            Er {{ 'is' if pending_request_count == 1 else 'zijn' }} <strong>{{ pending_request_count }} lidmaatschapsaanvra{{ 'ag' if pending_request_count == 1 else 'gen' }}</strong> die op je wachten.
+            <a href="/groups">Bekijken →</a>
+        </div>
+        {% endif %}
+
+        {% if my_requests %}
+        <section class="invitations-section">
+            <h2>Mijn aanvragen</h2>
+            <ul class="item-list">
+                {% for req in my_requests %}
+                <li class="item-list-row">
+                    <span>
+                        <strong>{{ req.group.name }}</strong>{% if req.speltak %} / {{ req.speltak.name }}{% endif %}
+                    </span>
+                    <span class="row-actions">
+                        {% if req.status == 'pending' %}
+                            <span class="role-badge role-badge--pending">in behandeling</span>
+                        {% elif req.status == 'approved' %}
+                            <span class="role-badge">goedgekeurd</span>
+                        {% else %}
+                            <span class="role-badge role-badge--withdrawn">afgewezen</span>
+                        {% endif %}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+
         {% if group_invites or speltak_invites %}
         <section class="invitations-section">
             <h2>Uitnodigingen</h2>

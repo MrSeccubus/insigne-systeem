@@ -198,3 +198,17 @@ class CreateEmaillessScoutRequest(BaseModel):
 
 class TransferScoutRequest(BaseModel):
     to_speltak_id: str
+
+
+class CreateMembershipRequestRequest(BaseModel):
+    speltak_id: str | None = None
+
+
+class MembershipRequestResponse(BaseModel):
+    id: str
+    user_id: str
+    group_id: str
+    speltak_id: str | None
+    status: str
+    reviewed_by_id: str | None
+    created_at: datetime

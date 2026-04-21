@@ -123,6 +123,74 @@ def group_create(
     return RedirectResponse(f"/groups/{slug}", status_code=303)
 
 
+# ── Group search (JSON, for datalist) ────────────────────────────────────────
+
+@router.get("/groups/search")
+def group_search(q: str = Query(""), db: Session = Depends(get_db)):
+    results = groups_svc.search_groups(db, q) if q.strip() else []
+    return JSONResponse([{"id": g.id, "name": g.name, "slug": g.slug} for g in results])
+
+
+# ── Membership request: join ──────────────────────────────────────────────────
+
+@router.get("/groups/join", response_class=HTMLResponse)
+def groups_join(request: Request, db: Session = Depends(get_db)):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    return _page(request, "groups_join.html", db)
+
+
+@router.post("/groups/join", response_class=HTMLResponse)
+def groups_join_submit(
+    request: Request,
+    group_id: str = Form(...),
+    speltak_id: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+
+    group = groups_svc.get_group(db, group_id)
+    if not group:
+        return _page(request, "groups_join.html", db, error="Groep niet gevonden.")
+
+    sid = speltak_id.strip() or None
+    speltak = groups_svc.get_speltak(db, sid) if sid else None
+
+    try:
+        req = groups_svc.create_membership_request(
+            db, user_id=user.id, group_id=group.id, speltak_id=sid
+        )
+    except ValueError as e:
+        msg = {
+            "already_member": "Je bent al lid van deze groep/speltak.",
+            "request_exists": "Je hebt al een openstaande aanvraag voor deze groep/speltak.",
+        }.get(str(e), "Er is iets misgegaan.")
+        return _page(request, "groups_join.html", db, error=msg)
+
+    # Notify all groepsleiders
+    leaders = [
+        m for m in groups_svc.list_group_members(db, group.id)
+        if m.role == "groepsleider"
+    ]
+    for lm in leaders:
+        if lm.user and lm.user.email:
+            email_svc.send_membership_request_received_email(
+                to=lm.user.email,
+                naam=lm.user.name or lm.user.email,
+                requester_name=user.name or user.email,
+                group_name=group.name,
+                speltak_name=speltak.name if speltak else None,
+                group_slug=group.slug,
+            )
+
+    return _page(request, "groups_join.html", db,
+                 success=f"Je aanvraag voor {group.name}"
+                         f"{f' / {speltak.name}' if speltak else ''} is verstuurd.")
+
+
 # ── Group detail / edit ───────────────────────────────────────────────────────
 
 @router.get("/groups/{slug}", response_class=HTMLResponse)
@@ -134,9 +202,11 @@ def group_detail(slug: str, request: Request, db: Session = Depends(get_db)):
     can_manage = bool(current_user and groups_svc.can_manage_group(current_user, db, group.id))
     members = groups_svc.list_group_members(db, group.id)
     pending_members = groups_svc.list_pending_group_members(db, group.id) if can_manage else []
+    pending_request_count = groups_svc.count_pending_requests_for_leader(db, current_user.id) if can_manage else 0
     return _page(request, "group_detail.html", db,
                  group=group, can_manage=can_manage, members=members,
-                 pending_members=pending_members)
+                 pending_members=pending_members,
+                 pending_request_count=pending_request_count)
 
 
 @router.get("/groups/{slug}/edit", response_class=HTMLResponse)
@@ -219,6 +289,7 @@ def group_add_member(
         return _page(request, "group_detail.html", db,
                      group=group, can_manage=True, members=members,
                      pending_members=pending_members,
+                     pending_request_count=groups_svc.count_pending_requests_for_leader(db, user.id),
                      invite_email=email)
     groups_svc.set_group_role(db, user_id=target.id, group_id=group.id, role="groepsleider")
     return RedirectResponse(f"/groups/{slug}", status_code=303)
@@ -283,6 +354,7 @@ def group_invite_member(
     return _page(request, "group_detail.html", db,
                  group=group, can_manage=True, members=members,
                  pending_members=pending_members,
+                 pending_request_count=groups_svc.count_pending_requests_for_leader(db, user.id),
                  success=f"Uitnodiging verstuurd naar {email}.")
 
 
@@ -702,3 +774,78 @@ def speltak_set_role(
         groups_svc.set_speltak_role(db, user_id=member_id,
                                     speltak_id=speltak.id, role=role)
     return RedirectResponse(f"/groups/{group_slug}/speltakken/{speltak_slug}", status_code=303)
+
+
+# ── Membership request: leader review ────────────────────────────────────────
+
+@router.get("/groups/{group_slug}/requests", response_class=HTMLResponse)
+def group_requests(group_slug: str, request: Request, db: Session = Depends(get_db)):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    group = groups_svc.get_group_by_slug(db, group_slug)
+    if not group or not groups_svc.can_manage_group(user, db, group.id):
+        return RedirectResponse("/groups", status_code=303)
+    pending = groups_svc.list_pending_requests_for_group(db, group.id)
+    return _page(request, "group_requests.html", db, group=group, pending=pending,
+                 can_manage=True)
+
+
+@router.post("/groups/{group_slug}/requests/{req_id}/approve", response_class=HTMLResponse)
+def group_request_approve(
+    group_slug: str, req_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    group = groups_svc.get_group_by_slug(db, group_slug)
+    if not group or not groups_svc.can_manage_group(user, db, group.id):
+        return RedirectResponse("/groups", status_code=303)
+
+    try:
+        req = groups_svc.approve_membership_request(db, request_id=req_id,
+                                                    reviewed_by_id=user.id)
+    except ValueError:
+        return RedirectResponse(f"/groups/{group_slug}/requests", status_code=303)
+
+    if req.user and req.user.email:
+        speltak_name = req.speltak.name if req.speltak else None
+        email_svc.send_membership_request_approved_email(
+            to=req.user.email,
+            naam=req.user.name or req.user.email,
+            group_name=group.name,
+            speltak_name=speltak_name,
+        )
+    return RedirectResponse(f"/groups/{group_slug}/requests", status_code=303)
+
+
+@router.post("/groups/{group_slug}/requests/{req_id}/reject", response_class=HTMLResponse)
+def group_request_reject(
+    group_slug: str, req_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    group = groups_svc.get_group_by_slug(db, group_slug)
+    if not group or not groups_svc.can_manage_group(user, db, group.id):
+        return RedirectResponse("/groups", status_code=303)
+
+    try:
+        req = groups_svc.reject_membership_request(db, request_id=req_id,
+                                                   reviewed_by_id=user.id)
+    except ValueError:
+        return RedirectResponse(f"/groups/{group_slug}/requests", status_code=303)
+
+    if req.user and req.user.email:
+        speltak_name = req.speltak.name if req.speltak else None
+        email_svc.send_membership_request_rejected_email(
+            to=req.user.email,
+            naam=req.user.name or req.user.email,
+            group_name=group.name,
+            speltak_name=speltak_name,
+        )
+    return RedirectResponse(f"/groups/{group_slug}/requests", status_code=303)

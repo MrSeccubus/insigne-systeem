@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Lidmaatschapsaanvragen — {{ group.name }} — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main>
+    <div class="page-header">
+        <div>
+            <p class="breadcrumb"><a href="/groups">Groepen</a> / <a href="/groups/{{ group.slug }}">{{ group.name }}</a></p>
+            <h1>Lidmaatschapsaanvragen</h1>
+        </div>
+    </div>
+
+    {% if pending %}
+        <ul class="item-list">
+            {% for req in pending %}
+            <li class="item-list-row" x-data="{ visible: true }" x-show="visible">
+                <span>
+                    <strong>{{ req.user.name or req.user.email or '(onbekend)' }}</strong>
+                    {% if req.speltak %}
+                        — speltak <em>{{ req.speltak.name }}</em>
+                    {% else %}
+                        — groepslidmaatschap
+                    {% endif %}
+                </span>
+                <span class="row-actions">
+                    <form method="post" action="/groups/{{ group.slug }}/requests/{{ req.id }}/approve" class="inline-form">
+                        <button type="submit" class="btn-success btn-sm">Goedkeuren</button>
+                    </form>
+                    <form method="post" action="/groups/{{ group.slug }}/requests/{{ req.id }}/reject" class="inline-form">
+                        <button type="submit" class="btn-danger btn-sm">Afwijzen</button>
+                    </form>
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="empty-state">Geen openstaande aanvragen.</p>
+    {% endif %}
+</main>
+{% endblock %}

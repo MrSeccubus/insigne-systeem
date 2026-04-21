@@ -488,3 +488,136 @@ def attach_email_to_scout(
     db.delete(scout)
     db.commit()
     return "existing_user", existing, None
+
+
+# ── Membership requests ────────────────────────────────────────────────────────
+
+def search_groups(db: Session, query: str) -> list[Group]:
+    """Case-insensitive name search, max 20 results."""
+    q = f"%{query.strip().lower()}%"
+    return (
+        db.query(Group)
+        .filter(func.lower(Group.name).like(q))
+        .order_by(func.lower(Group.name))
+        .limit(20)
+        .all()
+    )
+
+
+def create_membership_request(
+    db: Session, *, user_id: str, group_id: str, speltak_id: str | None = None
+) -> "MembershipRequest":
+    """Create a pending membership request.
+
+    Raises ValueError('already_member') if the user is already an approved member.
+    Raises ValueError('request_exists') if a pending request already exists.
+    """
+    from insigne.models import MembershipRequest
+
+    if speltak_id:
+        existing_m = db.query(SpeltakMembership).filter_by(
+            user_id=user_id, speltak_id=speltak_id, approved=True
+        ).first()
+        if existing_m:
+            raise ValueError("already_member")
+    else:
+        existing_m = db.query(GroupMembership).filter_by(
+            user_id=user_id, group_id=group_id, approved=True
+        ).first()
+        if existing_m:
+            raise ValueError("already_member")
+
+    existing_r = db.query(MembershipRequest).filter_by(
+        user_id=user_id, group_id=group_id, speltak_id=speltak_id, status="pending"
+    ).first()
+    if existing_r:
+        raise ValueError("request_exists")
+
+    req = MembershipRequest(
+        user_id=user_id, group_id=group_id, speltak_id=speltak_id
+    )
+    db.add(req)
+    db.commit()
+    db.refresh(req)
+    return req
+
+
+def list_pending_requests_for_group(db: Session, group_id: str) -> list["MembershipRequest"]:
+    """All pending requests for a group (group-level and speltak-level)."""
+    from insigne.models import MembershipRequest
+    return (
+        db.query(MembershipRequest)
+        .filter_by(group_id=group_id, status="pending")
+        .order_by(MembershipRequest.created_at)
+        .all()
+    )
+
+
+def list_my_membership_requests(db: Session, user_id: str) -> list["MembershipRequest"]:
+    """All non-pending requests for a user (pending shown separately on home)."""
+    from insigne.models import MembershipRequest
+    return (
+        db.query(MembershipRequest)
+        .filter_by(user_id=user_id)
+        .order_by(MembershipRequest.created_at.desc())
+        .all()
+    )
+
+
+def count_pending_requests_for_leader(db: Session, user_id: str) -> int:
+    """Total pending requests across all groups/speltakken the user can manage."""
+    from insigne.models import MembershipRequest
+
+    managed_group_ids = {
+        m.group_id for m in
+        db.query(GroupMembership).filter_by(user_id=user_id, approved=True, role="groepsleider").all()
+    }
+    if not managed_group_ids:
+        return 0
+    return (
+        db.query(MembershipRequest)
+        .filter(
+            MembershipRequest.group_id.in_(managed_group_ids),
+            MembershipRequest.status == "pending",
+        )
+        .count()
+    )
+
+
+def approve_membership_request(
+    db: Session, *, request_id: str, reviewed_by_id: str
+) -> "MembershipRequest":
+    """Approve a pending request; creates the appropriate membership record(s)."""
+    from insigne.models import MembershipRequest
+
+    req = db.query(MembershipRequest).filter_by(id=request_id, status="pending").first()
+    if req is None:
+        raise ValueError("not_found")
+
+    if req.speltak_id:
+        set_speltak_role(db, user_id=req.user_id, speltak_id=req.speltak_id, role="scout")
+    else:
+        set_group_role(db, user_id=req.user_id, group_id=req.group_id, role="member")
+
+    req.status = "approved"
+    req.reviewed_by_id = reviewed_by_id
+    db.commit()
+    db.refresh(req)
+    return req
+
+
+def reject_membership_request(
+    db: Session, *, request_id: str, reviewed_by_id: str
+) -> "MembershipRequest":
+    """Reject a pending request."""
+    from insigne.models import MembershipRequest
+
+    req = db.query(MembershipRequest).filter_by(id=request_id, status="pending").first()
+    if req is None:
+        raise ValueError("not_found")
+
+    req.status = "rejected"
+    req.reviewed_by_id = reviewed_by_id
+    db.commit()
+    db.refresh(req)
+    return req

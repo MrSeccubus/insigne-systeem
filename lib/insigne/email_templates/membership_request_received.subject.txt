@@ -1,0 +1,1 @@
+Lidmaatschapsaanvraag voor {{ group_name }}{% if speltak_name %} / {{ speltak_name }}{% endif %}

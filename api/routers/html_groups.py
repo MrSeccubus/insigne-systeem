@@ -332,6 +332,7 @@ def speltak_create(
     group_slug: str,
     request: Request,
     name: str = Form(...),
+    peer_signoff: bool = Form(False),
     db: Session = Depends(get_db),
 ):
     user, redirect = _require_user(request, db)
@@ -341,7 +342,7 @@ def speltak_create(
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse(f"/groups/{group_slug}", status_code=303)
     slug = groups_svc.unique_speltak_slug(db, group.id, groups_svc.name_to_slug(name))
-    groups_svc.create_speltak(db, group_id=group.id, name=name, slug=slug)
+    groups_svc.create_speltak(db, group_id=group.id, name=name, slug=slug, peer_signoff=peer_signoff)
     return RedirectResponse(f"/groups/{group_slug}", status_code=303)
 
 
@@ -391,6 +392,7 @@ def speltak_edit(
     speltak_slug: str,
     request: Request,
     name: str = Form(...),
+    peer_signoff: bool = Form(False),
     db: Session = Depends(get_db),
 ):
     user, redirect = _require_user(request, db)
@@ -400,7 +402,7 @@ def speltak_edit(
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse(f"/groups/{group_slug}", status_code=303)
-    groups_svc.update_speltak(db, speltak, name=name, slug=speltak.slug)
+    groups_svc.update_speltak(db, speltak, name=name, slug=speltak.slug, peer_signoff=peer_signoff)
     return RedirectResponse(f"/groups/{group_slug}", status_code=303)
 
 

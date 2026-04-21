@@ -16,6 +16,13 @@
                        value="{{ speltak.name if speltak else '' }}"
                        required maxlength="200" autofocus>
             </div>
+            <div class="field" style="margin-top:1rem;">
+                <label class="toggle-label">
+                    <input type="checkbox" name="peer_signoff" value="true"
+                           {% if speltak and speltak.peer_signoff %}checked{% endif %}>
+                    Leden mogen elkaar aftekenen (volwassenen speltak)
+                </label>
+            </div>
             <div style="display:flex;gap:1rem;margin-top:1rem;">
                 <button type="submit" class="btn-success">Opslaan</button>
                 <a href="/groups/{{ group.slug }}" class="btn-cancel">Annuleren</a>

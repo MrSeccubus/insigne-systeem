@@ -149,7 +149,8 @@ class Group(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 
     speltakken: Mapped[list["Speltak"]] = relationship(
-        back_populates="group", cascade="all, delete-orphan"
+        back_populates="group", cascade="all, delete-orphan",
+        order_by="Speltak.name"
     )
     memberships: Mapped[list["GroupMembership"]] = relationship(
         back_populates="group", cascade="all, delete-orphan"

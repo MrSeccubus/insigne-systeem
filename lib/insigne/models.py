@@ -30,6 +30,11 @@ class User(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 
+    @property
+    def is_admin(self) -> bool:
+        from insigne.config import config
+        return bool(self.email and self.email.lower() in config.admins)
+
     created_by: Mapped["User | None"] = relationship(
         foreign_keys=[created_by_id], remote_side="User.id", back_populates="managed_scouts"
     )

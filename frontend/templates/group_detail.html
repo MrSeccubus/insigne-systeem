@@ -17,6 +17,10 @@
         {% endif %}
     </div>
 
+    {% if error %}
+        <p class="form-error">{{ error }}</p>
+    {% endif %}
+
     <section>
         <div class="section-header-row">
             <h2>Speltakken</h2>
@@ -39,19 +43,38 @@
 
     <section style="margin-top:2rem;">
         <h2>Groepsleiders</h2>
-        {% if members %}
+        {% set groepsleiders = members | selectattr('role', 'equalto', 'groepsleider') | list %}
+        {% if groepsleiders %}
             <ul class="item-list">
-                {% for m in members %}
-                {% if m.role == 'groepsleider' %}
+                {% for m in groepsleiders %}
                 <li class="item-list-row">
-                    {{ m.user.name or m.user.email or '(onbekend)' }}
-                    <span class="role-badge">groepsleider</span>
+                    <span>{{ m.user.name or m.user.email or '(onbekend)' }}</span>
+                    {% if can_manage %}
+                    <span class="row-actions">
+                        <span class="role-badge">groepsleider</span>
+                        <form method="post" action="/groups/{{ group.slug }}/members/{{ m.user_id }}/remove" class="inline-form" style="width:auto;">
+                            <button type="submit" class="btn-danger btn-sm"
+                                    onclick="return confirm('Groepsleider verwijderen?')">Verwijderen</button>
+                        </form>
+                    </span>
+                    {% else %}
+                        <span class="role-badge">groepsleider</span>
+                    {% endif %}
                 </li>
-                {% endif %}
                 {% endfor %}
             </ul>
         {% else %}
-            <p class="empty-state">Geen leden.</p>
+            <p class="empty-state">Geen groepsleiders.</p>
+        {% endif %}
+
+        {% if can_manage %}
+        <form method="post" action="/groups/{{ group.slug }}/members/add" style="max-width:480px;margin-top:1rem;">
+            <div class="field">
+                <label for="member-email">Groepsleider toevoegen via e-mail</label>
+                <input type="email" id="member-email" name="email" required autocomplete="off">
+            </div>
+            <button type="submit" class="btn-success">Toevoegen</button>
+        </form>
         {% endif %}
     </section>
 </main>

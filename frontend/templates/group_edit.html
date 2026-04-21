@@ -12,12 +12,12 @@
             {% endif %}
             <div class="field">
                 <label for="name">Naam</label>
-                <input type="text" id="name" name="name" value="{{ name if name is defined else (group.name if group else '') }}" required maxlength="200">
+                <input type="text" id="name" name="name" value="{{ form_name if form_name is defined else (group.name if group else '') }}" required maxlength="200">
             </div>
             <div class="field">
                 <label for="slug">Slug <span class="optional">(alleen kleine letters, cijfers en koppeltekens)</span></label>
                 <input type="text" id="slug" name="{% if group %}new_slug{% else %}slug{% endif %}"
-                       value="{{ slug if slug is defined else (group.slug if group else '') }}"
+                       value="{{ form_slug if form_slug is defined else (group.slug if group else '') }}"
                        required maxlength="100" pattern="[a-z0-9-]+">
             </div>
             <div style="display:flex;gap:1rem;margin-top:1rem;">

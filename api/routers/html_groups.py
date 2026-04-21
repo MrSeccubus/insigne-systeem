@@ -62,7 +62,7 @@ def group_create(
         return RedirectResponse("/groups", status_code=303)
     if groups_svc.get_group_by_slug(db, slug):
         return _page(request, "group_edit.html", db,
-                     group=None, error="Deze slug is al in gebruik.", name=name, slug=slug)
+                     group=None, error="Deze slug is al in gebruik.", form_name=name, form_slug=slug)
     groups_svc.create_group(db, name=name, slug=slug, created_by_id=user.id)
     return RedirectResponse("/groups", status_code=303)
 
@@ -123,6 +123,46 @@ def group_delete(slug: str, request: Request, db: Session = Depends(get_db)):
     if group and groups_svc.can_manage_group(user, db, group.id):
         groups_svc.delete_group(db, group)
     return RedirectResponse("/groups", status_code=303)
+
+
+# ── Group member management ───────────────────────────────────────────────────
+
+@router.post("/groups/{slug}/members/add", response_class=HTMLResponse)
+def group_add_member(
+    slug: str,
+    request: Request,
+    email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    group = groups_svc.get_group_by_slug(db, slug)
+    if not group or not groups_svc.can_manage_group(user, db, group.id):
+        return RedirectResponse("/groups", status_code=303)
+    from insigne.models import User as UserModel
+    target = db.query(UserModel).filter_by(email=email).first()
+    if not target:
+        members = groups_svc.list_group_members(db, group.id)
+        return _page(request, "group_detail.html", db,
+                     group=group, can_manage=True, members=members,
+                     error=f"Geen gebruiker gevonden met e-mail {email}.")
+    groups_svc.set_group_role(db, user_id=target.id, group_id=group.id, role="groepsleider")
+    return RedirectResponse(f"/groups/{slug}", status_code=303)
+
+
+@router.post("/groups/{slug}/members/{member_id}/remove", response_class=HTMLResponse)
+def group_remove_member(
+    slug: str, member_id: str,
+    request: Request, db: Session = Depends(get_db),
+):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    group = groups_svc.get_group_by_slug(db, slug)
+    if group and groups_svc.can_manage_group(user, db, group.id):
+        groups_svc.remove_group_member(db, user_id=member_id, group_id=group.id)
+    return RedirectResponse(f"/groups/{slug}", status_code=303)
 
 
 # ── Speltak management ────────────────────────────────────────────────────────

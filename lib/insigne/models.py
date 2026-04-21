@@ -189,6 +189,7 @@ class GroupMembership(Base):
     group_id: Mapped[str] = mapped_column(String(36), ForeignKey("groups.id"), nullable=False, index=True)
     role: Mapped[str] = mapped_column(String, nullable=False)  # groepsleider | member
     approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    withdrawn: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     invited_by_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 
@@ -207,6 +208,7 @@ class SpeltakMembership(Base):
     )
     role: Mapped[str] = mapped_column(String, nullable=False)  # speltakleider | scout
     approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    withdrawn: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     invited_by_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 

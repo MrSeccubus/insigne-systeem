@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Form, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from insigne import email as email_svc
@@ -61,6 +61,24 @@ def deny_speltak_invite(speltak_id: str, request: Request, db: Session = Depends
     if redirect:
         return redirect
     groups_svc.deny_speltak_invite(db, user_id=user.id, speltak_id=speltak_id)
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/invitations/group/{group_id}/dismiss")
+def dismiss_group_invite(group_id: str, request: Request, db: Session = Depends(get_db)):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    groups_svc.dismiss_group_invite(db, user_id=user.id, group_id=group_id)
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/invitations/speltak/{speltak_id}/dismiss")
+def dismiss_speltak_invite(speltak_id: str, request: Request, db: Session = Depends(get_db)):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    groups_svc.dismiss_speltak_invite(db, user_id=user.id, speltak_id=speltak_id)
     return RedirectResponse("/", status_code=303)
 
 
@@ -278,6 +296,20 @@ def group_remove_member(
     if group and groups_svc.can_manage_group(user, db, group.id):
         groups_svc.remove_group_member(db, user_id=member_id, group_id=group.id)
     return RedirectResponse(f"/groups/{slug}", status_code=303)
+
+
+@router.post("/groups/{slug}/members/{member_id}/withdraw")
+def group_withdraw_invite(
+    slug: str, member_id: str,
+    request: Request, db: Session = Depends(get_db),
+):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    group = groups_svc.get_group_by_slug(db, slug)
+    if group and groups_svc.can_manage_group(user, db, group.id):
+        groups_svc.withdraw_group_invite(db, user_id=member_id, group_id=group.id)
+    return Response(status_code=204)
 
 
 # ── Speltak management ────────────────────────────────────────────────────────
@@ -546,6 +578,21 @@ def speltak_remove_member(
     if speltak and groups_svc.can_manage_speltak(user, db, speltak.id):
         groups_svc.remove_speltak_member(db, user_id=member_id, speltak_id=speltak.id)
     return RedirectResponse(f"/groups/{group_slug}/speltakken/{speltak_slug}", status_code=303)
+
+
+@router.post("/groups/{group_slug}/speltakken/{speltak_slug}/members/{member_id}/withdraw")
+def speltak_withdraw_invite(
+    group_slug: str, speltak_slug: str, member_id: str,
+    request: Request, db: Session = Depends(get_db),
+):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    group = groups_svc.get_group_by_slug(db, group_slug)
+    speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
+    if speltak and groups_svc.can_manage_speltak(user, db, speltak.id):
+        groups_svc.withdraw_speltak_invite(db, user_id=member_id, speltak_id=speltak.id)
+    return Response(status_code=204)
 
 
 @router.post("/groups/{group_slug}/speltakken/{speltak_slug}/members/{member_id}/transfer",

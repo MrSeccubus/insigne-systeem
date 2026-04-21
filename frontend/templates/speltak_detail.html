@@ -66,14 +66,17 @@
         {% if pending_members %}
             <ul class="item-list" style="margin-top:0.5rem;">
                 {% for m in pending_members %}
-                <li class="item-list-row">
+                <li class="item-list-row"
+                    x-data="{ withdrawn: false, dismissed: false }"
+                    x-show="!dismissed">
                     <span>{{ m.user.email or '(onbekend)' }}</span>
                     <span class="row-actions">
-                        <span class="role-badge role-badge--pending">uitnodiging verstuurd</span>
-                        <form method="post" action="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/{{ m.user_id }}/remove" style="display:contents;">
-                            <button type="submit" class="btn-danger btn-sm"
-                                    onclick="return confirm('Uitnodiging voor {{ m.user.email }} intrekken?')">Intrekken</button>
-                        </form>
+                        <span x-show="!withdrawn" class="role-badge role-badge--pending">uitnodiging verstuurd</span>
+                        <span x-show="withdrawn" x-cloak class="role-badge role-badge--withdrawn">ingetrokken</span>
+                        <button x-show="!withdrawn" type="button" class="btn-danger btn-sm"
+                                @click="fetch('/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/{{ m.user_id }}/withdraw', {method:'POST'}).then(() => withdrawn = true)">Intrekken</button>
+                        <button x-show="withdrawn" x-cloak type="button" class="btn-neutral btn-sm"
+                                @click="dismissed = true">Verbergen</button>
                     </span>
                 </li>
                 {% endfor %}

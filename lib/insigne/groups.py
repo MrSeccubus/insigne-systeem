@@ -187,7 +187,7 @@ def list_group_members(db: Session, group_id: str) -> list[GroupMembership]:
 def list_pending_group_members(db: Session, group_id: str) -> list[GroupMembership]:
     return (
         db.query(GroupMembership)
-        .filter_by(group_id=group_id, approved=False)
+        .filter_by(group_id=group_id, approved=False, withdrawn=False)
         .all()
     )
 
@@ -201,7 +201,9 @@ def list_pending_invitations_for_user(
 
 
 def accept_group_invite(db: Session, user_id: str, group_id: str) -> None:
-    m = db.query(GroupMembership).filter_by(user_id=user_id, group_id=group_id, approved=False).first()
+    m = db.query(GroupMembership).filter_by(
+        user_id=user_id, group_id=group_id, approved=False, withdrawn=False
+    ).first()
     if m:
         m.approved = True
         db.commit()
@@ -214,14 +216,44 @@ def deny_group_invite(db: Session, user_id: str, group_id: str) -> None:
         db.commit()
 
 
+def withdraw_group_invite(db: Session, user_id: str, group_id: str) -> None:
+    m = db.query(GroupMembership).filter_by(user_id=user_id, group_id=group_id, approved=False).first()
+    if m:
+        m.withdrawn = True
+        db.commit()
+
+
+def dismiss_group_invite(db: Session, user_id: str, group_id: str) -> None:
+    m = db.query(GroupMembership).filter_by(user_id=user_id, group_id=group_id, approved=False).first()
+    if m:
+        db.delete(m)
+        db.commit()
+
+
 def accept_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:
-    m = db.query(SpeltakMembership).filter_by(user_id=user_id, speltak_id=speltak_id, approved=False).first()
+    m = db.query(SpeltakMembership).filter_by(
+        user_id=user_id, speltak_id=speltak_id, approved=False, withdrawn=False
+    ).first()
     if m:
         m.approved = True
         db.commit()
 
 
 def deny_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:
+    m = db.query(SpeltakMembership).filter_by(user_id=user_id, speltak_id=speltak_id, approved=False).first()
+    if m:
+        db.delete(m)
+        db.commit()
+
+
+def withdraw_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:
+    m = db.query(SpeltakMembership).filter_by(user_id=user_id, speltak_id=speltak_id, approved=False).first()
+    if m:
+        m.withdrawn = True
+        db.commit()
+
+
+def dismiss_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:
     m = db.query(SpeltakMembership).filter_by(user_id=user_id, speltak_id=speltak_id, approved=False).first()
     if m:
         db.delete(m)
@@ -287,7 +319,7 @@ def list_speltak_members(db: Session, speltak_id: str) -> list[SpeltakMembership
 def list_pending_speltak_members(db: Session, speltak_id: str) -> list[SpeltakMembership]:
     return (
         db.query(SpeltakMembership)
-        .filter_by(speltak_id=speltak_id, approved=False)
+        .filter_by(speltak_id=speltak_id, approved=False, withdrawn=False)
         .all()
     )
 

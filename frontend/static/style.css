@@ -1093,6 +1093,12 @@ button:disabled, a[disabled] {
     background: #fef3c7;
 }
 
+.role-badge--withdrawn {
+    color: #6b7280;
+    background: #f3f4f6;
+    text-decoration: line-through;
+}
+
 .role-select {
     font-size: 0.82rem;
     padding: 0.2rem 0.4rem;

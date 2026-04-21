@@ -17,11 +17,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # SQLite does not support ADD COLUMN with FK constraints; the FK is enforced
+    # at the ORM level via the relationship, not at the DB level.
     op.add_column('group_memberships',
-        sa.Column('invited_by_id', sa.String(36), sa.ForeignKey('users.id'), nullable=True)
+        sa.Column('invited_by_id', sa.String(36), nullable=True)
     )
     op.add_column('speltak_memberships',
-        sa.Column('invited_by_id', sa.String(36), sa.ForeignKey('users.id'), nullable=True)
+        sa.Column('invited_by_id', sa.String(36), nullable=True)
     )
 
 

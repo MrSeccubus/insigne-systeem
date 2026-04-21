@@ -90,6 +90,10 @@ Schema is managed by Alembic — `./serve_dev.sh` and `./run_prod.sh` run `alemb
 - `tests/` — pytest unit tests (library) and API tests (via TestClient)
 - `venv/` — Python 3.13 virtual environment (not committed)
 
+## API specification
+
+The full API spec lives at `api/spec.md`. **Keep it up to date** whenever you add, change, or remove endpoints — both the JSON API (`/api/…`) and the HTML layer.
+
 ## Keeping the JSON API in sync with the library
 
 Every public function added to `lib/insigne/` must have a corresponding JSON API

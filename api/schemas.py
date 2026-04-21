@@ -122,11 +122,13 @@ class GroupResponse(BaseModel):
 class CreateSpeltakRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     slug: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z0-9-]+$")
+    peer_signoff: bool = False
 
 
 class UpdateSpeltakRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     slug: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z0-9-]+$")
+    peer_signoff: bool = False
 
 
 class SpeltakResponse(BaseModel):
@@ -134,6 +136,50 @@ class SpeltakResponse(BaseModel):
     group_id: str
     name: str
     slug: str
+    peer_signoff: bool
+
+
+class GroupMembershipResponse(BaseModel):
+    user_id: str
+    role: str
+    approved: bool
+    withdrawn: bool
+    invited_by_id: str | None
+
+
+class SpeltakMembershipResponse(BaseModel):
+    user_id: str
+    role: str
+    approved: bool
+    withdrawn: bool
+    invited_by_id: str | None
+
+
+class GroupInvitationResponse(BaseModel):
+    group_id: str
+    group_name: str
+    role: str
+    withdrawn: bool
+    invited_by_id: str | None
+
+
+class SpeltakInvitationResponse(BaseModel):
+    speltak_id: str
+    speltak_name: str
+    group_id: str
+    group_name: str
+    role: str
+    withdrawn: bool
+    invited_by_id: str | None
+
+
+class InvitationListResponse(BaseModel):
+    group_invites: list[GroupInvitationResponse]
+    speltak_invites: list[SpeltakInvitationResponse]
+
+
+class AttachEmailRequest(BaseModel):
+    email: EmailStr
 
 
 class SetMemberRoleRequest(BaseModel):

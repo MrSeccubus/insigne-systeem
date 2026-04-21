@@ -32,7 +32,7 @@ case "${1:-}" in
         cd "$SCRIPT_DIR"
         git pull
         venv/bin/pip install -q -r requirements.txt
-        venv/bin/alembic -c api/alembic.ini upgrade head
+        venv/bin/python api/migrate.py
         systemctl --user restart "$SERVICE_NAME"
         systemctl --user status "$SERVICE_NAME" --no-pager
         ;;

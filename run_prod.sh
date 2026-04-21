@@ -20,7 +20,7 @@ if [ ! -f config.yml ]; then
 fi
 
 echo "Running database migrations..."
-venv/bin/alembic -c api/alembic.ini upgrade head
+venv/bin/python api/migrate.py
 
 # Read server settings from config.yml, allow env var overrides
 HOST="${INSIGNE_HOST:-$(venv/bin/python -c "from insigne.config import config; print(config.server_host)")}"

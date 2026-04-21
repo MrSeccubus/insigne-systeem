@@ -1,10 +1,12 @@
 import re
 import unicodedata
+from datetime import datetime, timezone
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from insigne.models import (
+    ConfirmationToken,
     Group,
     GroupMembership,
     ProgressEntry,
@@ -251,9 +253,22 @@ def deny_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:
 
 def withdraw_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:
     m = db.query(SpeltakMembership).filter_by(user_id=user_id, speltak_id=speltak_id, approved=False).first()
-    if m:
+    if not m:
+        return
+    user = db.get(User, user_id)
+    # Emailless scout with a pending email invite: revert to emailless rather than mark withdrawn
+    if user and user.created_by_id is not None and user.status == "pending":
+        user.email = None
+        user.status = "active"
+        db.query(ConfirmationToken).filter(
+            ConfirmationToken.user_id == user_id,
+            ConfirmationToken.used_at.is_(None),
+        ).update({"used_at": datetime.now(timezone.utc)})
+        m.approved = True
+        m.withdrawn = False
+    else:
         m.withdrawn = True
-        db.commit()
+    db.commit()
 
 
 def dismiss_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:
@@ -440,6 +455,10 @@ def attach_email_to_scout(
         # Unknown email: assign email, put account in pending, issue registration token
         scout.email = email
         scout.status = "pending"
+        sm = db.query(SpeltakMembership).filter_by(user_id=scout_user_id, speltak_id=speltak.id, approved=True).first()
+        if sm:
+            sm.approved = False
+            sm.invited_by_id = invited_by_id
         db.flush()
         code, _, _ = users_svc.start_registration(db, email)
         return "new_user", scout, code

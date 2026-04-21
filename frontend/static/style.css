@@ -1131,4 +1131,10 @@ button:disabled, a[disabled] {
     text-decoration: underline;
 }
 
+.speltak-type-info {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin: 0 0 1.5rem;
+}
+
 [x-cloak] { display: none !important; }

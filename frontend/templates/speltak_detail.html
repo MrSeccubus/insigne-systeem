@@ -20,6 +20,14 @@
         {% endif %}
     </div>
 
+    <p class="speltak-type-info">
+        {% if speltak.peer_signoff %}
+            <strong>Volwassenen speltak</strong> — leden mogen voor elkaar aftekenen.
+        {% else %}
+            <strong>Jeugd speltak</strong> — aftekening gaat via de speltakleiders.
+        {% endif %}
+    </p>
+
     {% if error %}
         <p class="form-error">{{ error }}</p>
     {% endif %}

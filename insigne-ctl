@@ -27,14 +27,22 @@ case "${1:-}" in
         # Pass any extra arguments directly to journalctl (e.g. -f, -n 100)
         journalctl --user -u "$SERVICE_NAME" "${@:2}"
         ;;
+    update)
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        cd "$SCRIPT_DIR"
+        git pull
+        systemctl --user restart "$SERVICE_NAME"
+        systemctl --user status "$SERVICE_NAME" --no-pager
+        ;;
     *)
-        echo "Usage: $0 {start|stop|restart|status|logs}"
+        echo "Usage: $0 {start|stop|restart|status|logs|update}"
         echo ""
         echo "  start    Start the service"
         echo "  stop     Stop the service"
         echo "  restart  Restart the service"
         echo "  status   Show service status"
         echo "  logs     Show logs (pass extra flags, e.g. -f or -n 50)"
+        echo "  update   Pull latest code and restart"
         exit 1
         ;;
 esac

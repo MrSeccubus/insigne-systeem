@@ -101,7 +101,7 @@
         <nav class="site-nav">
             {% if current_user %}
                 <a href="/" class="nav-username">{{ current_user.name }}</a>
-                <a href="/signoff-requests">Aftekeningen <span hx-get="/signoff-requests/count" hx-trigger="load" hx-swap="outerHTML"></span></a>
+                <a href="/signoff-requests">Aftekeningen <span hx-get="/signoff-requests/count" hx-trigger="load, signoff-updated from:body" hx-swap="outerHTML"></span></a>
                 <a href="/profile">Mijn profiel</a>
                 <form method="post" action="/logout" class="nav-logout-form">
                     <button type="submit">Uitloggen</button>

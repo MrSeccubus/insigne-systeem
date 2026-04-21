@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from .auth import hash_password, verify_password
-from .models import ConfirmationToken, GroupMembership, SpeltakMembership, User
+from .models import ConfirmationToken, User
 
 _TOKEN_EXPIRE_HOURS = 1
 
@@ -118,9 +118,6 @@ def activate_account(db: Session, setup_token: str, password: str, name: str = "
     user.password_hash = hash_password(password)
     user.status = "active"
     token.used_at = now
-    # Approve pending (non-withdrawn) memberships created as invitations
-    db.query(GroupMembership).filter_by(user_id=user.id, approved=False, withdrawn=False).update({"approved": True})
-    db.query(SpeltakMembership).filter_by(user_id=user.id, approved=False, withdrawn=False).update({"approved": True})
     db.commit()
     return user, is_new
 

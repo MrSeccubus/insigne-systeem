@@ -14,5 +14,4 @@ if [ ! -f config.yml ]; then
     exit 1
 fi
 
-venv/bin/python api/migrate.py
 INSIGNE_DEV=1 venv/bin/uvicorn main:app --app-dir api --reload

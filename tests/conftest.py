@@ -14,19 +14,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from insigne.config import config as _config
 from insigne.database import get_db
 from insigne.models import Base
-
-
-@pytest.fixture(autouse=True)
-def reset_config():
-    """Restore mutable config fields after each test to prevent cross-test pollution."""
-    saved_admins = list(_config.admins)
-    saved_allow = _config.allow_any_user_to_create_groups
-    yield
-    _config.admins = saved_admins
-    _config.allow_any_user_to_create_groups = saved_allow
 
 
 @pytest.fixture

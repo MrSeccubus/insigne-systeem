@@ -1,1 +1,0 @@
-Je bent uitgenodigd voor {{ speltak_name }} – Insigne Systeem

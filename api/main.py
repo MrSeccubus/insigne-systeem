@@ -69,7 +69,7 @@ async def index(request: Request, db: Session = Depends(get_db)):
                 for niveau_idx in range(3)
             ]
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request=request,
         name="index.html",
         context={
@@ -79,6 +79,8 @@ async def index(request: Request, db: Session = Depends(get_db)):
             "signoff_count": signoff_count,
         },
     )
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/ping")

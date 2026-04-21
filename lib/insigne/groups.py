@@ -1,6 +1,7 @@
 import re
 import unicodedata
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from insigne.models import (
@@ -108,7 +109,7 @@ def unique_speltak_slug(db: Session, group_id: str, base_slug: str) -> str:
 
 
 def list_groups(db: Session) -> list[Group]:
-    return db.query(Group).order_by(Group.name).all()
+    return db.query(Group).order_by(func.lower(Group.name)).all()
 
 
 def list_groups_for_user(db: Session, user: User) -> list[Group]:
@@ -127,7 +128,7 @@ def list_groups_for_user(db: Session, user: User) -> list[Group]:
             group_ids.add(speltak.group_id)
     if not group_ids:
         return []
-    return db.query(Group).filter(Group.id.in_(group_ids)).order_by(Group.name).all()
+    return db.query(Group).filter(Group.id.in_(group_ids)).order_by(func.lower(Group.name)).all()
 
 
 def update_group(db: Session, group: Group, *, name: str, slug: str) -> Group:

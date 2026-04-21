@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Depends, Form, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
+from insigne import email as email_svc
 from insigne import groups as groups_svc
+from insigne import users as users_svc
 from insigne.config import config
 from insigne.database import get_db
+from insigne.models import GroupMembership
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
 
@@ -28,7 +31,7 @@ def _require_user(request: Request, db: Session):
 @router.get("/groups", response_class=HTMLResponse)
 def groups_list(request: Request, db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)
-    groups = groups_svc.list_groups(db)
+    groups = groups_svc.list_groups_for_user(db, current_user) if current_user else []
     can_create = current_user and (
         current_user.is_admin or config.allow_any_user_to_create_groups
     )
@@ -119,6 +122,24 @@ def group_delete(slug: str, request: Request, db: Session = Depends(get_db)):
 
 # ── Group member management ───────────────────────────────────────────────────
 
+@router.get("/groups/{slug}/members/check-email")
+def group_check_email(
+    slug: str,
+    request: Request,
+    email: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    user = _get_current_user(request, db)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    group = groups_svc.get_group_by_slug(db, slug)
+    if not group or not groups_svc.can_manage_group(user, db, group.id):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    from insigne.models import User as UserModel
+    target = db.query(UserModel).filter_by(email=email.strip().lower()).first()
+    return JSONResponse({"exists": target is not None and target.status == "active"})
+
+
 @router.post("/groups/{slug}/members/add", response_class=HTMLResponse)
 def group_add_member(
     slug: str,
@@ -138,9 +159,49 @@ def group_add_member(
         members = groups_svc.list_group_members(db, group.id)
         return _page(request, "group_detail.html", db,
                      group=group, can_manage=True, members=members,
-                     error=f"Geen gebruiker gevonden met e-mail {email}.")
+                     invite_email=email)
     groups_svc.set_group_role(db, user_id=target.id, group_id=group.id, role="groepsleider")
     return RedirectResponse(f"/groups/{slug}", status_code=303)
+
+
+@router.post("/groups/{slug}/members/invite", response_class=HTMLResponse)
+def group_invite_member(
+    slug: str,
+    request: Request,
+    email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    group = groups_svc.get_group_by_slug(db, slug)
+    if not group or not groups_svc.can_manage_group(user, db, group.id):
+        return RedirectResponse("/groups", status_code=303)
+    code, token_type, invitee = users_svc.start_registration(db, email)
+    if token_type == "email_confirmation":
+        # New or pending user — create a pending membership, activated on registration
+        m = db.query(GroupMembership).filter_by(user_id=invitee.id, group_id=group.id).first()
+        if m:
+            m.role = "groepsleider"
+            m.approved = False
+        else:
+            db.add(GroupMembership(user_id=invitee.id, group_id=group.id,
+                                   role="groepsleider", approved=False))
+        db.commit()
+        email_svc.send_groepsleider_invite_email(
+            to=email,
+            naam=invitee.name or email.split("@")[0],
+            code=code,
+            inviter_name=user.name or user.email,
+            group_name=group.name,
+        )
+    else:
+        # Already active — just add them directly
+        groups_svc.set_group_role(db, user_id=invitee.id, group_id=group.id, role="groepsleider")
+    members = groups_svc.list_group_members(db, group.id)
+    return _page(request, "group_detail.html", db,
+                 group=group, can_manage=True, members=members,
+                 success=f"Uitnodiging verstuurd naar {email}.")
 
 
 @router.post("/groups/{slug}/members/{member_id}/remove", response_class=HTMLResponse)
@@ -202,9 +263,14 @@ def speltak_detail(
     can_manage = bool(current_user and groups_svc.can_manage_speltak(current_user, db, speltak.id))
     members = groups_svc.list_speltak_members(db, speltak.id)
     other_speltakken = [s for s in group.speltakken if s.id != speltak.id]
+    suggested_users = (
+        groups_svc.list_group_users_not_in_speltak(db, group.id, speltak.id)
+        if can_manage else []
+    )
     return _page(request, "speltak_detail.html", db,
                  group=group, speltak=speltak, members=members,
-                 can_manage=can_manage, other_speltakken=other_speltakken)
+                 can_manage=can_manage, other_speltakken=other_speltakken,
+                 suggested_users=suggested_users)
 
 
 @router.get("/groups/{group_slug}/speltakken/{speltak_slug}/edit", response_class=HTMLResponse)

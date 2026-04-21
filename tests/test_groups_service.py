@@ -231,6 +231,53 @@ def test_transfer_scout(db):
 
 # ── Emailless scout ───────────────────────────────────────────────────────────
 
+def test_activate_account_approves_pending_memberships(db):
+    from insigne import users as users_svc
+    from insigne.models import GroupMembership
+    g = svc.create_group(db, name="G", slug="g")
+    code, _, pending_user = users_svc.start_registration(db, "invite@example.com")
+    db.add(GroupMembership(user_id=pending_user.id, group_id=g.id,
+                           role="groepsleider", approved=False))
+    db.commit()
+    setup_token = users_svc.confirm_email(db, code)
+    users_svc.activate_account(db, setup_token, password="password123", name="Invited")
+    db.refresh(pending_user)
+    assert svc.can_manage_group(pending_user, db, g.id) is True
+
+
+def test_list_groups_for_user_groepsleider(db):
+    user = _user(db)
+    g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+    svc.create_group(db, name="Other", slug="other")
+    result = svc.list_groups_for_user(db, user)
+    assert [x.id for x in result] == [g.id]
+
+
+def test_list_groups_for_user_speltakleider(db):
+    user = _user(db)
+    g = svc.create_group(db, name="G", slug="g")
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    svc.set_speltak_role(db, user_id=user.id, speltak_id=s.id, role="speltakleider")
+    svc.create_group(db, name="Other", slug="other")
+    result = svc.list_groups_for_user(db, user)
+    assert [x.id for x in result] == [g.id]
+
+
+def test_list_groups_for_user_scout_sees_nothing(db):
+    user = _user(db)
+    g = svc.create_group(db, name="G", slug="g")
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    svc.set_speltak_role(db, user_id=user.id, speltak_id=s.id, role="scout")
+    assert svc.list_groups_for_user(db, user) == []
+
+
+def test_list_groups_for_user_admin_sees_all(db):
+    admin = _admin_user(db)
+    svc.create_group(db, name="G1", slug="g1")
+    svc.create_group(db, name="G2", slug="g2")
+    assert len(svc.list_groups_for_user(db, admin)) == 2
+
+
 def test_create_emailless_scout(db):
     leider = _user(db, email="leider@example.com")
     scout = svc.create_emailless_scout(db, name="Piet", created_by_id=leider.id)

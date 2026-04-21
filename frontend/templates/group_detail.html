@@ -68,13 +68,54 @@
         {% endif %}
 
         {% if can_manage %}
-        <form method="post" action="/groups/{{ group.slug }}/members/add" style="max-width:480px;margin-top:1rem;">
-            <div class="field">
-                <label for="member-email">Groepsleider toevoegen via e-mail</label>
-                <input type="email" id="member-email" name="email" required autocomplete="off">
+        <div style="max-width:480px;margin-top:1rem;"
+             x-data="{
+                 email: '',
+                 notFound: false,
+                 checking: false,
+                 inviting: false,
+                 async checkAndAdd() {
+                     if (!this.email) return;
+                     this.checking = true;
+                     try {
+                         const r = await fetch('/groups/{{ group.slug }}/members/check-email?email=' + encodeURIComponent(this.email));
+                         const data = await r.json();
+                         if (data.exists) {
+                             this.$refs.addForm.submit();
+                         } else {
+                             this.notFound = true;
+                         }
+                     } finally {
+                         this.checking = false;
+                     }
+                 }
+             }">
+            <form x-ref="addForm" method="post" action="/groups/{{ group.slug }}/members/add" x-show="!notFound">
+                <div class="field">
+                    <label for="member-email">Groepsleider toevoegen via e-mail</label>
+                    <input type="email" id="member-email" name="email" x-model="email"
+                           required autocomplete="off">
+                </div>
+                <button type="button" @click="checkAndAdd()" :disabled="checking" class="btn-success"
+                        x-text="checking ? 'Controleren…' : 'Toevoegen'"></button>
+            </form>
+            <div class="invite-panel" x-show="notFound" x-cloak>
+                <p>Geen account gevonden voor <strong x-text="email"></strong>.
+                   Wil je deze persoon uitnodigen als groepsleider voor <strong>{{ group.name }}</strong>?</p>
+                <form method="post" action="/groups/{{ group.slug }}/members/invite" style="display:contents;">
+                    <input type="hidden" name="email" :value="email">
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                        <button type="submit" class="btn-success" :disabled="inviting"
+                                x-text="inviting ? 'Bezig…' : 'Uitnodigen'"
+                                @click="inviting = true"></button>
+                        <button type="button" @click="notFound = false; email = ''" class="btn-cancel">Annuleren</button>
+                    </div>
+                </form>
             </div>
-            <button type="submit" class="btn-success">Toevoegen</button>
-        </form>
+            {% if success %}
+            <p class="form-success" style="margin-top:1rem;">{{ success }}</p>
+            {% endif %}
+        </div>
         {% endif %}
     </section>
 </main>

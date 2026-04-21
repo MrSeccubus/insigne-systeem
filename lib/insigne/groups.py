@@ -101,6 +101,25 @@ def list_groups(db: Session) -> list[Group]:
     return db.query(Group).order_by(Group.name).all()
 
 
+def list_groups_for_user(db: Session, user: User) -> list[Group]:
+    """Return groups the user can manage or has a speltakleider role in."""
+    if user.is_admin:
+        return list_groups(db)
+    group_ids: set[str] = set()
+    for m in db.query(GroupMembership).filter_by(user_id=user.id, approved=True).all():
+        if m.role == "groepsleider":
+            group_ids.add(m.group_id)
+    for sm in db.query(SpeltakMembership).filter_by(
+        user_id=user.id, role="speltakleider", approved=True
+    ).all():
+        speltak = db.get(Speltak, sm.speltak_id)
+        if speltak:
+            group_ids.add(speltak.group_id)
+    if not group_ids:
+        return []
+    return db.query(Group).filter(Group.id.in_(group_ids)).order_by(Group.name).all()
+
+
 def update_group(db: Session, group: Group, *, name: str, slug: str) -> Group:
     group.name = name
     group.slug = slug
@@ -178,6 +197,30 @@ def remove_group_member(db: Session, *, user_id: str, group_id: str) -> None:
 
 
 # ── Speltak membership ─────────────────────────────────────────────────────────
+
+def list_group_users_not_in_speltak(db: Session, group_id: str, speltak_id: str) -> list[User]:
+    """Active users associated with the group (any speltak or group membership)
+    who are not yet in the given speltak and have an email address."""
+    already_in = {
+        m.user_id for m in
+        db.query(SpeltakMembership).filter_by(speltak_id=speltak_id, approved=True).all()
+    }
+    candidate_ids: set[str] = set()
+    for m in db.query(GroupMembership).filter_by(group_id=group_id, approved=True).all():
+        candidate_ids.add(m.user_id)
+    for s in db.query(Speltak).filter_by(group_id=group_id).all():
+        for m in db.query(SpeltakMembership).filter_by(speltak_id=s.id, approved=True).all():
+            candidate_ids.add(m.user_id)
+    candidate_ids -= already_in
+    if not candidate_ids:
+        return []
+    return (
+        db.query(User)
+        .filter(User.id.in_(candidate_ids), User.email.isnot(None), User.status == "active")
+        .order_by(User.name)
+        .all()
+    )
+
 
 def list_speltak_members(db: Session, speltak_id: str) -> list[SpeltakMembership]:
     return (

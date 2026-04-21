@@ -23,9 +23,10 @@ class TestGroupsList:
         r = client.get("/groups")
         assert r.status_code == 200
 
-    def test_shows_groups(self, client, db):
-        svc.create_group(db, name="Welpen", slug="welpen")
-        r = client.get("/groups")
+    def test_shows_groups_for_groepsleider(self, client, db):
+        user = _user(db)
+        svc.create_group(db, name="Welpen", slug="welpen", created_by_id=user.id)
+        r = client.get("/groups", cookies=_cookie(user))
         assert "Welpen" in r.text
 
 
@@ -94,13 +95,40 @@ class TestGroupAddMember:
         members = svc.list_group_members(db, g.id)
         assert any(m.user_id == new_leider.id for m in members)
 
-    def test_unknown_email_shows_error(self, client, db):
+    def test_check_email_returns_exists_true(self, client, db):
+        leider = _user(db)
+        existing = _user(db, email="exists@example.com", name="Existing")
+        svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+        r = client.get("/groups/g/members/check-email?email=exists@example.com",
+                       cookies=_cookie(leider))
+        assert r.status_code == 200
+        assert r.json()["exists"] is True
+
+    def test_check_email_returns_exists_false(self, client, db):
         leider = _user(db)
         svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
-        r = client.post("/groups/g/members/add", data={"email": "nobody@example.com"},
+        r = client.get("/groups/g/members/check-email?email=nobody@example.com",
+                       cookies=_cookie(leider))
+        assert r.status_code == 200
+        assert r.json()["exists"] is False
+
+    def test_check_email_requires_auth(self, client, db):
+        svc.create_group(db, name="G", slug="g")
+        r = client.get("/groups/g/members/check-email?email=x@example.com")
+        assert r.status_code == 401
+
+    def test_invite_creates_pending_membership(self, client, db):
+        from insigne.models import GroupMembership
+        leider = _user(db)
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+        r = client.post("/groups/g/members/invite", data={"email": "new@example.com"},
                         cookies=_cookie(leider))
         assert r.status_code == 200
-        assert "Geen gebruiker" in r.text
+        assert "Uitnodiging verstuurd" in r.text
+        m = db.query(GroupMembership).filter_by(group_id=g.id).all()
+        pending = [x for x in m if not x.approved]
+        assert len(pending) == 1
+        assert pending[0].role == "groepsleider"
 
     def test_non_manager_cannot_add(self, client, db):
         other = _user(db)

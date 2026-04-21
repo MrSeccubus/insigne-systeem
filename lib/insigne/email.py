@@ -145,6 +145,13 @@ def send_scout_rejected_email(to: str, scout_name: str, badge_title: str, niveau
          badge_url=badge_url)
 
 
+def send_groepsleider_invite_email(to: str, naam: str, code: str, inviter_name: str, group_name: str) -> None:
+    confirm_url = f"{config.base_url}/register/confirm/{quote_plus(code)}"
+    send(to, "groepsleider_invite",
+         email=to, naam=naam, code=code, confirm_url=confirm_url,
+         inviter_name=inviter_name, group_name=group_name)
+
+
 def send_scout_niveau_completed_email(to: str, scout_name: str, badge_title: str, niveau_number: int) -> None:
     badge_url = f"{config.base_url}/badges"
     send(to, "scout_niveau_completed",

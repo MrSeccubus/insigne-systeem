@@ -166,12 +166,15 @@ button:hover {
     font-weight: 600;
 }
 
-.field input {
+.field input,
+.field select {
     padding: 0.5rem 0.75rem;
     font-size: 1rem;
     border: 1px solid #ccc;
     border-radius: 4px;
     width: 100%;
+    font-family: inherit;
+    background: #fff;
 }
 
 .field input:focus {
@@ -697,6 +700,12 @@ button:hover {
     background: #008a44;
 }
 
+button:disabled, a[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .btn-danger {
     padding: 0.4rem 0.9rem;
     font-size: 0.875rem;
@@ -969,6 +978,25 @@ button:hover {
     border-radius: 4px;
 }
 
+/* ── Invite panel ────────────────────────────────────────────────────────── */
+
+.invite-panel {
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.invite-panel p {
+    margin: 0;
+    color: #92400e;
+    line-height: 1.5;
+}
+
 /* ── Groups / Speltakken ─────────────────────────────────────────────────── */
 
 .page-header {
@@ -1032,6 +1060,10 @@ button:hover {
     align-items: center;
     gap: 0.4rem;
     flex-shrink: 0;
+}
+
+.row-actions form {
+    display: contents;
 }
 
 .role-badge {

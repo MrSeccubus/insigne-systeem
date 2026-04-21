@@ -20,7 +20,7 @@
             <ul class="item-list">
                 {% for m in group_invites %}
                 <li class="item-list-row">
-                    <span>Uitnodiging als <strong>{{ m.role }}</strong> voor groep <strong>{{ m.group.name }}</strong></span>
+                    <span>Je bent voor groep <strong>{{ m.group.name }}</strong> uitgenodigd als <strong>{{ m.role }}</strong>{% if m.invited_by %} door <strong>{{ m.invited_by.name or m.invited_by.email }}</strong>{% endif %}</span>
                     <span class="row-actions">
                         <form method="post" action="/invitations/group/{{ m.group_id }}/accept" style="display:contents;">
                             <button type="submit" class="btn-success btn-sm">Accepteren</button>
@@ -33,7 +33,7 @@
                 {% endfor %}
                 {% for m in speltak_invites %}
                 <li class="item-list-row">
-                    <span>Uitnodiging als <strong>{{ m.role }}</strong> voor speltak <strong>{{ m.speltak.name }}</strong> ({{ m.speltak.group.name }})</span>
+                    <span>Je bent voor speltak <strong>{{ m.speltak.name }}</strong> van groep <strong>{{ m.speltak.group.name }}</strong> uitgenodigd als <strong>{{ m.role }}</strong>{% if m.invited_by %} door <strong>{{ m.invited_by.name or m.invited_by.email }}</strong>{% endif %}</span>
                     <span class="row-actions">
                         <form method="post" action="/invitations/speltak/{{ m.speltak_id }}/accept" style="display:contents;">
                             <button type="submit" class="btn-success btn-sm">Accepteren</button>

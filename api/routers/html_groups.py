@@ -226,9 +226,10 @@ def group_invite_member(
         if m:
             m.role = "groepsleider"
             m.approved = False
+            m.invited_by_id = user.id
         else:
             db.add(GroupMembership(user_id=invitee.id, group_id=group.id,
-                                   role="groepsleider", approved=False))
+                                   role="groepsleider", approved=False, invited_by_id=user.id))
         db.commit()
         email_svc.send_membership_invite_email(
             to=email,
@@ -243,9 +244,10 @@ def group_invite_member(
         if m:
             m.role = "groepsleider"
             m.approved = False
+            m.invited_by_id = user.id
         else:
             db.add(GroupMembership(user_id=invitee.id, group_id=group.id,
-                                   role="groepsleider", approved=False))
+                                   role="groepsleider", approved=False, invited_by_id=user.id))
         db.commit()
         email_svc.send_groepsleider_invite_email(
             to=email,
@@ -423,14 +425,15 @@ def speltak_invite_member(
     invitee = db.query(UserModel).filter_by(email=email.strip().lower()).first()
 
     if invitee and invitee.status == "active":
-        # Existing active user — create pending membership and send accept-link email
+        # Existing active user — create pending membership and send login-to-accept email
         m = db.query(SpeltakMembership).filter_by(user_id=invitee.id, speltak_id=speltak.id).first()
         if m:
             m.role = role
             m.approved = False
+            m.invited_by_id = user.id
         else:
             db.add(SpeltakMembership(user_id=invitee.id, speltak_id=speltak.id,
-                                     role=role, approved=False))
+                                     role=role, approved=False, invited_by_id=user.id))
         db.commit()
         email_svc.send_membership_invite_email(
             to=email,
@@ -445,9 +448,10 @@ def speltak_invite_member(
         if m:
             m.role = role
             m.approved = False
+            m.invited_by_id = user.id
         else:
             db.add(SpeltakMembership(user_id=invitee.id, speltak_id=speltak.id,
-                                     role=role, approved=False))
+                                     role=role, approved=False, invited_by_id=user.id))
         db.commit()
         email_svc.send_speltak_invite_email(
             to=email,

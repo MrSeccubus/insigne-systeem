@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from insigne.models import (
     Group,
     GroupMembership,
+    ProgressEntry,
     Speltak,
     SpeltakMembership,
     User,
@@ -385,3 +386,82 @@ def create_emailless_scout(
     db.commit()
     db.refresh(scout)
     return scout
+
+
+_STATUS_RANK: dict[str, int] = {
+    "in_progress": 0,
+    "work_done": 1,
+    "pending_signoff": 2,
+    "signed_off": 3,
+}
+
+
+def merge_scout_progress(db: Session, *, from_user_id: str, to_user_id: str) -> None:
+    """Merge progress entries from one user into another, keeping the higher status per step."""
+    for entry in db.query(ProgressEntry).filter_by(user_id=from_user_id).all():
+        existing = db.query(ProgressEntry).filter_by(
+            user_id=to_user_id,
+            badge_slug=entry.badge_slug,
+            level_index=entry.level_index,
+            step_index=entry.step_index,
+        ).first()
+        if existing is None:
+            entry.user_id = to_user_id
+        elif _STATUS_RANK.get(entry.status, 0) > _STATUS_RANK.get(existing.status, 0):
+            db.delete(existing)
+            db.flush()
+            entry.user_id = to_user_id
+        else:
+            db.delete(entry)
+    db.flush()
+
+
+def attach_email_to_scout(
+    db: Session, *, scout_user_id: str, email: str, invited_by_id: str, speltak: Speltak
+) -> tuple[str, User, str | None]:
+    """Add an email address to an emailless scout.
+
+    Returns ('new_user', user, code) if the email was unknown — the scout's
+    own account gets the email and a registration token.
+    Returns ('existing_user', user, None) if an active user already has that
+    email — progress is merged into that user and they receive a pending invite.
+    Raises ValueError('email_in_use') if the email belongs to a pending user.
+    """
+    from insigne import users as users_svc
+
+    email = email.strip().lower()
+    scout = db.get(User, scout_user_id)
+
+    existing = db.query(User).filter(User.email == email).first()
+    if existing is not None and existing.status != "active":
+        raise ValueError("email_in_use")
+
+    if existing is None:
+        # Unknown email: assign email, put account in pending, issue registration token
+        scout.email = email
+        scout.status = "pending"
+        db.flush()
+        code, _, _ = users_svc.start_registration(db, email)
+        return "new_user", scout, code
+
+    # Active user found: merge progress then create pending speltak invite
+    merge_scout_progress(db, from_user_id=scout_user_id, to_user_id=existing.id)
+    sm = db.query(SpeltakMembership).filter_by(user_id=scout_user_id, speltak_id=speltak.id).first()
+    if sm:
+        db.delete(sm)
+        db.flush()
+    _cleanup_group_membership(db, user_id=scout_user_id, group_id=speltak.group_id)
+    m = db.query(SpeltakMembership).filter_by(user_id=existing.id, speltak_id=speltak.id).first()
+    if m:
+        m.approved = False
+        m.withdrawn = False
+        m.invited_by_id = invited_by_id
+    else:
+        db.add(SpeltakMembership(
+            user_id=existing.id, speltak_id=speltak.id,
+            role="scout", approved=False, invited_by_id=invited_by_id,
+        ))
+    db.flush()
+    db.delete(scout)
+    db.commit()
+    return "existing_user", existing, None

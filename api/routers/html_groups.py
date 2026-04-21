@@ -570,6 +570,69 @@ def speltak_create_scout(
     return RedirectResponse(f"/groups/{group_slug}/speltakken/{speltak_slug}", status_code=303)
 
 
+@router.post("/groups/{group_slug}/speltakken/{speltak_slug}/members/{member_id}/set-email",
+             response_class=HTMLResponse)
+def speltak_set_member_email(
+    group_slug: str, speltak_slug: str, member_id: str,
+    request: Request,
+    email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    group = groups_svc.get_group_by_slug(db, group_slug)
+    speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
+    if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
+        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+
+    members = groups_svc.list_speltak_members(db, speltak.id)
+    pending_members = groups_svc.list_pending_speltak_members(db, speltak.id)
+    other_speltakken = [s for s in group.speltakken if s.id != speltak.id]
+    suggested_users = groups_svc.list_group_users_not_in_speltak(db, group.id, speltak.id)
+
+    try:
+        action, target, code = groups_svc.attach_email_to_scout(
+            db, scout_user_id=member_id, email=email,
+            invited_by_id=user.id, speltak=speltak,
+        )
+    except ValueError as e:
+        return _page(request, "speltak_detail.html", db,
+                     group=group, speltak=speltak, members=members,
+                     pending_members=pending_members, can_manage=True,
+                     other_speltakken=other_speltakken, suggested_users=suggested_users,
+                     error=f"Het e-mailadres {email} is al in gebruik door een andere uitgenodigde gebruiker.")
+
+    if action == "new_user":
+        email_svc.send_speltak_invite_email(
+            to=email,
+            naam=target.name or email.split("@")[0],
+            code=code,
+            inviter_name=user.name or user.email,
+            group_name=group.name,
+            speltak_name=speltak.name,
+            role="scout",
+        )
+        success = f"Uitnodiging verstuurd naar {email}. De scout kan nu een account aanmaken."
+    else:
+        email_svc.send_membership_invite_email(
+            to=email,
+            naam=target.name or email.split("@")[0],
+            inviter_name=user.name or user.email,
+            description=f"scout bij speltak {speltak.name} van groep {group.name}",
+        )
+        success = f"Uitnodiging verstuurd naar {email}. Voortgang is samengevoegd."
+
+    members = groups_svc.list_speltak_members(db, speltak.id)
+    pending_members = groups_svc.list_pending_speltak_members(db, speltak.id)
+    suggested_users = groups_svc.list_group_users_not_in_speltak(db, group.id, speltak.id)
+    return _page(request, "speltak_detail.html", db,
+                 group=group, speltak=speltak, members=members,
+                 pending_members=pending_members, can_manage=True,
+                 other_speltakken=other_speltakken, suggested_users=suggested_users,
+                 success=success)
+
+
 @router.post("/groups/{group_slug}/speltakken/{speltak_slug}/members/{member_id}/remove",
              response_class=HTMLResponse)
 def speltak_remove_member(

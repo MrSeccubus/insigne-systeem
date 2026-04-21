@@ -70,6 +70,10 @@
                     <span>{{ m.user.email or '(onbekend)' }}</span>
                     <span class="row-actions">
                         <span class="role-badge role-badge--pending">uitnodiging verstuurd</span>
+                        <form method="post" action="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/{{ m.user_id }}/remove" style="display:contents;">
+                            <button type="submit" class="btn-danger btn-sm"
+                                    onclick="return confirm('Uitnodiging voor {{ m.user.email }} intrekken?')">Intrekken</button>
+                        </form>
                     </span>
                 </li>
                 {% endfor %}

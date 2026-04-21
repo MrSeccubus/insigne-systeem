@@ -197,8 +197,10 @@ def group_add_member(
     target = db.query(UserModel).filter_by(email=email).first()
     if not target:
         members = groups_svc.list_group_members(db, group.id)
+        pending_members = groups_svc.list_pending_group_members(db, group.id)
         return _page(request, "group_detail.html", db,
                      group=group, can_manage=True, members=members,
+                     pending_members=pending_members,
                      invite_email=email)
     groups_svc.set_group_role(db, user_id=target.id, group_id=group.id, role="groepsleider")
     return RedirectResponse(f"/groups/{slug}", status_code=303)
@@ -257,8 +259,10 @@ def group_invite_member(
             group_name=group.name,
         )
     members = groups_svc.list_group_members(db, group.id)
+    pending_members = groups_svc.list_pending_group_members(db, group.id)
     return _page(request, "group_detail.html", db,
                  group=group, can_manage=True, members=members,
+                 pending_members=pending_members,
                  success=f"Uitnodiging verstuurd naar {email}.")
 
 

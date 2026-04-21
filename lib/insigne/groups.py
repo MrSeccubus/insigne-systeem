@@ -309,9 +309,27 @@ def set_speltak_role(
 
 def remove_speltak_member(db: Session, *, user_id: str, speltak_id: str) -> None:
     m = db.query(SpeltakMembership).filter_by(user_id=user_id, speltak_id=speltak_id).first()
-    if m:
-        db.delete(m)
-        db.commit()
+    if not m:
+        return
+    speltak = db.query(Speltak).filter_by(id=speltak_id).first()
+    db.delete(m)
+    db.flush()
+    if speltak:
+        _cleanup_group_membership(db, user_id=user_id, group_id=speltak.group_id)
+    db.commit()
+
+
+def _cleanup_group_membership(db: Session, *, user_id: str, group_id: str) -> None:
+    """Remove group membership if the user has no remaining ties to the group."""
+    gm = db.query(GroupMembership).filter_by(user_id=user_id, group_id=group_id).first()
+    if not gm:
+        return
+    if gm.role in ("groepsleider", "speltakleider"):
+        return
+    for speltak in db.query(Speltak).filter_by(group_id=group_id).all():
+        if db.query(SpeltakMembership).filter_by(user_id=user_id, speltak_id=speltak.id).first():
+            return
+    db.delete(gm)
 
 
 def transfer_scout(

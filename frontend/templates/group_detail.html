@@ -74,6 +74,10 @@
                     <span>{{ m.user.email or '(onbekend)' }}</span>
                     <span class="row-actions">
                         <span class="role-badge role-badge--pending">uitnodiging verstuurd</span>
+                        <form method="post" action="/groups/{{ group.slug }}/members/{{ m.user_id }}/remove" style="display:contents;">
+                            <button type="submit" class="btn-danger btn-sm"
+                                    onclick="return confirm('Uitnodiging voor {{ m.user.email }} intrekken?')">Intrekken</button>
+                        </form>
                     </span>
                 </li>
                 {% endfor %}
@@ -94,11 +98,12 @@
                          const r = await fetch('/groups/{{ group.slug }}/members/check-email?email=' + encodeURIComponent(this.email));
                          const data = await r.json();
                          if (data.exists) {
-                             this.$refs.addForm.submit();
+                             this.$refs.inviteForm.submit();
                          } else {
+                             this.checking = false;
                              this.notFound = true;
                          }
-                     } finally {
+                     } catch (e) {
                          this.checking = false;
                      }
                  }

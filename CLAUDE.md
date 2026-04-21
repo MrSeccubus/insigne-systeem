@@ -21,6 +21,13 @@ server:
   keepalive: 2      # uvicorn --timeout-keep-alive in seconds (default: 2; set low behind a proxy)
 
 base_url: "http://localhost:8000"  # public URL used in emails and links
+
+# System administrators (by email address — config is the source of truth, not the DB)
+admins:
+  - admin@example.com
+
+# Whether any authenticated user may create a group (false = only admins)
+allow_any_user_to_create_groups: true
 ```
 The app reads `config.yml` from the working directory on startup.
 Override the path with the `INSIGNE_CONFIG` environment variable.
@@ -73,7 +80,7 @@ To remove the service:
 
 ## Database
 SQLite database is created automatically at `api/data/insigne.db` on first run.
-Tables are created via `Base.metadata.create_all()` on startup.
+Schema is managed by Alembic — `./serve_dev.sh` and `./run_prod.sh` run `alembic upgrade head` automatically.
 
 ## Structure
 - `api/` — FastAPI application (`api/main.py` is the entry point)

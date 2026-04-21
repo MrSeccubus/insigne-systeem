@@ -1,5 +1,10 @@
 base_url: "http://localhost:8000"
 
+admins:
+  - admin@example.com
+
+allow_any_user_to_create_groups: true
+
 database:
   url: "sqlite:///:memory:"
 

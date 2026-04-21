@@ -969,4 +969,104 @@ button:hover {
     border-radius: 4px;
 }
 
+/* ── Groups / Speltakken ─────────────────────────────────────────────────── */
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.page-header h1 {
+    margin: 0;
+}
+
+.section-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.section-header-row h2 {
+    margin: 0;
+}
+
+.item-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.item-list-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    gap: 0.5rem;
+}
+
+.item-list-row:last-child {
+    border-bottom: none;
+}
+
+.item-list-row a {
+    color: inherit;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.item-list-row a:hover {
+    text-decoration: underline;
+}
+
+.row-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+
+.role-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #374151;
+    background: #e5e7eb;
+    border-radius: 4px;
+    padding: 0.15rem 0.4rem;
+}
+
+.role-select {
+    font-size: 0.82rem;
+    padding: 0.2rem 0.4rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.breadcrumb {
+    font-size: 0.82rem;
+    color: #6b7280;
+    margin: 0 0 0.25rem;
+}
+
+.breadcrumb a {
+    color: #6b7280;
+    text-decoration: none;
+}
+
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
 [x-cloak] { display: none !important; }

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}{{ group.name }} — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main>
+    <div class="page-header">
+        <h1>{{ group.name }}</h1>
+        {% if can_manage %}
+            <div style="display:flex;gap:0.5rem;">
+                <a href="/groups/{{ group.slug }}/edit" class="btn-neutral">Bewerken</a>
+                <form method="post" action="/groups/{{ group.slug }}/delete" class="inline-form">
+                    <button type="submit" class="btn-danger"
+                            onclick="return confirm('Groep \'{{ group.name }}\' verwijderen? Dit kan niet ongedaan worden gemaakt.')">Verwijderen</button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+
+    <section>
+        <div class="section-header-row">
+            <h2>Speltakken</h2>
+            {% if can_manage %}
+                <a href="/groups/{{ group.slug }}/speltakken/new" class="btn-success btn-sm">Nieuwe speltak</a>
+            {% endif %}
+        </div>
+        {% if group.speltakken %}
+            <ul class="item-list">
+                {% for speltak in group.speltakken %}
+                <li class="item-list-row">
+                    <a href="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}">{{ speltak.name }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="empty-state">Nog geen speltakken.</p>
+        {% endif %}
+    </section>
+
+    <section style="margin-top:2rem;">
+        <h2>Groepsleiders</h2>
+        {% if members %}
+            <ul class="item-list">
+                {% for m in members %}
+                {% if m.role == 'groepsleider' %}
+                <li class="item-list-row">
+                    {{ m.user.name or m.user.email or '(onbekend)' }}
+                    <span class="role-badge">groepsleider</span>
+                </li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="empty-state">Geen leden.</p>
+        {% endif %}
+    </section>
+</main>
+{% endblock %}

@@ -87,6 +87,16 @@ def unique_group_slug(db: Session, base_slug: str) -> str:
     return f"{base_slug}-{i}"
 
 
+def unique_speltak_slug(db: Session, group_id: str, base_slug: str) -> str:
+    """Return base_slug if unused within the group, otherwise base_slug-2, -3, …"""
+    if not get_speltak_by_slug(db, group_id, base_slug):
+        return base_slug
+    i = 2
+    while get_speltak_by_slug(db, group_id, f"{base_slug}-{i}"):
+        i += 1
+    return f"{base_slug}-{i}"
+
+
 def list_groups(db: Session) -> list[Group]:
     return db.query(Group).order_by(Group.name).all()
 

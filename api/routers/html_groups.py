@@ -175,7 +175,6 @@ def speltak_create(
     group_slug: str,
     request: Request,
     name: str = Form(...),
-    slug: str = Form(...),
     db: Session = Depends(get_db),
 ):
     user, redirect = _require_user(request, db)
@@ -184,9 +183,7 @@ def speltak_create(
     group = groups_svc.get_group_by_slug(db, group_slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse(f"/groups/{group_slug}", status_code=303)
-    if groups_svc.get_speltak_by_slug(db, group.id, slug):
-        return _page(request, "speltak_edit.html", db,
-                     group=group, speltak=None, error="Deze slug is al in gebruik.")
+    slug = groups_svc.unique_speltak_slug(db, group.id, groups_svc.name_to_slug(name))
     groups_svc.create_speltak(db, group_id=group.id, name=name, slug=slug)
     return RedirectResponse(f"/groups/{group_slug}", status_code=303)
 
@@ -230,7 +227,6 @@ def speltak_edit(
     speltak_slug: str,
     request: Request,
     name: str = Form(...),
-    new_slug: str = Form(...),
     db: Session = Depends(get_db),
 ):
     user, redirect = _require_user(request, db)
@@ -240,11 +236,7 @@ def speltak_edit(
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse(f"/groups/{group_slug}", status_code=303)
-    existing = groups_svc.get_speltak_by_slug(db, group.id, new_slug)
-    if existing and existing.id != speltak.id:
-        return _page(request, "speltak_edit.html", db,
-                     group=group, speltak=speltak, error="Deze slug is al in gebruik.")
-    groups_svc.update_speltak(db, speltak, name=name, slug=new_slug)
+    groups_svc.update_speltak(db, speltak, name=name, slug=speltak.slug)
     return RedirectResponse(f"/groups/{group_slug}", status_code=303)
 
 

@@ -12,13 +12,9 @@
             {% endif %}
             <div class="field">
                 <label for="name">Naam</label>
-                <input type="text" id="name" name="name" value="{{ speltak.name if speltak else '' }}" required maxlength="200">
-            </div>
-            <div class="field">
-                <label for="slug">Slug <span class="optional">(alleen kleine letters, cijfers en koppeltekens)</span></label>
-                <input type="text" id="slug" name="{% if speltak %}new_slug{% else %}slug{% endif %}"
-                       value="{{ speltak.slug if speltak else '' }}"
-                       required maxlength="100" pattern="[a-z0-9-]+">
+                <input type="text" id="name" name="name"
+                       value="{{ speltak.name if speltak else '' }}"
+                       required maxlength="200" autofocus>
             </div>
             <div style="display:flex;gap:1rem;margin-top:1rem;">
                 <button type="submit" class="btn-success">Opslaan</button>

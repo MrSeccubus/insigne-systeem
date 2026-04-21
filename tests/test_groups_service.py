@@ -65,6 +65,24 @@ def test_name_to_slug_empty_fallback(db):
     assert svc.name_to_slug("!!!") == "groep"
 
 
+def test_unique_speltak_slug_no_collision(db):
+    g = svc.create_group(db, name="G", slug="g")
+    assert svc.unique_speltak_slug(db, g.id, "welpen") == "welpen"
+
+
+def test_unique_speltak_slug_collision(db):
+    g = svc.create_group(db, name="G", slug="g")
+    svc.create_speltak(db, group_id=g.id, name="Welpen", slug="welpen")
+    assert svc.unique_speltak_slug(db, g.id, "welpen") == "welpen-2"
+
+
+def test_unique_speltak_slug_same_name_different_groups(db):
+    g1 = svc.create_group(db, name="G1", slug="g1")
+    g2 = svc.create_group(db, name="G2", slug="g2")
+    svc.create_speltak(db, group_id=g1.id, name="Welpen", slug="welpen")
+    assert svc.unique_speltak_slug(db, g2.id, "welpen") == "welpen"
+
+
 def test_unique_group_slug_no_collision(db):
     assert svc.unique_group_slug(db, "groep-a") == "groep-a"
 

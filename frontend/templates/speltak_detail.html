@@ -98,7 +98,7 @@
                     <span class="row-actions">
                         <span class="role-badge role-badge--pending">uitnodiging verstuurd</span>
                         <button type="button" class="btn-danger btn-sm"
-                                @click="fetch('/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/{{ m.user_id }}/withdraw', {method:'POST'}).then(() => visible = false)">Intrekken</button>
+                                @click="fetch('/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/{{ m.user_id }}/withdraw', {method:'POST'}).then(r => r.json()).then(d => d.reverted ? location.reload() : visible = false)">Intrekken</button>
                     </span>
                 </li>
                 {% endfor %}

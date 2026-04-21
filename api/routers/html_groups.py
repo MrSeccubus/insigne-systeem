@@ -659,9 +659,11 @@ def speltak_withdraw_invite(
         return redirect
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
+    reverted = False
     if speltak and groups_svc.can_manage_speltak(user, db, speltak.id):
-        groups_svc.withdraw_speltak_invite(db, user_id=member_id, speltak_id=speltak.id)
-    return Response(status_code=204)
+        reverted = groups_svc.withdraw_speltak_invite(db, user_id=member_id, speltak_id=speltak.id)
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"reverted": reverted})
 
 
 @router.post("/groups/{group_slug}/speltakken/{speltak_slug}/members/{member_id}/transfer",

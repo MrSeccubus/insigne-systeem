@@ -251,10 +251,12 @@ def deny_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:
         db.commit()
 
 
-def withdraw_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:
+def withdraw_speltak_invite(db: Session, user_id: str, speltak_id: str) -> bool:
+    """Withdraw a pending speltak invite. Returns True if the user was reverted to
+    an emailless scout (caller should refresh the page), False if simply withdrawn."""
     m = db.query(SpeltakMembership).filter_by(user_id=user_id, speltak_id=speltak_id, approved=False).first()
     if not m:
-        return
+        return False
     user = db.get(User, user_id)
     # Emailless scout with a pending email invite: revert to emailless rather than mark withdrawn
     if user and user.created_by_id is not None and user.status == "pending":
@@ -266,9 +268,11 @@ def withdraw_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:
         ).update({"used_at": datetime.now(timezone.utc)})
         m.approved = True
         m.withdrawn = False
-    else:
-        m.withdrawn = True
+        db.commit()
+        return True
+    m.withdrawn = True
     db.commit()
+    return False
 
 
 def dismiss_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:

@@ -26,14 +26,42 @@ def _require_user(request: Request, db: Session):
     return user, None
 
 
-# ── Invite acceptance ─────────────────────────────────────────────────────────
+# ── Invitation accept / deny ──────────────────────────────────────────────────
 
-@router.get("/invite/accept/{token}", response_class=HTMLResponse)
-def accept_invite(token: str, request: Request, db: Session = Depends(get_db)):
-    accepted_user = users_svc.accept_membership_invite(db, token)
-    if not accepted_user:
-        return _page(request, "invite_accepted.html", db, success=False)
-    return _page(request, "invite_accepted.html", db, success=True)
+@router.post("/invitations/group/{group_id}/accept")
+def accept_group_invite(group_id: str, request: Request, db: Session = Depends(get_db)):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    groups_svc.accept_group_invite(db, user_id=user.id, group_id=group_id)
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/invitations/group/{group_id}/deny")
+def deny_group_invite(group_id: str, request: Request, db: Session = Depends(get_db)):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    groups_svc.deny_group_invite(db, user_id=user.id, group_id=group_id)
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/invitations/speltak/{speltak_id}/accept")
+def accept_speltak_invite(speltak_id: str, request: Request, db: Session = Depends(get_db)):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    groups_svc.accept_speltak_invite(db, user_id=user.id, speltak_id=speltak_id)
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/invitations/speltak/{speltak_id}/deny")
+def deny_speltak_invite(speltak_id: str, request: Request, db: Session = Depends(get_db)):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    groups_svc.deny_speltak_invite(db, user_id=user.id, speltak_id=speltak_id)
+    return RedirectResponse("/", status_code=303)
 
 
 # ── Groups list ───────────────────────────────────────────────────────────────
@@ -189,9 +217,28 @@ def group_invite_member(
     group = groups_svc.get_group_by_slug(db, slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse("/groups", status_code=303)
-    code, token_type, invitee = users_svc.start_registration(db, email)
-    if token_type == "email_confirmation":
-        # New or pending user — create a pending membership, activated on registration
+    from insigne.models import User as UserModel
+    invitee = db.query(UserModel).filter_by(email=email.strip().lower()).first()
+
+    if invitee and invitee.status == "active":
+        # Existing active user — create pending membership, send login-to-accept email
+        m = db.query(GroupMembership).filter_by(user_id=invitee.id, group_id=group.id).first()
+        if m:
+            m.role = "groepsleider"
+            m.approved = False
+        else:
+            db.add(GroupMembership(user_id=invitee.id, group_id=group.id,
+                                   role="groepsleider", approved=False))
+        db.commit()
+        email_svc.send_membership_invite_email(
+            to=email,
+            naam=invitee.name or email.split("@")[0],
+            inviter_name=user.name or user.email,
+            description=f"groepsleider van groep {group.name}",
+        )
+    else:
+        # New or pending user — registration flow, auto-approved on activation
+        code, _token_type, invitee = users_svc.start_registration(db, email)
         m = db.query(GroupMembership).filter_by(user_id=invitee.id, group_id=group.id).first()
         if m:
             m.role = "groepsleider"
@@ -207,9 +254,6 @@ def group_invite_member(
             inviter_name=user.name or user.email,
             group_name=group.name,
         )
-    else:
-        # Already active — just add them directly
-        groups_svc.set_group_role(db, user_id=invitee.id, group_id=group.id, role="groepsleider")
     members = groups_svc.list_group_members(db, group.id)
     return _page(request, "group_detail.html", db,
                  group=group, can_manage=True, members=members,
@@ -388,17 +432,11 @@ def speltak_invite_member(
             db.add(SpeltakMembership(user_id=invitee.id, speltak_id=speltak.id,
                                      role=role, approved=False))
         db.commit()
-        accept_token = users_svc.create_membership_invite_token(db, invitee.id)
-        from urllib.parse import quote_plus
-        accept_url = f"{config.base_url}/invite/accept/{quote_plus(accept_token)}"
-        email_svc.send_speltak_invite_existing_user_email(
+        email_svc.send_membership_invite_email(
             to=email,
             naam=invitee.name or email.split("@")[0],
-            accept_url=accept_url,
             inviter_name=user.name or user.email,
-            group_name=group.name,
-            speltak_name=speltak.name,
-            role=role,
+            description=f"{role} bij speltak {speltak.name} van groep {group.name}",
         )
     else:
         # New or pending user — registration flow with pending membership

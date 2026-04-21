@@ -7,7 +7,6 @@ from .auth import hash_password, verify_password
 from .models import ConfirmationToken, GroupMembership, SpeltakMembership, User
 
 _TOKEN_EXPIRE_HOURS = 1
-_INVITE_EXPIRE_DAYS = 7
 
 
 def _local_part(email: str) -> str:
@@ -124,37 +123,6 @@ def activate_account(db: Session, setup_token: str, password: str, name: str = "
     db.query(SpeltakMembership).filter_by(user_id=user.id, approved=False).update({"approved": True})
     db.commit()
     return user, is_new
-
-
-def create_membership_invite_token(db: Session, user_id: str) -> str:
-    """Issue a membership_invite token for an already-active user."""
-    value = secrets.token_urlsafe(32)
-    db.add(ConfirmationToken(
-        user_id=user_id,
-        token=value,
-        type="membership_invite",
-        expires_at=datetime.now(timezone.utc) + timedelta(days=_INVITE_EXPIRE_DAYS),
-    ))
-    db.commit()
-    return value
-
-
-def accept_membership_invite(db: Session, token: str) -> User | None:
-    """Approve all pending memberships for the token owner. Returns the user or None if invalid."""
-    now = datetime.now(timezone.utc)
-    ct = db.query(ConfirmationToken).filter(
-        ConfirmationToken.token == token,
-        ConfirmationToken.type == "membership_invite",
-        ConfirmationToken.used_at.is_(None),
-        ConfirmationToken.expires_at > now,
-    ).first()
-    if ct is None:
-        return None
-    ct.used_at = now
-    db.query(GroupMembership).filter_by(user_id=ct.user_id, approved=False).update({"approved": True})
-    db.query(SpeltakMembership).filter_by(user_id=ct.user_id, approved=False).update({"approved": True})
-    db.commit()
-    return db.get(User, ct.user_id)
 
 
 def authenticate(db: Session, email: str, password: str) -> User | None:

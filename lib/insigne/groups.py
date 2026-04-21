@@ -192,6 +192,42 @@ def list_pending_group_members(db: Session, group_id: str) -> list[GroupMembersh
     )
 
 
+def list_pending_invitations_for_user(
+    db: Session, user_id: str
+) -> tuple[list[GroupMembership], list[SpeltakMembership]]:
+    group_invites = db.query(GroupMembership).filter_by(user_id=user_id, approved=False).all()
+    speltak_invites = db.query(SpeltakMembership).filter_by(user_id=user_id, approved=False).all()
+    return group_invites, speltak_invites
+
+
+def accept_group_invite(db: Session, user_id: str, group_id: str) -> None:
+    m = db.query(GroupMembership).filter_by(user_id=user_id, group_id=group_id, approved=False).first()
+    if m:
+        m.approved = True
+        db.commit()
+
+
+def deny_group_invite(db: Session, user_id: str, group_id: str) -> None:
+    m = db.query(GroupMembership).filter_by(user_id=user_id, group_id=group_id, approved=False).first()
+    if m:
+        db.delete(m)
+        db.commit()
+
+
+def accept_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:
+    m = db.query(SpeltakMembership).filter_by(user_id=user_id, speltak_id=speltak_id, approved=False).first()
+    if m:
+        m.approved = True
+        db.commit()
+
+
+def deny_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:
+    m = db.query(SpeltakMembership).filter_by(user_id=user_id, speltak_id=speltak_id, approved=False).first()
+    if m:
+        db.delete(m)
+        db.commit()
+
+
 def set_group_role(
     db: Session, *, user_id: str, group_id: str, role: str
 ) -> GroupMembership:

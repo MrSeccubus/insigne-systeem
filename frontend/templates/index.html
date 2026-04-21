@@ -13,6 +13,40 @@
             <a href="/signoff-requests">Bekijken →</a>
         </div>
         {% endif %}
+
+        {% if group_invites or speltak_invites %}
+        <section class="invitations-section">
+            <h2>Uitnodigingen</h2>
+            <ul class="item-list">
+                {% for m in group_invites %}
+                <li class="item-list-row">
+                    <span>Uitnodiging als <strong>{{ m.role }}</strong> voor groep <strong>{{ m.group.name }}</strong></span>
+                    <span class="row-actions">
+                        <form method="post" action="/invitations/group/{{ m.group_id }}/accept" style="display:contents;">
+                            <button type="submit" class="btn-success btn-sm">Accepteren</button>
+                        </form>
+                        <form method="post" action="/invitations/group/{{ m.group_id }}/deny" style="display:contents;">
+                            <button type="submit" class="btn-danger btn-sm">Weigeren</button>
+                        </form>
+                    </span>
+                </li>
+                {% endfor %}
+                {% for m in speltak_invites %}
+                <li class="item-list-row">
+                    <span>Uitnodiging als <strong>{{ m.role }}</strong> voor speltak <strong>{{ m.speltak.name }}</strong> ({{ m.speltak.group.name }})</span>
+                    <span class="row-actions">
+                        <form method="post" action="/invitations/speltak/{{ m.speltak_id }}/accept" style="display:contents;">
+                            <button type="submit" class="btn-success btn-sm">Accepteren</button>
+                        </form>
+                        <form method="post" action="/invitations/speltak/{{ m.speltak_id }}/deny" style="display:contents;">
+                            <button type="submit" class="btn-danger btn-sm">Weigeren</button>
+                        </form>
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
     {% else %}
         <h1>Insigne Systeem</h1>
         <p style="color:#555;margin-bottom:2rem;">Volg je voortgang voor Scouting insignes en vraag aftekening aan bij je (bege-)leiders.</p>

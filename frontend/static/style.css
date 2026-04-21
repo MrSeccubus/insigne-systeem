@@ -839,6 +839,17 @@ button:disabled, a[disabled] {
     font-weight: 600;
 }
 
+/* ── Invitations section ─────────────────────────────────────────────────── */
+
+.invitations-section {
+    margin-bottom: 2rem;
+}
+
+.invitations-section h2 {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
 /* ── Sign-off requests page ──────────────────────────────────────────────── */
 
 .signoff-card {

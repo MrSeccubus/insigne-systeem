@@ -6,25 +6,21 @@
     <tr><td align="center">
       <table width="100%" style="max-width:520px;background:#fff;border-radius:4px;border:1px solid #ddd;border-top:3px solid #00A651;padding:2rem;">
         <tr><td>
-          <h1 style="margin:0 0 1.5rem;font-size:1.4rem;color:#1a1a1a;">Uitnodiging voor {{ speltak_name }}</h1>
+          <h1 style="margin:0 0 1.5rem;font-size:1.4rem;color:#1a1a1a;">Je hebt een uitnodiging</h1>
           <p style="margin:0 0 1rem;color:#333;line-height:1.6;">Hoi {{ naam }},</p>
           <p style="margin:0 0 1.5rem;color:#333;line-height:1.6;">
-            <strong>{{ inviter_name }}</strong> heeft jou uitgenodigd als <strong>{{ role }}</strong> bij speltak <strong>{{ speltak_name }}</strong> van groep <strong>{{ group_name }}</strong>.
+            <strong>{{ inviter_name }}</strong> heeft jou uitgenodigd als {{ description }}.
           </p>
           <p style="margin:0 0 1.5rem;color:#333;line-height:1.6;">
-            Klik op de onderstaande knop om de uitnodiging te accepteren.
+            Log in om de uitnodiging te accepteren of te weigeren.
           </p>
           <div style="text-align:center;margin:0 0 1.5rem;">
-            <a href="{{ accept_url }}"
+            <a href="{{ login_url }}"
                style="display:inline-block;background:#00A651;color:#fff;text-decoration:none;
                       font-weight:600;padding:0.75rem 2rem;border-radius:4px;font-size:1rem;">
-              Uitnodiging accepteren
+              Inloggen
             </a>
           </div>
-          <p style="margin:0 0 1.5rem;color:#555;font-size:0.85rem;text-align:center;">
-            Of open deze link in je browser:<br>
-            <a href="{{ accept_url }}" style="color:#00A651;">{{ accept_url }}</a>
-          </p>
           <p style="margin:0;color:#888;font-size:0.85rem;">
             Verwacht je deze uitnodiging niet? Dan kun je deze e-mail negeren.
           </p>

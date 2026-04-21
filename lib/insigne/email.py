@@ -152,14 +152,14 @@ def send_groepsleider_invite_email(to: str, naam: str, code: str, inviter_name: 
          inviter_name=inviter_name, group_name=group_name)
 
 
-def send_speltak_invite_existing_user_email(
-    to: str, naam: str, accept_url: str, inviter_name: str,
-    group_name: str, speltak_name: str, role: str,
+def send_membership_invite_email(
+    to: str, naam: str, inviter_name: str, description: str,
 ) -> None:
-    send(to, "speltak_invite_existing",
-         email=to, naam=naam, accept_url=accept_url,
-         inviter_name=inviter_name, group_name=group_name,
-         speltak_name=speltak_name, role=role)
+    """Generic invite email for existing users directing them to log in and accept."""
+    login_url = f"{config.base_url}/login"
+    send(to, "membership_invite",
+         email=to, naam=naam, inviter_name=inviter_name,
+         description=description, login_url=login_url)
 
 
 def send_speltak_invite_email(

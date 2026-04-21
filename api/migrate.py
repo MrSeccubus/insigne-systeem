@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from insigne.config import config as app_config
 
 ALEMBIC_INI = str(Path(__file__).parent / "alembic.ini")
@@ -31,8 +32,12 @@ def main() -> None:
             conn.close()
             user_tables = tables - {"alembic_version"}
             if user_tables and not versioned:
-                print("Existing database detected — stamping initial revision...")
-                command.stamp(ac, "head")
+                # Stamp at the oldest revision so that only migrations after
+                # the initial schema creation run (tables already exist).
+                revisions = list(ScriptDirectory.from_config(ac).walk_revisions())
+                initial_rev = revisions[-1].revision
+                print(f"Existing database detected — stamping at {initial_rev}...")
+                command.stamp(ac, initial_rev)
 
     command.upgrade(ac, "head")
 

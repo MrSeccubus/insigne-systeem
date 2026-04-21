@@ -174,6 +174,14 @@ def list_group_members(db: Session, group_id: str) -> list[GroupMembership]:
     )
 
 
+def list_pending_group_members(db: Session, group_id: str) -> list[GroupMembership]:
+    return (
+        db.query(GroupMembership)
+        .filter_by(group_id=group_id, approved=False)
+        .all()
+    )
+
+
 def set_group_role(
     db: Session, *, user_id: str, group_id: str, role: str
 ) -> GroupMembership:

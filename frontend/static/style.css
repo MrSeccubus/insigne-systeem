@@ -1077,6 +1077,11 @@ button:disabled, a[disabled] {
     padding: 0.15rem 0.4rem;
 }
 
+.role-badge--pending {
+    color: #92400e;
+    background: #fef3c7;
+}
+
 .role-select {
     font-size: 0.82rem;
     padding: 0.2rem 0.4rem;

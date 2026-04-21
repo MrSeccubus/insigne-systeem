@@ -77,8 +77,10 @@ def group_detail(slug: str, request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/groups", status_code=303)
     can_manage = bool(current_user and groups_svc.can_manage_group(current_user, db, group.id))
     members = groups_svc.list_group_members(db, group.id)
+    pending_members = groups_svc.list_pending_group_members(db, group.id) if can_manage else []
     return _page(request, "group_detail.html", db,
-                 group=group, can_manage=can_manage, members=members)
+                 group=group, can_manage=can_manage, members=members,
+                 pending_members=pending_members)
 
 
 @router.get("/groups/{slug}/edit", response_class=HTMLResponse)

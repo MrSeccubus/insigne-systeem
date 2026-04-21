@@ -67,6 +67,19 @@
             <p class="empty-state">Geen groepsleiders.</p>
         {% endif %}
 
+        {% if pending_members %}
+            <ul class="item-list" style="margin-top:0.5rem;">
+                {% for m in pending_members %}
+                <li class="item-list-row">
+                    <span>{{ m.user.email or '(onbekend)' }}</span>
+                    <span class="row-actions">
+                        <span class="role-badge role-badge--pending">uitnodiging verstuurd</span>
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
         {% if can_manage %}
         <div style="max-width:480px;margin-top:1rem;"
              x-data="{

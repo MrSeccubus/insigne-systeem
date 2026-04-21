@@ -43,7 +43,7 @@
                             {% if other_speltakken %}
                             <form method="post" action="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/{{ m.user_id }}/transfer" class="inline-form" style="width:auto;">
                                 <select name="to_speltak_id" onchange="this.form.submit()" class="role-select">
-                                    <option value="">Overzetten naar…</option>
+                                    <option value="">Overvliegen naar…</option>
                                     {% for s in other_speltakken %}
                                     <option value="{{ s.id }}">{{ s.name }}</option>
                                     {% endfor %}

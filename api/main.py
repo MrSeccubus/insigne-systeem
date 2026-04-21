@@ -3,7 +3,6 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 import insigne.models  # noqa: F401 — registers all ORM classes on Base.metadata
@@ -12,6 +11,7 @@ from insigne.badges import get_badge, list_badges
 from insigne.database import Base, engine, get_db
 from routers import api_auth, api_badges, api_progress, api_users, html_badges, users
 from routers.users import _get_current_user
+from templates import templates
 
 BASE_DIR = Path(__file__).parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -32,8 +32,6 @@ app.include_router(api_badges.router, prefix="/api")
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="static")
 app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
-templates = Jinja2Templates(directory=FRONTEND_DIR / "templates")
-templates.env.globals["current_user"] = None
 
 
 @app.get("/", response_class=HTMLResponse)

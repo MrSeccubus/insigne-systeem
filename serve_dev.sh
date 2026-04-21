@@ -14,4 +14,4 @@ if [ ! -f config.yml ]; then
     exit 1
 fi
 
-venv/bin/uvicorn main:app --app-dir api --reload
+INSIGNE_DEV=1 venv/bin/uvicorn main:app --app-dir api --reload

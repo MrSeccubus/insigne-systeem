@@ -12,6 +12,17 @@ body {
     background: #f5f5f5;
 }
 
+.dev-banner {
+    background: #b91c1c;
+    color: #fff;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.25rem;
+}
+
 main {
     max-width: 800px;
     margin: 0 auto;
@@ -671,6 +682,66 @@ button:hover {
     font-size: 0.82rem;
 }
 
+.btn-success {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    background: #00A651;
+    color: #fff;
+}
+
+.btn-success:hover {
+    background: #008a44;
+}
+
+.btn-danger {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    background: #b91c1c;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: #991b1b;
+}
+
+.btn-cancel {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid #b91c1c;
+    border-radius: 4px;
+    background: #fff;
+    color: #b91c1c;
+}
+
+.btn-cancel:hover {
+    background: #fef2f2;
+}
+
+.btn-neutral {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background: #f9fafb;
+    color: #374151;
+}
+
+.btn-neutral:hover {
+    background: #f3f4f6;
+}
+
 .btn-danger-link {
     background: none;
     border: none;
@@ -693,6 +764,10 @@ button:hover {
     flex-direction: column;
     gap: 0.45rem;
     max-width: 380px;
+    align-self: center;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .inline-form input,

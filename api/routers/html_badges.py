@@ -112,7 +112,7 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
         for niveau_idx in range(3)
     ]
 
-    response = _TEMPLATES.TemplateResponse(
+    return _TEMPLATES.TemplateResponse(
         request=request,
         name="badge.html",
         context={
@@ -125,8 +125,6 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
             "selected_niveaus": [niveau - 1] if niveau in (1, 2, 3) else [0, 1, 2],
         },
     )
-    response.headers["Cache-Control"] = "no-store"
-    return response
 
 
 # ── Log a step ────────────────────────────────────────────────────────────────

@@ -122,6 +122,97 @@ class TestDeleteGroup:
         assert r.status_code == 403
 
 
+# ── Group members ─────────────────────────────────────────────────────────────
+
+class TestGroupMembers:
+    def test_list_members(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        r = client.get(f"/api/groups/{g.id}/members", headers=_auth(token))
+        assert r.status_code == 200
+        assert any(m["user_id"] == user.id for m in r.json())
+
+    def test_list_members_requires_manager(self, client, db):
+        token = _full_register(client, db)
+        g = svc.create_group(db, name="G", slug="g")
+        r = client.get(f"/api/groups/{g.id}/members", headers=_auth(token))
+        assert r.status_code == 403
+
+    def test_list_pending_members(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        invitee = User(email="inv@example.com", name="Inv", status="active", password_hash="x")
+        db.add(invitee)
+        db.commit()
+        svc.set_group_role(db, user_id=invitee.id, group_id=g.id, role="member")
+        from insigne.models import GroupMembership
+        db.query(GroupMembership).filter_by(user_id=invitee.id).update({"approved": False})
+        db.commit()
+        r = client.get(f"/api/groups/{g.id}/members/pending", headers=_auth(token))
+        assert r.status_code == 200
+        assert any(m["user_id"] == invitee.id for m in r.json())
+
+    def test_withdraw_group_invite(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        invitee = User(email="inv@example.com", name="Inv", status="active", password_hash="x")
+        db.add(invitee)
+        db.commit()
+        svc.set_group_role(db, user_id=invitee.id, group_id=g.id, role="member")
+        from insigne.models import GroupMembership
+        db.query(GroupMembership).filter_by(user_id=invitee.id).update({"approved": False})
+        db.commit()
+        r = client.post(f"/api/groups/{g.id}/members/{invitee.id}/withdraw", headers=_auth(token))
+        assert r.status_code == 204
+        m = db.query(GroupMembership).filter_by(user_id=invitee.id).first()
+        assert m.withdrawn is True
+
+    def test_dismiss_group_invite(self, client, db):
+        token_invitee = _full_register(client, db, email="inv@example.com", name="Inv")
+        invitee = db.query(User).filter_by(email="inv@example.com").first()
+        g = svc.create_group(db, name="G", slug="g")
+        svc.set_group_role(db, user_id=invitee.id, group_id=g.id, role="member")
+        from insigne.models import GroupMembership
+        db.query(GroupMembership).filter_by(user_id=invitee.id).update(
+            {"approved": False, "withdrawn": True}
+        )
+        db.commit()
+        r = client.post(f"/api/groups/{g.id}/members/{invitee.id}/dismiss",
+                        headers=_auth(token_invitee))
+        assert r.status_code == 204
+        assert db.query(GroupMembership).filter_by(user_id=invitee.id).first() is None
+
+    def test_accept_group_invite(self, client, db):
+        token_invitee = _full_register(client, db, email="inv@example.com", name="Inv")
+        invitee = db.query(User).filter_by(email="inv@example.com").first()
+        g = svc.create_group(db, name="G", slug="g")
+        svc.set_group_role(db, user_id=invitee.id, group_id=g.id, role="member")
+        from insigne.models import GroupMembership
+        db.query(GroupMembership).filter_by(user_id=invitee.id).update({"approved": False})
+        db.commit()
+        r = client.post(f"/api/groups/{g.id}/members/{invitee.id}/accept",
+                        headers=_auth(token_invitee))
+        assert r.status_code == 204
+        m = db.query(GroupMembership).filter_by(user_id=invitee.id).first()
+        assert m.approved is True
+
+    def test_deny_group_invite(self, client, db):
+        token_invitee = _full_register(client, db, email="inv@example.com", name="Inv")
+        invitee = db.query(User).filter_by(email="inv@example.com").first()
+        g = svc.create_group(db, name="G", slug="g")
+        svc.set_group_role(db, user_id=invitee.id, group_id=g.id, role="member")
+        from insigne.models import GroupMembership
+        db.query(GroupMembership).filter_by(user_id=invitee.id).update({"approved": False})
+        db.commit()
+        r = client.post(f"/api/groups/{g.id}/members/{invitee.id}/deny",
+                        headers=_auth(token_invitee))
+        assert r.status_code == 204
+        assert db.query(GroupMembership).filter_by(user_id=invitee.id).first() is None
+
+
 # ── Speltakken ────────────────────────────────────────────────────────────────
 
 class TestSpeltakken:
@@ -133,6 +224,28 @@ class TestSpeltakken:
                         json={"name": "Welpen", "slug": "welpen"}, headers=_auth(token))
         assert r.status_code == 201
         assert r.json()["slug"] == "welpen"
+        assert r.json()["peer_signoff"] is False
+
+    def test_create_speltak_with_peer_signoff(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        r = client.post(f"/api/groups/{g.id}/speltakken",
+                        json={"name": "Rovers", "slug": "rovers", "peer_signoff": True},
+                        headers=_auth(token))
+        assert r.status_code == 201
+        assert r.json()["peer_signoff"] is True
+
+    def test_update_speltak_peer_signoff(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        r = client.put(f"/api/groups/{g.id}/speltakken/{s.id}",
+                       json={"name": "S", "slug": "s", "peer_signoff": True},
+                       headers=_auth(token))
+        assert r.status_code == 200
+        assert r.json()["peer_signoff"] is True
 
     def test_non_member_cannot_create_speltak(self, client, db):
         token = _full_register(client, db)
@@ -165,6 +278,106 @@ class TestSpeltakMembers:
                         json={"user_id": scout.id, "role": "scout"}, headers=_auth(token))
         assert r.status_code == 204
 
+    def test_list_speltak_members(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        svc.set_speltak_role(db, user_id=user.id, speltak_id=s.id, role="speltakleider")
+        r = client.get(f"/api/groups/{g.id}/speltakken/{s.id}/members", headers=_auth(token))
+        assert r.status_code == 200
+        assert any(m["user_id"] == user.id for m in r.json())
+
+    def test_list_pending_speltak_members(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        svc.set_speltak_role(db, user_id=user.id, speltak_id=s.id, role="speltakleider")
+        invitee = User(email="inv@example.com", name="Inv", status="active", password_hash="x")
+        db.add(invitee)
+        db.commit()
+        svc.set_speltak_role(db, user_id=invitee.id, speltak_id=s.id, role="scout")
+        from insigne.models import SpeltakMembership
+        db.query(SpeltakMembership).filter_by(user_id=invitee.id).update({"approved": False})
+        db.commit()
+        r = client.get(f"/api/groups/{g.id}/speltakken/{s.id}/members/pending",
+                       headers=_auth(token))
+        assert r.status_code == 200
+        assert any(m["user_id"] == invitee.id for m in r.json())
+
+    def test_withdraw_speltak_invite(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        svc.set_speltak_role(db, user_id=user.id, speltak_id=s.id, role="speltakleider")
+        invitee = User(email="inv@example.com", name="Inv", status="active", password_hash="x")
+        db.add(invitee)
+        db.commit()
+        svc.set_speltak_role(db, user_id=invitee.id, speltak_id=s.id, role="scout")
+        from insigne.models import SpeltakMembership
+        db.query(SpeltakMembership).filter_by(user_id=invitee.id).update({"approved": False})
+        db.commit()
+        r = client.post(
+            f"/api/groups/{g.id}/speltakken/{s.id}/members/{invitee.id}/withdraw",
+            headers=_auth(token),
+        )
+        assert r.status_code == 204
+        m = db.query(SpeltakMembership).filter_by(user_id=invitee.id).first()
+        assert m.withdrawn is True
+
+    def test_accept_speltak_invite(self, client, db):
+        token_invitee = _full_register(client, db, email="inv@example.com", name="Inv")
+        invitee = db.query(User).filter_by(email="inv@example.com").first()
+        g = svc.create_group(db, name="G", slug="g")
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        svc.set_speltak_role(db, user_id=invitee.id, speltak_id=s.id, role="scout")
+        from insigne.models import SpeltakMembership
+        db.query(SpeltakMembership).filter_by(user_id=invitee.id).update({"approved": False})
+        db.commit()
+        r = client.post(
+            f"/api/groups/{g.id}/speltakken/{s.id}/members/{invitee.id}/accept",
+            headers=_auth(token_invitee),
+        )
+        assert r.status_code == 204
+        m = db.query(SpeltakMembership).filter_by(user_id=invitee.id).first()
+        assert m.approved is True
+
+    def test_deny_speltak_invite(self, client, db):
+        token_invitee = _full_register(client, db, email="inv@example.com", name="Inv")
+        invitee = db.query(User).filter_by(email="inv@example.com").first()
+        g = svc.create_group(db, name="G", slug="g")
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        svc.set_speltak_role(db, user_id=invitee.id, speltak_id=s.id, role="scout")
+        from insigne.models import SpeltakMembership
+        db.query(SpeltakMembership).filter_by(user_id=invitee.id).update({"approved": False})
+        db.commit()
+        r = client.post(
+            f"/api/groups/{g.id}/speltakken/{s.id}/members/{invitee.id}/deny",
+            headers=_auth(token_invitee),
+        )
+        assert r.status_code == 204
+        assert db.query(SpeltakMembership).filter_by(user_id=invitee.id).first() is None
+
+    def test_dismiss_speltak_invite(self, client, db):
+        token_invitee = _full_register(client, db, email="inv@example.com", name="Inv")
+        invitee = db.query(User).filter_by(email="inv@example.com").first()
+        g = svc.create_group(db, name="G", slug="g")
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        svc.set_speltak_role(db, user_id=invitee.id, speltak_id=s.id, role="scout")
+        from insigne.models import SpeltakMembership
+        db.query(SpeltakMembership).filter_by(user_id=invitee.id).update(
+            {"approved": False, "withdrawn": True}
+        )
+        db.commit()
+        r = client.post(
+            f"/api/groups/{g.id}/speltakken/{s.id}/members/{invitee.id}/dismiss",
+            headers=_auth(token_invitee),
+        )
+        assert r.status_code == 204
+        assert db.query(SpeltakMembership).filter_by(user_id=invitee.id).first() is None
+
     def test_create_emailless_scout(self, client, db):
         token = _full_register(client, db)
         user = db.query(User).filter_by(email="user@example.com").first()
@@ -175,3 +388,64 @@ class TestSpeltakMembers:
                         json={"name": "Piet"}, headers=_auth(token))
         assert r.status_code == 201
         assert r.json()["name"] == "Piet"
+
+    def test_attach_email_to_scout_unknown_email(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        svc.set_speltak_role(db, user_id=user.id, speltak_id=s.id, role="speltakleider")
+        scout = svc.create_emailless_scout(db, name="Piet", created_by_id=user.id)
+        svc.set_speltak_role(db, user_id=scout.id, speltak_id=s.id, role="scout")
+        r = client.post(
+            f"/api/groups/{g.id}/speltakken/{s.id}/members/{scout.id}/set-email",
+            json={"email": "piet@example.com"},
+            headers=_auth(token),
+        )
+        assert r.status_code == 204
+        db.refresh(scout)
+        assert scout.email == "piet@example.com"
+        assert scout.status == "pending"
+
+    def test_attach_email_conflict_returns_409(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        svc.set_speltak_role(db, user_id=user.id, speltak_id=s.id, role="speltakleider")
+        pending = User(email="pending@example.com", name="P", status="pending")
+        db.add(pending)
+        db.commit()
+        scout = svc.create_emailless_scout(db, name="Piet", created_by_id=user.id)
+        svc.set_speltak_role(db, user_id=scout.id, speltak_id=s.id, role="scout")
+        r = client.post(
+            f"/api/groups/{g.id}/speltakken/{s.id}/members/{scout.id}/set-email",
+            json={"email": "pending@example.com"},
+            headers=_auth(token),
+        )
+        assert r.status_code == 409
+
+
+# ── GET /api/invitations/me ───────────────────────────────────────────────────
+
+class TestMyInvitations:
+    def test_returns_pending_invites(self, client, db):
+        token = _full_register(client, db, email="inv@example.com", name="Inv")
+        invitee = db.query(User).filter_by(email="inv@example.com").first()
+        g = svc.create_group(db, name="G", slug="g")
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        svc.set_group_role(db, user_id=invitee.id, group_id=g.id, role="member")
+        svc.set_speltak_role(db, user_id=invitee.id, speltak_id=s.id, role="scout")
+        from insigne.models import GroupMembership, SpeltakMembership
+        db.query(GroupMembership).filter_by(user_id=invitee.id).update({"approved": False})
+        db.query(SpeltakMembership).filter_by(user_id=invitee.id).update({"approved": False})
+        db.commit()
+        r = client.get("/api/invitations/me", headers=_auth(token))
+        assert r.status_code == 200
+        data = r.json()
+        assert any(i["group_id"] == g.id for i in data["group_invites"])
+        assert any(i["speltak_id"] == s.id for i in data["speltak_invites"])
+
+    def test_requires_authentication(self, client, db):
+        r = client.get("/api/invitations/me")
+        assert r.status_code == 401

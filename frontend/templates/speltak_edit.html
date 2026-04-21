@@ -25,7 +25,7 @@
             </div>
             <div style="display:flex;gap:1rem;margin-top:1rem;">
                 <button type="submit" class="btn-success">Opslaan</button>
-                <a href="/groups/{{ group.slug }}" class="btn-cancel">Annuleren</a>
+                <a href="{% if speltak %}/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}{% else %}/groups/{{ group.slug }}{% endif %}" class="btn-cancel">Annuleren</a>
             </div>
         </form>
     </div>

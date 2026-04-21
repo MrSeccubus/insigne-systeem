@@ -403,7 +403,7 @@ def speltak_edit(
     if not speltak or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse(f"/groups/{group_slug}", status_code=303)
     groups_svc.update_speltak(db, speltak, name=name, slug=speltak.slug, peer_signoff=peer_signoff)
-    return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+    return RedirectResponse(f"/groups/{group_slug}/speltakken/{speltak.slug}", status_code=303)
 
 
 @router.post("/groups/{group_slug}/speltakken/{speltak_slug}/delete", response_class=HTMLResponse)

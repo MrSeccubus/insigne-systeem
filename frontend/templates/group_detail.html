@@ -7,9 +7,9 @@
     <div class="page-header">
         <h1>{{ group.name }}</h1>
         {% if can_manage %}
-            <div style="display:flex;gap:0.5rem;">
-                <a href="/groups/{{ group.slug }}/edit" class="btn-neutral">Bewerken</a>
-                <form method="post" action="/groups/{{ group.slug }}/delete" class="inline-form">
+            <div style="display:flex;gap:0.5rem;align-items:center;">
+                <a href="/groups/{{ group.slug }}/edit" class="btn-neutral" style="display:inline-flex;align-items:center;">Bewerken</a>
+                <form method="post" action="/groups/{{ group.slug }}/delete" style="margin:0;display:contents;">
                     <button type="submit" class="btn-danger"
                             onclick="return confirm('Groep \'{{ group.name }}\' verwijderen? Dit kan niet ongedaan worden gemaakt.')">Verwijderen</button>
                 </form>

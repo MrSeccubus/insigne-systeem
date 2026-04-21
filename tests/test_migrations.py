@@ -18,6 +18,11 @@ EXPECTED_TABLES = {
     "progress_entries",
     "signoff_requests",
     "signoff_rejections",
+    "groups",
+    "speltakken",
+    "group_memberships",
+    "speltak_memberships",
+    "membership_requests",
 }
 
 

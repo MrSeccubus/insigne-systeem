@@ -21,12 +21,21 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    email: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    email: Mapped[str | None] = mapped_column(String, unique=True, nullable=True, index=True)
     name: Mapped[str | None] = mapped_column(String, nullable=True)
     password_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
+    created_by_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 
+    created_by: Mapped["User | None"] = relationship(
+        foreign_keys=[created_by_id], remote_side="User.id", back_populates="managed_scouts"
+    )
+    managed_scouts: Mapped[list["User"]] = relationship(
+        foreign_keys=[created_by_id], back_populates="created_by"
+    )
     confirmation_tokens: Mapped[list["ConfirmationToken"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
@@ -37,6 +46,15 @@ class User(Base):
         foreign_keys="ProgressEntry.signed_off_by_id", back_populates="signed_off_by"
     )
     signoff_requests: Mapped[list["SignoffRequest"]] = relationship(back_populates="mentor")
+    group_memberships: Mapped[list["GroupMembership"]] = relationship(
+        foreign_keys="GroupMembership.user_id", back_populates="user", cascade="all, delete-orphan"
+    )
+    speltak_memberships: Mapped[list["SpeltakMembership"]] = relationship(
+        foreign_keys="SpeltakMembership.user_id", back_populates="user", cascade="all, delete-orphan"
+    )
+    membership_requests: Mapped[list["MembershipRequest"]] = relationship(
+        foreign_keys="MembershipRequest.user_id", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class ConfirmationToken(Base):
@@ -112,3 +130,103 @@ class SignoffRejection(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 
     progress_entry: Mapped["ProgressEntry"] = relationship(back_populates="signoff_rejections")
+
+
+class Group(Base):
+    __tablename__ = "groups"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    slug: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    created_by_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+
+    speltakken: Mapped[list["Speltak"]] = relationship(
+        back_populates="group", cascade="all, delete-orphan"
+    )
+    memberships: Mapped[list["GroupMembership"]] = relationship(
+        back_populates="group", cascade="all, delete-orphan"
+    )
+    membership_requests: Mapped[list["MembershipRequest"]] = relationship(
+        foreign_keys="MembershipRequest.group_id",
+        back_populates="group",
+        cascade="all, delete-orphan",
+    )
+
+
+class Speltak(Base):
+    __tablename__ = "speltakken"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    group_id: Mapped[str] = mapped_column(String(36), ForeignKey("groups.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    slug: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+
+    group: Mapped["Group"] = relationship(back_populates="speltakken")
+    memberships: Mapped[list["SpeltakMembership"]] = relationship(
+        back_populates="speltak", cascade="all, delete-orphan"
+    )
+    membership_requests: Mapped[list["MembershipRequest"]] = relationship(
+        foreign_keys="MembershipRequest.speltak_id",
+        back_populates="speltak",
+        cascade="all, delete-orphan",
+    )
+
+
+class GroupMembership(Base):
+    __tablename__ = "group_memberships"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    group_id: Mapped[str] = mapped_column(String(36), ForeignKey("groups.id"), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String, nullable=False)  # groepsleider | member
+    approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+
+    user: Mapped["User"] = relationship(foreign_keys=[user_id], back_populates="group_memberships")
+    group: Mapped["Group"] = relationship(back_populates="memberships")
+
+
+class SpeltakMembership(Base):
+    __tablename__ = "speltak_memberships"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    speltak_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("speltakken.id"), nullable=False, index=True
+    )
+    role: Mapped[str] = mapped_column(String, nullable=False)  # speltakleider | scout
+    approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+
+    user: Mapped["User"] = relationship(foreign_keys=[user_id], back_populates="speltak_memberships")
+    speltak: Mapped["Speltak"] = relationship(back_populates="memberships")
+
+
+class MembershipRequest(Base):
+    __tablename__ = "membership_requests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    group_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("groups.id"), nullable=True, index=True
+    )
+    speltak_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("speltakken.id"), nullable=True, index=True
+    )
+    status: Mapped[str] = mapped_column(String, nullable=False, default="pending")  # pending | approved | rejected
+    reviewed_by_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+
+    user: Mapped["User"] = relationship(foreign_keys=[user_id], back_populates="membership_requests")
+    group: Mapped["Group | None"] = relationship(
+        foreign_keys=[group_id], back_populates="membership_requests"
+    )
+    speltak: Mapped["Speltak | None"] = relationship(
+        foreign_keys=[speltak_id], back_populates="membership_requests"
+    )

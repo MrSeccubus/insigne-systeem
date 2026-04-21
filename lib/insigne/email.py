@@ -152,6 +152,16 @@ def send_groepsleider_invite_email(to: str, naam: str, code: str, inviter_name: 
          inviter_name=inviter_name, group_name=group_name)
 
 
+def send_speltak_invite_existing_user_email(
+    to: str, naam: str, accept_url: str, inviter_name: str,
+    group_name: str, speltak_name: str, role: str,
+) -> None:
+    send(to, "speltak_invite_existing",
+         email=to, naam=naam, accept_url=accept_url,
+         inviter_name=inviter_name, group_name=group_name,
+         speltak_name=speltak_name, role=role)
+
+
 def send_speltak_invite_email(
     to: str, naam: str, code: str, inviter_name: str,
     group_name: str, speltak_name: str, role: str,

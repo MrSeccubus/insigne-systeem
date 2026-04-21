@@ -38,6 +38,16 @@ def get_speltak_role(db: Session, user_id: str, speltak_id: str) -> str | None:
     return m.role if m else None
 
 
+def is_user_in_group(db: Session, user_id: str, group_id: str) -> bool:
+    """Return True if the user has any approved membership within the group."""
+    if db.query(GroupMembership).filter_by(user_id=user_id, group_id=group_id, approved=True).first():
+        return True
+    for speltak in db.query(Speltak).filter_by(group_id=group_id).all():
+        if db.query(SpeltakMembership).filter_by(user_id=user_id, speltak_id=speltak.id, approved=True).first():
+            return True
+    return False
+
+
 def can_manage_group(user: User, db: Session, group_id: str) -> bool:
     if user.is_admin:
         return True

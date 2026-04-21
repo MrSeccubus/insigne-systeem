@@ -84,7 +84,8 @@
              x-data="{
                  email: '',
                  role: 'scout',
-                 notFound: false,
+                 showInvite: false,
+                 existsNotInGroup: false,
                  checking: false,
                  inviting: false,
                  async checkAndAdd() {
@@ -93,17 +94,18 @@
                      try {
                          const r = await fetch('/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/check-email?email=' + encodeURIComponent(this.email));
                          const data = await r.json();
-                         if (data.exists) {
+                         if (data.exists && data.in_group) {
                              this.$refs.addForm.submit();
                          } else {
-                             this.notFound = true;
+                             this.existsNotInGroup = data.exists && !data.in_group;
+                             this.showInvite = true;
                          }
                      } finally {
                          this.checking = false;
                      }
                  }
              }">
-            <form x-ref="addForm" method="post" action="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/add" x-show="!notFound">
+            <form x-ref="addForm" method="post" action="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/add" x-show="!showInvite">
                 <div style="display:flex;gap:0.75rem;align-items:flex-end;">
                     <div class="field" style="flex:1;margin-bottom:0;">
                         <label for="email">E-mailadres</label>
@@ -127,9 +129,15 @@
                         style="margin-top:1.2rem;"
                         x-text="checking ? 'Controleren…' : 'Toevoegen'"></button>
             </form>
-            <div class="invite-panel" x-show="notFound" x-cloak>
-                <p>Geen account gevonden voor <strong x-text="email"></strong>.
-                   Wil je deze persoon uitnodigen als <strong x-text="role"></strong> bij <strong>{{ speltak.name }}</strong>?</p>
+            <div class="invite-panel" x-show="showInvite" x-cloak>
+                <template x-if="existsNotInGroup">
+                    <p><strong x-text="email"></strong> heeft al een account maar is nog geen lid van <strong>{{ group.name }}</strong>.
+                       Er wordt een uitnodiging verstuurd om deel te nemen als <strong x-text="role"></strong> bij <strong>{{ speltak.name }}</strong>.</p>
+                </template>
+                <template x-if="!existsNotInGroup">
+                    <p>Geen account gevonden voor <strong x-text="email"></strong>.
+                       Wil je deze persoon uitnodigen als <strong x-text="role"></strong> bij <strong>{{ speltak.name }}</strong>?</p>
+                </template>
                 <form x-ref="inviteForm" method="post" action="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/invite" style="display:contents;">
                     <input type="hidden" name="email" :value="email">
                     <input type="hidden" name="role" :value="role">
@@ -137,7 +145,7 @@
                         <button type="button" class="btn-success" :disabled="inviting"
                                 x-text="inviting ? 'Bezig…' : 'Uitnodigen'"
                                 @click="inviting = true; $refs.inviteForm.submit()"></button>
-                        <button type="button" @click="notFound = false; email = ''; inviting = false" class="btn-cancel">Annuleren</button>
+                        <button type="button" @click="showInvite = false; email = ''; inviting = false; existsNotInGroup = false" class="btn-cancel">Annuleren</button>
                     </div>
                 </form>
             </div>

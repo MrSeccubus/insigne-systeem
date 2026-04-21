@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 # revision identifiers, used by Alembic.
@@ -84,6 +85,13 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_speltak_memberships_speltak_id'), 'speltak_memberships', ['speltak_id'], unique=False)
     op.create_index(op.f('ix_speltak_memberships_user_id'), 'speltak_memberships', ['user_id'], unique=False)
+    # Drop ix_users_email before batch_alter_table if it already exists on
+    # databases created via create_all() — the batch operation will recreate it.
+    bind = op.get_bind()
+    existing_indexes = {idx['name'] for idx in inspect(bind).get_indexes('users')}
+    if 'ix_users_email' in existing_indexes:
+        op.drop_index('ix_users_email', table_name='users')
+
     with op.batch_alter_table('users') as batch_op:
         batch_op.add_column(sa.Column('created_by_id', sa.String(length=36), nullable=True))
         batch_op.alter_column('email', existing_type=sa.VARCHAR(), nullable=True)

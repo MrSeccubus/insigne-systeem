@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}{% if group %}Groep bewerken{% else %}Nieuwe groep{% endif %} — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main>
+    <h1>{% if group %}Groep bewerken{% else %}Nieuwe groep{% endif %}</h1>
+    <div style="max-width:480px;">
+        <form method="post" action="{% if group %}/groups/{{ group.slug }}/edit{% else %}/groups/new{% endif %}">
+            {% if error %}
+                <p class="form-error">{{ error }}</p>
+            {% endif %}
+            <div class="field">
+                <label for="name">Naam</label>
+                <input type="text" id="name" name="name"
+                       value="{{ form_name if form_name is defined else (group.name if group else '') }}"
+                       required maxlength="200" autofocus>
+            </div>
+            <div style="display:flex;gap:1rem;margin-top:1rem;">
+                <button type="submit" class="btn-success">Opslaan</button>
+                <a href="{% if group %}/groups/{{ group.slug }}{% else %}/groups{% endif %}" class="btn-cancel">Annuleren</a>
+            </div>
+        </form>
+    </div>
+</main>
+{% endblock %}

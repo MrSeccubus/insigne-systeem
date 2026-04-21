@@ -149,7 +149,8 @@ class Group(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 
     speltakken: Mapped[list["Speltak"]] = relationship(
-        back_populates="group", cascade="all, delete-orphan"
+        back_populates="group", cascade="all, delete-orphan",
+        order_by="Speltak.name"
     )
     memberships: Mapped[list["GroupMembership"]] = relationship(
         back_populates="group", cascade="all, delete-orphan"
@@ -168,6 +169,7 @@ class Speltak(Base):
     group_id: Mapped[str] = mapped_column(String(36), ForeignKey("groups.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     slug: Mapped[str] = mapped_column(String, nullable=False)
+    peer_signoff: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 
     group: Mapped["Group"] = relationship(back_populates="speltakken")
@@ -189,10 +191,13 @@ class GroupMembership(Base):
     group_id: Mapped[str] = mapped_column(String(36), ForeignKey("groups.id"), nullable=False, index=True)
     role: Mapped[str] = mapped_column(String, nullable=False)  # groepsleider | member
     approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    withdrawn: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    invited_by_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 
     user: Mapped["User"] = relationship(foreign_keys=[user_id], back_populates="group_memberships")
     group: Mapped["Group"] = relationship(back_populates="memberships")
+    invited_by: Mapped["User | None"] = relationship(foreign_keys=[invited_by_id])
 
 
 class SpeltakMembership(Base):
@@ -205,10 +210,13 @@ class SpeltakMembership(Base):
     )
     role: Mapped[str] = mapped_column(String, nullable=False)  # speltakleider | scout
     approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    withdrawn: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    invited_by_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 
     user: Mapped["User"] = relationship(foreign_keys=[user_id], back_populates="speltak_memberships")
     speltak: Mapped["Speltak"] = relationship(back_populates="memberships")
+    invited_by: Mapped["User | None"] = relationship(foreign_keys=[invited_by_id])
 
 
 class MembershipRequest(Base):

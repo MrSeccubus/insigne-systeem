@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}{{ group.name }} — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main>
+    <div class="page-header">
+        <h1>{{ group.name }}</h1>
+        {% if can_manage %}
+            <div style="display:flex;gap:0.5rem;align-items:center;">
+                <a href="/groups/{{ group.slug }}/edit" class="btn-neutral" style="display:inline-flex;align-items:center;">Bewerken</a>
+                <form method="post" action="/groups/{{ group.slug }}/delete" style="margin:0;display:contents;">
+                    <button type="submit" class="btn-danger"
+                            onclick="return confirm('Groep \'{{ group.name }}\' verwijderen? Dit kan niet ongedaan worden gemaakt.')">Verwijderen</button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if error %}
+        <p class="form-error">{{ error }}</p>
+    {% endif %}
+
+    <section>
+        <div class="section-header-row">
+            <h2>Speltakken</h2>
+            {% if can_manage %}
+                <a href="/groups/{{ group.slug }}/speltakken/new" class="btn-success btn-sm">Nieuwe speltak</a>
+            {% endif %}
+        </div>
+        {% if group.speltakken %}
+            <ul class="item-list">
+                {% for speltak in group.speltakken %}
+                <li class="item-list-row">
+                    <a href="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}">{{ speltak.name }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="empty-state">Nog geen speltakken.</p>
+        {% endif %}
+    </section>
+
+    <section style="margin-top:2rem;">
+        <h2>Groepsleiders</h2>
+        {% set groepsleiders = members | selectattr('role', 'equalto', 'groepsleider') | list %}
+        {% if groepsleiders %}
+            <ul class="item-list">
+                {% for m in groepsleiders %}
+                <li class="item-list-row">
+                    <span>{{ m.user.name or m.user.email or '(onbekend)' }}</span>
+                    {% if can_manage %}
+                    <span class="row-actions">
+                        <span class="role-badge">groepsleider</span>
+                        <form method="post" action="/groups/{{ group.slug }}/members/{{ m.user_id }}/remove" style="display:contents;">
+                            <button type="submit" class="btn-danger btn-sm"
+                                    onclick="return confirm('Groepsleider verwijderen?')">Verwijderen</button>
+                        </form>
+                    </span>
+                    {% else %}
+                        <span class="role-badge">groepsleider</span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="empty-state">Geen groepsleiders.</p>
+        {% endif %}
+
+        {% if pending_members %}
+            <ul class="item-list" style="margin-top:0.5rem;">
+                {% for m in pending_members %}
+                <li class="item-list-row"
+                    x-data="{ visible: true }"
+                    x-show="visible">
+                    <span>{{ m.user.name or m.user.email or '(onbekend)' }}</span>
+                    <span class="row-actions">
+                        <span class="role-badge role-badge--pending">uitnodiging verstuurd</span>
+                        <button type="button" class="btn-danger btn-sm"
+                                @click="fetch('/groups/{{ group.slug }}/members/{{ m.user_id }}/withdraw', {method:'POST'}).then(() => visible = false)">Intrekken</button>
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if can_manage %}
+        <div style="max-width:480px;margin-top:1rem;"
+             x-data="{
+                 email: '',
+                 notFound: false,
+                 checking: false,
+                 inviting: false,
+                 async checkAndAdd() {
+                     if (!this.email) return;
+                     this.checking = true;
+                     try {
+                         const r = await fetch('/groups/{{ group.slug }}/members/check-email?email=' + encodeURIComponent(this.email));
+                         const data = await r.json();
+                         if (data.exists) {
+                             this.$refs.inviteForm.submit();
+                         } else {
+                             this.checking = false;
+                             this.notFound = true;
+                         }
+                     } catch (e) {
+                         this.checking = false;
+                     }
+                 }
+             }">
+            <form x-ref="addForm" method="post" action="/groups/{{ group.slug }}/members/add" x-show="!notFound">
+                <div class="field">
+                    <label for="member-email">Groepsleider toevoegen via e-mail</label>
+                    <input type="email" id="member-email" name="email" x-model="email"
+                           required autocomplete="off">
+                </div>
+                <button type="button" @click="checkAndAdd()" :disabled="checking" class="btn-success"
+                        x-text="checking ? 'Controleren…' : 'Toevoegen'"></button>
+            </form>
+            <div class="invite-panel" x-show="notFound" x-cloak>
+                <p>Geen account gevonden voor <strong x-text="email"></strong>.
+                   Wil je deze persoon uitnodigen als groepsleider voor <strong>{{ group.name }}</strong>?</p>
+                <form x-ref="inviteForm" method="post" action="/groups/{{ group.slug }}/members/invite" style="display:contents;">
+                    <input type="hidden" name="email" :value="email">
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                        <button type="button" class="btn-success" :disabled="inviting"
+                                x-text="inviting ? 'Bezig…' : 'Uitnodigen'"
+                                @click="inviting = true; $refs.inviteForm.submit()"></button>
+                        <button type="button" @click="notFound = false; email = ''; inviting = false" class="btn-cancel">Annuleren</button>
+                    </div>
+                </form>
+            </div>
+            {% if success %}
+            <p class="form-success" style="margin-top:1rem;">{{ success }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+    </section>
+</main>
+{% endblock %}

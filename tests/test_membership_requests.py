@@ -299,3 +299,81 @@ class TestGroupRequestsHTML:
     def test_unauthenticated_redirected(self, client, db):
         r = client.get("/requests", follow_redirects=False)
         assert r.status_code == 303
+
+
+# ── HTML: cancel own requests ─────────────────────────────────────────────────
+
+class TestCancelMyRequests:
+    def _login(self, client, user):
+        from insigne.auth import create_access_token
+        token, _ = create_access_token(user.id)
+        client.cookies.set("access_token", token)
+
+    def test_cancel_single_request(self, client, db):
+        user = _user(db)
+        self._login(client, user)
+        g = svc.create_group(db, name="G", slug="g")
+        req = svc.create_membership_request(db, user_id=user.id, group_id=g.id)
+        r = client.post(f"/my-requests/{req.id}/cancel", follow_redirects=False)
+        assert r.status_code == 303
+        assert db.query(MembershipRequest).filter_by(id=req.id).first() is None
+
+    def test_cancel_all_requests(self, client, db):
+        user = _user(db)
+        self._login(client, user)
+        g1 = svc.create_group(db, name="G1", slug="g1")
+        g2 = svc.create_group(db, name="G2", slug="g2")
+        svc.create_membership_request(db, user_id=user.id, group_id=g1.id)
+        svc.create_membership_request(db, user_id=user.id, group_id=g2.id)
+        r = client.post("/my-requests/cancel-all", follow_redirects=False)
+        assert r.status_code == 303
+        assert db.query(MembershipRequest).filter_by(user_id=user.id).count() == 0
+
+    def test_cancel_other_users_request_ignored(self, client, db):
+        owner = _user(db, email="owner@example.com")
+        other = _user(db, email="other@example.com")
+        self._login(client, other)
+        g = svc.create_group(db, name="G", slug="g")
+        req = svc.create_membership_request(db, user_id=owner.id, group_id=g.id)
+        client.post(f"/my-requests/{req.id}/cancel", follow_redirects=False)
+        assert db.query(MembershipRequest).filter_by(id=req.id).first() is not None
+
+
+# ── HTML: assign speltak (group detail) ───────────────────────────────────────
+
+class TestAssignSpeltak:
+    def _login(self, client, user):
+        from insigne.auth import create_access_token
+        token, _ = create_access_token(user.id)
+        client.cookies.set("access_token", token)
+
+    def test_assign_speltak_adds_membership(self, client, db):
+        leider = _user(db, email="leider@example.com")
+        scout = _user(db, email="scout@example.com")
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        svc.set_group_role(db, user_id=scout.id, group_id=g.id, role="member")
+        self._login(client, leider)
+        r = client.post(
+            f"/groups/{g.slug}/members/{scout.id}/assign-speltak",
+            data={"to_speltak_id": s.id},
+            follow_redirects=False,
+        )
+        assert r.status_code == 303
+        speltak_members = svc.list_speltak_members(db, s.id)
+        assert any(m.user_id == scout.id for m in speltak_members)
+
+    def test_assign_speltak_requires_manager(self, client, db):
+        outsider = _user(db, email="outsider@example.com")
+        scout = _user(db, email="scout@example.com")
+        g = svc.create_group(db, name="G", slug="g")
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        svc.set_group_role(db, user_id=scout.id, group_id=g.id, role="member")
+        self._login(client, outsider)
+        r = client.post(
+            f"/groups/{g.slug}/members/{scout.id}/assign-speltak",
+            data={"to_speltak_id": s.id},
+            follow_redirects=False,
+        )
+        assert r.status_code == 303
+        assert svc.list_speltak_members(db, s.id) == []

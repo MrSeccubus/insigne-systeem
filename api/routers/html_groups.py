@@ -345,27 +345,48 @@ def groups_join_submit(
 
 # ── Group detail / edit ───────────────────────────────────────────────────────
 
+def _group_detail_ctx(db: Session, group, user):
+    members = groups_svc.list_group_members(db, group.id)
+    can_manage = bool(user and groups_svc.can_manage_group(user, db, group.id))
+    pending_members = groups_svc.list_pending_group_members(db, group.id) if can_manage else []
+    speltak_member_counts = {
+        s.id: len(groups_svc.list_speltak_members(db, s.id))
+        for s in group.speltakken
+    }
+    members_without_speltak = groups_svc.list_members_without_speltak(db, group.id) if can_manage else []
+    pending_request_count = groups_svc.count_pending_requests_for_leader(db, user.id) if can_manage else 0
+    current_leader_ids = {m.user_id for m in members if m.role == "groepsleider"}
+    seen_ids: set[str] = set()
+    suggestion_users = []
+    for u in (
+        [m.user for m in members if m.role != "groepsleider" and m.user and m.user.email]
+        + [sm.user for s in group.speltakken
+           for sm in groups_svc.list_speltak_members(db, s.id)
+           if sm.user and sm.user.email and sm.user_id not in current_leader_ids]
+    ):
+        if u.id not in seen_ids:
+            seen_ids.add(u.id)
+            suggestion_users.append(u)
+    suggestion_users.sort(key=lambda u: (u.name or u.email).lower())
+    member_email_suggestions = suggestion_users
+    return dict(
+        group=group, can_manage=can_manage, members=members,
+        pending_members=pending_members,
+        pending_request_count=pending_request_count,
+        speltak_member_counts=speltak_member_counts,
+        members_without_speltak=members_without_speltak,
+        member_email_suggestions=member_email_suggestions,
+    )
+
+
 @router.get("/groups/{slug}", response_class=HTMLResponse)
 def group_detail(slug: str, request: Request, db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)
     group = groups_svc.get_group_by_slug(db, slug)
     if not group:
         return RedirectResponse("/groups", status_code=303)
-    can_manage = bool(current_user and groups_svc.can_manage_group(current_user, db, group.id))
-    members = groups_svc.list_group_members(db, group.id)
-    pending_members = groups_svc.list_pending_group_members(db, group.id) if can_manage else []
-    pending_request_count = groups_svc.count_pending_requests_for_leader(db, current_user.id) if can_manage else 0
-    speltak_member_counts = {
-        s.id: len(groups_svc.list_speltak_members(db, s.id))
-        for s in group.speltakken
-    }
-    members_without_speltak = groups_svc.list_members_without_speltak(db, group.id) if can_manage else []
     return _page(request, "group_detail.html", db,
-                 group=group, can_manage=can_manage, members=members,
-                 pending_members=pending_members,
-                 pending_request_count=pending_request_count,
-                 speltak_member_counts=speltak_member_counts,
-                 members_without_speltak=members_without_speltak)
+                 **_group_detail_ctx(db, group, current_user))
 
 
 @router.post("/groups/{slug}/members/{member_id}/assign-speltak", response_class=HTMLResponse)
@@ -460,12 +481,8 @@ def group_add_member(
     from insigne.models import User as UserModel
     target = db.query(UserModel).filter_by(email=email).first()
     if not target:
-        members = groups_svc.list_group_members(db, group.id)
-        pending_members = groups_svc.list_pending_group_members(db, group.id)
         return _page(request, "group_detail.html", db,
-                     group=group, can_manage=True, members=members,
-                     pending_members=pending_members,
-                     pending_request_count=groups_svc.count_pending_requests_for_leader(db, user.id),
+                     **_group_detail_ctx(db, group, user),
                      invite_email=email)
     groups_svc.set_group_role(db, user_id=target.id, group_id=group.id, role="groepsleider")
     return RedirectResponse(f"/groups/{slug}", status_code=303)
@@ -525,12 +542,8 @@ def group_invite_member(
             inviter_name=user.name or user.email,
             group_name=group.name,
         )
-    members = groups_svc.list_group_members(db, group.id)
-    pending_members = groups_svc.list_pending_group_members(db, group.id)
     return _page(request, "group_detail.html", db,
-                 group=group, can_manage=True, members=members,
-                 pending_members=pending_members,
-                 pending_request_count=groups_svc.count_pending_requests_for_leader(db, user.id),
+                 **_group_detail_ctx(db, group, user),
                  success=f"Uitnodiging verstuurd naar {email}.")
 
 

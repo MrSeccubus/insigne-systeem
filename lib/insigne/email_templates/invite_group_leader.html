@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:system-ui,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:2rem 1rem;">
+    <tr><td align="center">
+      <table width="100%" style="max-width:520px;background:#fff;border-radius:4px;border:1px solid #ddd;border-top:3px solid #00A651;padding:2rem;">
+        <tr><td>
+          <h1 style="margin:0 0 1.5rem;font-size:1.4rem;color:#1a1a1a;">Uitnodiging om een groep aan te maken</h1>
+          <p style="margin:0 0 1rem;color:#333;line-height:1.6;">Hallo,</p>
+          <p style="margin:0 0 1.5rem;color:#333;line-height:1.6;">
+            <strong>{{ invited_by_name }}</strong> nodigt je uit om een groep aan te maken op Insigne Systeem.
+          </p>
+          <div style="text-align:center;margin:0 0 1.5rem;">
+            <a href="{{ create_group_url }}"
+               style="display:inline-block;background:#00A651;color:#fff;text-decoration:none;
+                      font-weight:600;padding:0.75rem 2rem;border-radius:4px;font-size:1rem;">
+              Groep aanmaken
+            </a>
+          </div>
+          <p style="margin:0;color:#888;font-size:0.85rem;">
+            Je ontvangt dit bericht omdat iemand je heeft uitgenodigd via Insigne Systeem.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

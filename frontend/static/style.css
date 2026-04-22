@@ -873,6 +873,146 @@ button:disabled, a[disabled] {
     margin-bottom: 0.5rem;
 }
 
+/* ── Membership panel ────────────────────────────────────────────────────── */
+
+.membership-panel {
+    margin-top: -1.5rem;
+    margin-bottom: 2.5rem;
+    font-size: 0.9rem;
+}
+
+.membership-panel__summary {
+    cursor: pointer;
+    color: #888;
+    font-size: 0.85rem;
+    list-style: revert;
+    user-select: none;
+    margin-bottom: 0.5rem;
+}
+
+.membership-panel__summary:hover {
+    color: #555;
+}
+
+.membership-panel__table {
+    margin-top: 0.5rem;
+}
+
+.membership-panel--empty {
+    color: #555;
+}
+
+.membership-panel--empty p {
+    margin: 0;
+}
+
+/* ── Join group list ─────────────────────────────────────────────────────── */
+
+.join-group-list {
+    list-style: none;
+    margin: 0 0 1rem;
+    padding: 0;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.join-group-list__item {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.join-group-list__item:last-child {
+    border-bottom: none;
+}
+
+.join-group-list__empty {
+    padding: 0.6rem 0.9rem;
+    color: #999;
+}
+
+.join-group-list__row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.9rem;
+}
+
+.join-group-list__name {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.join-group-list__name--expandable {
+    cursor: pointer;
+}
+
+.join-group-list__name--expandable:hover {
+    color: #333;
+}
+
+.join-group-list__chevron {
+    font-size: 0.7em;
+    color: #aaa;
+}
+
+.join-speltak-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid #f0f0f0;
+    background: #fafafa;
+}
+
+.join-speltak-list__row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.9rem 0.5rem 2rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.join-speltak-list__row:last-child {
+    border-bottom: none;
+}
+
+.requests-group {
+    margin-bottom: 1.5rem;
+}
+
+.requests-group__title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem;
+}
+
+.requests-group__speltak {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #555;
+    margin: 0.75rem 0 0.25rem 0.5rem;
+}
+
+.join-invite-hint {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.join-speltak-list__row > span:first-child {
+    flex: 1;
+    color: #555;
+    font-size: 0.95em;
+}
+
+.muted {
+    color: #888;
+    font-size: 0.9em;
+}
+
 /* ── Sign-off requests page ──────────────────────────────────────────────── */
 
 .signoff-card {

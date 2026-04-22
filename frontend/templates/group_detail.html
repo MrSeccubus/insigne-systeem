@@ -8,11 +8,6 @@
         <h1>{{ group.name }}</h1>
         {% if can_manage %}
             <div style="display:flex;gap:0.5rem;align-items:center;">
-                {% if pending_request_count > 0 %}
-                    <a href="/groups/{{ group.slug }}/requests" class="btn-neutral" style="display:inline-flex;align-items:center;gap:0.4rem;">
-                        Aanvragen <span class="badge-count">{{ pending_request_count }}</span>
-                    </a>
-                {% endif %}
                 <a href="/groups/{{ group.slug }}/edit" class="btn-neutral" style="display:inline-flex;align-items:center;">Bewerken</a>
                 <form method="post" action="/groups/{{ group.slug }}/delete" style="margin:0;display:contents;">
                     <button type="submit" class="btn-danger"
@@ -38,11 +33,41 @@
                 {% for speltak in group.speltakken %}
                 <li class="item-list-row">
                     <a href="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}">{{ speltak.name }}</a>
+                    <span class="muted" style="font-size:0.85rem;">{{ speltak_member_counts[speltak.id] }} {% if speltak_member_counts[speltak.id] == 1 %}lid{% else %}leden{% endif %}</span>
                 </li>
                 {% endfor %}
             </ul>
         {% else %}
             <p class="empty-state">Nog geen speltakken.</p>
+        {% endif %}
+
+        {% if members_without_speltak %}
+        <div style="margin-top:1rem;">
+            <h3 style="font-size:0.95rem;color:#555;margin-bottom:0.5rem;">Zonder speltak</h3>
+            <ul class="item-list">
+                {% for m in members_without_speltak %}
+                <li class="item-list-row">
+                    <span>{{ m.user.name or m.user.email or '(onbekend)' }}</span>
+                    <span class="row-actions">
+                        {% if group.speltakken %}
+                        <form method="post" action="/groups/{{ group.slug }}/members/{{ m.user_id }}/assign-speltak" style="display:contents;">
+                            <select name="to_speltak_id" onchange="this.form.submit()" class="role-select">
+                                <option value="">Overvliegen naar…</option>
+                                {% for s in group.speltakken %}
+                                <option value="{{ s.id }}">{{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                        {% endif %}
+                        <form method="post" action="/groups/{{ group.slug }}/members/{{ m.user_id }}/remove" style="display:contents;">
+                            <button type="submit" class="btn-danger btn-sm"
+                                    onclick="return confirm('Lid verwijderen?')">Verwijderen</button>
+                        </form>
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
         {% endif %}
     </section>
 

@@ -197,6 +197,22 @@ def list_pending_group_members(db: Session, group_id: str) -> list[GroupMembersh
     )
 
 
+def list_active_memberships_for_user(
+    db: Session, user_id: str
+) -> tuple[list[GroupMembership], list[SpeltakMembership]]:
+    groups = (
+        db.query(GroupMembership)
+        .filter_by(user_id=user_id, approved=True, withdrawn=False)
+        .all()
+    )
+    speltakken = (
+        db.query(SpeltakMembership)
+        .filter_by(user_id=user_id, approved=True, withdrawn=False)
+        .all()
+    )
+    return groups, speltakken
+
+
 def list_pending_invitations_for_user(
     db: Session, user_id: str
 ) -> tuple[list[GroupMembership], list[SpeltakMembership]]:
@@ -331,6 +347,20 @@ def list_group_users_not_in_speltak(db: Session, group_id: str, speltak_id: str)
     )
 
 
+def list_members_without_speltak(db: Session, group_id: str) -> list[GroupMembership]:
+    """Group members (role=member) not in any speltak of this group."""
+    in_speltak = {
+        m.user_id
+        for s in db.query(Speltak).filter_by(group_id=group_id).all()
+        for m in db.query(SpeltakMembership).filter_by(speltak_id=s.id, approved=True).all()
+    }
+    return [
+        m for m in
+        db.query(GroupMembership).filter_by(group_id=group_id, role="member", approved=True).all()
+        if m.user_id not in in_speltak
+    ]
+
+
 def list_speltak_members(db: Session, speltak_id: str) -> list[SpeltakMembership]:
     return (
         db.query(SpeltakMembership)
@@ -391,8 +421,13 @@ def _cleanup_group_membership(db: Session, *, user_id: str, group_id: str) -> No
 def transfer_scout(
     db: Session, *, user_id: str, from_speltak_id: str, to_speltak_id: str
 ) -> SpeltakMembership:
+    # Set destination first so _cleanup_group_membership (called during source
+    # removal) sees the destination membership and keeps the group membership.
+    # The upsert in set_speltak_role also handles the case where the user is
+    # already a member of the destination speltak without creating a duplicate.
+    result = set_speltak_role(db, user_id=user_id, speltak_id=to_speltak_id, role="scout")
     remove_speltak_member(db, user_id=user_id, speltak_id=from_speltak_id)
-    return set_speltak_role(db, user_id=user_id, speltak_id=to_speltak_id, role="scout")
+    return result
 
 
 # ── Emailless scout ────────────────────────────────────────────────────────────
@@ -562,6 +597,65 @@ def list_my_membership_requests(db: Session, user_id: str) -> list["MembershipRe
         .order_by(MembershipRequest.created_at.desc())
         .all()
     )
+
+
+def cancel_membership_request(db: Session, *, request_id: str, user_id: str) -> None:
+    """Delete a membership request, only if it belongs to user_id."""
+    from insigne.models import MembershipRequest
+    req = db.query(MembershipRequest).filter_by(id=request_id, user_id=user_id).first()
+    if req:
+        db.delete(req)
+        db.commit()
+
+
+def cancel_all_membership_requests(db: Session, *, user_id: str) -> None:
+    """Delete all membership requests for a user."""
+    from insigne.models import MembershipRequest
+    db.query(MembershipRequest).filter_by(user_id=user_id).delete()
+    db.commit()
+
+
+def list_all_pending_requests_for_leader(db: Session, user_id: str) -> list:
+    """All pending requests across every group the user manages, ordered by creation date."""
+    from insigne.models import MembershipRequest
+
+    managed_group_ids = {
+        m.group_id for m in
+        db.query(GroupMembership).filter_by(user_id=user_id, approved=True, role="groepsleider").all()
+    }
+    if not managed_group_ids:
+        return []
+    return (
+        db.query(MembershipRequest)
+        .filter(
+            MembershipRequest.group_id.in_(managed_group_ids),
+            MembershipRequest.status == "pending",
+        )
+        .order_by(MembershipRequest.created_at)
+        .all()
+    )
+
+
+def group_pending_requests(pending: list) -> list[dict]:
+    """Return pending requests grouped as [{group, speltakken: [{speltak, requests}]}]."""
+    groups: dict = {}
+    for req in pending:
+        gid = req.group_id
+        if gid not in groups:
+            groups[gid] = {"group": req.group, "speltakken": {}}
+        sid = req.speltak_id
+        if sid not in groups[gid]["speltakken"]:
+            groups[gid]["speltakken"][sid] = {"speltak": req.speltak, "requests": []}
+        groups[gid]["speltakken"][sid]["requests"].append(req)
+
+    result = []
+    for g in sorted(groups.values(), key=lambda x: x["group"].name):
+        speltakken = sorted(
+            g["speltakken"].values(),
+            key=lambda x: (x["speltak"] is not None, x["speltak"].name if x["speltak"] else ""),
+        )
+        result.append({"group": g["group"], "speltakken": speltakken})
+    return result
 
 
 def count_pending_requests_for_leader(db: Session, user_id: str) -> int:

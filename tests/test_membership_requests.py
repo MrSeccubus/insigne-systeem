@@ -256,7 +256,7 @@ class TestGroupsJoinHTML:
         assert "openstaande aanvraag" in r.text
 
 
-# ── HTML: leader review ───────────────────────────────────────────────────────
+# ── HTML: leader review (/requests) ──────────────────────────────────────────
 
 class TestGroupRequestsHTML:
     def _login(self, client, user):
@@ -270,7 +270,7 @@ class TestGroupRequestsHTML:
         g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
         svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
         self._login(client, leider)
-        r = client.get(f"/groups/g/requests")
+        r = client.get("/requests")
         assert r.status_code == 200
         assert "Scout" in r.text
 
@@ -280,7 +280,7 @@ class TestGroupRequestsHTML:
         g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
         req = svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
         self._login(client, leider)
-        r = client.post(f"/groups/g/requests/{req.id}/approve", follow_redirects=False)
+        r = client.post(f"/requests/{req.id}/approve", follow_redirects=False)
         assert r.status_code == 303
         db.refresh(req)
         assert req.status == "approved"
@@ -291,14 +291,11 @@ class TestGroupRequestsHTML:
         g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
         req = svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
         self._login(client, leider)
-        r = client.post(f"/groups/g/requests/{req.id}/reject", follow_redirects=False)
+        r = client.post(f"/requests/{req.id}/reject", follow_redirects=False)
         assert r.status_code == 303
         db.refresh(req)
         assert req.status == "rejected"
 
-    def test_non_manager_redirected(self, client, db):
-        outsider = _user(db)
-        g = svc.create_group(db, name="G", slug="g")
-        self._login(client, outsider)
-        r = client.get("/groups/g/requests", follow_redirects=False)
+    def test_unauthenticated_redirected(self, client, db):
+        r = client.get("/requests", follow_redirects=False)
         assert r.status_code == 303

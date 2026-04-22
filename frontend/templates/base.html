@@ -104,7 +104,7 @@
             {% if current_user %}
                 <a href="/" class="nav-username">{{ current_user.name }}</a>
                 <a href="/signoff-requests">Aftekeningen <span hx-get="/signoff-requests/count" hx-trigger="load, signoff-updated from:body" hx-swap="outerHTML"></span></a>
-                <a href="/groups">Groepsbeheer</a>
+                {% if current_user.is_admin or current_user.is_leader %}<a href="/groups">Groepsbeheer</a>{% endif %}
                 <a href="/profile">Mijn profiel</a>
                 <form method="post" action="/logout" class="nav-logout-form">
                     <button type="submit">Uitloggen</button>

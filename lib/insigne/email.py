@@ -212,3 +212,13 @@ def send_membership_request_rejected_email(
          email=to, naam=naam,
          group_name=group_name,
          speltak_name=speltak_name)
+
+
+def send_invite_group_leader_email(
+    to: str, invited_by_name: str,
+) -> None:
+    create_group_url = f"{config.base_url}/groups/new"
+    send(to, "invite_group_leader",
+         email=to,
+         invited_by_name=invited_by_name,
+         create_group_url=create_group_url)

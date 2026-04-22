@@ -1,100 +1,153 @@
 {% extends "base.html" %}
 
-{% block title %}Lid worden van een groep — Insigne Systeem{% endblock %}
+{% block title %}Lid worden van een groep of speltak — Insigne Systeem{% endblock %}
 
 {% block content %}
+<script>
+function groupsJoinData() {
+    return {
+        allGroups: {{ all_groups | tojson }},
+        myGroupRoles: {{ my_group_roles | tojson }},
+        mySpeltakRoles: {{ my_speltak_roles | tojson }},
+        pendingGroupIds: {{ pending_group_ids | tojson }},
+        pendingSpeltakIds: {{ pending_speltak_ids | tojson }},
+        query: '',
+        expanded: {},
+        submittingId: null,
+        errorMsg: '',
+        get filtered() {
+            const q = this.query.toLowerCase();
+            return q ? this.allGroups.filter(g => g.name.toLowerCase().includes(q)) : this.allGroups;
+        },
+        toggle(id) {
+            this.expanded[id] = !this.expanded[id];
+        },
+        groupStatus(g) {
+            if (this.myGroupRoles[g.id]) return { type: 'member', role: this.myGroupRoles[g.id] };
+            const speltakMember = g.speltakken.find(s => this.mySpeltakRoles[s.id]);
+            if (speltakMember) return { type: 'member', role: this.mySpeltakRoles[speltakMember.id] };
+            if (this.pendingGroupIds.includes(g.id)) return { type: 'pending' };
+            if (g.speltakken.some(s => this.pendingSpeltakIds.includes(s.id))) return { type: 'pending' };
+            return { type: 'none' };
+        },
+        speltakStatus(s) {
+            if (this.mySpeltakRoles[s.id]) return { type: 'member', role: this.mySpeltakRoles[s.id] };
+            if (this.pendingSpeltakIds.includes(s.id)) return { type: 'pending' };
+            return { type: 'none' };
+        },
+        async requestMembership(groupId, speltakId) {
+            const key = speltakId || groupId;
+            this.submittingId = key;
+            this.errorMsg = '';
+            try {
+                const fd = new FormData();
+                fd.append('group_id', groupId);
+                fd.append('speltak_id', speltakId || '');
+                const r = await fetch('/groups/join', {
+                    method: 'POST',
+                    body: fd,
+                    headers: { 'Accept': 'application/json' }
+                });
+                const data = await r.json();
+                if (data.ok) {
+                    if (speltakId) {
+                        this.pendingSpeltakIds = [...this.pendingSpeltakIds, speltakId];
+                    } else {
+                        this.pendingGroupIds = [...this.pendingGroupIds, groupId];
+                    }
+                } else {
+                    this.errorMsg = data.error || 'Er is iets misgegaan.';
+                }
+            } catch(e) {
+                this.errorMsg = 'Er is iets misgegaan.';
+            } finally {
+                this.submittingId = null;
+            }
+        }
+    };
+}
+</script>
+
 <main>
     <div class="page-header">
         <div>
-            <p class="breadcrumb"><a href="/groups">Groepen</a></p>
-            <h1>Lid worden van een groep</h1>
+            <p class="breadcrumb"><a href="/">Home</a></p>
+            <h1>Lid worden van een groep of speltak</h1>
         </div>
     </div>
 
-    {% if error %}
-        <p class="form-error">{{ error }}</p>
-    {% endif %}
-    {% if success %}
-        <p class="form-success">{{ success }}</p>
-    {% endif %}
+    {% if success %}<p class="form-success" style="max-width:560px;">{{ success }}</p>{% endif %}
 
-    {% if not success %}
-    <div style="max-width:520px;"
-         x-data="{
-             query: '',
-             groups: [],
-             selectedGroup: null,
-             speltakken: [],
-             selectedSpeltak: '',
-             searching: false,
-             async search() {
-                 if (this.query.length < 2) { this.groups = []; return; }
-                 this.searching = true;
-                 try {
-                     const r = await fetch('/groups/search?q=' + encodeURIComponent(this.query));
-                     this.groups = await r.json();
-                 } finally { this.searching = false; }
-             },
-             async select(g) {
-                 this.selectedGroup = g;
-                 this.query = g.name;
-                 this.groups = [];
-                 this.selectedSpeltak = '';
-                 const r = await fetch('/groups/' + g.slug + '/speltakken-list');
-                 this.speltakken = await r.json();
-             },
-             reset() {
-                 this.selectedGroup = null;
-                 this.query = '';
-                 this.groups = [];
-                 this.speltakken = [];
-                 this.selectedSpeltak = '';
-             }
-         }">
+    <div style="max-width:560px;" x-data="groupsJoinData()">
 
-        <div class="field" style="position:relative;">
-            <label>Zoek een groep</label>
-            <input type="text" x-model="query" @input.debounce.300ms="search()"
-                   placeholder="Typ een groepsnaam…" autocomplete="off"
-                   :disabled="!!selectedGroup">
-            <ul x-show="groups.length > 0" x-cloak
-                style="position:absolute;z-index:10;background:#fff;border:1px solid #ccc;
-                       border-radius:4px;margin:0;padding:0;list-style:none;width:100%;
-                       box-shadow:0 2px 6px rgba(0,0,0,0.12);">
-                <template x-for="g in groups" :key="g.id">
-                    <li @click="select(g)"
-                        style="padding:0.5rem 0.75rem;cursor:pointer;"
-                        onmouseover="this.style.background='#f0f0f0'"
-                        onmouseout="this.style.background=''"
-                        x-text="g.name"></li>
-                </template>
-            </ul>
+        {% if error %}<p class="form-error">{{ error }}</p>{% endif %}
+        <p x-show="errorMsg" x-text="errorMsg" class="form-error" x-cloak></p>
+
+        <div class="field">
+            <input type="text" x-model="query"
+                   placeholder="Filter groepen…" autocomplete="off">
         </div>
 
-        <template x-if="selectedGroup">
-            <form method="post" action="/groups/join">
-                <input type="hidden" name="group_id" :value="selectedGroup.id">
-                <input type="hidden" name="speltak_id" :value="selectedSpeltak">
-
-                <template x-if="speltakken.length > 0">
-                    <div class="field">
-                        <label>Speltak (optioneel)</label>
-                        <select x-model="selectedSpeltak" style="display:block;width:100%;">
-                            <option value="">— geen voorkeur —</option>
-                            <template x-for="s in speltakken" :key="s.id">
-                                <option :value="s.id" x-text="s.name"></option>
-                            </template>
-                        </select>
+        <ul class="join-group-list">
+            <template x-for="g in filtered" :key="g.id">
+                <li class="join-group-list__item">
+                    <div class="join-group-list__row">
+                        <span class="join-group-list__name"
+                              :class="{ 'join-group-list__name--expandable': g.speltakken.length > 0 }"
+                              @click="g.speltakken.length > 0 && toggle(g.id)">
+                            <span x-text="g.name"></span>
+                            <span x-show="g.speltakken.length > 0"
+                                  x-text="expanded[g.id] ? '▲' : '▼'"
+                                  class="join-group-list__chevron"></span>
+                        </span>
+                        <template x-if="groupStatus(g).type === 'member'">
+                            <span class="role-badge" x-text="groupStatus(g).role"></span>
+                        </template>
+                        <template x-if="groupStatus(g).type === 'pending'">
+                            <span class="role-badge role-badge--pending">in behandeling</span>
+                        </template>
+                        <template x-if="groupStatus(g).type === 'none'">
+                            <button class="btn-success btn-sm"
+                                    :disabled="submittingId === g.id"
+                                    @click="requestMembership(g.id, '')">
+                                <span x-text="submittingId === g.id ? 'Bezig…' : 'Aanvragen'"></span>
+                            </button>
+                        </template>
                     </div>
-                </template>
 
-                <div style="display:flex;gap:0.5rem;margin-top:1rem;">
-                    <button type="submit" class="btn-success">Aanvraag indienen</button>
-                    <button type="button" class="btn-cancel" @click="reset()">Annuleren</button>
-                </div>
-            </form>
-        </template>
+                    <ul x-show="expanded[g.id]" x-cloak class="join-speltak-list">
+                        <template x-for="s in g.speltakken" :key="s.id">
+                            <li class="join-speltak-list__row">
+                                <span x-text="s.name"></span>
+                                <template x-if="speltakStatus(s).type === 'member'">
+                                    <span class="role-badge" x-text="speltakStatus(s).role"></span>
+                                </template>
+                                <template x-if="speltakStatus(s).type === 'pending'">
+                                    <span class="role-badge role-badge--pending">in behandeling</span>
+                                </template>
+                                <template x-if="speltakStatus(s).type === 'none'">
+                                    <button class="btn-neutral btn-sm"
+                                            :disabled="submittingId === s.id"
+                                            @click="requestMembership(g.id, s.id)">
+                                        <span x-text="submittingId === s.id ? 'Bezig…' : 'Aanvragen'"></span>
+                                    </button>
+                                </template>
+                            </li>
+                        </template>
+                    </ul>
+                </li>
+            </template>
+            <template x-if="filtered.length === 0">
+                <li class="join-group-list__empty">Geen groepen gevonden.</li>
+            </template>
+        </ul>
+        {% if allow_invite_leader %}
+        <p class="join-invite-hint">
+            Staat jouw groep hier niet tussen? Nodig met
+            <a href="/groups/invite-leader">dit formulier</a>
+            een leider uit om de groep aan te maken.
+        </p>
+        {% endif %}
     </div>
-    {% endif %}
 </main>
 {% endblock %}

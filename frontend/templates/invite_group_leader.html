@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Leider uitnodigen — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main>
+    <div class="page-header">
+        <div>
+            <p class="breadcrumb"><a href="/groups/join">Lid worden</a></p>
+            <h1>Leider uitnodigen</h1>
+        </div>
+    </div>
+
+    <div style="max-width:480px;">
+        <p>Stuur een uitnodiging naar een leider om een groep aan te maken op Insigne Systeem.</p>
+
+        {% if success %}
+            <p class="form-success">{{ success }}</p>
+        {% endif %}
+
+        <form method="post" action="/groups/invite-leader">
+            <div class="field">
+                <label for="email">E-mailadres van de leider</label>
+                <input type="email" id="email" name="email" required placeholder="leider@example.com">
+            </div>
+            <button type="submit" class="btn-primary">Uitnodiging versturen</button>
+        </form>
+    </div>
+</main>
+{% endblock %}

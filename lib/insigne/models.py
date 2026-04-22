@@ -35,6 +35,15 @@ class User(Base):
         from insigne.config import config
         return bool(self.email and self.email.lower() in config.admins)
 
+    @property
+    def is_leader(self) -> bool:
+        return (
+            any(m.role == "groepsleider" and m.approved and not m.withdrawn
+                for m in self.group_memberships)
+            or any(m.role == "speltakleider" and m.approved and not m.withdrawn
+                   for m in self.speltak_memberships)
+        )
+
     created_by: Mapped["User | None"] = relationship(
         foreign_keys=[created_by_id], remote_side="User.id", back_populates="managed_scouts"
     )

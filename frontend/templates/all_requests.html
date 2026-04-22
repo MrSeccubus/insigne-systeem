@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Lidmaatschapsaanvragen — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main>
+    <div class="page-header">
+        <div>
+            <p class="breadcrumb"><a href="/">Home</a></p>
+            <h1>Lidmaatschapsaanvragen</h1>
+        </div>
+    </div>
+
+    {% if pending %}
+        {% include "partials/pending_requests.html" %}
+    {% else %}
+        <p class="empty-state">Geen openstaande aanvragen.</p>
+    {% endif %}
+</main>
+{% endblock %}

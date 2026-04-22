@@ -1,0 +1,25 @@
+{% for g in pending %}
+<div class="requests-group">
+    <h3 class="requests-group__title">{{ g.group.name }}</h3>
+    {% for s in g.speltakken %}
+    {% if s.speltak %}
+    <h4 class="requests-group__speltak">{{ s.speltak.name }}</h4>
+    {% endif %}
+    <ul class="item-list">
+        {% for req in s.requests %}
+        <li class="item-list-row">
+            <span>{{ req.user.name or req.user.email or '(onbekend)' }}</span>
+            <span class="row-actions" x-data="{ busy: false }">
+                <form method="post" action="/requests/{{ req.id }}/approve" style="display:contents;" @submit="busy = true">
+                    <button type="submit" class="btn-success btn-sm" :disabled="busy">Goedkeuren</button>
+                </form>
+                <form method="post" action="/requests/{{ req.id }}/reject" style="display:contents;" @submit="busy = true">
+                    <button type="submit" class="btn-danger btn-sm" :disabled="busy">Afwijzen</button>
+                </form>
+            </span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endfor %}
+</div>
+{% endfor %}

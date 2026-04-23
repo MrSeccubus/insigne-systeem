@@ -8,3 +8,7 @@ api/data/insigne.db
 api/data/insigne.db-shm
 api/data/insigne.db-wal
 *.egg-info/
+.claude/
+*.db
+.coverage
+htmlcov/

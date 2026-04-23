@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Voortgang {{ speltak.name }} — Insigne Systeem{% endblock %}
+{% block content %}
+<main>
+    <div style="max-width:1100px;margin:2rem auto;">
+
+        <nav style="font-size:0.85rem;color:#888;margin-bottom:1rem;">
+            <a href="/groups">Groepen</a> /
+            <a href="/groups/{{ group.slug }}">{{ group.name }}</a> /
+            <a href="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}">{{ speltak.name }}</a> /
+            Voortgang
+        </nav>
+
+        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem;">
+            <h1 style="font-size:1.4rem;margin:0;">{% if speltak.peer_signoff %}Voortgang{% else %}Voortgang bewerken{% endif %} — {{ speltak.name }}</h1>
+            <a href="?only_favorites={% if only_favorites %}0{% else %}1{% endif %}"
+               class="btn-sm {% if only_favorites %}btn-star-active{% else %}btn-neutral{% endif %}"
+               style="text-decoration:none;font-size:1rem;padding:0 0.5rem;line-height:1.6;"
+               title="{% if only_favorites %}Alle badges tonen{% else %}Alleen favorieten tonen{% endif %}">{% if only_favorites %}★{% else %}☆{% endif %}</a>
+        </div>
+
+        {% if speltak.peer_signoff %}
+        <div style="margin-bottom:1rem;padding:0.75rem 1rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:0.9rem;">
+            Deze speltak gebruikt peer-aftekening. De voortgang is hier alleen-lezen.
+        </div>
+        {% endif %}
+
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:1.5rem;font-size:0.8rem;color:#555;">
+            <span>Legenda:</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span class="step-check step-check-in_progress"></span> Bezig</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span class="step-check step-check-work_done"></span> Klaar</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span class="step-check step-check-pending_signoff">?</span> Wacht op aftekenen</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span class="step-check step-check-signed_off">✓</span> Afgetekend</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span class="step-check"></span> Niet gestart</span>
+        </div>
+
+        {% if not members %}
+        <p class="empty-state">Nog geen scouts in deze speltak.</p>
+        {% endif %}
+
+        {% set category_labels = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes"} %}
+        {% set group_slug = group.slug %}
+        {% set speltak_slug = speltak.slug %}
+
+        {% for category, badges in all_badges.items() %}
+        {% set visible_badges = badges | selectattr("slug", "in", favorite_slugs) | list if only_favorites else badges %}
+        {% if visible_badges %}
+        <h2 class="section-header">{{ category_labels.get(category, category ~ ' insignes') }}</h2>
+
+        {% for badge in visible_badges %}
+        {% set badge_slug = badge.slug %}
+        <details class="badge-progress-card" open>
+            <summary class="badge-progress-summary">
+                <span class="badge-progress-title">{{ badge.title }}</span>
+                {% if members %}
+                <span class="badge-progress-counts">
+                    {% for step_index in range(3) %}
+                    {% set ns = namespace(niet_gestart=0, bezig=0, klaar=0, afgetekend=0) %}
+                    {% for m in members %}
+                    {% set sp = progress_by_scout.get(m.user_id, {}) %}
+                    {% set ms = namespace(all_none=true, all_signed=true, all_done=true) %}
+                    {% for li in range(badge.n_levels) %}
+                    {% set st = sp.get((badge_slug, li, step_index)).status if sp.get((badge_slug, li, step_index)) else "none" %}
+                    {% if st != "none" %}{% set ms.all_none = false %}{% endif %}
+                    {% if st != "signed_off" %}{% set ms.all_signed = false %}{% endif %}
+                    {% if st not in ("work_done", "signed_off", "pending_signoff") %}{% set ms.all_done = false %}{% endif %}
+                    {% endfor %}
+                    {% if ms.all_signed %}{% set ns.afgetekend = ns.afgetekend + 1 %}
+                    {% elif ms.all_done %}{% set ns.klaar = ns.klaar + 1 %}
+                    {% elif ms.all_none %}{% set ns.niet_gestart = ns.niet_gestart + 1 %}
+                    {% else %}{% set ns.bezig = ns.bezig + 1 %}{% endif %}
+                    {% endfor %}
+                    {% set ns2 = namespace(parts="") %}
+                    {% if ns.bezig %}{% set ns2.parts = ns2.parts ~ (", " if ns2.parts else "") ~ ns.bezig ~ " bezig" %}{% endif %}
+                    {% if ns.klaar %}{% set ns2.parts = ns2.parts ~ (", " if ns2.parts else "") ~ ns.klaar ~ " klaar" %}{% endif %}
+                    {% if ns.afgetekend %}{% set ns2.parts = ns2.parts ~ (", " if ns2.parts else "") ~ ns.afgetekend ~ " afgetekend" %}{% endif %}
+                    <span class="niveau-count-group"><strong>N{{ step_index + 1 }}:</strong> {{ ns2.parts if ns2.parts else "—" }}</span>
+                    {% endfor %}
+                </span>
+                {% endif %}
+                {% if can_edit %}
+                <button
+                    hx-post="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/favorite-badge"
+                    hx-vals='{"badge_slug":"{{ badge.slug }}"}'
+                    hx-target="this"
+                    hx-swap="outerHTML"
+                    class="btn-sm {% if badge.slug in favorite_slugs %}btn-star-active{% else %}btn-neutral{% endif %}"
+                    style="font-size:1rem;padding:0 0.4rem;line-height:1.6;"
+                    title="{% if badge.slug in favorite_slugs %}Verwijder uit favorieten{% else %}Voeg toe aan favorieten{% endif %}"
+                    onclick="event.stopPropagation()">
+                    {% if badge.slug in favorite_slugs %}★{% else %}☆{% endif %}
+                </button>
+                {% endif %}
+            </summary>
+            {% if members %}
+            <div style="overflow-x:auto;">
+            <table class="badge-progress-table">
+                <thead>
+                    <tr>
+                        <th>Scout</th>
+                        <th>Niveau 1</th>
+                        <th>Niveau 2</th>
+                        <th>Niveau 3</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in members %}
+                    {% set scout_progress = progress_by_scout.get(m.user_id, {}) %}
+                    {% set scout_id = m.user_id %}
+                    <tr>
+                        <td class="badge-progress-name" title="{{ m.user.name or m.user.email or '(onbekend)' }}">{{ m.user.name or m.user.email or '(onbekend)' }}</td>
+                        {% for step_index in range(3) %}
+                        <td>
+                            <div class="niveau-checks" style="margin:0;gap:3px;justify-content:flex-start;">
+                                {% for level_index in range(badge.n_levels) %}
+                                {% set entry = scout_progress.get((badge_slug, level_index, step_index)) %}
+                                {% set entry_status = entry.status if entry else "none" %}
+                                {% set can_edit_cell = can_edit and m.user_id != leider_id and entry_status != "pending_signoff" %}
+                                {% include "partials/leider_step_check.html" %}
+                                {% endfor %}
+                            </div>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <p style="padding:0.75rem 1rem;font-size:0.85rem;color:#888;margin:0;">Geen scouts.</p>
+            {% endif %}
+        </details>
+        {% endfor %}
+        {% endif %}
+        {% endfor %}
+
+        {% if only_favorites and not favorite_slugs %}
+        <p class="empty-state">Geen favoriete badges ingesteld. Klik op ☆ naast een badge om deze als favoriet te markeren.</p>
+        {% elif only_favorites %}
+        <p class="form-hint">
+            Mis je een badge? Je ziet nu alleen je favoriete badges.
+            Druk op de <strong>★</strong> bovenaan om alle badges weer te geven.
+        </p>
+        {% endif %}
+
+    </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script>
+function closeAllStepMenus() {
+    document.querySelectorAll('.step-check-wrapper[open]').forEach(function(el) {
+        el.removeAttribute('open');
+    });
+}
+
+document.addEventListener('toggle', function(e) {
+    if (!e.target.classList.contains('step-check-wrapper') || !e.target.open) return;
+
+    // Close any other open dropdown first
+    document.querySelectorAll('.step-check-wrapper[open]').forEach(function(el) {
+        if (el !== e.target) el.removeAttribute('open');
+    });
+
+    // Position using fixed coords — escapes all overflow containers
+    const summary = e.target.querySelector('summary');
+    const dropdown = e.target.querySelector('.step-check-dropdown');
+    const rect = summary.getBoundingClientRect();
+    // Make visible briefly to measure real height
+    dropdown.style.visibility = 'hidden';
+    dropdown.style.display = 'flex';
+    const dh = dropdown.offsetHeight;
+    dropdown.style.display = '';
+    dropdown.style.visibility = '';
+
+    const top = (window.innerHeight - rect.bottom - 4 >= dh)
+        ? rect.bottom + 4
+        : rect.top - dh - 4;
+    dropdown.style.top = top + 'px';
+    dropdown.style.left = Math.min(rect.left, window.innerWidth - dropdown.offsetWidth - 8) + 'px';
+}, true);
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.step-check-wrapper')) closeAllStepMenus();
+});
+document.addEventListener('scroll', closeAllStepMenus, true);
+</script>
+{% endblock %}

@@ -173,14 +173,16 @@ def send_speltak_invite_email(
          speltak_name=speltak_name, role=role)
 
 
-def send_scout_niveau_completed_email(to: str, scout_name: str, badge_title: str, niveau_number: int) -> None:
+def send_scout_niveau_completed_email(to: str, scout_name: str, badge_title: str, niveau_number: int, badge_slug: str | None = None) -> None:
     badge_url = f"{config.base_url}/badges"
+    badge_image_url = f"{config.base_url}/images/{badge_slug}.{niveau_number}.png" if badge_slug else None
     send(to, "scout_niveau_completed",
          email=to,
          scout_name=scout_name,
          badge_title=badge_title,
          niveau_number=niveau_number,
-         badge_url=badge_url)
+         badge_url=badge_url,
+         badge_image_url=badge_image_url)
 
 
 def send_membership_request_received_email(

@@ -234,3 +234,21 @@ class UserSpeltakMembershipResponse(BaseModel):
 class ActiveMembershipsResponse(BaseModel):
     group_memberships: list[UserGroupMembershipResponse]
     speltak_memberships: list[UserSpeltakMembershipResponse]
+
+
+# ── Leider progress management ────────────────────────────────────────────────
+
+class SetScoutProgressRequest(BaseModel):
+    badge_slug: str
+    level_index: int = Field(..., ge=0)
+    step_index: int = Field(..., ge=0)
+    status: str = Field(..., pattern=r"^(none|in_progress|work_done|signed_off)$")
+
+
+class ToggleFavoriteBadgeRequest(BaseModel):
+    badge_slug: str
+
+
+class ToggleFavoriteBadgeResponse(BaseModel):
+    badge_slug: str
+    is_favorite: bool

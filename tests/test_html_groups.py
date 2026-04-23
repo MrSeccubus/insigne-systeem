@@ -247,3 +247,237 @@ class TestAcceptSpeltakInviteWithoutMerge:
                         follow_redirects=False)
         assert r.status_code == 303
         assert "/login" in r.headers["location"]
+
+
+# ── Helpers for leider progress tests ─────────────────────────────────────────
+
+def _speltakleider(db, group_id, speltak_id, email="leider@example.com"):
+    from insigne.models import GroupMembership, SpeltakMembership
+    leider = User(email=email, name="Leider", status="active", password_hash="x")
+    db.add(leider)
+    db.flush()
+    db.add(GroupMembership(user_id=leider.id, group_id=group_id, role="member", approved=True))
+    db.add(SpeltakMembership(user_id=leider.id, speltak_id=speltak_id, role="speltakleider", approved=True))
+    db.commit()
+    return leider
+
+
+# ── GET /my-speltakken ────────────────────────────────────────────────────────
+
+class TestMySpeltakken:
+    def test_unauthenticated_redirects(self, client, db):
+        r = client.get("/my-speltakken", follow_redirects=False)
+        assert r.status_code == 303
+        assert "/login" in r.headers["location"]
+
+    def test_single_speltak_redirects_to_progress(self, client, db):
+        from insigne import groups as svc
+        g = svc.create_group(db, name="G", slug="g")
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        leider = _speltakleider(db, g.id, s.id)
+        _login(client, leider)
+        r = client.get("/my-speltakken", follow_redirects=False)
+        assert r.status_code == 303
+        assert f"/groups/g/speltakken/s/progress" in r.headers["location"]
+
+    def test_multiple_speltakken_shows_list(self, client, db):
+        from insigne import groups as svc
+        g = svc.create_group(db, name="G", slug="g")
+        s1 = svc.create_speltak(db, group_id=g.id, name="S1", slug="s1")
+        s2 = svc.create_speltak(db, group_id=g.id, name="S2", slug="s2")
+        leider = _speltakleider(db, g.id, s1.id)
+        _speltakleider_add(db, leider.id, g.id, s2.id)
+        _login(client, leider)
+        r = client.get("/my-speltakken")
+        assert r.status_code == 200
+        assert "S1" in r.text and "S2" in r.text
+
+    def test_groepsleider_without_speltakleider_role_not_in_nav(self, client, db):
+        from insigne import groups as svc
+        user = _user(db, email="gl@x.com")
+        svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        _login(client, user)
+        r = client.get("/")
+        assert "Mijn speltakken" not in r.text
+
+
+def _speltakleider_add(db, user_id, group_id, speltak_id):
+    from insigne.models import SpeltakMembership
+    db.add(SpeltakMembership(user_id=user_id, speltak_id=speltak_id, role="speltakleider", approved=True))
+    db.commit()
+
+
+# ── GET /groups/{slug}/speltakken/{slug}/progress ─────────────────────────────
+
+class TestSpeltakProgressPage:
+    def _setup(self, db):
+        from insigne import groups as svc
+        g = svc.create_group(db, name="G", slug="g")
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        leider = _speltakleider(db, g.id, s.id)
+        scout = _scout_user(db, g.id, s.id)
+        return g, s, leider, scout
+
+    def test_leider_sees_progress_page(self, client, db):
+        g, s, leider, scout = self._setup(db)
+        _login(client, leider)
+        r = client.get(f"/groups/g/speltakken/s/progress")
+        assert r.status_code == 200
+
+    def test_scout_cannot_access(self, client, db):
+        g, s, leider, scout = self._setup(db)
+        _login(client, scout)
+        r = client.get("/groups/g/speltakken/s/progress", follow_redirects=False)
+        assert r.status_code == 303
+
+    def test_unauthenticated_redirects(self, client, db):
+        from insigne import groups as svc
+        g = svc.create_group(db, name="G", slug="g")
+        svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        r = client.get("/groups/g/speltakken/s/progress", follow_redirects=False)
+        assert r.status_code == 303
+        assert "/login" in r.headers["location"]
+
+    def test_peer_signoff_shows_no_hx_post(self, client, db):
+        from insigne import groups as svc
+        g = svc.create_group(db, name="G", slug="g")
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s", peer_signoff=True)
+        leider = _speltakleider(db, g.id, s.id)
+        _scout_user(db, g.id, s.id)
+        _login(client, leider)
+        r = client.get("/groups/g/speltakken/s/progress")
+        assert r.status_code == 200
+        assert "hx-post" not in r.text
+
+
+# ── POST …/scouts/{id}/progress/set ──────────────────────────────────────────
+
+class TestSetScoutProgressRoute:
+    def _setup(self, db):
+        from insigne import groups as svc
+        g = svc.create_group(db, name="G", slug="g")
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        leider = _speltakleider(db, g.id, s.id)
+        scout = _scout_user(db, g.id, s.id)
+        return g, s, leider, scout
+
+    def _post(self, client, scout_id, status="in_progress", badge_slug="b",
+              level_index=0, step_index=0):
+        return client.post(
+            f"/groups/g/speltakken/s/scouts/{scout_id}/progress/set",
+            data={"badge_slug": badge_slug, "level_index": level_index,
+                  "step_index": step_index, "status": status},
+        )
+
+    def test_set_in_progress_returns_partial(self, client, db):
+        g, s, leider, scout = self._setup(db)
+        _login(client, leider)
+        r = self._post(client, scout.id)
+        assert r.status_code == 200
+        assert "step-check" in r.text
+        assert "in_progress" in r.text
+
+    def test_reset_to_none_deletes_entry(self, client, db):
+        from insigne.models import ProgressEntry
+        g, s, leider, scout = self._setup(db)
+        _progress(db, scout.id)
+        _login(client, leider)
+        r = self._post(client, scout.id, status="none")
+        assert r.status_code == 200
+        assert db.query(ProgressEntry).filter_by(user_id=scout.id).count() == 0
+
+    def test_self_edit_returns_unchanged_state(self, client, db):
+        g, s, leider, scout = self._setup(db)
+        _login(client, leider)
+        r = self._post(client, leider.id)
+        assert r.status_code == 200
+        assert "in_progress" not in r.text
+
+    def test_outsider_gets_redirect(self, client, db):
+        g, s, leider, scout = self._setup(db)
+        outsider = _user(db, email="out@x.com")
+        _login(client, outsider)
+        r = self._post(client, scout.id)
+        assert r.status_code in (200, 403, 404)
+
+    def test_conflict_on_pending_signoff_returns_unchanged(self, client, db):
+        from insigne.models import ProgressEntry
+        g, s, leider, scout = self._setup(db)
+        _progress(db, scout.id, status="pending_signoff")
+        _login(client, leider)
+        r = self._post(client, scout.id, status="work_done")
+        assert r.status_code == 200
+        assert db.query(ProgressEntry).filter_by(
+            user_id=scout.id, status="pending_signoff"
+        ).count() == 1
+
+
+# ── POST …/favorite-badge ─────────────────────────────────────────────────────
+
+class TestFavoriteBadgeToggle:
+    def _setup(self, db):
+        from insigne import groups as svc
+        g = svc.create_group(db, name="G", slug="g")
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        leider = _speltakleider(db, g.id, s.id)
+        return g, s, leider
+
+    def test_leider_toggles_on(self, client, db):
+        from insigne import groups as svc
+        g, s, leider = self._setup(db)
+        _login(client, leider)
+        r = client.post(f"/groups/g/speltakken/s/favorite-badge",
+                        data={"badge_slug": "internationaal"})
+        assert r.status_code == 200
+        assert "★" in r.text
+        assert "internationaal" in svc.get_speltak_favorite_slugs(db, s.id)
+
+    def test_leider_toggles_off(self, client, db):
+        from insigne import groups as svc
+        g, s, leider = self._setup(db)
+        svc.toggle_speltak_favorite_badge(db, s.id, "internationaal")
+        _login(client, leider)
+        r = client.post(f"/groups/g/speltakken/s/favorite-badge",
+                        data={"badge_slug": "internationaal"})
+        assert r.status_code == 200
+        assert "☆" in r.text
+        assert "internationaal" not in svc.get_speltak_favorite_slugs(db, s.id)
+
+    def test_scout_cannot_toggle(self, client, db):
+        from insigne import groups as svc
+        g, s, leider = self._setup(db)
+        scout = _scout_user(db, g.id, s.id)
+        _login(client, scout)
+        r = client.post(f"/groups/g/speltakken/s/favorite-badge",
+                        data={"badge_slug": "internationaal"})
+        assert r.status_code == 403
+
+
+# ── GET /groups/{slug}/progress ───────────────────────────────────────────────
+
+class TestGroupProgressPage:
+    def test_groepsleider_sees_page(self, client, db):
+        from insigne import groups as svc
+        gl = _user(db, email="gl@x.com")
+        g = svc.create_group(db, name="G", slug="g", created_by_id=gl.id)
+        svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        _login(client, gl)
+        r = client.get("/groups/g/progress")
+        assert r.status_code == 200
+        assert "S" in r.text
+
+    def test_speltakleider_redirected(self, client, db):
+        from insigne import groups as svc
+        g = svc.create_group(db, name="G", slug="g")
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        leider = _speltakleider(db, g.id, s.id)
+        _login(client, leider)
+        r = client.get("/groups/g/progress", follow_redirects=False)
+        assert r.status_code == 303
+
+    def test_unauthenticated_redirects(self, client, db):
+        from insigne import groups as svc
+        svc.create_group(db, name="G", slug="g")
+        r = client.get("/groups/g/progress", follow_redirects=False)
+        assert r.status_code == 303
+        assert "/login" in r.headers["location"]

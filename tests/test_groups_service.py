@@ -461,6 +461,65 @@ def test_transfer_scout_preserves_group_membership(db):
     assert any(m.user_id == user.id for m in group_members)
 
 
+# ── preview_scout_merge ───────────────────────────────────────────────────────
+
+def test_preview_scout_merge_added(db):
+    """Step only in scout → type 'added'."""
+    scout = _user(db, email=None)
+    scout.email = None
+    db.commit()
+    existing = _user(db, email="ex@example.com")
+    _progress(db, scout.id, badge_slug="b", level_index=0, step_index=0, status="work_done")
+
+    changes = svc.preview_scout_merge(db, from_user_id=scout.id, to_user_id=existing.id)
+    assert len(changes) == 1
+    assert changes[0]["type"] == "added"
+    assert changes[0]["scout_status"] == "work_done"
+    assert changes[0]["existing_status"] is None
+
+
+def test_preview_scout_merge_upgraded(db):
+    """Scout has higher status → type 'upgraded'."""
+    scout = _user(db, email=None)
+    scout.email = None
+    db.commit()
+    existing = _user(db, email="ex@example.com")
+    _progress(db, scout.id, badge_slug="b", step_index=0, status="work_done")
+    _progress(db, existing.id, badge_slug="b", step_index=0, status="in_progress")
+
+    changes = svc.preview_scout_merge(db, from_user_id=scout.id, to_user_id=existing.id)
+    assert len(changes) == 1
+    assert changes[0]["type"] == "upgraded"
+    assert changes[0]["scout_status"] == "work_done"
+    assert changes[0]["existing_status"] == "in_progress"
+
+
+def test_preview_scout_merge_no_change_when_existing_higher(db):
+    """Frank has higher status → no entry in preview."""
+    scout = _user(db, email=None)
+    scout.email = None
+    db.commit()
+    existing = _user(db, email="ex@example.com")
+    _progress(db, scout.id, badge_slug="b", step_index=0, status="in_progress")
+    _progress(db, existing.id, badge_slug="b", step_index=0, status="signed_off")
+
+    changes = svc.preview_scout_merge(db, from_user_id=scout.id, to_user_id=existing.id)
+    assert changes == []
+
+
+def test_preview_scout_merge_no_change_when_equal(db):
+    """Equal status → no entry in preview."""
+    scout = _user(db, email=None)
+    scout.email = None
+    db.commit()
+    existing = _user(db, email="ex@example.com")
+    _progress(db, scout.id, badge_slug="b", step_index=0, status="signed_off")
+    _progress(db, existing.id, badge_slug="b", step_index=0, status="signed_off")
+
+    changes = svc.preview_scout_merge(db, from_user_id=scout.id, to_user_id=existing.id)
+    assert changes == []
+
+
 # ── attach_email_to_scout: existing user path ─────────────────────────────────
 
 def _scout(db, group_id, speltak_id, name="Scout"):

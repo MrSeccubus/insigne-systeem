@@ -1122,10 +1122,10 @@ def speltak_progress(
 
     all_badges_raw = list_badges(_DATA_DIR)
     all_badges = {}
-    for category, slugs in all_badges_raw.items():
+    for category, summaries in all_badges_raw.items():
         badge_list = []
-        for slug in slugs:
-            badge = get_badge(_DATA_DIR, slug)
+        for summary in summaries:
+            badge = get_badge(_DATA_DIR, summary["slug"])
             if badge:
                 badge["n_levels"] = len(badge["levels"])
                 badge_list.append(badge)
@@ -1133,7 +1133,7 @@ def speltak_progress(
 
     return _page(request, "speltak_progress.html", db,
                  group=group, speltak=speltak,
-                 memberships=memberships,
+                 members=memberships,
                  progress_by_scout=progress_by_scout,
                  favorite_slugs=favorite_slugs,
                  all_badges=all_badges,

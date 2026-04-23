@@ -589,6 +589,54 @@ def test_attach_email_existing_user_scout_not_deleted(db):
     assert db.get(User, scout.id) is not None
 
 
+def test_list_speltak_members_hides_scout_with_pending_invite(db):
+    """An emailless scout must not appear in list_speltak_members once a pending
+    invite with source_scout_id pointing at it exists — the two represent the
+    same person and only the pending invite should be visible."""
+    leader = _user(db, email="leader@example.com")
+    g = svc.create_group(db, name="G", slug="g")
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    scout = _scout(db, g.id, s.id)
+    existing = _user(db, email="existing@example.com", name="Existing")
+
+    # Before attaching email: scout is in the members list
+    assert any(m.user_id == scout.id for m in svc.list_speltak_members(db, s.id))
+
+    svc.attach_email_to_scout(
+        db, scout_user_id=scout.id, email="existing@example.com",
+        invited_by_id=leader.id, speltak=s,
+    )
+
+    # Scout must be hidden from the members list now
+    members = svc.list_speltak_members(db, s.id)
+    assert not any(m.user_id == scout.id for m in members)
+
+    # Pending invite for the existing user must still appear
+    pending = svc.list_pending_speltak_members(db, s.id)
+    assert any(m.user_id == existing.id for m in pending)
+
+
+def test_list_speltak_members_restores_scout_when_invite_withdrawn(db):
+    """When a pending invite with source_scout_id is withdrawn, the emailless
+    scout must reappear in list_speltak_members."""
+    leader = _user(db, email="leader@example.com")
+    g = svc.create_group(db, name="G", slug="g")
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    scout = _scout(db, g.id, s.id)
+    existing = _user(db, email="existing@example.com", name="Existing")
+
+    svc.attach_email_to_scout(
+        db, scout_user_id=scout.id, email="existing@example.com",
+        invited_by_id=leader.id, speltak=s,
+    )
+    assert not any(m.user_id == scout.id for m in svc.list_speltak_members(db, s.id))
+
+    svc.withdraw_speltak_invite(db, user_id=existing.id, speltak_id=s.id)
+
+    # Scout should reappear after withdrawal
+    assert any(m.user_id == scout.id for m in svc.list_speltak_members(db, s.id))
+
+
 # ── has_scout_progress ────────────────────────────────────────────────────────
 
 def test_has_scout_progress_true(db):

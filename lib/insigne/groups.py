@@ -2,7 +2,7 @@ import re
 import unicodedata
 from datetime import datetime, timezone
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from insigne.models import (
@@ -362,9 +362,20 @@ def list_members_without_speltak(db: Session, group_id: str) -> list[GroupMember
 
 
 def list_speltak_members(db: Session, speltak_id: str) -> list[SpeltakMembership]:
+    # Exclude emailless scouts that have a pending invite (source_scout_id points at them)
+    pending_source_ids = select(SpeltakMembership.source_scout_id).where(
+        SpeltakMembership.speltak_id == speltak_id,
+        SpeltakMembership.approved == False,  # noqa: E712
+        SpeltakMembership.withdrawn == False,  # noqa: E712
+        SpeltakMembership.source_scout_id.isnot(None),
+    )
     return (
         db.query(SpeltakMembership)
-        .filter_by(speltak_id=speltak_id, approved=True)
+        .filter(
+            SpeltakMembership.speltak_id == speltak_id,
+            SpeltakMembership.approved == True,  # noqa: E712
+            SpeltakMembership.user_id.not_in(pending_source_ids),
+        )
         .all()
     )
 

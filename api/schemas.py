@@ -252,3 +252,11 @@ class ToggleFavoriteBadgeRequest(BaseModel):
 class ToggleFavoriteBadgeResponse(BaseModel):
     badge_slug: str
     is_favorite: bool
+
+
+class RequestSignoffSpeltakRequest(BaseModel):
+    speltak_id: str
+
+
+class RequestSignoffMembersRequest(BaseModel):
+    mentor_ids: list[str]

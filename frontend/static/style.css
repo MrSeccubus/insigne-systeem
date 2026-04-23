@@ -975,6 +975,59 @@ button:disabled, a[disabled] {
     border-color: #00A651;
 }
 
+/* ── Signoff path selector ───────────────────────────────────────────────── */
+
+.signoff-path-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-bottom: 0.5rem;
+}
+
+.btn-path {
+    font-size: 0.875rem;
+    font-family: inherit;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    color: #333;
+    text-align: left;
+}
+
+.btn-path:hover {
+    border-color: #00A651;
+    color: #00A651;
+}
+
+.btn-path-active {
+    border-color: #00A651;
+    background: #f0faf4;
+    color: #00A651;
+    font-weight: 600;
+}
+
+.signoff-member-prompt {
+    margin: 0 0 0.4rem;
+    font-size: 0.9rem;
+}
+
+.signoff-member-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-bottom: 0.4rem;
+}
+
+.signoff-member-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
 /* ── Notifications ───────────────────────────────────────────────────────── */
 
 .notification-bar {

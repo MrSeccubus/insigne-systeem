@@ -832,6 +832,26 @@ def list_my_speltakken(db: Session, user_id: str) -> list[tuple[Group, Speltak]]
     return [(m.speltak.group, m.speltak) for m in memberships]
 
 
+def list_scout_speltakken(db: Session, user_id: str) -> list[tuple[Group, Speltak, str]]:
+    """Return (group, speltak, role) for all approved non-withdrawn speltak memberships."""
+    memberships = (
+        db.query(SpeltakMembership)
+        .filter_by(user_id=user_id, approved=True, withdrawn=False)
+        .all()
+    )
+    return [(m.speltak.group, m.speltak, m.role) for m in memberships]
+
+
+def list_speltakleiders_for_speltak(db: Session, speltak_id: str) -> list[User]:
+    """Approved speltakleiders of the speltak who have an email address."""
+    memberships = (
+        db.query(SpeltakMembership)
+        .filter_by(speltak_id=speltak_id, role="speltakleider", approved=True, withdrawn=False)
+        .all()
+    )
+    return [m.user for m in memberships if m.user.email]
+
+
 def get_speltak_favorite_slugs(db: Session, speltak_id: str) -> set[str]:
     rows = db.query(SpeltakFavoriteBadge).filter_by(speltak_id=speltak_id).all()
     return {r.badge_slug for r in rows}

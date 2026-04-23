@@ -459,3 +459,219 @@ def test_transfer_scout_preserves_group_membership(db):
     svc.transfer_scout(db, user_id=user.id, from_speltak_id=s1.id, to_speltak_id=s2.id)
     group_members = svc.list_group_members(db, g.id)
     assert any(m.user_id == user.id for m in group_members)
+
+
+# ── preview_scout_merge ───────────────────────────────────────────────────────
+
+def test_preview_scout_merge_added(db):
+    """Step only in scout → type 'added'."""
+    scout = _user(db, email=None)
+    scout.email = None
+    db.commit()
+    existing = _user(db, email="ex@example.com")
+    _progress(db, scout.id, badge_slug="b", level_index=0, step_index=0, status="work_done")
+
+    changes = svc.preview_scout_merge(db, from_user_id=scout.id, to_user_id=existing.id)
+    assert len(changes) == 1
+    assert changes[0]["type"] == "added"
+    assert changes[0]["scout_status"] == "work_done"
+    assert changes[0]["existing_status"] is None
+
+
+def test_preview_scout_merge_upgraded(db):
+    """Scout has higher status → type 'upgraded'."""
+    scout = _user(db, email=None)
+    scout.email = None
+    db.commit()
+    existing = _user(db, email="ex@example.com")
+    _progress(db, scout.id, badge_slug="b", step_index=0, status="work_done")
+    _progress(db, existing.id, badge_slug="b", step_index=0, status="in_progress")
+
+    changes = svc.preview_scout_merge(db, from_user_id=scout.id, to_user_id=existing.id)
+    assert len(changes) == 1
+    assert changes[0]["type"] == "upgraded"
+    assert changes[0]["scout_status"] == "work_done"
+    assert changes[0]["existing_status"] == "in_progress"
+
+
+def test_preview_scout_merge_no_change_when_existing_higher(db):
+    """Frank has higher status → no entry in preview."""
+    scout = _user(db, email=None)
+    scout.email = None
+    db.commit()
+    existing = _user(db, email="ex@example.com")
+    _progress(db, scout.id, badge_slug="b", step_index=0, status="in_progress")
+    _progress(db, existing.id, badge_slug="b", step_index=0, status="signed_off")
+
+    changes = svc.preview_scout_merge(db, from_user_id=scout.id, to_user_id=existing.id)
+    assert changes == []
+
+
+def test_preview_scout_merge_no_change_when_equal(db):
+    """Equal status → no entry in preview."""
+    scout = _user(db, email=None)
+    scout.email = None
+    db.commit()
+    existing = _user(db, email="ex@example.com")
+    _progress(db, scout.id, badge_slug="b", step_index=0, status="signed_off")
+    _progress(db, existing.id, badge_slug="b", step_index=0, status="signed_off")
+
+    changes = svc.preview_scout_merge(db, from_user_id=scout.id, to_user_id=existing.id)
+    assert changes == []
+
+
+# ── attach_email_to_scout: existing user path ─────────────────────────────────
+
+def _scout(db, group_id, speltak_id, name="Scout"):
+    """Create an emailless scout with an approved speltak membership."""
+    from insigne.models import ProgressEntry
+    scout = User(name=name, status="active", created_by_id=None)
+    db.add(scout)
+    db.flush()
+    m = SpeltakMembership(user_id=scout.id, speltak_id=speltak_id, role="scout", approved=True)
+    db.add(m)
+    gm = GroupMembership(user_id=scout.id, group_id=group_id, role="member", approved=True)
+    db.add(gm)
+    db.commit()
+    return scout
+
+
+def _progress(db, user_id, badge_slug="badge", level_index=0, step_index=0, status="in_progress"):
+    from insigne.models import ProgressEntry
+    e = ProgressEntry(
+        user_id=user_id, badge_slug=badge_slug,
+        level_index=level_index, step_index=step_index, status=status,
+    )
+    db.add(e)
+    db.commit()
+    return e
+
+
+def test_attach_email_existing_user_creates_pending_invite(db):
+    """Linking an email to a scout where the user already exists must NOT merge
+    immediately. It should create a pending speltak invite with source_scout_id."""
+    leader = _user(db, email="leader@example.com")
+    g = svc.create_group(db, name="G", slug="g")
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    scout = _scout(db, g.id, s.id)
+    existing = _user(db, email="existing@example.com", name="Existing")
+
+    kind, returned_user, code = svc.attach_email_to_scout(
+        db, scout_user_id=scout.id, email="existing@example.com",
+        invited_by_id=leader.id, speltak=s,
+    )
+
+    assert kind == "existing_user"
+    assert returned_user.id == existing.id
+    assert code is None
+    # Scout must still exist (not deleted)
+    assert db.get(User, scout.id) is not None
+    # Pending invite for existing user with source_scout_id
+    invite = db.query(SpeltakMembership).filter_by(
+        user_id=existing.id, speltak_id=s.id, approved=False
+    ).first()
+    assert invite is not None
+    assert invite.source_scout_id == scout.id
+
+
+def test_attach_email_existing_user_scout_not_deleted(db):
+    """Scout record must survive the attach_email_to_scout call for existing user."""
+    leader = _user(db, email="leader@example.com")
+    g = svc.create_group(db, name="G", slug="g")
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    scout = _scout(db, g.id, s.id)
+    _user(db, email="ex@example.com")
+
+    svc.attach_email_to_scout(
+        db, scout_user_id=scout.id, email="ex@example.com",
+        invited_by_id=leader.id, speltak=s,
+    )
+    assert db.get(User, scout.id) is not None
+
+
+# ── has_scout_progress ────────────────────────────────────────────────────────
+
+def test_has_scout_progress_true(db):
+    u = _user(db)
+    _progress(db, u.id)
+    assert svc.has_scout_progress(db, u.id) is True
+
+
+def test_has_scout_progress_false(db):
+    u = _user(db)
+    assert svc.has_scout_progress(db, u.id) is False
+
+
+# ── accept_speltak_invite_with_merge ──────────────────────────────────────────
+
+def test_accept_with_merge_moves_progress(db):
+    leader = _user(db, email="leader@example.com")
+    g = svc.create_group(db, name="G", slug="g")
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    scout = _scout(db, g.id, s.id)
+    existing = _user(db, email="ex@example.com")
+    _progress(db, scout.id, badge_slug="badge", step_index=0, status="work_done")
+
+    svc.attach_email_to_scout(
+        db, scout_user_id=scout.id, email="ex@example.com",
+        invited_by_id=leader.id, speltak=s,
+    )
+    svc.accept_speltak_invite_with_merge(db, user_id=existing.id, speltak_id=s.id)
+
+    from insigne.models import ProgressEntry
+    entries = db.query(ProgressEntry).filter_by(user_id=existing.id).all()
+    assert len(entries) == 1
+    assert entries[0].status == "work_done"
+    # Scout deleted, membership approved
+    assert db.get(User, scout.id) is None
+    m = db.query(SpeltakMembership).filter_by(user_id=existing.id, speltak_id=s.id).first()
+    assert m.approved is True
+    assert m.source_scout_id is None
+
+
+def test_accept_with_merge_prefers_higher_status(db):
+    leader = _user(db, email="leader@example.com")
+    g = svc.create_group(db, name="G", slug="g")
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    scout = _scout(db, g.id, s.id)
+    existing = _user(db, email="ex@example.com")
+    _progress(db, scout.id, step_index=0, status="signed_off")
+    _progress(db, existing.id, step_index=0, status="in_progress")
+
+    svc.attach_email_to_scout(
+        db, scout_user_id=scout.id, email="ex@example.com",
+        invited_by_id=leader.id, speltak=s,
+    )
+    svc.accept_speltak_invite_with_merge(db, user_id=existing.id, speltak_id=s.id)
+
+    from insigne.models import ProgressEntry
+    entries = db.query(ProgressEntry).filter_by(user_id=existing.id).all()
+    assert len(entries) == 1
+    assert entries[0].status == "signed_off"
+
+
+# ── accept_speltak_invite_without_merge ───────────────────────────────────────
+
+def test_accept_without_merge_deletes_scout_and_progress(db):
+    leader = _user(db, email="leader@example.com")
+    g = svc.create_group(db, name="G", slug="g")
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    scout = _scout(db, g.id, s.id)
+    existing = _user(db, email="ex@example.com")
+    _progress(db, scout.id, step_index=0, status="work_done")
+
+    svc.attach_email_to_scout(
+        db, scout_user_id=scout.id, email="ex@example.com",
+        invited_by_id=leader.id, speltak=s,
+    )
+    svc.accept_speltak_invite_without_merge(db, user_id=existing.id, speltak_id=s.id)
+
+    from insigne.models import ProgressEntry
+    # Existing user should have no scout-originated progress
+    entries = db.query(ProgressEntry).filter_by(user_id=existing.id).all()
+    assert entries == []
+    # Scout deleted
+    assert db.get(User, scout.id) is None
+    # Membership approved
+    m = db.query(SpeltakMembership).filter_by(user_id=existing.id, speltak_id=s.id).first()
+    assert m.approved is True

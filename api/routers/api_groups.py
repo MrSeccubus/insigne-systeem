@@ -443,7 +443,24 @@ def accept_speltak_invite(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Speltak not found.")
     if current_user.id != user_id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed.")
-    groups_svc.accept_speltak_invite(db, user_id=user_id, speltak_id=speltak_id)
+    groups_svc.accept_speltak_invite_without_merge(db, user_id=user_id, speltak_id=speltak_id)
+
+
+@router.post("/{group_id}/speltakken/{speltak_id}/members/{user_id}/accept-with-merge",
+             status_code=status.HTTP_204_NO_CONTENT)
+def accept_speltak_invite_with_merge(
+    group_id: str,
+    speltak_id: str,
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    s = groups_svc.get_speltak(db, speltak_id)
+    if not s or s.group_id != group_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Speltak not found.")
+    if current_user.id != user_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed.")
+    groups_svc.accept_speltak_invite_with_merge(db, user_id=user_id, speltak_id=speltak_id)
 
 
 @router.post("/{group_id}/speltakken/{speltak_id}/members/{user_id}/deny",
@@ -542,6 +559,11 @@ def list_my_invitations(
                 role=m.role,
                 withdrawn=m.withdrawn,
                 invited_by_id=m.invited_by_id,
+                source_scout_id=m.source_scout_id,
+                scout_has_progress=(
+                    groups_svc.has_scout_progress(db, m.source_scout_id)
+                    if m.source_scout_id else False
+                ),
             )
             for m in speltak_invites
         ],

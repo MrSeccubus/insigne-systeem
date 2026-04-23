@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
@@ -5,11 +7,14 @@ from sqlalchemy.orm import Session
 from insigne import email as email_svc
 from insigne import groups as groups_svc
 from insigne import users as users_svc
+from insigne.badges import get_badge
 from insigne.config import config
 from insigne.database import get_db
-from insigne.models import GroupMembership, SpeltakMembership
+from insigne.models import GroupMembership, ProgressEntry, Speltak, SpeltakMembership, User as UserModel
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
+
+_DATA_DIR = Path(__file__).parent.parent / "data"
 
 router = APIRouter()
 
@@ -51,7 +56,72 @@ def accept_speltak_invite(speltak_id: str, request: Request, db: Session = Depen
     user, redirect = _require_user(request, db)
     if redirect:
         return redirect
+    m = db.query(SpeltakMembership).filter_by(
+        user_id=user.id, speltak_id=speltak_id, approved=False, withdrawn=False
+    ).first()
+    if m and m.source_scout_id and groups_svc.has_scout_progress(db, m.source_scout_id):
+        speltak = db.get(Speltak, speltak_id)
+        _rank = {"in_progress": 0, "work_done": 1, "pending_signoff": 2, "signed_off": 3}
+        scout_map = {
+            (e.badge_slug, e.level_index, e.step_index): e.status
+            for e in db.query(ProgressEntry).filter_by(user_id=m.source_scout_id).all()
+        }
+        user_map = {
+            (e.badge_slug, e.level_index, e.step_index): e.status
+            for e in db.query(ProgressEntry).filter_by(user_id=user.id).all()
+        }
+        badge_rows = []
+        for slug in sorted({k[0] for k in scout_map}):
+            badge = get_badge(_DATA_DIR, slug)
+            if not badge:
+                continue
+            n_levels = len(badge["levels"])
+            n_niveaus = len(badge["levels"][0]["steps"]) if badge["levels"] else 0
+            # Pivot: niveaus on horizontal axis, eisen (level_index) as tick boxes
+            niveaus = []
+            for si in range(n_niveaus):
+                eisen = []
+                has_changes = False
+                for li in range(n_levels):
+                    scout_s = scout_map.get((slug, li, si))
+                    existing_s = user_map.get((slug, li, si))
+                    if scout_s is None:
+                        result_s, changed = existing_s, False
+                    elif existing_s is None:
+                        result_s, changed = scout_s, True
+                    elif _rank.get(scout_s, 0) > _rank.get(existing_s, 0):
+                        result_s, changed = scout_s, True
+                    else:
+                        result_s, changed = existing_s, False
+                    if changed:
+                        has_changes = True
+                    eisen.append({"before": existing_s, "after": result_s, "changed": changed})
+                niveaus.append({"has_changes": has_changes, "eisen": eisen})
+            badge_rows.append({"title": badge["title"], "niveaus": niveaus})
+        return _page(request, "merge_scout_progress.html", db,
+                     speltak=speltak,
+                     group=speltak.group if speltak else None,
+                     scout=db.get(UserModel, m.source_scout_id),
+                     badge_rows=badge_rows)
     groups_svc.accept_speltak_invite(db, user_id=user.id, speltak_id=speltak_id)
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/invitations/speltak/{speltak_id}/accept-with-merge")
+def accept_speltak_invite_with_merge(speltak_id: str, request: Request, db: Session = Depends(get_db)):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    groups_svc.accept_speltak_invite_with_merge(db, user_id=user.id, speltak_id=speltak_id)
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/invitations/speltak/{speltak_id}/accept-without-merge")
+def accept_speltak_invite_without_merge(speltak_id: str, request: Request, db: Session = Depends(get_db)):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    groups_svc.accept_speltak_invite_without_merge(db, user_id=user.id, speltak_id=speltak_id)
     return RedirectResponse("/", status_code=303)
 
 
@@ -882,7 +952,7 @@ def speltak_set_member_email(
             inviter_name=user.name or user.email,
             description=f"scout bij speltak {speltak.name} van groep {group.name}",
         )
-        success = f"Uitnodiging verstuurd naar {email}. Voortgang is samengevoegd."
+        success = f"Uitnodiging verstuurd naar {email}. De gebruiker kan bij het accepteren kiezen of de voortgang wordt overgenomen."
 
     members = groups_svc.list_speltak_members(db, speltak.id)
     pending_members = groups_svc.list_pending_speltak_members(db, speltak.id)

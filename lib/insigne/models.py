@@ -221,11 +221,13 @@ class SpeltakMembership(Base):
     approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     withdrawn: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     invited_by_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    source_scout_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 
     user: Mapped["User"] = relationship(foreign_keys=[user_id], back_populates="speltak_memberships")
     speltak: Mapped["Speltak"] = relationship(back_populates="memberships")
     invited_by: Mapped["User | None"] = relationship(foreign_keys=[invited_by_id])
+    source_scout: Mapped["User | None"] = relationship(foreign_keys=[source_scout_id])
 
 
 class MembershipRequest(Base):

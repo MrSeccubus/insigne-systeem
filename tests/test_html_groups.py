@@ -168,3 +168,82 @@ class TestGroupRemoveMember:
         assert r.status_code == 303
         members = svc.list_group_members(db, g.id)
         assert any(m.user_id == target.id for m in members)
+
+
+# ── Accept speltak invite with/without merge ──────────────────────────────────
+
+def _scout_user(db, group_id, speltak_id):
+    """Emailless scout with approved speltak membership."""
+    from insigne.models import GroupMembership, SpeltakMembership
+    scout = User(name="Scout", status="active")
+    db.add(scout)
+    db.flush()
+    db.add(SpeltakMembership(user_id=scout.id, speltak_id=speltak_id, role="scout", approved=True))
+    db.add(GroupMembership(user_id=scout.id, group_id=group_id, role="member", approved=True))
+    db.commit()
+    return scout
+
+
+def _progress(db, user_id, badge_slug="b", level_index=0, step_index=0, status="work_done"):
+    from insigne.models import ProgressEntry
+    e = ProgressEntry(user_id=user_id, badge_slug=badge_slug,
+                      level_index=level_index, step_index=step_index, status=status)
+    db.add(e)
+    db.commit()
+    return e
+
+
+class TestAcceptSpeltakInviteWithMerge:
+    def test_merges_progress_and_approves(self, client, db):
+        from insigne.models import ProgressEntry, SpeltakMembership
+        leader = _user(db, email="leader@example.com")
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leader.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        scout = _scout_user(db, g.id, s.id)
+        existing = _user(db, email="ex@example.com", name="Existing")
+        _progress(db, scout.id, status="work_done")
+        svc.attach_email_to_scout(db, scout_user_id=scout.id, email="ex@example.com",
+                                  invited_by_id=leader.id, speltak=s)
+        _login(client, existing)
+        r = client.post(f"/invitations/speltak/{s.id}/accept-with-merge",
+                        follow_redirects=False)
+        assert r.status_code == 303
+        entries = db.query(ProgressEntry).filter_by(user_id=existing.id).all()
+        assert any(e.status == "work_done" for e in entries)
+        m = db.query(SpeltakMembership).filter_by(user_id=existing.id, speltak_id=s.id).first()
+        assert m.approved is True
+
+    def test_requires_login(self, client, db):
+        r = client.post("/invitations/speltak/fake-id/accept-with-merge",
+                        follow_redirects=False)
+        assert r.status_code == 303
+        assert "/login" in r.headers["location"]
+
+
+class TestAcceptSpeltakInviteWithoutMerge:
+    def test_discards_scout_progress_and_approves(self, client, db):
+        from insigne.models import ProgressEntry, SpeltakMembership, User as U
+        leader = _user(db, email="leader2@example.com")
+        g = svc.create_group(db, name="G2", slug="g2", created_by_id=leader.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S2", slug="s2")
+        scout = _scout_user(db, g.id, s.id)
+        scout_id = scout.id
+        existing = _user(db, email="ex2@example.com", name="Existing2")
+        _progress(db, scout.id, status="signed_off")
+        svc.attach_email_to_scout(db, scout_user_id=scout.id, email="ex2@example.com",
+                                  invited_by_id=leader.id, speltak=s)
+        _login(client, existing)
+        r = client.post(f"/invitations/speltak/{s.id}/accept-without-merge",
+                        follow_redirects=False)
+        assert r.status_code == 303
+        assert db.get(U, scout_id) is None
+        entries = db.query(ProgressEntry).filter_by(user_id=existing.id).all()
+        assert entries == []
+        m = db.query(SpeltakMembership).filter_by(user_id=existing.id, speltak_id=s.id).first()
+        assert m.approved is True
+
+    def test_requires_login(self, client, db):
+        r = client.post("/invitations/speltak/fake-id/accept-without-merge",
+                        follow_redirects=False)
+        assert r.status_code == 303
+        assert "/login" in r.headers["location"]

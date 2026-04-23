@@ -584,3 +584,69 @@ class TestAllPendingRequestsAPI:
     def test_requires_authentication(self, client, db):
         r = client.get("/api/requests")
         assert r.status_code == 401
+
+
+# ── Accept speltak invite with merge (API) ────────────────────────────────────
+
+def _scout_with_progress(db, group_id, speltak_id):
+    from insigne.models import GroupMembership, ProgressEntry, SpeltakMembership
+    scout = User(name="Scout", status="active")
+    db.add(scout)
+    db.flush()
+    db.add(SpeltakMembership(user_id=scout.id, speltak_id=speltak_id, role="scout", approved=True))
+    db.add(GroupMembership(user_id=scout.id, group_id=group_id, role="member", approved=True))
+    db.add(ProgressEntry(user_id=scout.id, badge_slug="b", level_index=0, step_index=0, status="work_done"))
+    db.commit()
+    return scout
+
+
+class TestAcceptSpeltakInviteWithMergeAPI:
+    def test_merges_progress_and_returns_204(self, client, db):
+        from insigne.models import ProgressEntry, SpeltakMembership
+        token = _full_register(client, db, email="leader@example.com", name="Leader")
+        leader = db.query(User).filter_by(email="leader@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leader.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        scout = _scout_with_progress(db, g.id, s.id)
+        token2 = _full_register(client, db, email="existing@example.com", name="Existing")
+        existing = db.query(User).filter_by(email="existing@example.com").first()
+        svc.attach_email_to_scout(db, scout_user_id=scout.id, email="existing@example.com",
+                                  invited_by_id=leader.id, speltak=s)
+        r = client.post(
+            f"/api/groups/{g.id}/speltakken/{s.id}/members/{existing.id}/accept-with-merge",
+            headers=_auth(token2),
+        )
+        assert r.status_code == 204
+        entries = db.query(ProgressEntry).filter_by(user_id=existing.id).all()
+        assert any(e.status == "work_done" for e in entries)
+        m = db.query(SpeltakMembership).filter_by(user_id=existing.id, speltak_id=s.id).first()
+        assert m.approved is True
+
+    def test_returns_403_for_other_user(self, client, db):
+        token = _full_register(client, db, email="leader2@example.com", name="Leader2")
+        leader = db.query(User).filter_by(email="leader2@example.com").first()
+        g = svc.create_group(db, name="G2", slug="g2", created_by_id=leader.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S2", slug="s2")
+        r = client.post(
+            f"/api/groups/{g.id}/speltakken/{s.id}/members/other-user-id/accept-with-merge",
+            headers=_auth(token),
+        )
+        assert r.status_code == 403
+
+
+class TestInvitationsIncludeScoutFields:
+    def test_speltak_invite_includes_source_scout_id(self, client, db):
+        token = _full_register(client, db, email="leader3@example.com", name="Leader3")
+        leader = db.query(User).filter_by(email="leader3@example.com").first()
+        g = svc.create_group(db, name="G3", slug="g3", created_by_id=leader.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S3", slug="s3")
+        scout = _scout_with_progress(db, g.id, s.id)
+        token2 = _full_register(client, db, email="existing3@example.com", name="Existing3")
+        existing = db.query(User).filter_by(email="existing3@example.com").first()
+        svc.attach_email_to_scout(db, scout_user_id=scout.id, email="existing3@example.com",
+                                  invited_by_id=leader.id, speltak=s)
+        r = client.get("/api/invitations/me", headers=_auth(token2))
+        assert r.status_code == 200
+        invite = r.json()["speltak_invites"][0]
+        assert invite["source_scout_id"] == scout.id
+        assert invite["scout_has_progress"] is True

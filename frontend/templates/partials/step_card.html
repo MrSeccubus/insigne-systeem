@@ -195,9 +195,7 @@
             {# Peer member forms #}
             {% for opt in scout_signoff_options if opt.type == "speltak_members" %}
             <form x-show="signoffPath === '{{ opt.speltak_id }}_speltak_members'" x-cloak
-                  :hx-post="'/progress/' + entryId + '/request-signoff-members'"
-                  hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
-                  hx-swap="outerHTML">
+                  @submit.prevent="const fd = new FormData($el); fd.set('notes', notes); htmx.ajax('POST', '/progress/' + entryId + '/request-signoff-members', { target: $root, swap: 'outerHTML', values: fd })">
                 <p class="signoff-member-prompt">Wie van de <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong> wil je laten aftekenen?</p>
                 <div class="signoff-member-list">
                     {% for member in opt.members %}
@@ -207,7 +205,6 @@
                     </label>
                     {% endfor %}
                 </div>
-                <input type="hidden" name="notes" :value="notes">
                 <button type="submit" class="btn-secondary btn-sm">Versturen</button>
             </form>
             {% endfor %}

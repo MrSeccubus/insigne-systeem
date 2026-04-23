@@ -124,6 +124,18 @@ def test_set_scout_progress_none_on_nonexistent_is_noop(db):
     assert result is None
 
 
+def test_set_scout_progress_signed_off_sets_attribution(db):
+    g, s = _group_and_speltak(db)
+    leider = _speltakleider(db, s.id, g.id)
+    scout = _scout(db, s.id, g.id)
+    result = svc.set_scout_progress(db, leider_id=leider.id, scout_id=scout.id,
+                                    speltak_id=s.id, badge_slug="badge", level_index=0,
+                                    step_index=0, status="signed_off")
+    assert result.status == "signed_off"
+    assert result.signed_off_by_id == leider.id
+    assert result.signed_off_at is not None
+
+
 def test_set_scout_progress_reverts_signed_off(db):
     g, s = _group_and_speltak(db)
     leider = _speltakleider(db, s.id, g.id)

@@ -230,6 +230,24 @@ class SpeltakMembership(Base):
     source_scout: Mapped["User | None"] = relationship(foreign_keys=[source_scout_id])
 
 
+class SpeltakFavoriteBadge(Base):
+    __tablename__ = "speltak_favorite_badges"
+
+    speltak_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("speltakken.id"), primary_key=True
+    )
+    badge_slug: Mapped[str] = mapped_column(String(100), primary_key=True)
+
+
+class GroupFavoriteBadge(Base):
+    __tablename__ = "group_favorite_badges"
+
+    group_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("groups.id"), primary_key=True
+    )
+    badge_slug: Mapped[str] = mapped_column(String(100), primary_key=True)
+
+
 class MembershipRequest(Base):
     __tablename__ = "membership_requests"
 

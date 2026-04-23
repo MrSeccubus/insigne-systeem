@@ -1,0 +1,15 @@
+{# Leider-editable step-check cell. Variables:
+   scout_id, badge_slug, level_index, step_index, entry_status,
+   group_slug, speltak_slug, can_edit_cell, next_status #}
+<span id="leider-check-{{ scout_id }}-{{ badge_slug }}-{{ level_index }}-{{ step_index }}"
+      class="step-check{% if entry_status and entry_status != 'none' %} step-check-{{ entry_status }}{% endif %}"
+      title="{% if entry_status == 'signed_off' %}Afgetekend{% elif entry_status == 'pending_signoff' %}Wacht op aftekenen{% elif entry_status == 'work_done' %}Klaar{% elif entry_status == 'in_progress' %}Bezig{% else %}Niet gestart{% endif %}"
+      {% if can_edit_cell %}
+      style="cursor:pointer;"
+      hx-post="/groups/{{ group_slug }}/speltakken/{{ speltak_slug }}/scouts/{{ scout_id }}/progress/set"
+      hx-vals='{"badge_slug":"{{ badge_slug }}","level_index":{{ level_index }},"step_index":{{ step_index }},"status":"{{ next_status }}"}'
+      hx-target="this"
+      hx-swap="outerHTML"
+      {% endif %}>
+    {%- if entry_status == 'signed_off' -%}✓{%- elif entry_status == 'pending_signoff' -%}?{%- endif -%}
+</span>

@@ -6,8 +6,9 @@ from sqlalchemy.orm import Session
 
 from insigne import email as email_svc
 from insigne import groups as groups_svc
+from insigne import progress as progress_svc
 from insigne import users as users_svc
-from insigne.badges import get_badge
+from insigne.badges import get_badge, list_badges
 from insigne.config import config
 from insigne.database import get_db
 from insigne.models import GroupMembership, ProgressEntry, Speltak, SpeltakMembership, User as UserModel
@@ -1035,3 +1036,185 @@ def speltak_set_role(
     return RedirectResponse(f"/groups/{group_slug}/speltakken/{speltak_slug}", status_code=303)
 
 
+
+
+# ── Leider progress management ────────────────────────────────────────────────
+
+_NEXT_STATUS = {
+    "none": "in_progress",
+    "in_progress": "work_done",
+    "work_done": "none",
+    "pending_signoff": "pending_signoff",
+    "signed_off": "work_done",
+}
+
+
+@router.get("/my-speltakken", response_class=HTMLResponse)
+def my_speltakken(request: Request, db: Session = Depends(get_db)):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    pairs = groups_svc.list_my_speltakken(db, user.id)
+    if len(pairs) == 1:
+        group, speltak = pairs[0]
+        return RedirectResponse(
+            f"/groups/{group.slug}/speltakken/{speltak.slug}/progress",
+            status_code=303,
+        )
+    nav_entries = {}
+    for group, speltak in pairs:
+        nav_entries.setdefault(group.id, {"group": group, "speltakken": []})
+        nav_entries[group.id]["speltakken"].append(speltak)
+    return _page(request, "my_speltakken.html", db,
+                 nav_entries=list(nav_entries.values()))
+
+
+@router.get("/groups/{group_slug}/progress", response_class=HTMLResponse)
+def group_progress(group_slug: str, request: Request, db: Session = Depends(get_db)):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    group = groups_svc.get_group_by_slug(db, group_slug)
+    if not group:
+        return RedirectResponse("/groups", status_code=303)
+    if not groups_svc.can_manage_group(user, db, group.id):
+        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+    speltakken_data = [
+        {
+            "speltak": s,
+            "member_count": len(groups_svc.list_speltak_members(db, s.id)),
+            "progress_url": f"/groups/{group_slug}/speltakken/{s.slug}/progress",
+        }
+        for s in group.speltakken
+    ]
+    members_without_speltak = groups_svc.list_members_without_speltak(db, group.id)
+    return _page(request, "group_progress.html", db,
+                 group=group,
+                 speltakken_data=speltakken_data,
+                 members_without_speltak=members_without_speltak)
+
+
+@router.get("/groups/{group_slug}/speltakken/{speltak_slug}/progress",
+            response_class=HTMLResponse)
+def speltak_progress(
+    group_slug: str, speltak_slug: str,
+    request: Request,
+    only_favorites: bool = Query(False),
+    db: Session = Depends(get_db),
+):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    group = groups_svc.get_group_by_slug(db, group_slug)
+    if not group:
+        return RedirectResponse("/groups", status_code=303)
+    speltak = groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
+    if not speltak:
+        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+    if not groups_svc.can_manage_speltak(user, db, speltak.id):
+        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+
+    memberships = groups_svc.list_speltak_members(db, speltak.id)
+    scout_ids = [m.user_id for m in memberships]
+    progress_by_scout = progress_svc.list_progress_for_scouts(db, scout_ids)
+    favorite_slugs = groups_svc.get_speltak_favorite_slugs(db, speltak.id)
+    can_edit = not speltak.peer_signoff
+
+    all_badges_raw = list_badges(_DATA_DIR)
+    all_badges = {}
+    for category, slugs in all_badges_raw.items():
+        badge_list = []
+        for slug in slugs:
+            badge = get_badge(_DATA_DIR, slug)
+            if badge:
+                badge["n_levels"] = len(badge["levels"])
+                badge_list.append(badge)
+        all_badges[category] = badge_list
+
+    return _page(request, "speltak_progress.html", db,
+                 group=group, speltak=speltak,
+                 memberships=memberships,
+                 progress_by_scout=progress_by_scout,
+                 favorite_slugs=favorite_slugs,
+                 all_badges=all_badges,
+                 can_edit=can_edit,
+                 only_favorites=only_favorites,
+                 leider_id=user.id)
+
+
+@router.post("/groups/{group_slug}/speltakken/{speltak_slug}/scouts/{scout_id}/progress/set",
+             response_class=HTMLResponse)
+def speltak_set_scout_progress(
+    group_slug: str, speltak_slug: str, scout_id: str,
+    request: Request,
+    badge_slug: str = Form(...),
+    level_index: int = Form(...),
+    step_index: int = Form(...),
+    status: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    group = groups_svc.get_group_by_slug(db, group_slug)
+    speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
+    if not speltak:
+        return HTMLResponse("", status_code=404)
+
+    try:
+        entry = progress_svc.set_scout_progress(
+            db, leider_id=user.id, scout_id=scout_id,
+            speltak_id=speltak.id, badge_slug=badge_slug,
+            level_index=level_index, step_index=step_index, status=status,
+        )
+    except (progress_svc.Forbidden, progress_svc.Conflict, ValueError):
+        from insigne.models import ProgressEntry as PE
+        entry = db.query(PE).filter_by(
+            user_id=scout_id, badge_slug=badge_slug,
+            level_index=level_index, step_index=step_index,
+        ).first()
+
+    entry_status = entry.status if entry else "none"
+    can_edit = not speltak.peer_signoff
+    can_edit_cell = can_edit and scout_id != user.id and entry_status != "pending_signoff"
+    return _TEMPLATES.TemplateResponse(
+        request=request,
+        name="partials/leider_step_check.html",
+        context={
+            "scout_id": scout_id,
+            "badge_slug": badge_slug,
+            "level_index": level_index,
+            "step_index": step_index,
+            "entry_status": entry_status,
+            "group_slug": group_slug,
+            "speltak_slug": speltak_slug,
+            "can_edit_cell": can_edit_cell,
+            "next_status": _NEXT_STATUS.get(entry_status, "in_progress"),
+        },
+    )
+
+
+@router.post("/groups/{group_slug}/speltakken/{speltak_slug}/favorite-badge",
+             response_class=HTMLResponse)
+def speltak_toggle_favorite_badge(
+    group_slug: str, speltak_slug: str,
+    request: Request,
+    badge_slug: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return HTMLResponse("", status_code=401)
+    group = groups_svc.get_group_by_slug(db, group_slug)
+    speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
+    if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
+        return HTMLResponse("", status_code=403)
+    is_fav = groups_svc.toggle_speltak_favorite_badge(db, speltak.id, badge_slug)
+    label = "Verwijder uit favorieten" if is_fav else "Voeg toe aan favorieten"
+    star = "★" if is_fav else "☆"
+    return HTMLResponse(
+        f'<button hx-post="/groups/{group_slug}/speltakken/{speltak_slug}/favorite-badge" '
+        f'hx-vals=\'{{"badge_slug":"{badge_slug}"}}\' hx-target="this" hx-swap="outerHTML" '
+        f'class="btn-sm btn-neutral" style="font-size:1rem;padding:0 0.4rem;line-height:1.6;" '
+        f'title="{label}">{star}</button>'
+    )

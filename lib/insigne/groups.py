@@ -8,9 +8,11 @@ from sqlalchemy.orm import Session
 from insigne.models import (
     ConfirmationToken,
     Group,
+    GroupFavoriteBadge,
     GroupMembership,
     ProgressEntry,
     Speltak,
+    SpeltakFavoriteBadge,
     SpeltakMembership,
     User,
 )
@@ -798,3 +800,52 @@ def reject_membership_request(
     db.commit()
     db.refresh(req)
     return req
+
+
+# ── Leider progress management ────────────────────────────────────────────────
+
+def list_my_speltakken(db: Session, user_id: str) -> list[tuple[Group, Speltak]]:
+    """Return (group, speltak) pairs where user is explicitly a speltakleider.
+    Does NOT include speltakken where user is merely groepsleider or admin."""
+    memberships = (
+        db.query(SpeltakMembership)
+        .filter_by(user_id=user_id, role="speltakleider", approved=True, withdrawn=False)
+        .all()
+    )
+    return [(m.speltak.group, m.speltak) for m in memberships]
+
+
+def get_speltak_favorite_slugs(db: Session, speltak_id: str) -> set[str]:
+    rows = db.query(SpeltakFavoriteBadge).filter_by(speltak_id=speltak_id).all()
+    return {r.badge_slug for r in rows}
+
+
+def toggle_speltak_favorite_badge(db: Session, speltak_id: str, badge_slug: str) -> bool:
+    existing = db.query(SpeltakFavoriteBadge).filter_by(
+        speltak_id=speltak_id, badge_slug=badge_slug
+    ).first()
+    if existing:
+        db.delete(existing)
+        db.commit()
+        return False
+    db.add(SpeltakFavoriteBadge(speltak_id=speltak_id, badge_slug=badge_slug))
+    db.commit()
+    return True
+
+
+def get_group_favorite_slugs(db: Session, group_id: str) -> set[str]:
+    rows = db.query(GroupFavoriteBadge).filter_by(group_id=group_id).all()
+    return {r.badge_slug for r in rows}
+
+
+def toggle_group_favorite_badge(db: Session, group_id: str, badge_slug: str) -> bool:
+    existing = db.query(GroupFavoriteBadge).filter_by(
+        group_id=group_id, badge_slug=badge_slug
+    ).first()
+    if existing:
+        db.delete(existing)
+        db.commit()
+        return False
+    db.add(GroupFavoriteBadge(group_id=group_id, badge_slug=badge_slug))
+    db.commit()
+    return True

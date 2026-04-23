@@ -23,6 +23,8 @@ EXPECTED_TABLES = {
     "group_memberships",
     "speltak_memberships",
     "membership_requests",
+    "speltak_favorite_badges",
+    "group_favorite_badges",
 }
 
 

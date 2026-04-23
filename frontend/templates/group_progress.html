@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Voortgang {{ group.name }} — Insigne Systeem{% endblock %}
+{% block content %}
+<main>
+    <div style="max-width:800px;margin:2rem auto;">
+
+        <nav style="font-size:0.85rem;color:#888;margin-bottom:1rem;">
+            <a href="/groups">Groepen</a> /
+            <a href="/groups/{{ group.slug }}">{{ group.name }}</a> /
+            Voortgang
+        </nav>
+
+        <h1 style="font-size:1.4rem;margin-bottom:1.5rem;">Voortgang — {{ group.name }}</h1>
+
+        {% if speltakken_data %}
+        <section style="margin-bottom:2rem;">
+            <h2 style="font-size:1.1rem;margin-bottom:0.75rem;">Speltakken</h2>
+            <ul class="item-list">
+                {% for entry in speltakken_data %}
+                <li class="item-list-row">
+                    <span>
+                        {{ entry.speltak.name }}
+                        <span style="font-size:0.8rem;color:#888;margin-left:0.5rem;">{{ entry.member_count }} scout{{ 's' if entry.member_count != 1 }}</span>
+                    </span>
+                    <span class="row-actions">
+                        <a href="{{ entry.progress_url }}" class="btn-neutral btn-sm" style="text-decoration:none;">
+                            Voortgang bekijken →
+                        </a>
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+
+        {% if members_without_speltak %}
+        <section style="margin-bottom:2rem;">
+            <h2 style="font-size:1.1rem;margin-bottom:0.75rem;">Leden zonder speltak</h2>
+            <ul class="item-list">
+                {% for m in members_without_speltak %}
+                <li class="item-list-row">
+                    <span>{{ m.user.name or m.user.email or '(onbekend)' }}</span>
+                    <span class="role-badge role-badge--{{ m.role }}">{{ m.role }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+
+        {% if not speltakken_data and not members_without_speltak %}
+        <p class="empty-state">Geen speltakken of leden gevonden.</p>
+        {% endif %}
+
+    </div>
+</main>
+{% endblock %}

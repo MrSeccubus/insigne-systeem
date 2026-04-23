@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from insigne import groups as groups_svc
+from insigne import progress as progress_svc
 from insigne.config import config
 from insigne.database import get_db
 from insigne.models import User
@@ -17,11 +18,15 @@ from schemas import (
     InvitationListResponse,
     GroupInvitationResponse,
     MembershipRequestResponse,
+    ProgressEntryResponse,
+    SetScoutProgressRequest,
     SpeltakInvitationResponse,
     SetMemberRoleRequest,
     SetSpeltakRoleRequest,
     SpeltakMembershipResponse,
     SpeltakResponse,
+    ToggleFavoriteBadgeRequest,
+    ToggleFavoriteBadgeResponse,
     TransferScoutRequest,
     UpdateGroupRequest,
     UpdateSpeltakRequest,
@@ -660,3 +665,119 @@ def list_all_pending_requests(
 ):
     reqs = groups_svc.list_all_pending_requests_for_leader(db, current_user.id)
     return [_req_response(r) for r in reqs]
+
+
+# ── Leider progress management ────────────────────────────────────────────────
+
+def _progress_entry_response(entry) -> ProgressEntryResponse:
+    from schemas import UserRefResponse
+    return ProgressEntryResponse(
+        id=entry.id,
+        badge_slug=entry.badge_slug,
+        level_index=entry.level_index,
+        step_index=entry.step_index,
+        notes=entry.notes,
+        status=entry.status,
+        pending_mentors=[
+            UserRefResponse(user_id=sr.mentor.id, name=sr.mentor.name)
+            for sr in entry.signoff_requests
+        ],
+        signed_off_by=(
+            UserRefResponse(user_id=entry.signed_off_by.id, name=entry.signed_off_by.name)
+            if entry.signed_off_by else None
+        ),
+        signed_off_at=entry.signed_off_at,
+        created_at=entry.created_at,
+    )
+
+
+@router.post("/{group_id}/speltakken/{speltak_id}/scouts/{scout_id}/progress/set")
+def api_set_scout_progress(
+    group_id: str, speltak_id: str, scout_id: str,
+    body: SetScoutProgressRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not groups_svc.get_group(db, group_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found.")
+    if not groups_svc.can_manage_speltak(current_user, db, speltak_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed.")
+    try:
+        entry = progress_svc.set_scout_progress(
+            db,
+            leider_id=current_user.id,
+            scout_id=scout_id,
+            speltak_id=speltak_id,
+            badge_slug=body.badge_slug,
+            level_index=body.level_index,
+            step_index=body.step_index,
+            status=body.status,
+        )
+    except progress_svc.Forbidden as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
+    except progress_svc.Conflict as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e))
+    except ValueError as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e))
+    if entry is None:
+        return {}
+    return _progress_entry_response(entry)
+
+
+@router.get("/{group_id}/speltakken/{speltak_id}/favorite-badges",
+            response_model=list[str])
+def api_get_speltak_favorites(
+    group_id: str, speltak_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not groups_svc.get_group(db, group_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found.")
+    if not groups_svc.can_manage_speltak(current_user, db, speltak_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed.")
+    return sorted(groups_svc.get_speltak_favorite_slugs(db, speltak_id))
+
+
+@router.post("/{group_id}/speltakken/{speltak_id}/favorite-badges/toggle",
+             response_model=ToggleFavoriteBadgeResponse)
+def api_toggle_speltak_favorite(
+    group_id: str, speltak_id: str,
+    body: ToggleFavoriteBadgeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not groups_svc.get_group(db, group_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found.")
+    if not groups_svc.can_manage_speltak(current_user, db, speltak_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed.")
+    is_fav = groups_svc.toggle_speltak_favorite_badge(db, speltak_id, body.badge_slug)
+    return ToggleFavoriteBadgeResponse(badge_slug=body.badge_slug, is_favorite=is_fav)
+
+
+@router.get("/{group_id}/favorite-badges", response_model=list[str])
+def api_get_group_favorites(
+    group_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not groups_svc.get_group(db, group_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found.")
+    if not groups_svc.can_manage_group(current_user, db, group_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed.")
+    return sorted(groups_svc.get_group_favorite_slugs(db, group_id))
+
+
+@router.post("/{group_id}/favorite-badges/toggle",
+             response_model=ToggleFavoriteBadgeResponse)
+def api_toggle_group_favorite(
+    group_id: str,
+    body: ToggleFavoriteBadgeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not groups_svc.get_group(db, group_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found.")
+    if not groups_svc.can_manage_group(current_user, db, group_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed.")
+    is_fav = groups_svc.toggle_group_favorite_badge(db, group_id, body.badge_slug)
+    return ToggleFavoriteBadgeResponse(badge_slug=body.badge_slug, is_favorite=is_fav)

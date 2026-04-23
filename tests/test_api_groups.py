@@ -650,3 +650,155 @@ class TestInvitationsIncludeScoutFields:
         invite = r.json()["speltak_invites"][0]
         assert invite["source_scout_id"] == scout.id
         assert invite["scout_has_progress"] is True
+
+
+# ── Leider progress management API ────────────────────────────────────────────
+
+def _speltakleider_api(client, db, group_id, speltak_id,
+                        email="sleider@example.com", name="Leider"):
+    from insigne.models import GroupMembership, SpeltakMembership
+    token = _full_register(client, db, email=email, name=name)
+    leider = db.query(User).filter_by(email=email).first()
+    db.add(GroupMembership(user_id=leider.id, group_id=group_id, role="member", approved=True))
+    db.add(SpeltakMembership(user_id=leider.id, speltak_id=speltak_id,
+                              role="speltakleider", approved=True))
+    db.commit()
+    return token, leider
+
+
+def _scout_api(db, group_id, speltak_id, email=None, name="Scout"):
+    from insigne.models import GroupMembership, SpeltakMembership
+    scout = User(email=email, name=name, status="active")
+    db.add(scout)
+    db.flush()
+    db.add(GroupMembership(user_id=scout.id, group_id=group_id, role="member", approved=True))
+    db.add(SpeltakMembership(user_id=scout.id, speltak_id=speltak_id,
+                              role="scout", approved=True))
+    db.commit()
+    return scout
+
+
+class TestSetScoutProgressAPI:
+    def _setup(self, client, db):
+        g = svc.create_group(db, name="G", slug="g")
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        token, leider = _speltakleider_api(client, db, g.id, s.id)
+        scout = _scout_api(db, g.id, s.id)
+        return g, s, token, leider, scout
+
+    def test_set_in_progress_returns_200(self, client, db):
+        g, s, token, leider, scout = self._setup(client, db)
+        r = client.post(
+            f"/api/groups/{g.id}/speltakken/{s.id}/scouts/{scout.id}/progress/set",
+            json={"badge_slug": "b", "level_index": 0, "step_index": 0, "status": "in_progress"},
+            headers=_auth(token),
+        )
+        assert r.status_code == 200
+        assert r.json()["status"] == "in_progress"
+
+    def test_reset_to_none_returns_empty(self, client, db):
+        from insigne.models import ProgressEntry
+        g, s, token, leider, scout = self._setup(client, db)
+        e = ProgressEntry(user_id=scout.id, badge_slug="b", level_index=0,
+                           step_index=0, status="work_done")
+        db.add(e); db.commit()
+        r = client.post(
+            f"/api/groups/{g.id}/speltakken/{s.id}/scouts/{scout.id}/progress/set",
+            json={"badge_slug": "b", "level_index": 0, "step_index": 0, "status": "none"},
+            headers=_auth(token),
+        )
+        assert r.status_code == 200
+        assert r.json() == {}
+
+    def test_forbidden_for_non_leider(self, client, db):
+        g, s, token, leider, scout = self._setup(client, db)
+        other_token = _full_register(client, db, email="other@x.com", name="Other")
+        r = client.post(
+            f"/api/groups/{g.id}/speltakken/{s.id}/scouts/{scout.id}/progress/set",
+            json={"badge_slug": "b", "level_index": 0, "step_index": 0, "status": "in_progress"},
+            headers=_auth(other_token),
+        )
+        assert r.status_code == 403
+
+    def test_conflict_on_pending_signoff(self, client, db):
+        from insigne.models import ProgressEntry
+        g, s, token, leider, scout = self._setup(client, db)
+        e = ProgressEntry(user_id=scout.id, badge_slug="b", level_index=0,
+                           step_index=0, status="pending_signoff")
+        db.add(e); db.commit()
+        r = client.post(
+            f"/api/groups/{g.id}/speltakken/{s.id}/scouts/{scout.id}/progress/set",
+            json={"badge_slug": "b", "level_index": 0, "step_index": 0, "status": "work_done"},
+            headers=_auth(token),
+        )
+        assert r.status_code == 409
+
+
+class TestSpeltakFavoriteBadgesAPI:
+    def _setup(self, client, db):
+        g = svc.create_group(db, name="G", slug="g")
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        token, leider = _speltakleider_api(client, db, g.id, s.id)
+        return g, s, token
+
+    def test_get_favorites_empty(self, client, db):
+        g, s, token = self._setup(client, db)
+        r = client.get(f"/api/groups/{g.id}/speltakken/{s.id}/favorite-badges",
+                       headers=_auth(token))
+        assert r.status_code == 200
+        assert r.json() == []
+
+    def test_toggle_on(self, client, db):
+        g, s, token = self._setup(client, db)
+        r = client.post(f"/api/groups/{g.id}/speltakken/{s.id}/favorite-badges/toggle",
+                        json={"badge_slug": "internationaal"}, headers=_auth(token))
+        assert r.status_code == 200
+        assert r.json() == {"badge_slug": "internationaal", "is_favorite": True}
+
+    def test_toggle_off(self, client, db):
+        g, s, token = self._setup(client, db)
+        svc.toggle_speltak_favorite_badge(db, s.id, "internationaal")
+        r = client.post(f"/api/groups/{g.id}/speltakken/{s.id}/favorite-badges/toggle",
+                        json={"badge_slug": "internationaal"}, headers=_auth(token))
+        assert r.json()["is_favorite"] is False
+
+    def test_forbidden_for_scout(self, client, db):
+        g, s, token = self._setup(client, db)
+        scout_token = _full_register(client, db, email="sc@x.com", name="Scout")
+        r = client.get(f"/api/groups/{g.id}/speltakken/{s.id}/favorite-badges",
+                       headers=_auth(scout_token))
+        assert r.status_code == 403
+
+
+class TestGroupFavoriteBadgesAPI:
+    def _setup(self, client, db):
+        gl_token = _full_register(client, db, email="gl@x.com", name="GL")
+        gl = db.query(User).filter_by(email="gl@x.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=gl.id)
+        return g, gl_token
+
+    def test_get_favorites_empty(self, client, db):
+        g, token = self._setup(client, db)
+        r = client.get(f"/api/groups/{g.id}/favorite-badges", headers=_auth(token))
+        assert r.status_code == 200
+        assert r.json() == []
+
+    def test_toggle_on(self, client, db):
+        g, token = self._setup(client, db)
+        r = client.post(f"/api/groups/{g.id}/favorite-badges/toggle",
+                        json={"badge_slug": "kamperen"}, headers=_auth(token))
+        assert r.status_code == 200
+        assert r.json() == {"badge_slug": "kamperen", "is_favorite": True}
+
+    def test_toggle_off(self, client, db):
+        g, token = self._setup(client, db)
+        svc.toggle_group_favorite_badge(db, g.id, "kamperen")
+        r = client.post(f"/api/groups/{g.id}/favorite-badges/toggle",
+                        json={"badge_slug": "kamperen"}, headers=_auth(token))
+        assert r.json()["is_favorite"] is False
+
+    def test_forbidden_for_non_manager(self, client, db):
+        g, token = self._setup(client, db)
+        other_token = _full_register(client, db, email="oth@x.com", name="Other")
+        r = client.get(f"/api/groups/{g.id}/favorite-badges", headers=_auth(other_token))
+        assert r.status_code == 403

@@ -1217,3 +1217,118 @@ These endpoints serve the HTMX frontend. Full pages are returned on direct navig
 | `POST` | `/invitations/speltak/{speltak_id}/deny` | Deny speltak invite |
 | `POST` | `/invitations/group/{group_id}/dismiss` | Dismiss withdrawn group invite |
 | `POST` | `/invitations/speltak/{speltak_id}/dismiss` | Dismiss withdrawn speltak invite |
+
+### Speltakleider progress HTML pages
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/my-speltakken` | Dispatch: redirects to speltak progress if only one; lists all explicit speltakleider memberships otherwise (auth required) |
+| `GET` | `/groups/{slug}/progress` | Group progress hub — lists all speltakken with member counts and links; groepsleider/admin only (auth required) |
+| `GET` | `/groups/{slug}/speltakken/{speltak_slug}/progress` | Badge-first progress overview for all scouts in the speltak; requires speltakleider or groepsleider (auth required) |
+
+**Query parameters for speltak progress page:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `only_favorites` | boolean | `false` | Show only badges marked as favorites for this speltak |
+
+### Speltakleider progress HTML actions (HTMX partials / form POST)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/groups/{slug}/speltakken/{speltak_slug}/scouts/{scout_id}/progress/set` | HTMX: cycle a scout's step status; returns updated `leider_step_check` partial. Requires speltakleider. |
+| `POST` | `/groups/{slug}/speltakken/{speltak_slug}/favorite-badge` | HTMX: toggle favorite status for a badge in this speltak; returns updated star span. Requires speltakleider. |
+
+**Form fields for `progress/set`:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `badge_slug` | string | Badge being updated |
+| `level_index` | integer | Eis index (0–4) |
+| `step_index` | integer | Niveau index (0–2) |
+| `status` | string | New status: `none` \| `in_progress` \| `work_done` |
+
+**Form fields for `favorite-badge`:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `badge_slug` | string | Badge slug to toggle |
+
+---
+
+### Speltak and group favorite badge endpoints (JSON API)
+
+#### `GET /api/groups/{group_id}/speltakken/{speltak_id}/favorite-badges` — List speltak favorites 🔒
+
+Requires speltakleider or groepsleider.
+
+**Response `200`:** `string[]` — list of badge slugs marked as favorites for this speltak.
+
+---
+
+#### `POST /api/groups/{group_id}/speltakken/{speltak_id}/favorite-badges/toggle` — Toggle speltak favorite 🔒
+
+Requires speltakleider or groepsleider.
+
+**Request body:**
+
+```json
+{ "badge_slug": "vredeslicht" }
+```
+
+**Response `200`:**
+
+```json
+{ "badge_slug": "vredeslicht", "is_favorite": true }
+```
+
+---
+
+#### `GET /api/groups/{group_id}/favorite-badges` — List group favorites 🔒
+
+Requires groepsleider.
+
+**Response `200`:** `string[]` — list of badge slugs marked as favorites for this group.
+
+---
+
+#### `POST /api/groups/{group_id}/favorite-badges/toggle` — Toggle group favorite 🔒
+
+Requires groepsleider.
+
+**Request body:**
+
+```json
+{ "badge_slug": "vredeslicht" }
+```
+
+**Response `200`:**
+
+```json
+{ "badge_slug": "vredeslicht", "is_favorite": true }
+```
+
+---
+
+#### `POST /api/groups/{group_id}/speltakken/{speltak_id}/scouts/{scout_id}/progress/set` — Set scout progress 🔒
+
+Requires speltakleider or groepsleider. Cycles a scout's step progress. A `signed_off` entry may be reverted to `work_done` to correct mistakes.
+
+**Request body:**
+
+```json
+{
+  "badge_slug": "vredeslicht",
+  "level_index": 0,
+  "step_index": 1,
+  "status": "in_progress"
+}
+```
+
+`status` must be `none`, `in_progress`, or `work_done`. `none` deletes the entry.
+
+**Response `200`:** Updated `ProgressEntry`, or `{}` when `status` is `none` (entry deleted).
+
+**Response `403`:** Not authorized to manage this speltak, or attempting to edit own progress, or scout is not in this speltak.
+
+**Response `409`:** Entry is in `pending_signoff` status and cannot be changed.

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Voortgang {{ speltak.name }} — Insigne Systeem{% endblock %}
+{% block content %}
+<main>
+    <div style="max-width:1100px;margin:2rem auto;">
+
+        <nav style="font-size:0.85rem;color:#888;margin-bottom:1rem;">
+            <a href="/groups">Groepen</a> /
+            <a href="/groups/{{ group.slug }}">{{ group.name }}</a> /
+            <a href="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}">{{ speltak.name }}</a> /
+            Voortgang
+        </nav>
+
+        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem;">
+            <h1 style="font-size:1.4rem;margin:0;">Voortgang — {{ speltak.name }}</h1>
+            <span style="display:flex;gap:0.5rem;">
+                <a href="?only_favorites=0"
+                   class="btn-sm {% if not only_favorites %}btn-primary{% else %}btn-neutral{% endif %}"
+                   style="text-decoration:none;">Alle badges</a>
+                <a href="?only_favorites=1"
+                   class="btn-sm {% if only_favorites %}btn-primary{% else %}btn-neutral{% endif %}"
+                   style="text-decoration:none;">Alleen favorieten</a>
+            </span>
+        </div>
+
+        {% if speltak.peer_signoff %}
+        <div class="alert-info" style="margin-bottom:1.5rem;padding:0.75rem 1rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:0.9rem;">
+            Deze speltak gebruikt peer-aftekening. De voortgang is hier alleen-lezen.
+        </div>
+        {% endif %}
+
+        {% if not members %}
+        <p class="empty-state">Nog geen scouts in deze speltak.</p>
+        {% endif %}
+
+        {% set category_labels = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes"} %}
+        {% set NEXT = {"none":"in_progress","in_progress":"work_done","work_done":"none","pending_signoff":"pending_signoff","signed_off":"work_done"} %}
+
+        {% for category, badges in all_badges.items() %}
+        {% set visible_badges = badges | selectattr("slug", "in", favorite_slugs) | list if only_favorites else badges %}
+        {% if visible_badges %}
+        <h2 class="section-header">{{ category_labels.get(category, category ~ ' insignes') }}</h2>
+
+        {% for badge in visible_badges %}
+        <div style="margin-bottom:2rem;">
+            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">
+                <h3 class="badge-group-title" style="margin:0;">{{ badge.title }}</h3>
+                {% if can_edit %}
+                <button
+                    hx-post="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/favorite-badge"
+                    hx-vals='{"badge_slug":"{{ badge.slug }}"}'
+                    hx-target="this"
+                    hx-swap="outerHTML"
+                    class="btn-sm btn-neutral"
+                    style="font-size:1rem;padding:0 0.4rem;line-height:1.6;"
+                    title="{% if badge.slug in favorite_slugs %}Verwijder uit favorieten{% else %}Voeg toe aan favorieten{% endif %}">
+                    {% if badge.slug in favorite_slugs %}★{% else %}☆{% endif %}
+                </button>
+                {% endif %}
+            </div>
+
+            <div class="badge-grid">
+                {% for step_index in range(3) %}
+                <div class="badge-card" style="cursor:default;text-decoration:none;">
+                    <h3 class="badge-card-level">Niveau {{ step_index + 1 }}</h3>
+                    <div style="width:100%;">
+                        {% if members %}
+                        <details {% if members | length <= 10 %}open{% endif %}>
+                            <summary style="font-size:0.75rem;color:#888;cursor:pointer;list-style:none;padding:0.2rem 0;">
+                                {{ members | length }} scout{{ 's' if members | length != 1 }}
+                            </summary>
+                            <div style="margin-top:0.4rem;">
+                            {% for m in members %}
+                            {% set scout_progress = progress_by_scout.get(m.user_id, {}) %}
+                            <div style="display:flex;align-items:center;gap:0.4rem;padding:0.2rem 0;border-bottom:1px solid #f3f4f6;">
+                                <span style="font-size:0.75rem;min-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#374151;" title="{{ m.user.name or '(onbekend)' }}">
+                                    {{ m.user.name or '(onbekend)' }}
+                                </span>
+                                <div class="niveau-checks" style="margin:0;gap:2px;">
+                                    {% for level_index in range(badge.n_levels) %}
+                                    {% set entry = scout_progress.get((level_index, step_index)) %}
+                                    {% set entry_status = entry.status if entry else "none" %}
+                                    {% set can_edit_cell = can_edit and m.user_id != leider_id and entry_status != "pending_signoff" %}
+                                    {% set next_status = NEXT[entry_status] %}
+                                    {% set scout_id = m.user_id %}
+                                    {% include "partials/leider_step_check.html" %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                            </div>
+                        </details>
+                        {% else %}
+                        <p style="font-size:0.8rem;color:#888;">Geen scouts.</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endfor %}
+
+        {% if only_favorites and not favorite_slugs %}
+        <p class="empty-state">Geen favoriete badges ingesteld. Klik op ☆ naast een badge om deze als favoriet te markeren.</p>
+        {% endif %}
+
+    </div>
+</main>
+{% endblock %}

@@ -184,6 +184,7 @@
         </div>
     </section>
 
+    {% if not speltak.peer_signoff %}
     <section style="margin-top:2rem;">
         <h2>Scout zonder account toevoegen</h2>
         <form method="post" action="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/new-scout" style="max-width:480px;">
@@ -194,6 +195,7 @@
             <button type="submit" class="btn-success">Toevoegen</button>
         </form>
     </section>
+    {% endif %}
     {% endif %}
 </main>
 {% endblock %}

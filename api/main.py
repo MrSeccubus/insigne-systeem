@@ -9,9 +9,10 @@ import insigne.models  # noqa: F401 — registers all ORM classes on Base.metada
 from insigne import groups as groups_svc
 from insigne import progress as progress_svc
 from insigne.badges import get_badge, list_badges
+from insigne.config import config
 from insigne.database import get_db
 from routers import api_auth, api_badges, api_groups, api_progress, api_users, html_badges, html_groups, users
-from routers.api_groups import invitations_router
+from routers.api_groups import invitations_router, pending_requests_router
 from routers.users import _get_current_user
 from templates import templates
 
@@ -31,6 +32,7 @@ app.include_router(api_progress.router, prefix="/api")
 app.include_router(api_badges.router, prefix="/api")
 app.include_router(api_groups.router, prefix="/api")
 app.include_router(invitations_router, prefix="/api")
+app.include_router(pending_requests_router, prefix="/api")
 
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="static")
@@ -47,11 +49,18 @@ async def index(request: Request, db: Session = Depends(get_db)):
 
     group_invites: list = []
     speltak_invites: list = []
+    my_requests: list = []
+    pending_request_count = 0
+    my_group_memberships: list = []
+    my_speltak_memberships: list = []
     if current_user:
         for entry in progress_svc.list_progress(db, current_user.id):
             all_progress.setdefault(entry.badge_slug, {})[(entry.level_index, entry.step_index)] = entry
         signoff_count = len(progress_svc.list_signoff_requests(db, current_user.id))
         group_invites, speltak_invites = groups_svc.list_pending_invitations_for_user(db, current_user.id)
+        my_requests = groups_svc.list_my_membership_requests(db, current_user.id)
+        pending_request_count = groups_svc.count_pending_requests_for_leader(db, current_user.id)
+        my_group_memberships, my_speltak_memberships = groups_svc.list_active_memberships_for_user(db, current_user.id)
 
     # Enrich each badge with 3 niveau cards (one per a/b/c sub-task level)
     for badges in all_badges.values():
@@ -83,6 +92,11 @@ async def index(request: Request, db: Session = Depends(get_db)):
             "signoff_count": signoff_count,
             "group_invites": group_invites,
             "speltak_invites": speltak_invites,
+            "my_requests": my_requests,
+            "pending_request_count": pending_request_count,
+            "my_group_memberships": my_group_memberships,
+            "my_speltak_memberships": my_speltak_memberships,
+            "allow_invite_leader": current_user and (config.allow_any_user_to_create_groups or current_user.is_admin),
         },
     )
     response.headers["Cache-Control"] = "no-store"

@@ -7,11 +7,85 @@
     {% if current_user %}
         <h1>Welkom terug, {{ current_user.name }}!</h1>
 
+        {% if my_group_memberships or my_speltak_memberships %}
+        {% set n_groepsleider  = my_group_memberships   | selectattr('role','eq','groepsleider')  | list | length %}
+        {% set n_speltakleider = my_speltak_memberships | selectattr('role','eq','speltakleider') | list | length %}
+        {% set n_scout         = my_speltak_memberships | selectattr('role','eq','scout')         | list | length %}
+        <details class="membership-panel">
+            <summary class="membership-panel__summary">
+                {% if current_user.is_admin %}Systeembeheerder, {% endif %}Groepsleider ({{ n_groepsleider }}), Speltakleider ({{ n_speltakleider }}), Scout ({{ n_scout }})
+            </summary>
+            <ul class="item-list membership-panel__table">
+                {% for m in my_group_memberships | sort(attribute='group.name') %}
+                <li class="item-list-row">
+                    <span>{{ m.group.name }}</span>
+                    <span class="role-badge">{{ m.role }}</span>
+                </li>
+                {% endfor %}
+                {% for m in my_speltak_memberships | sort(attribute='speltak.name') %}
+                <li class="item-list-row">
+                    <span>{{ m.speltak.name }} <span class="muted">— {{ m.speltak.group.name }}</span></span>
+                    <span class="role-badge">{{ m.role }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% if allow_invite_leader %}
+            <p class="join-invite-hint">
+                Mist je een groep/speltak? Zoek hem <a href="/groups/join">hier</a> en wordt lid...
+            </p>
+            {% endif %}
+        </details>
+        {% else %}
+        <section class="membership-panel membership-panel--empty">
+            <p>Je bent (in dit systeem) geen lid van een groep of speltak. <a href="/groups/join">Lid worden...</a></p>
+        </section>
+        {% endif %}
+
         {% if signoff_count > 0 %}
         <div class="notification-bar">
             Je hebt <strong>{{ signoff_count }} afteken{{ 'verzoek' if signoff_count == 1 else 'verzoeken' }}</strong> die op je wachten.
             <a href="/signoff-requests">Bekijken →</a>
         </div>
+        {% endif %}
+
+        {% if pending_request_count > 0 %}
+        <div class="notification-bar">
+            Er {{ 'is' if pending_request_count == 1 else 'zijn' }} <strong>{{ pending_request_count }} lidmaatschapsaanvra{{ 'ag' if pending_request_count == 1 else 'gen' }}</strong> die op je wachten.
+            <a href="/requests">Bekijken →</a>
+        </div>
+        {% endif %}
+
+        {% if my_requests %}
+        <section class="invitations-section">
+            <div class="section-header-row">
+                <h2>Mijn aanvragen</h2>
+                <form method="post" action="/my-requests/cancel-all" style="display:contents;">
+                    <button type="submit" class="btn-neutral btn-sm"
+                            onclick="return confirm('Alle aanvragen verwijderen?')">Alles verwijderen</button>
+                </form>
+            </div>
+            <ul class="item-list">
+                {% for req in my_requests %}
+                <li class="item-list-row">
+                    <span>
+                        <strong>{{ req.group.name }}</strong>{% if req.speltak %} / {{ req.speltak.name }}{% endif %}
+                    </span>
+                    <span class="row-actions">
+                        {% if req.status == 'pending' %}
+                            <span class="role-badge role-badge--pending">in behandeling</span>
+                        {% elif req.status == 'approved' %}
+                            <span class="role-badge">goedgekeurd</span>
+                        {% else %}
+                            <span class="role-badge role-badge--withdrawn">afgewezen</span>
+                        {% endif %}
+                        <form method="post" action="/my-requests/{{ req.id }}/cancel" style="display:contents;">
+                            <button type="submit" class="btn-neutral btn-sm">✕</button>
+                        </form>
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
         {% endif %}
 
         {% if group_invites or speltak_invites %}

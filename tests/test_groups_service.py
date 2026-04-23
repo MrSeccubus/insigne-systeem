@@ -284,3 +284,178 @@ def test_create_emailless_scout(db):
     assert scout.email is None
     assert scout.name == "Piet"
     assert scout.status == "active"
+
+
+# ── list_active_memberships_for_user ─────────────────────────────────────────
+
+def test_list_active_memberships_returns_group_and_speltak(db):
+    user = _user(db)
+    g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    svc.set_speltak_role(db, user_id=user.id, speltak_id=s.id, role="scout")
+    gm, sm = svc.list_active_memberships_for_user(db, user.id)
+    assert any(m.group_id == g.id for m in gm)
+    assert any(m.speltak_id == s.id for m in sm)
+
+
+def test_list_active_memberships_excludes_withdrawn(db):
+    user = _user(db)
+    g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+    svc.remove_group_member(db, user_id=user.id, group_id=g.id)
+    gm, sm = svc.list_active_memberships_for_user(db, user.id)
+    assert gm == []
+    assert sm == []
+
+
+# ── list_members_without_speltak ─────────────────────────────────────────────
+
+def test_list_members_without_speltak(db):
+    leider = _user(db, email="leider@example.com")
+    scout = _user(db, email="scout@example.com")
+    g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+    svc.set_group_role(db, user_id=scout.id, group_id=g.id, role="member")
+    result = svc.list_members_without_speltak(db, g.id)
+    assert any(m.user_id == scout.id for m in result)
+    assert not any(m.user_id == leider.id for m in result)
+
+
+def test_list_members_without_speltak_excludes_speltak_member(db):
+    leider = _user(db, email="leider@example.com")
+    scout = _user(db, email="scout@example.com")
+    g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    svc.set_speltak_role(db, user_id=scout.id, speltak_id=s.id, role="scout")
+    result = svc.list_members_without_speltak(db, g.id)
+    assert not any(m.user_id == scout.id for m in result)
+
+
+# ── cancel_membership_request / cancel_all ───────────────────────────────────
+
+def test_cancel_membership_request_removes_it(db):
+    scout = _user(db, email="scout@example.com")
+    g = svc.create_group(db, name="G", slug="g")
+    req = svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
+    svc.cancel_membership_request(db, request_id=req.id, user_id=scout.id)
+    from insigne.models import MembershipRequest
+    assert db.query(MembershipRequest).filter_by(id=req.id).first() is None
+
+
+def test_cancel_membership_request_ignores_wrong_user(db):
+    scout = _user(db, email="scout@example.com")
+    other = _user(db, email="other@example.com")
+    g = svc.create_group(db, name="G", slug="g")
+    req = svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
+    svc.cancel_membership_request(db, request_id=req.id, user_id=other.id)
+    from insigne.models import MembershipRequest
+    assert db.query(MembershipRequest).filter_by(id=req.id).first() is not None
+
+
+def test_cancel_all_membership_requests(db):
+    scout = _user(db, email="scout@example.com")
+    g1 = svc.create_group(db, name="G1", slug="g1")
+    g2 = svc.create_group(db, name="G2", slug="g2")
+    svc.create_membership_request(db, user_id=scout.id, group_id=g1.id)
+    svc.create_membership_request(db, user_id=scout.id, group_id=g2.id)
+    svc.cancel_all_membership_requests(db, user_id=scout.id)
+    from insigne.models import MembershipRequest
+    assert db.query(MembershipRequest).filter_by(user_id=scout.id).count() == 0
+
+
+# ── list_all_pending_requests_for_leader / group_pending_requests ─────────────
+
+def test_list_all_pending_requests_for_leader(db):
+    leider = _user(db, email="leider@example.com")
+    scout = _user(db, email="scout@example.com")
+    g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+    svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
+    result = svc.list_all_pending_requests_for_leader(db, leider.id)
+    assert len(result) == 1
+    assert result[0].user_id == scout.id
+
+
+def test_list_all_pending_requests_excludes_other_groups(db):
+    leider = _user(db, email="leider@example.com")
+    scout = _user(db, email="scout@example.com")
+    other_g = svc.create_group(db, name="Other", slug="other")
+    svc.create_membership_request(db, user_id=scout.id, group_id=other_g.id)
+    result = svc.list_all_pending_requests_for_leader(db, leider.id)
+    assert result == []
+
+
+def test_group_pending_requests_groups_by_group_and_speltak(db):
+    leider = _user(db, email="leider@example.com")
+    scout1 = _user(db, email="scout1@example.com")
+    scout2 = _user(db, email="scout2@example.com")
+    g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    svc.create_membership_request(db, user_id=scout1.id, group_id=g.id)
+    svc.create_membership_request(db, user_id=scout2.id, group_id=g.id, speltak_id=s.id)
+    flat = svc.list_all_pending_requests_for_leader(db, leider.id)
+    grouped = svc.group_pending_requests(flat)
+    assert len(grouped) == 1
+    assert grouped[0]["group"].id == g.id
+    speltakken = grouped[0]["speltakken"]
+    assert len(speltakken) == 2
+    no_speltak = next(x for x in speltakken if x["speltak"] is None)
+    with_speltak = next(x for x in speltakken if x["speltak"] is not None)
+    assert len(no_speltak["requests"]) == 1
+    assert with_speltak["speltak"].id == s.id
+
+
+# ── User.is_leader ────────────────────────────────────────────────────────────
+
+def test_is_leader_true_for_groepsleider(db):
+    user = _user(db)
+    g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+    db.refresh(user)
+    assert user.is_leader is True
+
+
+def test_is_leader_true_for_speltakleider(db):
+    user = _user(db)
+    g = svc.create_group(db, name="G", slug="g")
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    svc.set_speltak_role(db, user_id=user.id, speltak_id=s.id, role="speltakleider")
+    db.refresh(user)
+    assert user.is_leader is True
+
+
+def test_is_leader_false_for_scout(db):
+    user = _user(db)
+    g = svc.create_group(db, name="G", slug="g")
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    svc.set_speltak_role(db, user_id=user.id, speltak_id=s.id, role="scout")
+    db.refresh(user)
+    assert user.is_leader is False
+
+
+def test_is_leader_false_for_non_member(db):
+    user = _user(db)
+    assert user.is_leader is False
+
+
+# ── transfer_scout: destination already has user ──────────────────────────────
+
+def test_transfer_scout_when_already_in_destination(db):
+    user = _user(db)
+    g = svc.create_group(db, name="G", slug="g")
+    s1 = svc.create_speltak(db, group_id=g.id, name="A", slug="a")
+    s2 = svc.create_speltak(db, group_id=g.id, name="B", slug="b")
+    svc.set_speltak_role(db, user_id=user.id, speltak_id=s1.id, role="scout")
+    svc.set_speltak_role(db, user_id=user.id, speltak_id=s2.id, role="scout")
+    svc.transfer_scout(db, user_id=user.id, from_speltak_id=s1.id, to_speltak_id=s2.id)
+    assert svc.list_speltak_members(db, s1.id) == []
+    assert len(svc.list_speltak_members(db, s2.id)) == 1
+
+
+def test_transfer_scout_preserves_group_membership(db):
+    user = _user(db)
+    g = svc.create_group(db, name="G", slug="g")
+    s1 = svc.create_speltak(db, group_id=g.id, name="A", slug="a")
+    s2 = svc.create_speltak(db, group_id=g.id, name="B", slug="b")
+    # Real membership flow: group membership + speltak membership are both created
+    svc.set_group_role(db, user_id=user.id, group_id=g.id, role="member")
+    svc.set_speltak_role(db, user_id=user.id, speltak_id=s1.id, role="scout")
+    svc.transfer_scout(db, user_id=user.id, from_speltak_id=s1.id, to_speltak_id=s2.id)
+    group_members = svc.list_group_members(db, g.id)
+    assert any(m.user_id == user.id for m in group_members)

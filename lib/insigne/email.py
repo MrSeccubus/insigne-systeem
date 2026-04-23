@@ -181,3 +181,44 @@ def send_scout_niveau_completed_email(to: str, scout_name: str, badge_title: str
          badge_title=badge_title,
          niveau_number=niveau_number,
          badge_url=badge_url)
+
+
+def send_membership_request_received_email(
+    to: str, naam: str, requester_name: str,
+    group_name: str, speltak_name: str | None, group_slug: str,
+) -> None:
+    requests_url = f"{config.base_url}/groups/{group_slug}/requests"
+    send(to, "membership_request_received",
+         email=to, naam=naam,
+         requester_name=requester_name,
+         group_name=group_name,
+         speltak_name=speltak_name,
+         requests_url=requests_url)
+
+
+def send_membership_request_approved_email(
+    to: str, naam: str, group_name: str, speltak_name: str | None,
+) -> None:
+    send(to, "membership_request_approved",
+         email=to, naam=naam,
+         group_name=group_name,
+         speltak_name=speltak_name)
+
+
+def send_membership_request_rejected_email(
+    to: str, naam: str, group_name: str, speltak_name: str | None,
+) -> None:
+    send(to, "membership_request_rejected",
+         email=to, naam=naam,
+         group_name=group_name,
+         speltak_name=speltak_name)
+
+
+def send_invite_group_leader_email(
+    to: str, invited_by_name: str,
+) -> None:
+    create_group_url = f"{config.base_url}/groups/new"
+    send(to, "invite_group_leader",
+         email=to,
+         invited_by_name=invited_by_name,
+         create_group_url=create_group_url)

@@ -33,11 +33,41 @@
                 {% for speltak in group.speltakken %}
                 <li class="item-list-row">
                     <a href="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}">{{ speltak.name }}</a>
+                    <span class="muted" style="font-size:0.85rem;">{{ speltak_member_counts[speltak.id] }} {% if speltak_member_counts[speltak.id] == 1 %}lid{% else %}leden{% endif %}</span>
                 </li>
                 {% endfor %}
             </ul>
         {% else %}
             <p class="empty-state">Nog geen speltakken.</p>
+        {% endif %}
+
+        {% if members_without_speltak %}
+        <div style="margin-top:1rem;">
+            <h3 style="font-size:0.95rem;color:#555;margin-bottom:0.5rem;">Zonder speltak</h3>
+            <ul class="item-list">
+                {% for m in members_without_speltak %}
+                <li class="item-list-row">
+                    <span>{{ m.user.name or m.user.email or '(onbekend)' }}</span>
+                    <span class="row-actions">
+                        {% if group.speltakken %}
+                        <form method="post" action="/groups/{{ group.slug }}/members/{{ m.user_id }}/assign-speltak" style="display:contents;">
+                            <select name="to_speltak_id" onchange="this.form.submit()" class="role-select">
+                                <option value="">Overvliegen naar…</option>
+                                {% for s in group.speltakken %}
+                                <option value="{{ s.id }}">{{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                        {% endif %}
+                        <form method="post" action="/groups/{{ group.slug }}/members/{{ m.user_id }}/remove" style="display:contents;">
+                            <button type="submit" class="btn-danger btn-sm"
+                                    onclick="return confirm('Lid verwijderen?')">Verwijderen</button>
+                        </form>
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
         {% endif %}
     </section>
 
@@ -108,11 +138,19 @@
                      }
                  }
              }">
+            {% if member_email_suggestions %}
+            <datalist id="group-member-emails">
+                {% for u in member_email_suggestions %}
+                <option value="{{ u.email }}">{{ u.name or u.email }}</option>
+                {% endfor %}
+            </datalist>
+            {% endif %}
             <form x-ref="addForm" method="post" action="/groups/{{ group.slug }}/members/add" x-show="!notFound">
                 <div class="field">
                     <label for="member-email">Groepsleider toevoegen via e-mail</label>
                     <input type="email" id="member-email" name="email" x-model="email"
-                           required autocomplete="off">
+                           required autocomplete="off"
+                           {% if member_email_suggestions %}list="group-member-emails"{% endif %}>
                 </div>
                 <button type="button" @click="checkAndAdd()" :disabled="checking" class="btn-success"
                         x-text="checking ? 'Controleren…' : 'Toevoegen'"></button>

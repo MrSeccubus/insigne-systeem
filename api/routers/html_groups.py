@@ -7,7 +7,7 @@ from insigne import groups as groups_svc
 from insigne import users as users_svc
 from insigne.config import config
 from insigne.database import get_db
-from insigne.models import GroupMembership, SpeltakMembership
+from insigne.models import GroupMembership, Speltak, SpeltakMembership, User as UserModel
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
 
@@ -51,7 +51,34 @@ def accept_speltak_invite(speltak_id: str, request: Request, db: Session = Depen
     user, redirect = _require_user(request, db)
     if redirect:
         return redirect
+    m = db.query(SpeltakMembership).filter_by(
+        user_id=user.id, speltak_id=speltak_id, approved=False, withdrawn=False
+    ).first()
+    if m and m.source_scout_id and groups_svc.has_scout_progress(db, m.source_scout_id):
+        speltak = db.get(Speltak, speltak_id)
+        return _page(request, "merge_scout_progress.html", db,
+                     speltak=speltak,
+                     group=speltak.group if speltak else None,
+                     scout=db.get(UserModel, m.source_scout_id))
     groups_svc.accept_speltak_invite(db, user_id=user.id, speltak_id=speltak_id)
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/invitations/speltak/{speltak_id}/accept-with-merge")
+def accept_speltak_invite_with_merge(speltak_id: str, request: Request, db: Session = Depends(get_db)):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    groups_svc.accept_speltak_invite_with_merge(db, user_id=user.id, speltak_id=speltak_id)
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/invitations/speltak/{speltak_id}/accept-without-merge")
+def accept_speltak_invite_without_merge(speltak_id: str, request: Request, db: Session = Depends(get_db)):
+    user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    groups_svc.accept_speltak_invite_without_merge(db, user_id=user.id, speltak_id=speltak_id)
     return RedirectResponse("/", status_code=303)
 
 

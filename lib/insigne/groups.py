@@ -470,6 +470,50 @@ def merge_scout_progress(db: Session, *, from_user_id: str, to_user_id: str) -> 
     db.flush()
 
 
+def has_scout_progress(db: Session, user_id: str) -> bool:
+    """Return True if the user has any progress entries."""
+    return db.query(ProgressEntry).filter_by(user_id=user_id).first() is not None
+
+
+def accept_speltak_invite_with_merge(db: Session, *, user_id: str, speltak_id: str) -> None:
+    """Accept a speltak invite and merge progress from the linked emailless scout."""
+    m = db.query(SpeltakMembership).filter_by(
+        user_id=user_id, speltak_id=speltak_id, approved=False, withdrawn=False
+    ).first()
+    if not m:
+        return
+    if m.source_scout_id:
+        merge_scout_progress(db, from_user_id=m.source_scout_id, to_user_id=user_id)
+        _cleanup_group_membership(db, user_id=m.source_scout_id, group_id=m.speltak.group_id)
+        scout = db.get(User, m.source_scout_id)
+        if scout:
+            db.delete(scout)
+        db.flush()
+    m.approved = True
+    m.source_scout_id = None
+    db.commit()
+
+
+def accept_speltak_invite_without_merge(db: Session, *, user_id: str, speltak_id: str) -> None:
+    """Accept a speltak invite and discard the linked emailless scout's progress."""
+    m = db.query(SpeltakMembership).filter_by(
+        user_id=user_id, speltak_id=speltak_id, approved=False, withdrawn=False
+    ).first()
+    if not m:
+        return
+    if m.source_scout_id:
+        db.query(ProgressEntry).filter_by(user_id=m.source_scout_id).delete()
+        db.flush()
+        _cleanup_group_membership(db, user_id=m.source_scout_id, group_id=m.speltak.group_id)
+        scout = db.get(User, m.source_scout_id)
+        if scout:
+            db.delete(scout)
+        db.flush()
+    m.approved = True
+    m.source_scout_id = None
+    db.commit()
+
+
 def attach_email_to_scout(
     db: Session, *, scout_user_id: str, email: str, invited_by_id: str, speltak: Speltak
 ) -> tuple[str, User, str | None]:
@@ -502,25 +546,21 @@ def attach_email_to_scout(
         code, _, _ = users_svc.start_registration(db, email)
         return "new_user", scout, code
 
-    # Active user found: merge progress then create pending speltak invite
-    merge_scout_progress(db, from_user_id=scout_user_id, to_user_id=existing.id)
-    sm = db.query(SpeltakMembership).filter_by(user_id=scout_user_id, speltak_id=speltak.id).first()
-    if sm:
-        db.delete(sm)
-        db.flush()
-    _cleanup_group_membership(db, user_id=scout_user_id, group_id=speltak.group_id)
+    # Active user found: create a pending speltak invite linked to the emailless scout.
+    # The scout record is left untouched; the existing user will decide whether to merge
+    # their progress when they accept the invite.
     m = db.query(SpeltakMembership).filter_by(user_id=existing.id, speltak_id=speltak.id).first()
     if m:
         m.approved = False
         m.withdrawn = False
         m.invited_by_id = invited_by_id
+        m.source_scout_id = scout_user_id
     else:
         db.add(SpeltakMembership(
             user_id=existing.id, speltak_id=speltak.id,
             role="scout", approved=False, invited_by_id=invited_by_id,
+            source_scout_id=scout_user_id,
         ))
-    db.flush()
-    db.delete(scout)
     db.commit()
     return "existing_user", existing, None
 

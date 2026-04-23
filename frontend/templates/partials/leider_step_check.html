@@ -11,15 +11,6 @@
         {%- if entry_status == 'signed_off' -%}✓{%- endif -%}
     </summary>
     <div class="step-check-dropdown">
-        {% if entry_status == 'signed_off' %}
-        <button class="step-check-option"
-                hx-post="{{ _post_url }}"
-                hx-vals='{ {{ _vals_base }},"status":"work_done"}'
-                hx-target="closest details"
-                hx-swap="outerHTML">
-            <span class="step-check step-check-work_done" style="pointer-events:none;">✓</span> Terugzetten
-        </button>
-        {% else %}
         <button class="step-check-option{% if entry_status == 'none' %} step-check-option--active{% endif %}"
                 hx-post="{{ _post_url }}"
                 hx-vals='{ {{ _vals_base }},"status":"none"}'
@@ -41,7 +32,13 @@
                 hx-swap="outerHTML">
             <span class="step-check step-check-work_done" style="pointer-events:none;"></span> Klaar
         </button>
-        {% endif %}
+        <button class="step-check-option{% if entry_status == 'signed_off' %} step-check-option--active{% endif %}"
+                hx-post="{{ _post_url }}"
+                hx-vals='{ {{ _vals_base }},"status":"signed_off"}'
+                hx-target="closest details"
+                hx-swap="outerHTML">
+            <span class="step-check step-check-signed_off" style="pointer-events:none;">✓</span> Afgetekend
+        </button>
     </div>
 </details>
 {% else %}

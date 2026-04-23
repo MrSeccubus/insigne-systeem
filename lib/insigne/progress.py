@@ -282,18 +282,18 @@ def list_previous_mentors(db: Session, user_id: str) -> list[User]:
 
 def list_progress_for_scouts(
     db: Session, scout_ids: list[str]
-) -> dict[str, dict[tuple[int, int], ProgressEntry]]:
+) -> dict[str, dict[tuple[str, int, int], ProgressEntry]]:
     """Bulk-fetch progress for multiple scouts.
-    Returns {user_id: {(level_index, step_index): entry}}.
+    Returns {user_id: {(badge_slug, level_index, step_index): entry}}.
     """
     if not scout_ids:
         return {}
     entries = db.query(ProgressEntry).filter(
         ProgressEntry.user_id.in_(scout_ids)
     ).all()
-    result: dict[str, dict[tuple[int, int], ProgressEntry]] = {uid: {} for uid in scout_ids}
+    result: dict[str, dict[tuple[str, int, int], ProgressEntry]] = {uid: {} for uid in scout_ids}
     for entry in entries:
-        result.setdefault(entry.user_id, {})[(entry.level_index, entry.step_index)] = entry
+        result.setdefault(entry.user_id, {})[(entry.badge_slug, entry.level_index, entry.step_index)] = entry
     return result
 
 
@@ -317,7 +317,7 @@ def set_scout_progress(
     from insigne import groups as groups_svc
     from insigne.models import SpeltakMembership
 
-    if status not in ("none", "in_progress", "work_done"):
+    if status not in ("none", "in_progress", "work_done", "signed_off"):
         raise ValueError("invalid_status")
 
     leider = db.get(User, leider_id)
@@ -352,11 +352,14 @@ def set_scout_progress(
     if existing:
         if existing.status == "pending_signoff":
             raise Conflict("pending_signoff")
-        if existing.status == "signed_off":
+        if existing.status == "signed_off" and status != "signed_off":
             existing.signed_off_by_id = None
             existing.signed_off_at = None
             existing.mentor_comment = None
         existing.status = status
+        if status == "signed_off":
+            existing.signed_off_by_id = leider_id
+            existing.signed_off_at = datetime.now(timezone.utc)
         db.commit()
         return existing
 
@@ -366,6 +369,8 @@ def set_scout_progress(
         level_index=level_index,
         step_index=step_index,
         status=status,
+        signed_off_by_id=leider_id if status == "signed_off" else None,
+        signed_off_at=datetime.now(timezone.utc) if status == "signed_off" else None,
     )
     db.add(entry)
     db.commit()

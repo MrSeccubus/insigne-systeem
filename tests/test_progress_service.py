@@ -67,7 +67,7 @@ def test_list_progress_for_scouts_correct_keying(db):
     scout = _scout(db, s.id, g.id)
     e = _entry(db, scout.id, level_index=1, step_index=2)
     result = svc.list_progress_for_scouts(db, [scout.id])
-    assert result[scout.id][(1, 2)].id == e.id
+    assert result[scout.id][("badge", 1, 2)].id == e.id
 
 
 def test_list_progress_for_scouts_excludes_other_users(db):
@@ -186,7 +186,7 @@ def test_set_scout_progress_invalid_status(db):
     with pytest.raises(ValueError, match="invalid_status"):
         svc.set_scout_progress(db, leider_id=leider.id, scout_id=scout.id,
                                speltak_id=s.id, badge_slug="b", level_index=0,
-                               step_index=0, status="signed_off")
+                               step_index=0, status="completely_invalid")
 
 
 def test_set_scout_progress_groepsleider_can_also_edit(db):

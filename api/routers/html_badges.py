@@ -395,6 +395,7 @@ async def confirm_signoff(
                 scout.name or scout.email,
                 badge["title"],
                 entry.step_index + 1,
+                entry.badge_slug,
             )
 
     except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict) as exc:

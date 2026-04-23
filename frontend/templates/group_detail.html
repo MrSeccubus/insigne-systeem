@@ -8,6 +8,7 @@
         <h1>{{ group.name }}</h1>
         {% if can_manage %}
             <div style="display:flex;gap:0.5rem;align-items:center;">
+                <a href="/groups/{{ group.slug }}/progress" class="btn-neutral" style="display:inline-flex;align-items:center;">Voortgang</a>
                 <a href="/groups/{{ group.slug }}/edit" class="btn-neutral" style="display:inline-flex;align-items:center;">Bewerken</a>
                 <form method="post" action="/groups/{{ group.slug }}/delete" style="margin:0;display:contents;">
                     <button type="submit" class="btn-danger"

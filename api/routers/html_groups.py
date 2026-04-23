@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Form, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
@@ -1115,6 +1115,8 @@ def speltak_progress(
         return RedirectResponse(f"/groups/{group_slug}", status_code=303)
 
     memberships = groups_svc.list_speltak_members(db, speltak.id)
+    if not speltak.peer_signoff:
+        memberships = [m for m in memberships if m.role != "speltakleider"]
     scout_ids = [m.user_id for m in memberships]
     progress_by_scout = progress_svc.list_progress_for_scouts(db, scout_ids)
     favorite_slugs = groups_svc.get_speltak_favorite_slugs(db, speltak.id)
@@ -1147,6 +1149,7 @@ def speltak_progress(
 def speltak_set_scout_progress(
     group_slug: str, speltak_slug: str, scout_id: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     badge_slug: str = Form(...),
     level_index: int = Form(...),
     step_index: int = Form(...),
@@ -1167,6 +1170,40 @@ def speltak_set_scout_progress(
             speltak_id=speltak.id, badge_slug=badge_slug,
             level_index=level_index, step_index=step_index, status=status,
         )
+        if entry and status == "signed_off":
+            scout = entry.user
+            if scout.email:
+                badge = get_badge(_DATA_DIR, badge_slug)
+                level = badge["levels"][level_index]
+                step_text = level["steps"][step_index]["text"]
+                mentor_name = user.name or user.email
+                background_tasks.add_task(
+                    email_svc.send_scout_signed_off_email,
+                    scout.email,
+                    scout.name or scout.email,
+                    badge_slug,
+                    badge["title"],
+                    step_index + 1,
+                    level["name"],
+                    step_text,
+                    mentor_name,
+                )
+                n_eisen = len(badge["levels"])
+                signed_count = db.query(ProgressEntry).filter(
+                    ProgressEntry.user_id == scout_id,
+                    ProgressEntry.badge_slug == badge_slug,
+                    ProgressEntry.step_index == step_index,
+                    ProgressEntry.status == "signed_off",
+                ).count()
+                if signed_count == n_eisen:
+                    background_tasks.add_task(
+                        email_svc.send_scout_niveau_completed_email,
+                        scout.email,
+                        scout.name or scout.email,
+                        badge["title"],
+                        step_index + 1,
+                        badge_slug,
+                    )
     except (progress_svc.Forbidden, progress_svc.Conflict, ValueError):
         from insigne.models import ProgressEntry as PE
         entry = db.query(PE).filter_by(

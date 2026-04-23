@@ -371,7 +371,7 @@ def list_speltak_members(db: Session, speltak_id: str) -> list[SpeltakMembership
         SpeltakMembership.withdrawn == False,  # noqa: E712
         SpeltakMembership.source_scout_id.isnot(None),
     )
-    return (
+    rows = (
         db.query(SpeltakMembership)
         .filter(
             SpeltakMembership.speltak_id == speltak_id,
@@ -380,6 +380,7 @@ def list_speltak_members(db: Session, speltak_id: str) -> list[SpeltakMembership
         )
         .all()
     )
+    return sorted(rows, key=lambda m: (m.user.name or "").lower())
 
 
 def list_pending_speltak_members(db: Session, speltak_id: str) -> list[SpeltakMembership]:

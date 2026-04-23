@@ -616,9 +616,92 @@ button:hover {
 .step-check-pending_signoff { background: #4ade80; border-color: #4ade80; color: white; }
 .step-check-signed_off     { background: #16a34a; border-color: #16a34a; color: white; }
 
+.badge-progress-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+    background: white;
+}
+.badge-progress-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.65rem 1rem;
+    background: white;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    border-bottom: 1px solid transparent;
+}
+.badge-progress-card[open] .badge-progress-summary {
+    border-bottom-color: #e5e7eb;
+}
+.badge-progress-summary::-webkit-details-marker { display: none; }
+.badge-progress-summary::before {
+    content: "▶";
+    font-size: 0.65rem;
+    color: #9ca3af;
+    transition: transform 0.15s;
+    flex-shrink: 0;
+}
+.badge-progress-card[open] .badge-progress-summary::before { transform: rotate(90deg); }
+.badge-progress-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #111827;
+    flex: 1;
+}
+.badge-progress-counts {
+    display: flex;
+    gap: 1.25rem;
+    align-items: center;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    color: #374151;
+}
+.badge-progress-card[open] .badge-progress-counts { display: none; }
+.niveau-count-group {
+    white-space: nowrap;
+}
+.badge-progress-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+.badge-progress-table th {
+    padding: 0.4rem 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: #6b7280;
+    font-size: 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: white;
+    white-space: nowrap;
+}
+.badge-progress-table td {
+    padding: 0.4rem 0.75rem;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: middle;
+    height: 36px;
+    line-height: 1;
+}
+.badge-progress-table tbody tr:last-child td { border-bottom: none; }
+.badge-progress-table tbody tr:hover td { background: #f9fafb; }
+.badge-progress-name {
+    min-width: 90px;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #374151;
+}
+
 .step-check-wrapper {
     position: relative;
-    display: inline-block;
+    display: inline-flex;
+    vertical-align: middle;
 }
 .step-check-wrapper > summary {
     cursor: pointer;
@@ -627,11 +710,8 @@ button:hover {
 .step-check-wrapper > summary::-webkit-details-marker { display: none; }
 .step-check-dropdown {
     display: none;
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 200;
+    position: fixed;
+    z-index: 9999;
     background: white;
     border: 1px solid #d1d5db;
     border-radius: 6px;

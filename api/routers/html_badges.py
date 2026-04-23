@@ -4,6 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
+from insigne import groups as groups_svc
 from insigne import progress as progress_svc
 from insigne.badges import get_badge
 from insigne.database import get_db
@@ -28,7 +29,7 @@ def _partial(request: Request, name: str, **ctx):
     return _TEMPLATES.TemplateResponse(request=request, name=f"partials/{name}", context=ctx)
 
 
-def _step_card(request, slug, level_index, level_name, step_index, step_text, entry, previous_mentors=None, error="", current_user=None):
+def _step_card(request, slug, level_index, level_name, step_index, step_text, entry, previous_mentors=None, error="", current_user=None, scout_signoff_options=None):
     response = _partial(
         request, "step_card.html",
         slug=slug,
@@ -40,9 +41,34 @@ def _step_card(request, slug, level_index, level_name, step_index, step_text, en
         previous_mentors=previous_mentors or [],
         error=error,
         current_user=current_user,
+        scout_signoff_options=scout_signoff_options or [],
     )
     response.headers["HX-Trigger"] = "niveau-updated"
     return response
+
+
+def _build_signoff_options(db, current_user):
+    """Build the list of speltak sign-off path options for a scout."""
+    memberships = groups_svc.list_scout_speltakken(db, current_user.id)
+    options = []
+    for group, speltak, role in memberships:
+        if speltak.peer_signoff:
+            members = [m.user for m in groups_svc.list_speltak_members(db, speltak.id)
+                       if m.user_id != current_user.id]
+            if members:
+                options.append({
+                    "type": "speltak_members",
+                    "speltak_id": speltak.id,
+                    "label": f"Vraag een mede-lid van de {speltak.name} van {group.name} om af te tekenen",
+                    "members": members,
+                })
+        elif role != "speltakleider":
+            options.append({
+                "type": "speltak_leiders",
+                "speltak_id": speltak.id,
+                "label": f"Aftekenen door leiding van {speltak.name} van {group.name}",
+            })
+    return options
 
 
 # ── Niveau progress checks (HTMX partial) ────────────────────────────────────
@@ -80,12 +106,14 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
 
     progress_map: dict[tuple[int, int], ProgressEntry] = {}
     previous_mentors = []
+    scout_signoff_options = []
     level_stats = []
 
     if current_user:
         for entry in progress_svc.list_progress(db, current_user.id, badge_slug=slug):
             progress_map[(entry.level_index, entry.step_index)] = entry
         previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
+        scout_signoff_options = _build_signoff_options(db, current_user)
 
     n_eisen = len(badge["levels"])
     for i, level in enumerate(badge["levels"]):
@@ -118,6 +146,7 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
             "badge": badge,
             "progress_map": progress_map,
             "previous_mentors": previous_mentors,
+            "scout_signoff_options": scout_signoff_options,
             "level_stats": level_stats,
             "niveau_stats": niveau_stats,
             "selected_niveaus": [niveau - 1] if niveau in (1, 2, 3) else [0, 1, 2],
@@ -149,6 +178,7 @@ async def log_step(
     level = badge["levels"][level_index]
     step_text = level["steps"][step_index]["text"]
     previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
+    scout_signoff_options = _build_signoff_options(db, current_user)
 
     if status not in ("in_progress", "work_done"):
         status = "in_progress"
@@ -170,7 +200,7 @@ async def log_step(
             ProgressEntry.step_index == step_index,
         ).first()
 
-    return _step_card(request, slug, level_index, level["name"], step_index, step_text, entry, previous_mentors, current_user=current_user)
+    return _step_card(request, slug, level_index, level["name"], step_index, step_text, entry, previous_mentors, current_user=current_user, scout_signoff_options=scout_signoff_options)
 
 
 # ── Request sign-off ──────────────────────────────────────────────────────────
@@ -203,6 +233,7 @@ async def request_signoff(
     level = badge["levels"][entry.level_index]
     step_text = level["steps"][entry.step_index]["text"]
     previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
+    scout_signoff_options = _build_signoff_options(db, current_user)
 
     error = ""
     try:
@@ -212,6 +243,10 @@ async def request_signoff(
             background_tasks.add_task(send_mentor_signoff_invite_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
         else:
             background_tasks.add_task(send_mentor_signoff_request_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
+    except progress_svc.Forbidden as exc:
+        if str(exc) == "self_signoff":
+            error = "Je kunt jezelf niet uitnodigen om af te tekenen."
+        db.refresh(entry)
     except progress_svc.Conflict as exc:
         if str(exc) == "already_signed_off":
             error = "Deze stap is al afgetekend."
@@ -223,7 +258,7 @@ async def request_signoff(
     except progress_svc.NotFound:
         return RedirectResponse(url="/", status_code=303)
 
-    return _step_card(request, entry.badge_slug, entry.level_index, level["name"], entry.step_index, step_text, entry, previous_mentors, error=error, current_user=current_user)
+    return _step_card(request, entry.badge_slug, entry.level_index, level["name"], entry.step_index, step_text, entry, previous_mentors, error=error, current_user=current_user, scout_signoff_options=scout_signoff_options)
 
 
 # ── Cancel sign-off requests ─────────────────────────────────────────────────
@@ -249,13 +284,14 @@ async def cancel_signoff(
     level = badge["levels"][entry.level_index]
     step_text = level["steps"][entry.step_index]["text"]
     previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
+    scout_signoff_options = _build_signoff_options(db, current_user)
 
     try:
         entry = progress_svc.cancel_signoff_requests(db, current_user.id, entry_id)
     except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict):
         db.refresh(entry)
 
-    return _step_card(request, entry.badge_slug, entry.level_index, level["name"], entry.step_index, step_text, entry, previous_mentors, current_user=current_user)
+    return _step_card(request, entry.badge_slug, entry.level_index, level["name"], entry.step_index, step_text, entry, previous_mentors, current_user=current_user, scout_signoff_options=scout_signoff_options)
 
 
 # ── Delete entry ──────────────────────────────────────────────────────────────
@@ -282,6 +318,7 @@ async def delete_progress(
     step_text = level["steps"][entry.step_index]["text"]
     slug, level_index, level_name, step_index = entry.badge_slug, entry.level_index, level["name"], entry.step_index
     previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
+    scout_signoff_options = _build_signoff_options(db, current_user)
 
     try:
         progress_svc.delete_progress(db, current_user.id, entry_id)
@@ -289,7 +326,7 @@ async def delete_progress(
     except (progress_svc.NotFound, progress_svc.Forbidden):
         db.refresh(entry)
 
-    return _step_card(request, slug, level_index, level_name, step_index, step_text, entry, previous_mentors, current_user=current_user)
+    return _step_card(request, slug, level_index, level_name, step_index, step_text, entry, previous_mentors, current_user=current_user, scout_signoff_options=scout_signoff_options)
 
 
 # ── Sign-off requests (mentor view) ──────────────────────────────────────────
@@ -447,3 +484,115 @@ async def reject_signoff(
     except (progress_svc.NotFound, progress_svc.Forbidden) as exc:
         error = "Kon niet afwijzen."
         return _partial(request, "signoff_request_item.html", entry_id=entry_id, confirmed=False, error=error)
+
+
+# ── Request sign-off via speltak leiders ──────────────────────────────────────
+
+@router.post("/progress/{entry_id}/request-signoff-speltak", response_class=HTMLResponse)
+async def request_signoff_speltak(
+    request: Request,
+    entry_id: str,
+    background_tasks: BackgroundTasks,
+    speltak_id: str = Form(...),
+    notes: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    current_user = _get_current_user(request, db)
+    if current_user is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    entry = db.query(ProgressEntry).filter(
+        ProgressEntry.id == entry_id,
+        ProgressEntry.user_id == current_user.id,
+    ).first()
+    if entry is None:
+        return RedirectResponse(url="/", status_code=303)
+
+    if entry.status not in ("pending_signoff", "signed_off"):
+        entry.notes = notes.strip() or None
+        db.commit()
+
+    badge = get_badge(_DATA_DIR, entry.badge_slug)
+    level = badge["levels"][entry.level_index]
+    step_text = level["steps"][entry.step_index]["text"]
+    previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
+    scout_signoff_options = _build_signoff_options(db, current_user)
+
+    error = ""
+    try:
+        entry, invited = progress_svc.request_signoff_for_speltak(db, current_user.id, entry_id, speltak_id)
+        scout_name = current_user.name or current_user.email.split("@")[0]
+        for mentor in invited:
+            background_tasks.add_task(
+                send_mentor_signoff_request_email, mentor.email, scout_name,
+                badge["title"], entry.step_index + 1, step_text, notes=entry.notes,
+            )
+    except progress_svc.NotFound as exc:
+        if str(exc) == "no_eligible_mentors":
+            error = "Er zijn geen leiders gevonden die kunnen aftekenen."
+        else:
+            return RedirectResponse(url="/", status_code=303)
+    except progress_svc.Conflict as exc:
+        if str(exc) == "already_signed_off":
+            error = "Deze stap is al afgetekend."
+        else:
+            error = "Je kunt pas aftekening aanvragen als je de stap als 'Klaar' hebt gemeld."
+        db.refresh(entry)
+
+    return _step_card(request, entry.badge_slug, entry.level_index, level["name"], entry.step_index, step_text, entry, previous_mentors, error=error, current_user=current_user, scout_signoff_options=scout_signoff_options)
+
+
+# ── Request sign-off from selected members (peer speltak) ────────────────────
+
+@router.post("/progress/{entry_id}/request-signoff-members", response_class=HTMLResponse)
+async def request_signoff_members(
+    request: Request,
+    entry_id: str,
+    background_tasks: BackgroundTasks,
+    mentor_ids: list[str] = Form(default=[]),
+    notes: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    current_user = _get_current_user(request, db)
+    if current_user is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    entry = db.query(ProgressEntry).filter(
+        ProgressEntry.id == entry_id,
+        ProgressEntry.user_id == current_user.id,
+    ).first()
+    if entry is None:
+        return RedirectResponse(url="/", status_code=303)
+
+    if entry.status not in ("pending_signoff", "signed_off"):
+        entry.notes = notes.strip() or None
+        db.commit()
+
+    badge = get_badge(_DATA_DIR, entry.badge_slug)
+    level = badge["levels"][entry.level_index]
+    step_text = level["steps"][entry.step_index]["text"]
+    previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
+    scout_signoff_options = _build_signoff_options(db, current_user)
+
+    error = ""
+    try:
+        entry, invited = progress_svc.request_signoff_from_members(db, current_user.id, entry_id, mentor_ids)
+        scout_name = current_user.name or current_user.email.split("@")[0]
+        for mentor in invited:
+            background_tasks.add_task(
+                send_mentor_signoff_request_email, mentor.email, scout_name,
+                badge["title"], entry.step_index + 1, step_text, notes=entry.notes,
+            )
+    except progress_svc.NotFound as exc:
+        if str(exc) == "no_eligible_mentors":
+            error = "Selecteer minimaal één medelid om aftekening te vragen."
+        else:
+            return RedirectResponse(url="/", status_code=303)
+    except progress_svc.Conflict as exc:
+        if str(exc) == "already_signed_off":
+            error = "Deze stap is al afgetekend."
+        else:
+            error = "Je kunt pas aftekening aanvragen als je de stap als 'Klaar' hebt gemeld."
+        db.refresh(entry)
+
+    return _step_card(request, entry.badge_slug, entry.level_index, level["name"], entry.step_index, step_text, entry, previous_mentors, error=error, current_user=current_user, scout_signoff_options=scout_signoff_options)

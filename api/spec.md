@@ -477,7 +477,7 @@ Not allowed when status is `signed_off`.
 
 ---
 
-#### `POST /api/progress/{id}/signoff` — Request sign-off from a mentor 🔒
+#### `POST /api/progress/{id}/signoff` — Request sign-off (direct email path) 🔒
 
 The scout submits one mentor's email address. Can be called multiple times to invite additional mentors. The entry is completed as soon as any one mentor confirms.
 
@@ -494,9 +494,51 @@ The scout submits one mentor's email address. Can be called multiple times to in
 
 **Response `202`:** Sign-off request accepted. Email sent to mentor.
 
+**Response `403`:** Scout tried to invite themselves (`self_signoff`).
+
 **Response `404`:** Progress entry not found.
 
 **Response `409`:** This mentor has already been invited, or the entry is already `signed_off`, or the entry is not in `work_done`/`pending_signoff` status.
+
+---
+
+#### `POST /api/progress/{id}/signoff-speltak` — Request sign-off from all speltakleiders 🔒
+
+Sends a sign-off request to every speltakleider of the given speltak. Suitable for non-peer-signoff speltakken where the leiding signs off.
+
+**Request body:**
+
+```json
+{
+  "speltak_id": "speltak-uuid"
+}
+```
+
+**Response `202`:** Sign-off requests sent.
+
+**Response `404`:** Progress entry not found, or no eligible leiders found (`no_eligible_mentors`).
+
+**Response `409`:** Entry is already `signed_off`, or not in `work_done`/`pending_signoff` status.
+
+---
+
+#### `POST /api/progress/{id}/signoff-members` — Request sign-off from selected members 🔒
+
+Sends sign-off requests to the selected member(s). Suitable for peer-signoff speltakken.
+
+**Request body:**
+
+```json
+{
+  "mentor_ids": ["user-uuid-1", "user-uuid-2"]
+}
+```
+
+**Response `202`:** Sign-off requests sent.
+
+**Response `404`:** Progress entry not found, or all selected users were ineligible (`no_eligible_mentors`).
+
+**Response `409`:** Entry is already `signed_off`, or not in `work_done`/`pending_signoff` status.
 
 ---
 
@@ -507,7 +549,7 @@ The mentor must be authenticated and must have been invited.
 
 **Response `200`:** Updated progress entry with `status: "signed_off"`.
 
-**Response `403`:** Authenticated user is not an invited mentor.
+**Response `403`:** Authenticated user is not an invited mentor, or tried to sign off their own entry (`self_signoff`).
 
 **Response `404`:** Progress entry not found.
 
@@ -1149,12 +1191,14 @@ These endpoints serve the HTMX frontend. Full pages are returned on direct navig
 |--------|------|-------------|
 | `GET` | `/badges/{slug}/niveau-checks/{niveau_index}` | Niveau progress check icons partial |
 | `POST` | `/badges/{slug}/log` | Log a step (auth required) — returns updated step card partial |
-| `POST` | `/progress/{id}/request-signoff` | Request sign-off from mentor (auth required) |
+| `POST` | `/progress/{id}/request-signoff` | Request sign-off via direct email (auth required) |
+| `POST` | `/progress/{id}/request-signoff-speltak` | Request sign-off from all speltakleiders of a speltak (auth required) |
+| `POST` | `/progress/{id}/request-signoff-members` | Request sign-off from selected peer members (auth required) |
 | `POST` | `/progress/{id}/cancel-signoff` | Cancel all pending sign-off requests (auth required) |
 | `POST` | `/progress/{id}/delete` | Delete a progress entry (auth required) |
 | `GET` | `/signoff-requests/count` | Pending sign-off count badge for nav (auth required) |
 | `POST` | `/progress/{id}/confirm-signoff` | Mentor confirms sign-off (auth required) |
-| `POST` | `/progress/{id}/reject-signoff` | Mentor rejects sign-off (auth required) |
+| `POST` | `/progress/{id}/reject-signoff` | Mentor rejects sign-off — removes only this mentor's request; reverts to `work_done` only if no requests remain (auth required) |
 
 ### Groups HTML pages
 

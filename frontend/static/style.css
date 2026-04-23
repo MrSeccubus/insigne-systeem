@@ -975,6 +975,40 @@ button:disabled, a[disabled] {
     border-color: #00A651;
 }
 
+/* ── Signoff path selector ───────────────────────────────────────────────── */
+
+.signoff-path-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-bottom: 0.4rem;
+}
+
+.signoff-path-option {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    padding: 0.2rem 0;
+}
+
+.signoff-member-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.2rem;
+}
+
+.signoff-member-option {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    padding: 0.15rem 0;
+}
+
 /* ── Notifications ───────────────────────────────────────────────────────── */
 
 .notification-bar {

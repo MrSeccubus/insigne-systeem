@@ -16,7 +16,9 @@ from schemas import (
     CreateProgressRequest,
     MentorResponse,
     ProgressEntryResponse,
+    RequestSignoffMembersRequest,
     RequestSignoffRequest,
+    RequestSignoffSpeltakRequest,
     SignoffRequestResponse,
     UpdateProgressRequest,
     UserRefResponse,
@@ -144,6 +146,10 @@ async def request_signoff(
         )
     except progress_svc.NotFound:
         raise HTTPException(status_code=404, detail="Progress entry not found.")
+    except progress_svc.Forbidden as exc:
+        if str(exc) == "self_signoff":
+            raise HTTPException(status_code=403, detail="You cannot invite yourself to sign off.")
+        raise HTTPException(status_code=403, detail="Forbidden.")
     except progress_svc.Conflict as exc:
         detail = (
             "This step is already completed."
@@ -178,6 +184,62 @@ async def confirm_signoff(
     except progress_svc.Conflict:
         raise HTTPException(status_code=409, detail="This entry has already been signed off.")
     return _entry_response(entry)
+
+
+@router.post("/progress/{entry_id}/signoff-speltak", status_code=202)
+async def request_signoff_speltak(
+    entry_id: str,
+    body: RequestSignoffSpeltakRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        entry, invited = progress_svc.request_signoff_for_speltak(
+            db, current_user.id, entry_id, body.speltak_id
+        )
+    except progress_svc.NotFound as exc:
+        detail = "No eligible mentors found." if str(exc) == "no_eligible_mentors" else "Progress entry not found."
+        raise HTTPException(status_code=404, detail=detail)
+    except progress_svc.Conflict as exc:
+        detail = "This step is already completed." if str(exc) == "already_signed_off" else "Entry is not in work_done status."
+        raise HTTPException(status_code=409, detail=detail)
+
+    badge = get_badge(_DATA_DIR, entry.badge_slug)
+    level = badge["levels"][entry.level_index]
+    step_text = level["steps"][entry.step_index]["text"]
+    scout_name = current_user.name or current_user.email.split("@")[0]
+    for mentor in invited:
+        background_tasks.add_task(send_mentor_signoff_request_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
+    return {"detail": "Sign-off requests sent."}
+
+
+@router.post("/progress/{entry_id}/signoff-members", status_code=202)
+async def request_signoff_members(
+    entry_id: str,
+    body: RequestSignoffMembersRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        entry, invited = progress_svc.request_signoff_from_members(
+            db, current_user.id, entry_id, body.mentor_ids
+        )
+    except progress_svc.NotFound as exc:
+        detail = "No eligible mentors found." if str(exc) == "no_eligible_mentors" else "Progress entry not found."
+        raise HTTPException(status_code=404, detail=detail)
+    except progress_svc.Conflict as exc:
+        detail = "This step is already completed." if str(exc) == "already_signed_off" else "Entry is not in work_done status."
+        raise HTTPException(status_code=409, detail=detail)
+
+    badge = get_badge(_DATA_DIR, entry.badge_slug)
+    level = badge["levels"][entry.level_index]
+    step_text = level["steps"][entry.step_index]["text"]
+    scout_name = current_user.name or current_user.email.split("@")[0]
+    for mentor in invited:
+        background_tasks.add_task(send_mentor_signoff_request_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
+    return {"detail": "Sign-off requests sent."}
 
 
 @router.get("/signoff-requests", response_model=list[SignoffRequestResponse])

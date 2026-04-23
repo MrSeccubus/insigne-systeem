@@ -1,4 +1,5 @@
 {% set _status = entry.status if entry else "none" %}
+{% set _default_path = (scout_signoff_options[0].speltak_id ~ "_" ~ scout_signoff_options[0].type) if scout_signoff_options else "direct" %}
 <div id="step-{{ slug }}-{{ level_index }}-{{ step_index }}"
      data-entry-id="{{ entry.id if entry else '' }}"
      class="step-card"
@@ -10,7 +11,8 @@
          {{ slug | tojson }},
          {{ level_index }},
          {{ step_index }}
-     )'>
+     )'
+     x-init="signoffPath = {{ _default_path | tojson }}">
 
     <div class="step-header">
         <span class="step-number">N{{ step_index + 1 }}</span>
@@ -35,7 +37,7 @@
     {% endif %}
     {% endif %}
 
-    {# ── rejection messages — server-rendered, shown in work_done and pending_signoff ── #}
+    {# ── rejection messages — server-rendered ── #}
     {% if entry and entry.signoff_rejections %}
     <div class="step-rejections">
         {% for rejection in entry.signoff_rejections %}
@@ -47,7 +49,7 @@
     </div>
     {% endif %}
 
-    {# ── pending_signoff — server-rendered, only present when card loads in this state ── #}
+    {# ── pending_signoff — server-rendered ── #}
     {% if _status == "pending_signoff" %}
     <div class="step-state">
         {% if entry.notes %}
@@ -71,23 +73,71 @@
                 Nog iemand uitnodigen
             </button>
         </div>
-        <form x-show="signoffOpen" x-cloak
-              class="inline-form"
-              :hx-post="'/progress/' + entryId + '/request-signoff'"
-              hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
-              hx-swap="outerHTML">
-            {% if previous_mentors %}
-            <datalist id="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-ps">
-                {% for mentor in previous_mentors %}
-                <option value="{{ mentor.email }}">{{ mentor.name or mentor.email }}</option>
+        <div x-show="signoffOpen" x-cloak class="inline-form">
+            {% if scout_signoff_options %}
+            <div class="signoff-path-selector">
+                {% for opt in scout_signoff_options %}
+                <label class="signoff-path-option">
+                    <input type="radio" x-model="signoffPath" value="{{ opt.speltak_id }}_{{ opt.type }}">
+                    {{ opt.label }}
+                </label>
                 {% endfor %}
-            </datalist>
+                <label class="signoff-path-option">
+                    <input type="radio" x-model="signoffPath" value="direct">
+                    Vraag direct aan iemand om af te tekenen
+                </label>
+            </div>
             {% endif %}
-            <input type="email" name="mentor_email" x-model="mentorEmail"
-                   placeholder="e-mail van (bege-)leider" required
-                   {% if previous_mentors %}list="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-ps"{% endif %}>
-            <button type="submit" class="btn-secondary btn-sm">Versturen</button>
-        </form>
+
+            {% for opt in scout_signoff_options %}
+            <form x-show="signoffPath === {{ (opt.speltak_id ~ '_' ~ opt.type) | tojson }}" x-cloak
+                  {% if opt.type == "speltak_leiders" %}
+                  hx-post="/progress/{{ entry.id }}/request-signoff-speltak"
+                  {% else %}
+                  hx-post="/progress/{{ entry.id }}/request-signoff-members"
+                  {% endif %}
+                  hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+                  hx-swap="outerHTML">
+                <input type="hidden" name="speltak_id" value="{{ opt.speltak_id }}">
+                {% if opt.type == "speltak_members" %}
+                <div class="signoff-member-list">
+                    {% for member in opt.members %}
+                    <label class="signoff-member-option">
+                        <input type="checkbox" name="mentor_ids" value="{{ member.id }}">
+                        {{ member.name or member.email }}
+                    </label>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <input type="hidden" name="notes" :value="notes">
+                <div class="step-actions">
+                    <button type="button" class="btn-secondary btn-sm" @click="signoffOpen = false">Annuleren</button>
+                    <button type="submit" class="btn-secondary btn-sm">Versturen</button>
+                </div>
+            </form>
+            {% endfor %}
+
+            <form x-show="signoffPath === 'direct'" {% if not scout_signoff_options %}{% else %}x-cloak{% endif %}
+                  hx-post="/progress/{{ entry.id }}/request-signoff"
+                  hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+                  hx-swap="outerHTML">
+                {% if previous_mentors %}
+                <datalist id="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-ps">
+                    {% for mentor in previous_mentors %}
+                    <option value="{{ mentor.email }}">{{ mentor.name or mentor.email }}</option>
+                    {% endfor %}
+                </datalist>
+                {% endif %}
+                <input type="email" name="mentor_email" x-model="mentorEmail"
+                       placeholder="e-mail van (bege-)leider" required
+                       {% if previous_mentors %}list="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-ps"{% endif %}>
+                <input type="hidden" name="notes" :value="notes">
+                <div class="step-actions">
+                    <button type="button" class="btn-secondary btn-sm" @click="signoffOpen = false">Annuleren</button>
+                    <button type="submit" class="btn-secondary btn-sm">Versturen</button>
+                </div>
+            </form>
+        </div>
         {% endif %}
     </div>
     {% endif %}
@@ -112,21 +162,71 @@
             </button>
         </div>
         <div x-show="signoffOpen" x-cloak class="inline-form">
-            <textarea x-model="notes" placeholder="Notities (optioneel)"></textarea>
-            {% if previous_mentors %}
-            <datalist id="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-wd">
-                {% for mentor in previous_mentors %}
-                <option value="{{ mentor.email }}">{{ mentor.name or mentor.email }}</option>
+            {% if scout_signoff_options %}
+            <div class="signoff-path-selector">
+                {% for opt in scout_signoff_options %}
+                <label class="signoff-path-option">
+                    <input type="radio" x-model="signoffPath" value="{{ opt.speltak_id }}_{{ opt.type }}">
+                    {{ opt.label }}
+                </label>
                 {% endfor %}
-            </datalist>
-            {% endif %}
-            <input type="email" x-model="mentorEmail"
-                   placeholder="e-mail van (bege-)leider"
-                   {% if previous_mentors %}list="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-wd"{% endif %}>
-            <div class="step-actions">
-                <button type="button" class="btn-secondary btn-sm" @click="signoffOpen = false">Annuleren</button>
-                <button type="button" class="btn-secondary btn-sm" @click="requestSignoff()">Versturen</button>
+                <label class="signoff-path-option">
+                    <input type="radio" x-model="signoffPath" value="direct">
+                    Vraag direct aan iemand om af te tekenen
+                </label>
             </div>
+            {% endif %}
+
+            <textarea x-model="notes" placeholder="Notities (optioneel)"></textarea>
+
+            {% for opt in scout_signoff_options %}
+            <form x-show="signoffPath === {{ (opt.speltak_id ~ '_' ~ opt.type) | tojson }}" x-cloak
+                  {% if opt.type == "speltak_leiders" %}
+                  :hx-post="'/progress/' + entryId + '/request-signoff-speltak'"
+                  {% else %}
+                  :hx-post="'/progress/' + entryId + '/request-signoff-members'"
+                  {% endif %}
+                  hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+                  hx-swap="outerHTML">
+                <input type="hidden" name="speltak_id" value="{{ opt.speltak_id }}">
+                {% if opt.type == "speltak_members" %}
+                <div class="signoff-member-list">
+                    {% for member in opt.members %}
+                    <label class="signoff-member-option">
+                        <input type="checkbox" name="mentor_ids" value="{{ member.id }}">
+                        {{ member.name or member.email }}
+                    </label>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <input type="hidden" name="notes" :value="notes">
+                <div class="step-actions">
+                    <button type="button" class="btn-secondary btn-sm" @click="signoffOpen = false">Annuleren</button>
+                    <button type="submit" class="btn-secondary btn-sm">Versturen</button>
+                </div>
+            </form>
+            {% endfor %}
+
+            <form x-show="signoffPath === 'direct'" {% if not scout_signoff_options %}{% else %}x-cloak{% endif %}
+                  :hx-post="'/progress/' + entryId + '/request-signoff'"
+                  hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+                  hx-swap="outerHTML">
+                {% if previous_mentors %}
+                <datalist id="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-wd">
+                    {% for mentor in previous_mentors %}
+                    <option value="{{ mentor.email }}">{{ mentor.name or mentor.email }}</option>
+                    {% endfor %}
+                </datalist>
+                {% endif %}
+                <input type="email" name="mentor_email" x-model="mentorEmail"
+                       placeholder="e-mail van (bege-)leider"
+                       {% if previous_mentors %}list="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-wd"{% endif %}>
+                <input type="hidden" name="notes" :value="notes">
+                <div class="step-actions">
+                    <button type="button" class="btn-secondary btn-sm" @click="signoffOpen = false">Annuleren</button>
+                    <button type="submit" class="btn-secondary btn-sm">Versturen</button>
+                </div>
+            </form>
         </div>
         {% endif %}
     </div>

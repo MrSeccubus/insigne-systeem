@@ -168,6 +168,11 @@ def request_signoff(
         raise Conflict("not_work_done")
 
     mentor_email = mentor_email.strip().lower()
+
+    scout = db.get(User, scout_id)
+    if scout and scout.email and scout.email.lower() == mentor_email:
+        raise Forbidden("self_signoff")
+
     mentor = db.query(User).filter(User.email == mentor_email).first()
     created = False
     if mentor is None:
@@ -196,6 +201,8 @@ def confirm_signoff(db: Session, mentor_id: str, entry_id: str, comment: str | N
         raise NotFound("entry_not_found")
     if entry.status == "signed_off":
         raise Conflict("already_signed_off")
+    if mentor_id == entry.user_id:
+        raise Forbidden("self_signoff")
 
     request = db.query(SignoffRequest).filter(
         SignoffRequest.progress_entry_id == entry_id,
@@ -239,14 +246,101 @@ def reject_signoff(db: Session, mentor_id: str, entry_id: str, message: str) -> 
         mentor_name=mentor.name or mentor.email,
         message=message,
     ))
-    db.query(SignoffRequest).filter(
-        SignoffRequest.progress_entry_id == entry_id
-    ).delete()
-    entry.status = "work_done"
+    db.delete(request)
+    db.flush()
+    remaining = db.query(SignoffRequest).filter_by(progress_entry_id=entry_id).count()
+    if remaining == 0:
+        entry.status = "work_done"
 
     db.commit()
     db.refresh(entry)
     return entry
+
+
+def request_signoff_for_speltak(
+    db: Session, scout_id: str, entry_id: str, speltak_id: str
+) -> tuple[ProgressEntry, list[User]]:
+    """Request sign-off from all speltakleiders of a non-peer speltak.
+
+    Raises NotFound("entry_not_found"), Conflict("already_signed_off"),
+    Conflict("not_work_done"), NotFound("no_eligible_mentors").
+    """
+    from insigne import groups as groups_svc
+
+    entry = db.query(ProgressEntry).filter(
+        ProgressEntry.id == entry_id,
+        ProgressEntry.user_id == scout_id,
+    ).first()
+    if entry is None:
+        raise NotFound("entry_not_found")
+    if entry.status == "signed_off":
+        raise Conflict("already_signed_off")
+    if entry.status not in ("work_done", "pending_signoff"):
+        raise Conflict("not_work_done")
+
+    leiders = [u for u in groups_svc.list_speltakleiders_for_speltak(db, speltak_id) if u.id != scout_id]
+    if not leiders:
+        raise NotFound("no_eligible_mentors")
+
+    invited: list[User] = []
+    for leider in leiders:
+        already = db.query(SignoffRequest).filter_by(
+            progress_entry_id=entry_id, mentor_id=leider.id
+        ).first()
+        if already:
+            continue
+        db.add(SignoffRequest(progress_entry_id=entry_id, mentor_id=leider.id))
+        invited.append(leider)
+
+    entry.status = "pending_signoff"
+    db.commit()
+    db.refresh(entry)
+    return entry, invited
+
+
+def request_signoff_from_members(
+    db: Session, scout_id: str, entry_id: str, mentor_ids: list[str]
+) -> tuple[ProgressEntry, list[User]]:
+    """Request sign-off from selected members (peer sign-off path).
+
+    Raises NotFound("entry_not_found"), Conflict("already_signed_off"),
+    Conflict("not_work_done"), NotFound("no_eligible_mentors").
+    """
+    entry = db.query(ProgressEntry).filter(
+        ProgressEntry.id == entry_id,
+        ProgressEntry.user_id == scout_id,
+    ).first()
+    if entry is None:
+        raise NotFound("entry_not_found")
+    if entry.status == "signed_off":
+        raise Conflict("already_signed_off")
+    if entry.status not in ("work_done", "pending_signoff"):
+        raise Conflict("not_work_done")
+
+    eligible_ids = [mid for mid in mentor_ids if mid != scout_id]
+    if not eligible_ids:
+        raise NotFound("no_eligible_mentors")
+
+    invited: list[User] = []
+    for mentor_id in eligible_ids:
+        already = db.query(SignoffRequest).filter_by(
+            progress_entry_id=entry_id, mentor_id=mentor_id
+        ).first()
+        if already:
+            continue
+        mentor = db.get(User, mentor_id)
+        if mentor is None:
+            continue
+        db.add(SignoffRequest(progress_entry_id=entry_id, mentor_id=mentor_id))
+        invited.append(mentor)
+
+    if not invited:
+        raise NotFound("no_eligible_mentors")
+
+    entry.status = "pending_signoff"
+    db.commit()
+    db.refresh(entry)
+    return entry, invited
 
 
 def list_signoff_requests(db: Session, mentor_id: str) -> list[SignoffRequest]:

@@ -402,10 +402,7 @@ async def confirm_signoff(
         confirmed = False
         error = "Kon niet aftekenen." if not isinstance(exc, progress_svc.Conflict) else "Al afgetekend."
 
-    response = _partial(request, "signoff_request_item.html", entry_id=entry_id, confirmed=confirmed, error=error)
-    if confirmed:
-        response.headers["HX-Trigger"] = "signoff-updated"
-    return response
+    return _partial(request, "signoff_request_item.html", entry_id=entry_id, confirmed=confirmed, error=error)
 
 
 @router.post("/progress/{entry_id}/reject-signoff", response_class=HTMLResponse)
@@ -441,9 +438,7 @@ async def reject_signoff(
             message.strip(),
         )
 
-        response = _partial(request, "signoff_request_item.html", entry_id=entry_id, confirmed=False, error="", rejected=True)
-        response.headers["HX-Trigger"] = "signoff-updated"
-        return response
+        return _partial(request, "signoff_request_item.html", entry_id=entry_id, confirmed=False, error="", rejected=True)
     except (progress_svc.NotFound, progress_svc.Forbidden) as exc:
         error = "Kon niet afwijzen."
         return _partial(request, "signoff_request_item.html", entry_id=entry_id, confirmed=False, error=error)

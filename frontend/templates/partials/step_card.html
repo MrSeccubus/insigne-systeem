@@ -49,6 +49,11 @@
     </div>
     {% endif %}
 
+    {# ── error from sign-off requests — always visible ── #}
+    {% if error %}
+    <p class="form-error" style="font-size:0.85rem;padding:0.4rem 0.6rem;">{{ error }}</p>
+    {% endif %}
+
     {# ── pending_signoff — server-rendered ── #}
     {% if _status == "pending_signoff" %}
     <div class="step-state">
@@ -150,9 +155,6 @@
         <div x-show="notes && !signoffOpen" class="step-notes">
             <span x-text="notes"></span>
         </div>
-        {% if error %}
-        <p class="form-error" style="font-size:0.85rem;padding:0.4rem 0.6rem;">{{ error }}</p>
-        {% endif %}
         {% if current_user %}
         <div class="step-actions">
             <button type="button" class="btn-secondary btn-sm"

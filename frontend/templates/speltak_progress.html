@@ -25,6 +25,15 @@
         </div>
         {% endif %}
 
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;font-size:0.8rem;color:#555;">
+            <span>Legenda:</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span class="step-check step-check-in_progress"></span> Bezig</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span class="step-check step-check-work_done"></span> Klaar</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span class="step-check step-check-pending_signoff">?</span> Wacht op aftekenen</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span class="step-check step-check-signed_off">✓</span> Afgetekend</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span class="step-check"></span> Niet gestart</span>
+        </div>
+
         {% if not members %}
         <p class="empty-state">Nog geen scouts in deze speltak.</p>
         {% endif %}

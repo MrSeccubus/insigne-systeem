@@ -475,6 +475,38 @@ def has_scout_progress(db: Session, user_id: str) -> bool:
     return db.query(ProgressEntry).filter_by(user_id=user_id).first() is not None
 
 
+def preview_scout_merge(db: Session, *, from_user_id: str, to_user_id: str) -> list[dict]:
+    """Return changes that would result from merging from_user into to_user.
+    Only entries that would actually change (added or upgraded) are included."""
+    changes = []
+    for entry in db.query(ProgressEntry).filter_by(user_id=from_user_id).all():
+        existing = db.query(ProgressEntry).filter_by(
+            user_id=to_user_id,
+            badge_slug=entry.badge_slug,
+            level_index=entry.level_index,
+            step_index=entry.step_index,
+        ).first()
+        if existing is None:
+            changes.append({
+                "type": "added",
+                "badge_slug": entry.badge_slug,
+                "level_index": entry.level_index,
+                "step_index": entry.step_index,
+                "scout_status": entry.status,
+                "existing_status": None,
+            })
+        elif _STATUS_RANK.get(entry.status, 0) > _STATUS_RANK.get(existing.status, 0):
+            changes.append({
+                "type": "upgraded",
+                "badge_slug": entry.badge_slug,
+                "level_index": entry.level_index,
+                "step_index": entry.step_index,
+                "scout_status": entry.status,
+                "existing_status": existing.status,
+            })
+    return changes
+
+
 def accept_speltak_invite_with_merge(db: Session, *, user_id: str, speltak_id: str) -> None:
     """Accept a speltak invite and merge progress from the linked emailless scout."""
     m = db.query(SpeltakMembership).filter_by(

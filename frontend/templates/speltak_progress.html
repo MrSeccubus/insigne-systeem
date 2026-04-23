@@ -30,7 +30,6 @@
         {% endif %}
 
         {% set category_labels = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes"} %}
-        {% set NEXT = {"none":"in_progress","in_progress":"work_done","work_done":"none","pending_signoff":"pending_signoff","signed_off":"work_done"} %}
 
         {% for category, badges in all_badges.items() %}
         {% set visible_badges = badges | selectattr("slug", "in", favorite_slugs) | list if only_favorites else badges %}
@@ -80,7 +79,6 @@
                                     {% set entry = scout_progress.get((level_index, step_index)) %}
                                     {% set entry_status = entry.status if entry else "none" %}
                                     {% set can_edit_cell = can_edit and m.user_id != leider_id and entry_status != "pending_signoff" %}
-                                    {% set next_status = NEXT[entry_status] %}
                                     {% set scout_id = m.user_id %}
                                     {% include "partials/leider_step_check.html" %}
                                     {% endfor %}
@@ -107,4 +105,22 @@
 
     </div>
 </main>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener('toggle', function(e) {
+    if (e.target.classList.contains('step-check-wrapper') && e.target.open) {
+        document.querySelectorAll('.step-check-wrapper[open]').forEach(function(el) {
+            if (el !== e.target) el.removeAttribute('open');
+        });
+    }
+}, true);
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.step-check-wrapper')) {
+        document.querySelectorAll('.step-check-wrapper[open]').forEach(function(el) {
+            el.removeAttribute('open');
+        });
+    }
+});
+</script>
 {% endblock %}

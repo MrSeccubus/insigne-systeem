@@ -1,15 +1,53 @@
 {# Leider-editable step-check cell. Variables:
    scout_id, badge_slug, level_index, step_index, entry_status,
-   group_slug, speltak_slug, can_edit_cell, next_status #}
+   group_slug, speltak_slug, can_edit_cell #}
+{% set _post_url = "/groups/" ~ group_slug ~ "/speltakken/" ~ speltak_slug ~ "/scouts/" ~ scout_id ~ "/progress/set" %}
+{% set _vals_base = '"badge_slug":"' ~ badge_slug ~ '","level_index":' ~ level_index ~ ',"step_index":' ~ step_index %}
+{% if can_edit_cell %}
+<details id="leider-check-{{ scout_id }}-{{ badge_slug }}-{{ level_index }}-{{ step_index }}"
+         class="step-check-wrapper">
+    <summary class="step-check{% if entry_status and entry_status != 'none' %} step-check-{{ entry_status }}{% endif %}"
+             title="{% if entry_status == 'signed_off' %}Afgetekend{% elif entry_status == 'work_done' %}Klaar{% elif entry_status == 'in_progress' %}Bezig{% else %}Niet gestart{% endif %}">
+        {%- if entry_status == 'signed_off' -%}✓{%- endif -%}
+    </summary>
+    <div class="step-check-dropdown">
+        {% if entry_status == 'signed_off' %}
+        <button class="step-check-option"
+                hx-post="{{ _post_url }}"
+                hx-vals='{ {{ _vals_base }},"status":"work_done"}'
+                hx-target="closest details"
+                hx-swap="outerHTML">
+            <span class="step-check step-check-work_done" style="pointer-events:none;">✓</span> Terugzetten
+        </button>
+        {% else %}
+        <button class="step-check-option{% if entry_status == 'none' %} step-check-option--active{% endif %}"
+                hx-post="{{ _post_url }}"
+                hx-vals='{ {{ _vals_base }},"status":"none"}'
+                hx-target="closest details"
+                hx-swap="outerHTML">
+            <span class="step-check" style="pointer-events:none;"></span> Niet gestart
+        </button>
+        <button class="step-check-option{% if entry_status == 'in_progress' %} step-check-option--active{% endif %}"
+                hx-post="{{ _post_url }}"
+                hx-vals='{ {{ _vals_base }},"status":"in_progress"}'
+                hx-target="closest details"
+                hx-swap="outerHTML">
+            <span class="step-check step-check-in_progress" style="pointer-events:none;"></span> Bezig
+        </button>
+        <button class="step-check-option{% if entry_status == 'work_done' %} step-check-option--active{% endif %}"
+                hx-post="{{ _post_url }}"
+                hx-vals='{ {{ _vals_base }},"status":"work_done"}'
+                hx-target="closest details"
+                hx-swap="outerHTML">
+            <span class="step-check step-check-work_done" style="pointer-events:none;"></span> Klaar
+        </button>
+        {% endif %}
+    </div>
+</details>
+{% else %}
 <span id="leider-check-{{ scout_id }}-{{ badge_slug }}-{{ level_index }}-{{ step_index }}"
       class="step-check{% if entry_status and entry_status != 'none' %} step-check-{{ entry_status }}{% endif %}"
-      title="{% if entry_status == 'signed_off' %}Afgetekend{% elif entry_status == 'pending_signoff' %}Wacht op aftekenen{% elif entry_status == 'work_done' %}Klaar{% elif entry_status == 'in_progress' %}Bezig{% else %}Niet gestart{% endif %}"
-      {% if can_edit_cell %}
-      style="cursor:pointer;"
-      hx-post="/groups/{{ group_slug }}/speltakken/{{ speltak_slug }}/scouts/{{ scout_id }}/progress/set"
-      hx-vals='{"badge_slug":"{{ badge_slug }}","level_index":{{ level_index }},"step_index":{{ step_index }},"status":"{{ next_status }}"}'
-      hx-target="this"
-      hx-swap="outerHTML"
-      {% endif %}>
+      title="{% if entry_status == 'signed_off' %}Afgetekend{% elif entry_status == 'pending_signoff' %}Wacht op aftekenen{% elif entry_status == 'work_done' %}Klaar{% elif entry_status == 'in_progress' %}Bezig{% else %}Niet gestart{% endif %}">
     {%- if entry_status == 'signed_off' -%}✓{%- elif entry_status == 'pending_signoff' -%}?{%- endif -%}
 </span>
+{% endif %}

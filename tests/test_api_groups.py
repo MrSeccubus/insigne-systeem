@@ -449,3 +449,138 @@ class TestMyInvitations:
     def test_requires_authentication(self, client, db):
         r = client.get("/api/invitations/me")
         assert r.status_code == 401
+
+
+# ── GET /api/users/me/memberships ─────────────────────────────────────────────
+
+class TestGetMyMemberships:
+    def test_returns_group_and_speltak_memberships(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        svc.set_speltak_role(db, user_id=user.id, speltak_id=s.id, role="scout")
+        r = client.get("/api/users/me/memberships", headers=_auth(token))
+        assert r.status_code == 200
+        data = r.json()
+        assert any(m["group_id"] == g.id for m in data["group_memberships"])
+        assert any(m["speltak_id"] == s.id for m in data["speltak_memberships"])
+
+    def test_requires_authentication(self, client, db):
+        r = client.get("/api/users/me/memberships")
+        assert r.status_code == 401
+
+
+# ── GET /api/users/me/requests ────────────────────────────────────────────────
+
+class TestGetMyRequests:
+    def test_returns_own_requests(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g")
+        svc.create_membership_request(db, user_id=user.id, group_id=g.id)
+        r = client.get("/api/users/me/requests", headers=_auth(token))
+        assert r.status_code == 200
+        assert len(r.json()) == 1
+        assert r.json()[0]["group_id"] == g.id
+
+    def test_requires_authentication(self, client, db):
+        r = client.get("/api/users/me/requests")
+        assert r.status_code == 401
+
+
+# ── DELETE /api/users/me/requests/{req_id} ────────────────────────────────────
+
+class TestCancelMyRequestAPI:
+    def test_cancel_own_request(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g")
+        req = svc.create_membership_request(db, user_id=user.id, group_id=g.id)
+        r = client.delete(f"/api/users/me/requests/{req.id}", headers=_auth(token))
+        assert r.status_code == 204
+        r2 = client.get("/api/users/me/requests", headers=_auth(token))
+        assert r2.json() == []
+
+    def test_cancel_all_requests(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g1 = svc.create_group(db, name="G1", slug="g1")
+        g2 = svc.create_group(db, name="G2", slug="g2")
+        svc.create_membership_request(db, user_id=user.id, group_id=g1.id)
+        svc.create_membership_request(db, user_id=user.id, group_id=g2.id)
+        r = client.delete("/api/users/me/requests", headers=_auth(token))
+        assert r.status_code == 204
+        r2 = client.get("/api/users/me/requests", headers=_auth(token))
+        assert r2.json() == []
+
+    def test_requires_authentication(self, client, db):
+        r = client.delete("/api/users/me/requests/some-id")
+        assert r.status_code == 401
+
+
+# ── GET /api/groups/{group_id}/members/without-speltak ───────────────────────
+
+class TestMembersWithoutSpeltak:
+    def test_returns_members_without_speltak(self, client, db):
+        token = _full_register(client, db)
+        leider = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+        scout_user = User(email="scout@example.com", name="Scout", status="active", password_hash="x")
+        db.add(scout_user)
+        db.commit()
+        svc.set_group_role(db, user_id=scout_user.id, group_id=g.id, role="member")
+        r = client.get(f"/api/groups/{g.id}/members/without-speltak", headers=_auth(token))
+        assert r.status_code == 200
+        assert any(m["user_id"] == scout_user.id for m in r.json())
+
+    def test_excludes_speltak_members(self, client, db):
+        token = _full_register(client, db)
+        leider = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        scout_user = User(email="scout@example.com", name="Scout", status="active", password_hash="x")
+        db.add(scout_user)
+        db.commit()
+        svc.set_speltak_role(db, user_id=scout_user.id, speltak_id=s.id, role="scout")
+        r = client.get(f"/api/groups/{g.id}/members/without-speltak", headers=_auth(token))
+        assert r.status_code == 200
+        assert not any(m["user_id"] == scout_user.id for m in r.json())
+
+    def test_requires_manager(self, client, db):
+        token = _full_register(client, db)
+        g = svc.create_group(db, name="G", slug="g")
+        r = client.get(f"/api/groups/{g.id}/members/without-speltak", headers=_auth(token))
+        assert r.status_code == 403
+
+
+# ── GET /api/requests ─────────────────────────────────────────────────────────
+
+class TestAllPendingRequestsAPI:
+    def test_returns_pending_for_leader(self, client, db):
+        token = _full_register(client, db)
+        leider = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+        scout_user = User(email="scout@example.com", name="Scout", status="active", password_hash="x")
+        db.add(scout_user)
+        db.commit()
+        svc.create_membership_request(db, user_id=scout_user.id, group_id=g.id)
+        r = client.get("/api/requests", headers=_auth(token))
+        assert r.status_code == 200
+        assert len(r.json()) == 1
+        assert r.json()[0]["user_id"] == scout_user.id
+
+    def test_returns_empty_for_non_leader(self, client, db):
+        token = _full_register(client, db)
+        g = svc.create_group(db, name="G", slug="g")
+        scout_user = User(email="scout@example.com", name="Scout", status="active", password_hash="x")
+        db.add(scout_user)
+        db.commit()
+        svc.create_membership_request(db, user_id=scout_user.id, group_id=g.id)
+        r = client.get("/api/requests", headers=_auth(token))
+        assert r.status_code == 200
+        assert r.json() == []
+
+    def test_requires_authentication(self, client, db):
+        r = client.get("/api/requests")
+        assert r.status_code == 401

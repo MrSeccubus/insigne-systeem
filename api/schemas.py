@@ -212,3 +212,23 @@ class MembershipRequestResponse(BaseModel):
     status: str
     reviewed_by_id: str | None
     created_at: datetime
+
+
+class UserGroupMembershipResponse(BaseModel):
+    group_id: str
+    role: str
+    approved: bool
+    withdrawn: bool
+
+
+class UserSpeltakMembershipResponse(BaseModel):
+    speltak_id: str
+    group_id: str
+    role: str
+    approved: bool
+    withdrawn: bool
+
+
+class ActiveMembershipsResponse(BaseModel):
+    group_memberships: list[UserGroupMembershipResponse]
+    speltak_memberships: list[UserSpeltakMembershipResponse]

@@ -12,7 +12,7 @@ from insigne.badges import get_badge, list_badges
 from insigne.config import config
 from insigne.database import get_db
 from routers import api_auth, api_badges, api_groups, api_progress, api_users, html_badges, html_groups, users
-from routers.api_groups import invitations_router
+from routers.api_groups import invitations_router, pending_requests_router
 from routers.users import _get_current_user
 from templates import templates
 
@@ -32,6 +32,7 @@ app.include_router(api_progress.router, prefix="/api")
 app.include_router(api_badges.router, prefix="/api")
 app.include_router(api_groups.router, prefix="/api")
 app.include_router(invitations_router, prefix="/api")
+app.include_router(pending_requests_router, prefix="/api")
 
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="static")

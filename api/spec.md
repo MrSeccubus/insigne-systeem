@@ -219,6 +219,49 @@ All fields are optional. Progress and sign-offs are stored against `user_id`, so
 
 ---
 
+#### `GET /api/users/me/memberships` — Get own active memberships 🔒
+
+Returns all active (approved, not withdrawn) group and speltak memberships for the authenticated user.
+
+**Response `200`:**
+
+```json
+{
+  "group_memberships": [
+    { "group_id": "...", "role": "groepsleider", "approved": true, "withdrawn": false }
+  ],
+  "speltak_memberships": [
+    { "speltak_id": "...", "group_id": "...", "role": "scout", "approved": true, "withdrawn": false }
+  ]
+}
+```
+
+---
+
+#### `GET /api/users/me/requests` — List own membership requests 🔒
+
+Returns all membership requests submitted by the authenticated user (pending, approved, and rejected).
+
+**Response `200`:** `MembershipRequest[]`
+
+---
+
+#### `DELETE /api/users/me/requests/{req_id}` — Cancel a membership request 🔒
+
+Deletes the request if it belongs to the authenticated user. Silently ignored if the request belongs to another user.
+
+**Response `204`:** No content.
+
+---
+
+#### `DELETE /api/users/me/requests` — Cancel all membership requests 🔒
+
+Deletes all membership requests submitted by the authenticated user.
+
+**Response `204`:** No content.
+
+---
+
 ### Badges
 
 Badge data is read from YAML files on disk — there is no database table for badges.
@@ -691,6 +734,14 @@ Requires groepsleider. Returns non-withdrawn pending memberships.
 
 ---
 
+#### `GET /api/groups/{group_id}/members/without-speltak` — List members not in any speltak 🔒
+
+Requires groepsleider. Returns approved group members with role `member` who have no active speltak membership in this group.
+
+**Response `200`:** `GroupMembership[]`
+
+---
+
 #### `POST /api/groups/{group_id}/members` — Set member role 🔒
 
 Requires groepsleider. Creates or updates the membership for `user_id`.
@@ -744,6 +795,50 @@ Must be called by the invitee. Deletes the pending membership record.
 Must be called by the invitee. Deletes a withdrawn (`withdrawn=true`) membership record.
 
 **Response `204`:** No content.
+
+---
+
+#### `POST /api/groups/{group_id}/requests` — Submit membership request 🔒
+
+Creates a pending membership request for the authenticated user. `speltak_id` is optional; omit it to request group-level membership.
+
+**Request body:**
+
+```json
+{ "speltak_id": "..." }
+```
+
+**Response `201`:** `MembershipRequest`
+
+**Response `409`:** Already a member, or a pending request already exists.
+
+---
+
+#### `GET /api/groups/{group_id}/requests` — List pending requests 🔒
+
+Requires groepsleider. Returns all pending membership requests for the group.
+
+**Response `200`:** `MembershipRequest[]`
+
+---
+
+#### `POST /api/groups/{group_id}/requests/{req_id}/approve` — Approve request 🔒
+
+Requires groepsleider. Creates the membership and marks the request as `approved`.
+
+**Response `204`:** No content.
+
+**Response `404`:** Request not found.
+
+---
+
+#### `POST /api/groups/{group_id}/requests/{req_id}/reject` — Reject request 🔒
+
+Requires groepsleider. Marks the request as `rejected`. No membership is created.
+
+**Response `204`:** No content.
+
+**Response `404`:** Request not found.
 
 ---
 
@@ -941,6 +1036,14 @@ Returns all pending and withdrawn group and speltak invitations for the authenti
 
 ---
 
+### `GET /api/requests` — All pending requests across groups (leader view) 🔒
+
+Returns all pending membership requests for groups the authenticated user manages (i.e., is groepsleider of). Ordered by `created_at`.
+
+**Response `200`:** `MembershipRequest[]`
+
+---
+
 ## Data Models (Groups)
 
 ### `Group`
@@ -981,6 +1084,18 @@ Returns all pending and withdrawn group and speltak invitations for the authenti
 | `approved` | boolean | `false` = pending invite |
 | `withdrawn` | boolean | `true` = manager revoked, awaiting dismissal by invitee |
 | `invited_by_id` | UUID \| null | Who sent the invite |
+
+### `MembershipRequest`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `user_id` | UUID | Requester |
+| `group_id` | UUID | Target group |
+| `speltak_id` | UUID \| null | Target speltak (null = group-level request) |
+| `status` | string | `pending` \| `approved` \| `rejected` |
+| `reviewed_by_id` | UUID \| null | Who approved or rejected |
+| `created_at` | datetime | ISO 8601 |
 
 ---
 
@@ -1035,24 +1150,43 @@ These endpoints serve the HTMX frontend. Full pages are returned on direct navig
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/groups` | List all groups |
+| `GET` | `/groups` | List all groups, with pending request summary for leaders (auth required) |
+| `GET` | `/groups/join` | Browse groups and request membership (auth required) |
+| `GET` | `/groups/invite-leader` | Invite someone to create and lead a new group (auth required) |
+| `GET` | `/groups/new` | Create group form (auth required) |
 | `GET` | `/groups/{slug}` | Group detail — members, speltakken |
 | `GET` | `/groups/{slug}/edit` | Edit group form |
 | `GET` | `/groups/{slug}/speltakken/{speltak_slug}` | Speltak detail — members, pending invites |
 | `GET` | `/groups/{slug}/speltakken/{speltak_slug}/edit` | Edit speltak form |
+| `GET` | `/requests` | All pending membership requests across managed groups (auth required) |
+
+### Groups HTML utility endpoints (JSON responses)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/groups/search?q=` | Search groups by name — returns `[{id, name, slug}]` |
+| `GET` | `/groups/{slug}/members/check-email?email=` | Check if email belongs to an active user — returns `{exists}` |
+| `GET` | `/groups/{slug}/speltakken/{speltak_slug}/members/check-email?email=` | Same, also returns `{exists, in_group}` |
 
 ### Groups HTML actions (form POST, redirect on success)
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/groups/new` | Create group |
+| `POST` | `/groups/join` | Submit membership request (also accepts `Accept: application/json`, returns `{ok}` or `{error}`) |
+| `POST` | `/groups/invite-leader` | Send invite-to-create-group email |
 | `POST` | `/groups/{slug}/edit` | Update group name/slug |
 | `POST` | `/groups/{slug}/delete` | Delete group |
 | `POST` | `/groups/{slug}/members/add` | Add member by email (direct if known, invite if not) |
 | `POST` | `/groups/{slug}/members/invite` | Send group invite email |
 | `POST` | `/groups/{slug}/members/{uid}/role` | Change groepsleider/member role |
 | `POST` | `/groups/{slug}/members/{uid}/remove` | Remove member |
+| `POST` | `/groups/{slug}/members/{uid}/assign-speltak` | Assign a group member to a speltak |
 | `POST` | `/groups/{slug}/members/{uid}/withdraw` | Revoke pending invite (returns 204, called via fetch) |
+| `POST` | `/requests/{req_id}/approve` | Approve a membership request (leader only) |
+| `POST` | `/requests/{req_id}/reject` | Reject a membership request (leader only) |
+| `POST` | `/my-requests/{req_id}/cancel` | Cancel own membership request |
+| `POST` | `/my-requests/cancel-all` | Cancel all own membership requests |
 | `POST` | `/groups/{slug}/speltakken/new` | Create speltak |
 | `POST` | `/groups/{slug}/speltakken/{speltak_slug}/edit` | Update speltak |
 | `POST` | `/groups/{slug}/speltakken/{speltak_slug}/delete` | Delete speltak |

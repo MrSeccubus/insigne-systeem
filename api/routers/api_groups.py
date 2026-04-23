@@ -135,6 +135,20 @@ def list_group_members(
             for m in groups_svc.list_group_members(db, group_id)]
 
 
+@router.get("/{group_id}/members/without-speltak", response_model=list[GroupMembershipResponse])
+def list_members_without_speltak(
+    group_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not groups_svc.get_group(db, group_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found.")
+    if not groups_svc.can_manage_group(current_user, db, group_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed.")
+    return [_group_membership_response(m)
+            for m in groups_svc.list_members_without_speltak(db, group_id)]
+
+
 @router.get("/{group_id}/members/pending", response_model=list[GroupMembershipResponse])
 def list_pending_group_members(
     group_id: str,
@@ -610,3 +624,17 @@ def reject_membership_request(
         groups_svc.reject_membership_request(db, request_id=req_id, reviewed_by_id=current_user.id)
     except ValueError:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Request not found.")
+
+
+# ── Cross-group requests view (current user as leader) ────────────────────────
+
+pending_requests_router = APIRouter(prefix="/requests", tags=["requests"])
+
+
+@pending_requests_router.get("", response_model=list[MembershipRequestResponse])
+def list_all_pending_requests(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    reqs = groups_svc.list_all_pending_requests_for_leader(db, current_user.id)
+    return [_req_response(r) for r in reqs]

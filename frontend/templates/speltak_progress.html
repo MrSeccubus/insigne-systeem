@@ -14,8 +14,8 @@
         <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem;">
             <h1 style="font-size:1.4rem;margin:0;">Voortgang — {{ speltak.name }}</h1>
             <a href="?only_favorites={% if only_favorites %}0{% else %}1{% endif %}"
-               class="btn-sm btn-neutral"
-               style="text-decoration:none;font-size:1rem;padding:0 0.5rem;line-height:1.6;{% if only_favorites %}color:#f59e0b;border-color:#f59e0b;{% endif %}"
+               class="btn-sm {% if only_favorites %}btn-star-active{% else %}btn-neutral{% endif %}"
+               style="text-decoration:none;font-size:1rem;padding:0 0.5rem;line-height:1.6;"
                title="{% if only_favorites %}Alle badges tonen{% else %}Alleen favorieten tonen{% endif %}">{% if only_favorites %}★{% else %}☆{% endif %}</a>
         </div>
 
@@ -84,7 +84,7 @@
                     hx-vals='{"badge_slug":"{{ badge.slug }}"}'
                     hx-target="this"
                     hx-swap="outerHTML"
-                    class="btn-sm btn-neutral"
+                    class="btn-sm {% if badge.slug in favorite_slugs %}btn-star-active{% else %}btn-neutral{% endif %}"
                     style="font-size:1rem;padding:0 0.4rem;line-height:1.6;"
                     title="{% if badge.slug in favorite_slugs %}Verwijder uit favorieten{% else %}Voeg toe aan favorieten{% endif %}"
                     onclick="event.stopPropagation()">
@@ -136,6 +136,11 @@
 
         {% if only_favorites and not favorite_slugs %}
         <p class="empty-state">Geen favoriete badges ingesteld. Klik op ☆ naast een badge om deze als favoriet te markeren.</p>
+        {% elif only_favorites %}
+        <p class="form-hint">
+            Mis je een badge? Je ziet nu alleen je favoriete badges.
+            Druk op de <strong>★</strong> bovenaan om alle badges weer te geven.
+        </p>
         {% endif %}
 
     </div>

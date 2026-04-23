@@ -1099,7 +1099,7 @@ def group_progress(group_slug: str, request: Request, db: Session = Depends(get_
 def speltak_progress(
     group_slug: str, speltak_slug: str,
     request: Request,
-    only_favorites: bool = Query(False),
+    only_favorites: bool | None = Query(None),
     db: Session = Depends(get_db),
 ):
     user, redirect = _require_user(request, db)
@@ -1120,6 +1120,8 @@ def speltak_progress(
     scout_ids = [m.user_id for m in memberships]
     progress_by_scout = progress_svc.list_progress_for_scouts(db, scout_ids)
     favorite_slugs = groups_svc.get_speltak_favorite_slugs(db, speltak.id)
+    if only_favorites is None:
+        only_favorites = bool(favorite_slugs)
     can_edit = not speltak.peer_signoff
 
     all_badges_raw = list_badges(_DATA_DIR)

@@ -228,6 +228,15 @@ button:hover {
     margin-bottom: 1rem;
 }
 
+.form-info {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e40af;
+    border-radius: 4px;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 1rem;
+}
+
 .form-hint {
     color: #555;
     font-size: 0.95rem;
@@ -878,6 +887,19 @@ button:disabled, a[disabled] {
     color: #374151;
 }
 
+.btn-star-active {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid #f59e0b;
+    border-radius: 4px;
+    background: #fffbeb;
+    color: #f59e0b;
+}
+.btn-star-active:hover {
+    background: #fef3c7;
+}
 .btn-neutral:hover {
     background: #f3f4f6;
 }

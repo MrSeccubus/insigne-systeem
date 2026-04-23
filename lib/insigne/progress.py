@@ -328,7 +328,7 @@ def set_scout_progress(
         raise Forbidden("self_edit")
 
     scout_membership = db.query(SpeltakMembership).filter_by(
-        user_id=scout_id, speltak_id=speltak_id, approved=True
+        user_id=scout_id, speltak_id=speltak_id, withdrawn=False,
     ).first()
     if scout_membership is None:
         raise Forbidden("scout_not_in_speltak")

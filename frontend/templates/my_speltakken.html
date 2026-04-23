@@ -12,7 +12,7 @@
                 <span>{{ speltak.name }}</span>
                 <span class="row-actions">
                     <a href="/groups/{{ entry.group.slug }}/speltakken/{{ speltak.slug }}/progress"
-                       class="btn-neutral btn-sm" style="text-decoration:none;">Voortgang bekijken</a>
+                       class="btn-neutral btn-sm" style="text-decoration:none;">{% if speltak.peer_signoff %}Voortgang bekijken{% else %}Voortgang bewerken{% endif %}</a>
                 </span>
             </li>
             {% endfor %}

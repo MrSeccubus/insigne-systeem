@@ -262,10 +262,22 @@ def accept_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:
         db.commit()
 
 
+def _delete_pending_invite_user(db: Session, user_id: str) -> None:
+    """Delete progress and user account for a pending (never activated) invite user."""
+    user = db.get(User, user_id)
+    if user and user.status == "pending" and user.created_by_id is None:
+        db.query(ProgressEntry).filter_by(user_id=user_id).delete()
+        db.query(ConfirmationToken).filter_by(user_id=user_id).delete()
+        db.delete(user)
+        db.flush()
+
+
 def deny_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:
     m = db.query(SpeltakMembership).filter_by(user_id=user_id, speltak_id=speltak_id, approved=False).first()
     if m:
         db.delete(m)
+        db.flush()
+        _delete_pending_invite_user(db, user_id)
         db.commit()
 
 
@@ -289,6 +301,8 @@ def withdraw_speltak_invite(db: Session, user_id: str, speltak_id: str) -> bool:
         db.commit()
         return True
     m.withdrawn = True
+    db.flush()
+    _delete_pending_invite_user(db, user_id)
     db.commit()
     return False
 
@@ -297,6 +311,8 @@ def dismiss_speltak_invite(db: Session, user_id: str, speltak_id: str) -> None:
     m = db.query(SpeltakMembership).filter_by(user_id=user_id, speltak_id=speltak_id, approved=False).first()
     if m:
         db.delete(m)
+        db.flush()
+        _delete_pending_invite_user(db, user_id)
         db.commit()
 
 

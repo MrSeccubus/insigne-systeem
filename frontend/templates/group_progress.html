@@ -24,7 +24,7 @@
                     </span>
                     <span class="row-actions">
                         <a href="{{ entry.progress_url }}" class="btn-neutral btn-sm" style="text-decoration:none;">
-                            Voortgang bekijken →
+                            {% if entry.speltak.peer_signoff %}Voortgang bekijken{% else %}Voortgang bewerken{% endif %} →
                         </a>
                     </span>
                 </li>

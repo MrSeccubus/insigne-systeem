@@ -1115,10 +1115,20 @@ def speltak_progress(
         return RedirectResponse(f"/groups/{group_slug}", status_code=303)
 
     memberships = groups_svc.list_speltak_members(db, speltak.id)
+    pending = groups_svc.list_pending_speltak_members(db, speltak.id)
+    existing_ids = {m.user_id for m in memberships}
+    memberships = sorted(
+        memberships + [p for p in pending if p.user_id not in existing_ids],
+        key=lambda m: (m.user.name or m.user.email or "").lower(),
+    )
     if not speltak.peer_signoff:
         memberships = [m for m in memberships if m.role != "speltakleider"]
     scout_ids = [m.user_id for m in memberships]
-    progress_by_scout = progress_svc.list_progress_for_scouts(db, scout_ids)
+    source_ids = [p.source_scout_id for p in pending if p.source_scout_id and p.user_id not in existing_ids]
+    progress_by_scout = progress_svc.list_progress_for_scouts(db, scout_ids + source_ids)
+    for p in pending:
+        if p.source_scout_id and p.user_id in progress_by_scout:
+            progress_by_scout[p.user_id].update(progress_by_scout.pop(p.source_scout_id, {}))
     favorite_slugs = groups_svc.get_speltak_favorite_slugs(db, speltak.id)
     if only_favorites is None:
         only_favorites = bool(favorite_slugs)
@@ -1251,9 +1261,10 @@ def speltak_toggle_favorite_badge(
     is_fav = groups_svc.toggle_speltak_favorite_badge(db, speltak.id, badge_slug)
     label = "Verwijder uit favorieten" if is_fav else "Voeg toe aan favorieten"
     star = "★" if is_fav else "☆"
+    css_class = "btn-star-active" if is_fav else "btn-neutral"
     return HTMLResponse(
         f'<button hx-post="/groups/{group_slug}/speltakken/{speltak_slug}/favorite-badge" '
         f'hx-vals=\'{{"badge_slug":"{badge_slug}"}}\' hx-target="this" hx-swap="outerHTML" '
-        f'class="btn-sm btn-neutral" style="font-size:1rem;padding:0 0.4rem;line-height:1.6;" '
+        f'class="btn-sm {css_class}" style="font-size:1rem;padding:0 0.4rem;line-height:1.6;" '
         f'title="{label}">{star}</button>'
     )

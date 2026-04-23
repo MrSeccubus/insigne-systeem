@@ -171,6 +171,8 @@ class SpeltakInvitationResponse(BaseModel):
     role: str
     withdrawn: bool
     invited_by_id: str | None
+    source_scout_id: str | None = None
+    scout_has_progress: bool = False
 
 
 class InvitationListResponse(BaseModel):

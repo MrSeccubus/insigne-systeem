@@ -942,7 +942,15 @@ Requires speltakleider or groepsleider. For scouts who were emailless and had an
 
 #### `POST /api/groups/{group_id}/speltakken/{speltak_id}/members/{user_id}/accept` — Accept speltak invite 🔒
 
-Must be called by the invitee.
+Must be called by the invitee. If the invite has a linked emailless scout (`source_scout_id`), the scout record is cleaned up without merging progress (equivalent to `accept-without-merge`). Use `accept-with-merge` if the client wants the user to take over the scout's progress.
+
+**Response `204`:** No content.
+
+---
+
+#### `POST /api/groups/{group_id}/speltakken/{speltak_id}/members/{user_id}/accept-with-merge` — Accept speltak invite and merge scout progress 🔒
+
+Must be called by the invitee. If the invite has a linked emailless scout (`source_scout_id`), their progress entries are merged into the user's account (scout wins on higher status, existing user wins on equal/lower). The scout record is then deleted. If there is no linked scout this behaves identically to `accept`.
 
 **Response `204`:** No content.
 
@@ -1028,7 +1036,9 @@ Returns all pending and withdrawn group and speltak invitations for the authenti
       "group_name": "Groep Noord",
       "role": "scout",
       "withdrawn": false,
-      "invited_by_id": "u1-..."
+      "invited_by_id": "u1-...",
+      "source_scout_id": "u2-...",
+      "scout_has_progress": true
     }
   ]
 }

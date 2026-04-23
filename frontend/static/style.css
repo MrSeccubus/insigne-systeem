@@ -981,32 +981,51 @@ button:disabled, a[disabled] {
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.5rem;
 }
 
-.signoff-path-option {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
+.btn-path {
     font-size: 0.875rem;
+    font-family: inherit;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
     cursor: pointer;
-    padding: 0.2rem 0;
+    color: #333;
+    text-align: left;
+}
+
+.btn-path:hover {
+    border-color: #00A651;
+    color: #00A651;
+}
+
+.btn-path-active {
+    border-color: #00A651;
+    background: #f0faf4;
+    color: #00A651;
+    font-weight: 600;
+}
+
+.signoff-member-prompt {
+    margin: 0 0 0.4rem;
+    font-size: 0.9rem;
 }
 
 .signoff-member-list {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    margin-bottom: 0.2rem;
+    gap: 0.3rem;
+    margin-bottom: 0.4rem;
 }
 
-.signoff-member-option {
+.signoff-member-label {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    font-size: 0.875rem;
+    gap: 0.5rem;
+    font-size: 0.9rem;
     cursor: pointer;
-    padding: 0.15rem 0;
 }
 
 /* ── Notifications ───────────────────────────────────────────────────────── */

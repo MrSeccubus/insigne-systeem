@@ -59,14 +59,20 @@ def _build_signoff_options(db, current_user):
                 options.append({
                     "type": "speltak_members",
                     "speltak_id": speltak.id,
-                    "label": f"Vraag een mede-lid van de {speltak.name} van {group.name} om af te tekenen",
+                    "speltak_name": speltak.name,
+                    "group_name": group.name,
+                    "label_prefix": "Vraag een mede-lid van de",
+                    "label_suffix": "om af te tekenen",
                     "members": members,
                 })
         elif role != "speltakleider":
             options.append({
                 "type": "speltak_leiders",
                 "speltak_id": speltak.id,
-                "label": f"Aftekenen door leiding van {speltak.name} van {group.name}",
+                "speltak_name": speltak.name,
+                "group_name": group.name,
+                "label_prefix": "Aftekenen door leiding van",
+                "label_suffix": "",
             })
     return options
 

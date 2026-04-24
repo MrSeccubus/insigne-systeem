@@ -1492,3 +1492,22 @@ button:disabled, a[disabled] {
 }
 
 [x-cloak] { display: none !important; }
+
+.site-footer {
+    margin-top: 4rem;
+    padding: 1.5rem 2rem;
+    border-top: 1px solid #e5e7eb;
+    text-align: center;
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+.site-footer a {
+    color: #6b7280;
+    text-decoration: none;
+}
+
+.site-footer a:hover {
+    color: #00A651;
+    text-decoration: underline;
+}

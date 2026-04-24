@@ -216,6 +216,11 @@ def send_membership_request_rejected_email(
          speltak_name=speltak_name)
 
 
+def send_contact_form_email(to: str, sender_email: str, subject: str, body: str) -> None:
+    send(to, "contact_form",
+         email=to, sender_email=sender_email, subject=subject, body=body)
+
+
 def send_invite_group_leader_email(
     to: str, invited_by_name: str,
 ) -> None:

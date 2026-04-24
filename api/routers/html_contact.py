@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import random
+import time
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import HTMLResponse
@@ -14,19 +15,53 @@ from templates import templates as _TEMPLATES
 
 router = APIRouter()
 
+_BUCKET_SECONDS = 600  # 10-minute validity window
 
-def _captcha_token(answer: int) -> str:
+
+def _captcha_secret() -> bytes:
+    """Derive a captcha-specific key from the JWT secret so they are independent."""
     return hmac.new(
         config.jwt_secret_key.encode(),
-        str(answer).encode(),
+        b"captcha-secret",
+        hashlib.sha256,
+    ).digest()
+
+
+def _current_bucket() -> int:
+    return int(time.time()) // _BUCKET_SECONDS
+
+
+def _make_token(answer: int, bucket: int) -> str:
+    mac = hmac.new(
+        _captcha_secret(),
+        f"{answer}:{bucket}".encode(),
         hashlib.sha256,
     ).hexdigest()
+    return f"{bucket}:{mac}"
+
+
+def _verify_token(answer: int, token: str) -> bool:
+    """Accept tokens from the current or previous bucket (handles boundary edge-cases)."""
+    try:
+        bucket_str, mac = token.split(":", 1)
+        bucket = int(bucket_str)
+    except (ValueError, AttributeError):
+        return False
+    current = _current_bucket()
+    if bucket not in (current, current - 1):
+        return False
+    expected = hmac.new(
+        _captcha_secret(),
+        f"{answer}:{bucket}".encode(),
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(expected, mac)
 
 
 def _new_captcha() -> tuple[int, int, str]:
     a = random.randint(1, 9)
     b = random.randint(1, 9)
-    return a, b, _captcha_token(a + b)
+    return a, b, _make_token(a + b, _current_bucket())
 
 
 def _render(request, current_user, *, success=False, error=None,
@@ -67,7 +102,7 @@ async def contact_submit(
             answer_int = int(captcha_answer.strip())
         except ValueError:
             answer_int = -1
-        if not hmac.compare_digest(_captcha_token(answer_int), captcha_token):
+        if not _verify_token(answer_int, captcha_token):
             return _render(request, current_user, error="Onjuist antwoord op de rekensom. Probeer het opnieuw.",
                            prefill_subject=subject, prefill_body=body, prefill_email=email)
 

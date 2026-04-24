@@ -56,7 +56,7 @@ class TestListProgress:
     def test_filter_by_badge_slug(self, db):
         scout = _active_user(db)
         _entry(db, scout, badge_slug="vredeslicht")
-        _entry(db, scout, badge_slug="kantklossen", level_index=0, step_index=1)
+        _entry(db, scout, badge_slug="knopen", level_index=0, step_index=1)
         result = progress_svc.list_progress(db, scout.id, badge_slug="vredeslicht")
         assert all(e.badge_slug == "vredeslicht" for e in result)
         assert len(result) == 1

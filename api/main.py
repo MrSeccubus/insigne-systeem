@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
@@ -80,9 +81,34 @@ async def index(request: Request, db: Session = Depends(get_db)):
                         if all_progress.get(badge["slug"], {}).get((eis_idx, niveau_idx)) and
                            all_progress[badge["slug"]][(eis_idx, niveau_idx)].status == "signed_off"
                     ),
+                    "completed_at": max(
+                        (all_progress[badge["slug"]][(eis_idx, niveau_idx)].signed_off_at
+                         for eis_idx in range(n_eisen)
+                         if all_progress.get(badge["slug"], {}).get((eis_idx, niveau_idx)) and
+                            all_progress[badge["slug"]][(eis_idx, niveau_idx)].status == "signed_off" and
+                            all_progress[badge["slug"]][(eis_idx, niveau_idx)].signed_off_at),
+                        default=None,
+                    ),
                 }
                 for niveau_idx in range(3)
             ]
+
+    signed_off_niveaus = sorted(
+        [
+            {
+                "slug": badge["slug"],
+                "title": badge["title"],
+                "niveau_number": card["index"] + 1,
+                "image": card["image"],
+                "completed_at": card["completed_at"],
+            }
+            for badges in all_badges.values()
+            for badge in badges
+            for card in badge["level_cards"]
+            if card["completed"] == card["total"] and card["total"] > 0
+        ],
+        key=lambda n: n["completed_at"] or datetime.min,
+    )
 
     response = templates.TemplateResponse(
         request=request,
@@ -99,6 +125,7 @@ async def index(request: Request, db: Session = Depends(get_db)):
             "my_group_memberships": my_group_memberships,
             "my_speltak_memberships": my_speltak_memberships,
             "allow_invite_leader": current_user and (config.allow_any_user_to_create_groups or current_user.is_admin),
+            "signed_off_niveaus": signed_off_niveaus,
         },
     )
     response.headers["Cache-Control"] = "no-store"

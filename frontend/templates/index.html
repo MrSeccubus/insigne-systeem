@@ -139,6 +139,23 @@
             </ul>
         </section>
         {% endif %}
+
+        {% if signed_off_niveaus %}
+        <section class="ribbon">
+            <h2 class="ribbon__title">Jouw insignes</h2>
+            <div class="ribbon__items">
+                {% for n in signed_off_niveaus %}
+                {% if loop.index0 % 2 == 0 %}<div class="ribbon__pair">{% endif %}
+                <a href="/badges/{{ n.slug }}?niveau={{ n.niveau_number }}"
+                   class="ribbon__item"
+                   title="{{ n.title }} — Niveau {{ n.niveau_number }}">
+                    <img src="{{ n.image }}" alt="{{ n.title }} Niveau {{ n.niveau_number }}">
+                </a>
+                {% if loop.index0 % 2 == 1 or loop.last %}</div>{% endif %}
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
     {% else %}
         <h1>Insigne Systeem</h1>
         <p style="color:#555;margin-bottom:2rem;">Volg je voortgang voor Scouting insignes en vraag aftekening aan bij je (bege-)leiders.</p>

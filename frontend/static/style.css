@@ -1493,6 +1493,59 @@ button:disabled, a[disabled] {
 
 [x-cloak] { display: none !important; }
 
+.ribbon {
+    margin: 1.5rem 0;
+    padding: 1rem 1.25rem;
+    background: #f9fdf9;
+    border: 1px solid #c8e6c9;
+    border-radius: 6px;
+}
+
+.ribbon__title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 0.75rem;
+}
+
+.ribbon__items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    padding-bottom: 1.5rem;
+}
+
+.ribbon__pair {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 0.2rem;
+}
+
+.ribbon__item {
+    display: block;
+    width: 2.75rem;
+    margin-right: -0.6rem;
+    position: relative;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.ribbon__pair .ribbon__item:nth-child(2) {
+    top: 1.375rem; /* W/2 — honeycomb column offset */
+}
+
+.ribbon__item:hover {
+    transform: scale(1.12);
+    z-index: 1;
+}
+
+.ribbon__item img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
 .site-footer {
     margin-top: 4rem;
     padding: 1.5rem 2rem;

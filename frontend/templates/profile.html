@@ -8,6 +8,11 @@
     {% if success %}
         <p class="form-success">{{ success }}</p>
     {% endif %}
+    {% if pending_email_change %}
+    <div class="info-box" style="max-width:480px;margin-bottom:1rem;">
+        <p style="margin:0;">Er staat een bevestiging open voor een e-mailwijziging naar <strong>{{ pending_email_change.new_email }}</strong>. Controleer je inbox om de wijziging te bevestigen.</p>
+    </div>
+    {% endif %}
     <div style="max-width:480px;">
         <form method="post" action="/profile">
             {% if error %}
@@ -20,6 +25,9 @@
             <div class="field">
                 <label for="email">E-mailadres</label>
                 <input type="email" id="email" name="email" value="{{ current_user.email }}" required autocomplete="email">
+                {% if pending_email_change %}
+                <span class="field-hint">Wijziging naar <strong>{{ pending_email_change.new_email }}</strong> in behandeling.</span>
+                {% endif %}
             </div>
             <div class="field" x-data="{ show: false }">
                 <label for="password">Nieuw wachtwoord <span class="optional">(leeg laten om ongewijzigd te laten)</span></label>

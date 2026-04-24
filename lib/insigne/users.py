@@ -4,9 +4,11 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from .auth import hash_password, verify_password
-from .models import ConfirmationToken, User
+from .models import ConfirmationToken, EmailChangeRequest, GroupMembership, SpeltakMembership, User
 
 _TOKEN_EXPIRE_HOURS = 1
+_EMAIL_CHANGE_CONFIRM_HOURS = 24
+_EMAIL_CHANGE_REVERT_DAYS = 7
 
 
 def _local_part(email: str) -> str:
@@ -118,6 +120,9 @@ def activate_account(db: Session, setup_token: str, password: str, name: str = "
     user.password_hash = hash_password(password)
     user.status = "active"
     token.used_at = now
+    # Approve pending (non-withdrawn) memberships created as invitations
+    db.query(GroupMembership).filter_by(user_id=user.id, approved=False, withdrawn=False).update({"approved": True})
+    db.query(SpeltakMembership).filter_by(user_id=user.id, approved=False, withdrawn=False).update({"approved": True})
     db.commit()
     return user, is_new
 
@@ -177,3 +182,108 @@ def update_user(
 def delete_user(db: Session, user: User) -> None:
     db.delete(user)
     db.commit()
+
+
+class EmailChangeError(Exception):
+    pass
+
+
+def request_email_change(db: Session, user: User, new_email: str) -> "EmailChangeRequest":
+    """Start an email change flow. Sends confirm link to new address, revert link to old.
+
+    Cancels any existing pending change for this user.
+    Raises EmailChangeError('email_taken') if new_email already belongs to another account.
+    Raises EmailChangeError('same_email') if new_email == current email.
+    """
+    new_email = new_email.strip().lower()
+    if new_email == (user.email or "").lower():
+        raise EmailChangeError("same_email")
+
+    existing = db.query(User).filter(User.email == new_email, User.id != user.id).first()
+    if existing is not None:
+        raise EmailChangeError("email_taken")
+
+    now = datetime.now(timezone.utc)
+    db.query(EmailChangeRequest).filter(
+        EmailChangeRequest.user_id == user.id,
+        EmailChangeRequest.confirmed_at.is_(None),
+        EmailChangeRequest.reverted_at.is_(None),
+    ).update({"reverted_at": now})
+
+    req = EmailChangeRequest(
+        user_id=user.id,
+        old_email=user.email or "",
+        new_email=new_email,
+        confirm_token=secrets.token_urlsafe(32),
+        revert_token=secrets.token_urlsafe(32),
+        expires_at=now + timedelta(hours=_EMAIL_CHANGE_CONFIRM_HOURS),
+        revert_expires_at=now + timedelta(days=_EMAIL_CHANGE_REVERT_DAYS),
+    )
+    db.add(req)
+    db.commit()
+    db.refresh(req)
+    return req
+
+
+def confirm_email_change(db: Session, token: str) -> "EmailChangeRequest | None":
+    """Apply the email change. Returns the request or None if token invalid/expired."""
+    now = datetime.now(timezone.utc)
+    req = db.query(EmailChangeRequest).filter(
+        EmailChangeRequest.confirm_token == token,
+        EmailChangeRequest.confirmed_at.is_(None),
+        EmailChangeRequest.reverted_at.is_(None),
+        EmailChangeRequest.expires_at > now,
+    ).first()
+    if req is None:
+        return None
+
+    existing = db.query(User).filter(User.email == req.new_email, User.id != req.user_id).first()
+    if existing is not None:
+        return None
+
+    user = db.get(User, req.user_id)
+    user.email = req.new_email
+    req.confirmed_at = now
+    db.commit()
+    db.refresh(req)
+    return req
+
+
+def revert_email_change(db: Session, token: str) -> "EmailChangeRequest | None":
+    """Revert the email change back to the old address. Returns the request or None."""
+    now = datetime.now(timezone.utc)
+    req = db.query(EmailChangeRequest).filter(
+        EmailChangeRequest.revert_token == token,
+        EmailChangeRequest.reverted_at.is_(None),
+        EmailChangeRequest.revert_expires_at > now,
+    ).first()
+    if req is None:
+        return None
+
+    user = db.get(User, req.user_id)
+    user.email = req.old_email
+    req.reverted_at = now
+    db.commit()
+    db.refresh(req)
+    return req
+
+
+def get_revert_request(db: Session, token: str) -> "EmailChangeRequest | None":
+    """Return the EmailChangeRequest for a valid (unexpired, unreverted) revert token."""
+    now = datetime.now(timezone.utc)
+    return db.query(EmailChangeRequest).filter(
+        EmailChangeRequest.revert_token == token,
+        EmailChangeRequest.reverted_at.is_(None),
+        EmailChangeRequest.revert_expires_at > now,
+    ).first()
+
+
+def pending_email_change(db: Session, user_id: str) -> "EmailChangeRequest | None":
+    """Return the active (unconfirmed, unreverted, unexpired) email change request, if any."""
+    now = datetime.now(timezone.utc)
+    return db.query(EmailChangeRequest).filter(
+        EmailChangeRequest.user_id == user_id,
+        EmailChangeRequest.confirmed_at.is_(None),
+        EmailChangeRequest.reverted_at.is_(None),
+        EmailChangeRequest.expires_at > now,
+    ).first()

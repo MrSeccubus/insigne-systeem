@@ -1,4 +1,5 @@
-from insigne.models import ConfirmationToken, User
+from insigne import users as user_svc
+from insigne.models import ConfirmationToken, EmailChangeRequest, User
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -118,11 +119,31 @@ class TestUpdateMe:
         assert r.status_code == 200
         assert r.json()["name"] == "Janssen"
 
-    def test_updates_email(self, client, db):
+    def test_email_change_returns_202_style_detail(self, client, db):
         token = _full_register(client, db)
         r = client.put("/api/users/me", json={"email": "new@example.com"}, headers=_auth(token))
         assert r.status_code == 200
-        assert r.json()["email"] == "new@example.com"
+        assert "detail" in r.json()
+
+    def test_email_not_updated_immediately(self, client, db):
+        token = _full_register(client, db)
+        client.put("/api/users/me", json={"email": "new@example.com"}, headers=_auth(token))
+        user = db.query(User).filter_by(email="jan@example.com").first()
+        assert user is not None
+
+    def test_email_change_creates_pending_request(self, client, db):
+        token = _full_register(client, db)
+        client.put("/api/users/me", json={"email": "new@example.com"}, headers=_auth(token))
+        user = db.query(User).filter_by(email="jan@example.com").first()
+        req = db.query(EmailChangeRequest).filter_by(user_id=user.id).first()
+        assert req is not None
+        assert req.new_email == "new@example.com"
+
+    def test_same_email_does_not_create_pending_request(self, client, db):
+        token = _full_register(client, db)
+        client.put("/api/users/me", json={"email": "jan@example.com"}, headers=_auth(token))
+        user = db.query(User).filter_by(email="jan@example.com").first()
+        assert db.query(EmailChangeRequest).filter_by(user_id=user.id).count() == 0
 
     def test_short_password_returns_400(self, client, db):
         token = _full_register(client, db)
@@ -134,6 +155,81 @@ class TestUpdateMe:
         _full_register(client, db, email="piet@example.com")
         r = client.put("/api/users/me", json={"email": "piet@example.com"}, headers=_auth(token))
         assert r.status_code == 409
+
+
+# ── GET /api/users/me/email-change ────────────────────────────────────────────
+
+class TestGetPendingEmailChange:
+    def test_no_pending_change_returns_null(self, client, db):
+        token = _full_register(client, db)
+        r = client.get("/api/users/me/email-change", headers=_auth(token))
+        assert r.status_code == 200
+        assert r.json() is None
+
+    def test_pending_change_returned(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="jan@example.com").first()
+        user_svc.request_email_change(db, user, "new@example.com")
+        r = client.get("/api/users/me/email-change", headers=_auth(token))
+        assert r.status_code == 200
+        assert r.json()["new_email"] == "new@example.com"
+
+    def test_requires_auth(self, client, db):
+        r = client.get("/api/users/me/email-change")
+        assert r.status_code == 401
+
+
+# ── POST /api/users/email-change/confirm ─────────────────────────────────────
+
+class TestConfirmEmailChangeApi:
+    def test_valid_token_updates_email_and_returns_user(self, client, db):
+        _full_register(client, db)
+        user = db.query(User).filter_by(email="jan@example.com").first()
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        r = client.post("/api/users/email-change/confirm", json={"token": req.confirm_token})
+        assert r.status_code == 200
+        assert r.json()["email"] == "new@example.com"
+        db.refresh(user)
+        assert user.email == "new@example.com"
+
+    def test_invalid_token_returns_400(self, client, db):
+        r = client.post("/api/users/email-change/confirm", json={"token": "badtoken"})
+        assert r.status_code == 400
+
+    def test_token_cannot_be_reused(self, client, db):
+        _full_register(client, db)
+        user = db.query(User).filter_by(email="jan@example.com").first()
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        client.post("/api/users/email-change/confirm", json={"token": req.confirm_token})
+        r = client.post("/api/users/email-change/confirm", json={"token": req.confirm_token})
+        assert r.status_code == 400
+
+
+# ── POST /api/users/email-change/revert ──────────────────────────────────────
+
+class TestRevertEmailChangeApi:
+    def test_valid_token_reverts_email_and_returns_user(self, client, db):
+        _full_register(client, db)
+        user = db.query(User).filter_by(email="jan@example.com").first()
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        user_svc.confirm_email_change(db, req.confirm_token)
+        r = client.post("/api/users/email-change/revert", json={"token": req.revert_token})
+        assert r.status_code == 200
+        assert r.json()["email"] == "jan@example.com"
+        db.refresh(user)
+        assert user.email == "jan@example.com"
+
+    def test_invalid_token_returns_400(self, client, db):
+        r = client.post("/api/users/email-change/revert", json={"token": "badtoken"})
+        assert r.status_code == 400
+
+    def test_token_cannot_be_used_twice(self, client, db):
+        _full_register(client, db)
+        user = db.query(User).filter_by(email="jan@example.com").first()
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        client.post("/api/users/email-change/revert", json={"token": req.revert_token})
+        r = client.post("/api/users/email-change/revert", json={"token": req.revert_token})
+        assert r.status_code == 400
 
 
 # ── DELETE /api/users/me ──────────────────────────────────────────────────────

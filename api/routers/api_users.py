@@ -1,22 +1,35 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from insigne import groups as groups_svc
 from insigne import users as user_svc
 from insigne.auth import create_access_token
 from insigne.database import get_db
-from insigne.email import send_password_reset_email, send_registration_email, send_welcome_email
+from insigne.email import (
+    send_email_change_confirm_email,
+    send_email_change_revert_email,
+    send_password_reset_email,
+    send_registration_email,
+    send_welcome_email,
+)
 from insigne.models import User
 
 from deps import get_current_user
 from schemas import (
     ActivateRequest,
+    ActiveMembershipsResponse,
     ConfirmRequest,
+    EmailChangeTokenRequest,
+    MembershipRequestResponse,
+    PendingEmailChangeResponse,
     RegisterRequest,
     SetupTokenResponse,
     TokenResponse,
     UpdateUserRequest,
+    UserGroupMembershipResponse,
     UserResponse,
+    UserSpeltakMembershipResponse,
 )
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -67,20 +80,72 @@ async def get_me(current_user: User = Depends(get_current_user)):
     return _user_response(current_user)
 
 
-@router.put("/me", response_model=UserResponse)
+@router.put("/me", status_code=200)
 async def update_me(
     body: UpdateUserRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    email_changing = body.email and str(body.email).lower() != (current_user.email or "").lower()
+
     try:
-        user = user_svc.update_user(
-            db, current_user, name=body.name, email=body.email, password=body.password
+        user_svc.update_user(
+            db, current_user,
+            name=body.name,
+            email=None,  # email change handled separately
+            password=body.password,
         )
     except ValueError:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
-    except IntegrityError:
-        raise HTTPException(status_code=409, detail="Email address already in use.")
+
+    if email_changing:
+        try:
+            req = user_svc.request_email_change(db, current_user, str(body.email))
+        except user_svc.EmailChangeError as exc:
+            if str(exc) == "email_taken":
+                raise HTTPException(status_code=409, detail="Email address already in use.")
+            raise HTTPException(status_code=400, detail="Invalid input.")
+        naam = current_user.name or (current_user.email or "").split("@")[0]
+        background_tasks.add_task(
+            send_email_change_confirm_email,
+            req.new_email, naam, req.new_email, req.confirm_token,
+        )
+        background_tasks.add_task(
+            send_email_change_revert_email,
+            req.old_email, naam, req.old_email, req.new_email, req.revert_token,
+        )
+        return {"detail": f"Email change confirmation sent to {req.new_email}."}
+
+    return _user_response(current_user)
+
+
+@router.get("/me/email-change", response_model=PendingEmailChangeResponse | None)
+async def get_pending_email_change(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    req = user_svc.pending_email_change(db, current_user.id)
+    if req is None:
+        return None
+    return PendingEmailChangeResponse(new_email=req.new_email, expires_at=req.expires_at)
+
+
+@router.post("/email-change/confirm", response_model=UserResponse)
+async def confirm_email_change(body: EmailChangeTokenRequest, db: Session = Depends(get_db)):
+    req = user_svc.confirm_email_change(db, body.token)
+    if req is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired token.")
+    user = db.get(User, req.user_id)
+    return _user_response(user)
+
+
+@router.post("/email-change/revert", response_model=UserResponse)
+async def revert_email_change(body: EmailChangeTokenRequest, db: Session = Depends(get_db)):
+    req = user_svc.revert_email_change(db, body.token)
+    if req is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired token.")
+    user = db.get(User, req.user_id)
     return _user_response(user)
 
 
@@ -90,4 +155,60 @@ async def delete_me(
     db: Session = Depends(get_db),
 ):
     user_svc.delete_user(db, current_user)
+    return Response(status_code=204)
+
+
+@router.get("/me/memberships", response_model=ActiveMembershipsResponse)
+def get_my_memberships(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    gm, sm = groups_svc.list_active_memberships_for_user(db, current_user.id)
+    return ActiveMembershipsResponse(
+        group_memberships=[
+            UserGroupMembershipResponse(
+                group_id=m.group_id, role=m.role,
+                approved=m.approved, withdrawn=m.withdrawn,
+            ) for m in gm
+        ],
+        speltak_memberships=[
+            UserSpeltakMembershipResponse(
+                speltak_id=m.speltak_id, group_id=m.speltak.group_id,
+                role=m.role, approved=m.approved, withdrawn=m.withdrawn,
+            ) for m in sm
+        ],
+    )
+
+
+@router.get("/me/requests", response_model=list[MembershipRequestResponse])
+def get_my_requests(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    reqs = groups_svc.list_my_membership_requests(db, current_user.id)
+    return [
+        MembershipRequestResponse(
+            id=r.id, user_id=r.user_id, group_id=r.group_id,
+            speltak_id=r.speltak_id, status=r.status,
+            reviewed_by_id=r.reviewed_by_id, created_at=r.created_at,
+        ) for r in reqs
+    ]
+
+
+@router.delete("/me/requests", status_code=status.HTTP_204_NO_CONTENT)
+def cancel_all_my_requests(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    groups_svc.cancel_all_membership_requests(db, user_id=current_user.id)
+    return Response(status_code=204)
+
+
+@router.delete("/me/requests/{req_id}", status_code=status.HTTP_204_NO_CONTENT)
+def cancel_my_request(
+    req_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    groups_svc.cancel_membership_request(db, request_id=req_id, user_id=current_user.id)
     return Response(status_code=204)

@@ -1,4 +1,5 @@
 {% set _status = entry.status if entry else "none" %}
+{% set _peer_options = scout_signoff_options | selectattr('type', 'equalto', 'speltak_members') | list %}
 <div id="step-{{ slug }}-{{ level_index }}-{{ step_index }}"
      data-entry-id="{{ entry.id if entry else '' }}"
      class="step-card"
@@ -10,7 +11,8 @@
          {{ slug | tojson }},
          {{ level_index }},
          {{ step_index }}
-     )'>
+     )'
+     x-init="signoffPath = ''">
 
     <div class="step-header">
         <span class="step-number">N{{ step_index + 1 }}</span>
@@ -21,7 +23,7 @@
         </span>
     </div>
 
-    {# ── signed_off — server-rendered, only present when card loads in this state ── #}
+    {# ── signed_off — server-rendered ── #}
     {% if _status == "signed_off" %}
     <p class="step-signoff-info">
         ✓ Afgetekend door {{ entry.signed_off_by.name or entry.signed_off_by.email }}
@@ -35,7 +37,7 @@
     {% endif %}
     {% endif %}
 
-    {# ── rejection messages — server-rendered, shown in work_done and pending_signoff ── #}
+    {# ── rejection messages — server-rendered ── #}
     {% if entry and entry.signoff_rejections %}
     <div class="step-rejections">
         {% for rejection in entry.signoff_rejections %}
@@ -47,7 +49,12 @@
     </div>
     {% endif %}
 
-    {# ── pending_signoff — server-rendered, only present when card loads in this state ── #}
+    {# ── error from sign-off requests — always visible ── #}
+    {% if error %}
+    <p class="form-error" style="font-size:0.85rem;padding:0.4rem 0.6rem;">{{ error }}</p>
+    {% endif %}
+
+    {# ── pending_signoff — server-rendered ── #}
     {% if _status == "pending_signoff" %}
     <div class="step-state">
         {% if entry.notes %}
@@ -71,23 +78,74 @@
                 Nog iemand uitnodigen
             </button>
         </div>
-        <form x-show="signoffOpen" x-cloak
-              class="inline-form"
-              :hx-post="'/progress/' + entryId + '/request-signoff'"
-              hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
-              hx-swap="outerHTML">
-            {% if previous_mentors %}
-            <datalist id="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-ps">
-                {% for mentor in previous_mentors %}
-                <option value="{{ mentor.email }}">{{ mentor.name or mentor.email }}</option>
-                {% endfor %}
-            </datalist>
-            {% endif %}
-            <input type="email" name="mentor_email" x-model="mentorEmail"
-                   placeholder="e-mail van (bege-)leider" required
-                   {% if previous_mentors %}list="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-ps"{% endif %}>
-            <button type="submit" class="btn-secondary btn-sm">Versturen</button>
-        </form>
+        <div x-show="signoffOpen" x-cloak class="inline-form">
+            {# Leiding buttons: direct-action forms #}
+            {% for opt in scout_signoff_options if opt.type == "speltak_leiders" %}
+            <form hx-post="/progress/{{ entry.id }}/request-signoff-speltak"
+                  hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+                  hx-swap="outerHTML">
+                <input type="hidden" name="speltak_id" value="{{ opt.speltak_id }}">
+                <button type="submit" class="btn-path">
+                    {{ opt.label_prefix }} <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong>
+                </button>
+            </form>
+            {% endfor %}
+
+            {# Peer buttons: reveal member list #}
+            {% for opt in scout_signoff_options if opt.type == "speltak_members" %}
+            <button type="button"
+                    :class="signoffPath === '{{ opt.speltak_id }}_speltak_members' ? 'btn-path btn-path-active' : 'btn-path'"
+                    @click="signoffPath = '{{ opt.speltak_id }}_speltak_members'">
+                {{ opt.label_prefix }} <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong> {{ opt.label_suffix }}
+            </button>
+            {% endfor %}
+
+            {# Direct button #}
+            <button type="button"
+                    :class="signoffPath === 'direct' ? 'btn-path btn-path-active' : 'btn-path'"
+                    @click="signoffPath = 'direct'">
+                Vraag direct aan iemand om af te tekenen
+            </button>
+
+            {# Peer member forms #}
+            {% for opt in scout_signoff_options if opt.type == "speltak_members" %}
+            <form x-show="signoffPath === '{{ opt.speltak_id }}_speltak_members'" x-cloak
+                  hx-post="/progress/{{ entry.id }}/request-signoff-members"
+                  hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+                  hx-swap="outerHTML">
+                <p class="signoff-member-prompt">Wie van de <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong> wil je laten aftekenen?</p>
+                <div class="signoff-member-list">
+                    {% for member in opt.members %}
+                    <label class="signoff-member-label">
+                        <input type="checkbox" name="mentor_ids" value="{{ member.id }}">
+                        {{ member.name or member.email }}
+                    </label>
+                    {% endfor %}
+                </div>
+                <button type="submit" class="btn-secondary btn-sm">Versturen</button>
+            </form>
+            {% endfor %}
+
+            {# Direct email form #}
+            <form x-show="signoffPath === 'direct'" x-cloak
+                  hx-post="/progress/{{ entry.id }}/request-signoff"
+                  hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+                  hx-swap="outerHTML">
+                {% if previous_mentors %}
+                <datalist id="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-ps">
+                    {% for mentor in previous_mentors %}
+                    <option value="{{ mentor.email }}">{{ mentor.name or mentor.email }}</option>
+                    {% endfor %}
+                </datalist>
+                {% endif %}
+                <input type="email" name="mentor_email" x-model="mentorEmail"
+                       placeholder="e-mail van (bege-)leider" required
+                       {% if previous_mentors %}list="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-ps"{% endif %}>
+                <button type="submit" class="btn-secondary btn-sm">Versturen</button>
+            </form>
+
+            <button type="button" class="btn-secondary btn-sm" @click="signoffOpen = false">Annuleren</button>
+        </div>
         {% endif %}
     </div>
     {% endif %}
@@ -97,9 +155,6 @@
         <div x-show="notes && !signoffOpen" class="step-notes">
             <span x-text="notes"></span>
         </div>
-        {% if error %}
-        <p class="form-error" style="font-size:0.85rem;padding:0.4rem 0.6rem;">{{ error }}</p>
-        {% endif %}
         {% if current_user %}
         <div class="step-actions">
             <button type="button" class="btn-secondary btn-sm"
@@ -112,21 +167,67 @@
             </button>
         </div>
         <div x-show="signoffOpen" x-cloak class="inline-form">
+            {# Notes FIRST #}
             <textarea x-model="notes" placeholder="Notities (optioneel)"></textarea>
-            {% if previous_mentors %}
-            <datalist id="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-wd">
-                {% for mentor in previous_mentors %}
-                <option value="{{ mentor.email }}">{{ mentor.name or mentor.email }}</option>
-                {% endfor %}
-            </datalist>
-            {% endif %}
-            <input type="email" x-model="mentorEmail"
-                   placeholder="e-mail van (bege-)leider"
-                   {% if previous_mentors %}list="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-wd"{% endif %}>
-            <div class="step-actions">
-                <button type="button" class="btn-secondary btn-sm" @click="signoffOpen = false">Annuleren</button>
-                <button type="button" class="btn-secondary btn-sm" @click="requestSignoff()">Versturen</button>
-            </div>
+
+            {# Leiding buttons: submit immediately via htmx.ajax with current notes #}
+            {% for opt in scout_signoff_options if opt.type == "speltak_leiders" %}
+            <button type="button" class="btn-path"
+                    @click="signoffPath = ''; htmx.ajax('POST', '/progress/' + entryId + '/request-signoff-speltak', { target: $root, swap: 'outerHTML', values: { speltak_id: '{{ opt.speltak_id }}', notes: notes } })">
+                {{ opt.label_prefix }} <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong>
+            </button>
+            {% endfor %}
+
+            {# Peer buttons: reveal member list #}
+            {% for opt in scout_signoff_options if opt.type == "speltak_members" %}
+            <button type="button"
+                    :class="signoffPath === '{{ opt.speltak_id }}_speltak_members' ? 'btn-path btn-path-active' : 'btn-path'"
+                    @click="signoffPath = '{{ opt.speltak_id }}_speltak_members'">
+                {{ opt.label_prefix }} <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong> {{ opt.label_suffix }}
+            </button>
+            {% endfor %}
+
+            {# Direct button #}
+            <button type="button"
+                    :class="signoffPath === 'direct' ? 'btn-path btn-path-active' : 'btn-path'"
+                    @click="signoffPath = 'direct'">
+                Vraag direct aan iemand om af te tekenen
+            </button>
+
+            {# Peer member forms #}
+            {% for opt in scout_signoff_options if opt.type == "speltak_members" %}
+            <form x-show="signoffPath === '{{ opt.speltak_id }}_speltak_members'" x-cloak
+                  @submit.prevent="const fd = new FormData($el); fd.set('notes', notes); htmx.ajax('POST', '/progress/' + entryId + '/request-signoff-members', { target: $root, swap: 'outerHTML', values: fd })">
+                <p class="signoff-member-prompt">Wie van de <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong> wil je laten aftekenen?</p>
+                <div class="signoff-member-list">
+                    {% for member in opt.members %}
+                    <label class="signoff-member-label">
+                        <input type="checkbox" name="mentor_ids" value="{{ member.id }}">
+                        {{ member.name or member.email }}
+                    </label>
+                    {% endfor %}
+                </div>
+                <button type="submit" class="btn-secondary btn-sm">Versturen</button>
+            </form>
+            {% endfor %}
+
+            {# Direct email form #}
+            <form x-show="signoffPath === 'direct'" x-cloak
+                  @submit.prevent="htmx.ajax('POST', '/progress/' + entryId + '/request-signoff', { target: $root, swap: 'outerHTML', values: { mentor_email: mentorEmail, notes: notes } })">
+                {% if previous_mentors %}
+                <datalist id="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-wd">
+                    {% for mentor in previous_mentors %}
+                    <option value="{{ mentor.email }}">{{ mentor.name or mentor.email }}</option>
+                    {% endfor %}
+                </datalist>
+                {% endif %}
+                <input type="email" x-model="mentorEmail"
+                       placeholder="e-mail van (bege-)leider" required
+                       {% if previous_mentors %}list="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-wd"{% endif %}>
+                <button type="submit" class="btn-secondary btn-sm">Versturen</button>
+            </form>
+
+            <button type="button" class="btn-secondary btn-sm" @click="signoffOpen = false">Annuleren</button>
         </div>
         {% endif %}
     </div>

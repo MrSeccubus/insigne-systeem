@@ -56,7 +56,7 @@ class TestListProgress:
     def test_filter_by_badge_slug(self, db):
         scout = _active_user(db)
         _entry(db, scout, badge_slug="vredeslicht")
-        _entry(db, scout, badge_slug="kantklossen", level_index=0, step_index=1)
+        _entry(db, scout, badge_slug="knopen", level_index=0, step_index=1)
         result = progress_svc.list_progress(db, scout.id, badge_slug="vredeslicht")
         assert all(e.badge_slug == "vredeslicht" for e in result)
         assert len(result) == 1
@@ -451,7 +451,7 @@ class TestRejectSignoff:
         assert rejection.message == "Nog niet af"
         assert rejection.mentor_name == "Leider Piet"
 
-    def test_removes_all_signoff_requests(self, db):
+    def test_removes_only_rejecting_mentors_request(self, db):
         scout = _active_user(db)
         mentor = _active_user(db, "mentor@example.com", "Leider Piet")
         other_mentor = _active_user(db, "other@example.com", "Leider Klaas")
@@ -460,9 +460,11 @@ class TestRejectSignoff:
         db.add(SignoffRequest(progress_entry_id=e.id, mentor_id=other_mentor.id))
         db.commit()
         progress_svc.reject_signoff(db, mentor.id, e.id, "Nog niet af")
-        assert db.query(SignoffRequest).filter_by(progress_entry_id=e.id).count() == 0
+        remaining = db.query(SignoffRequest).filter_by(progress_entry_id=e.id).all()
+        assert len(remaining) == 1
+        assert remaining[0].mentor_id == other_mentor.id
 
-    def test_reverts_to_work_done_even_with_multiple_mentors(self, db):
+    def test_stays_pending_signoff_when_other_requests_remain(self, db):
         scout = _active_user(db)
         mentor = _active_user(db, "mentor@example.com", "Leider Piet")
         other_mentor = _active_user(db, "other@example.com", "Leider Klaas")
@@ -472,7 +474,7 @@ class TestRejectSignoff:
         db.commit()
         progress_svc.reject_signoff(db, mentor.id, e.id, "Nog niet af")
         db.refresh(e)
-        assert e.status == "work_done"
+        assert e.status == "pending_signoff"
 
     def test_raises_forbidden_if_not_invited(self, db):
         scout = _active_user(db)

@@ -10,7 +10,7 @@ from insigne.auth import (
     hash_password,
     verify_password,
 )
-from insigne.models import ConfirmationToken, User
+from insigne.models import ConfirmationToken, EmailChangeRequest, User
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────
@@ -345,3 +345,142 @@ class TestUpdateUser:
         user_svc.update_user(db, user, email="other@example.com")
         db.refresh(user)
         assert user.name == original_name
+
+
+# ── request_email_change ──────────────────────────────────────────────────────
+
+class TestRequestEmailChange:
+    def test_returns_email_change_request(self, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        assert req.new_email == "new@example.com"
+        assert req.old_email == "jan@example.com"
+
+    def test_stores_confirm_and_revert_tokens(self, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        assert req.confirm_token
+        assert req.revert_token
+        assert req.confirm_token != req.revert_token
+
+    def test_email_not_changed_immediately(self, db):
+        user = _register_and_activate(db)
+        user_svc.request_email_change(db, user, "new@example.com")
+        db.refresh(user)
+        assert user.email == "jan@example.com"
+
+    def test_normalises_new_email(self, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "  NEW@EXAMPLE.COM  ")
+        assert req.new_email == "new@example.com"
+
+    def test_same_email_raises(self, db):
+        user = _register_and_activate(db)
+        with pytest.raises(user_svc.EmailChangeError) as exc:
+            user_svc.request_email_change(db, user, "jan@example.com")
+        assert str(exc.value) == "same_email"
+
+    def test_taken_email_raises(self, db):
+        _register_and_activate(db, email="jan@example.com")
+        user2 = _register_and_activate(db, email="piet@example.com")
+        with pytest.raises(user_svc.EmailChangeError) as exc:
+            user_svc.request_email_change(db, user2, "jan@example.com")
+        assert str(exc.value) == "email_taken"
+
+    def test_cancels_previous_pending_change(self, db):
+        user = _register_and_activate(db)
+        old_req = user_svc.request_email_change(db, user, "first@example.com")
+        user_svc.request_email_change(db, user, "second@example.com")
+        db.refresh(old_req)
+        assert old_req.reverted_at is not None
+
+    def test_pending_email_change_returns_latest(self, db):
+        user = _register_and_activate(db)
+        user_svc.request_email_change(db, user, "first@example.com")
+        user_svc.request_email_change(db, user, "second@example.com")
+        pending = user_svc.pending_email_change(db, user.id)
+        assert pending.new_email == "second@example.com"
+
+
+# ── confirm_email_change ──────────────────────────────────────────────────────
+
+class TestConfirmEmailChange:
+    def test_updates_user_email(self, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        user_svc.confirm_email_change(db, req.confirm_token)
+        db.refresh(user)
+        assert user.email == "new@example.com"
+
+    def test_marks_confirmed_at(self, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        user_svc.confirm_email_change(db, req.confirm_token)
+        db.refresh(req)
+        assert req.confirmed_at is not None
+
+    def test_invalid_token_returns_none(self, db):
+        _register_and_activate(db)
+        assert user_svc.confirm_email_change(db, "badtoken") is None
+
+    def test_expired_token_returns_none(self, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        req.expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
+        db.commit()
+        assert user_svc.confirm_email_change(db, req.confirm_token) is None
+
+    def test_already_confirmed_token_returns_none(self, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        user_svc.confirm_email_change(db, req.confirm_token)
+        assert user_svc.confirm_email_change(db, req.confirm_token) is None
+
+    def test_no_pending_change_after_confirm(self, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        user_svc.confirm_email_change(db, req.confirm_token)
+        assert user_svc.pending_email_change(db, user.id) is None
+
+
+# ── revert_email_change ───────────────────────────────────────────────────────
+
+class TestRevertEmailChange:
+    def test_reverts_user_email(self, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        user_svc.confirm_email_change(db, req.confirm_token)
+        user_svc.revert_email_change(db, req.revert_token)
+        db.refresh(user)
+        assert user.email == "jan@example.com"
+
+    def test_revert_before_confirm_also_works(self, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        user_svc.revert_email_change(db, req.revert_token)
+        db.refresh(user)
+        assert user.email == "jan@example.com"
+
+    def test_marks_reverted_at(self, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        user_svc.revert_email_change(db, req.revert_token)
+        db.refresh(req)
+        assert req.reverted_at is not None
+
+    def test_invalid_token_returns_none(self, db):
+        _register_and_activate(db)
+        assert user_svc.revert_email_change(db, "badtoken") is None
+
+    def test_expired_revert_token_returns_none(self, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        req.revert_expires_at = datetime.now(timezone.utc) - timedelta(days=1)
+        db.commit()
+        assert user_svc.revert_email_change(db, req.revert_token) is None
+
+    def test_revert_token_cannot_be_used_twice(self, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        user_svc.revert_email_change(db, req.revert_token)
+        assert user_svc.revert_email_change(db, req.revert_token) is None

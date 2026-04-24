@@ -145,11 +145,99 @@ def send_scout_rejected_email(to: str, scout_name: str, badge_title: str, niveau
          badge_url=badge_url)
 
 
-def send_scout_niveau_completed_email(to: str, scout_name: str, badge_title: str, niveau_number: int) -> None:
+def send_groepsleider_invite_email(to: str, naam: str, code: str, inviter_name: str, group_name: str) -> None:
+    confirm_url = f"{config.base_url}/register/confirm/{quote_plus(code)}"
+    send(to, "groepsleider_invite",
+         email=to, naam=naam, code=code, confirm_url=confirm_url,
+         inviter_name=inviter_name, group_name=group_name)
+
+
+def send_membership_invite_email(
+    to: str, naam: str, inviter_name: str, description: str,
+) -> None:
+    """Generic invite email for existing users directing them to log in and accept."""
+    login_url = f"{config.base_url}/login"
+    send(to, "membership_invite",
+         email=to, naam=naam, inviter_name=inviter_name,
+         description=description, login_url=login_url)
+
+
+def send_speltak_invite_email(
+    to: str, naam: str, code: str, inviter_name: str,
+    group_name: str, speltak_name: str, role: str,
+) -> None:
+    confirm_url = f"{config.base_url}/register/confirm/{quote_plus(code)}"
+    send(to, "speltak_invite",
+         email=to, naam=naam, code=code, confirm_url=confirm_url,
+         inviter_name=inviter_name, group_name=group_name,
+         speltak_name=speltak_name, role=role)
+
+
+def send_scout_niveau_completed_email(to: str, scout_name: str, badge_title: str, niveau_number: int, badge_slug: str | None = None) -> None:
     badge_url = f"{config.base_url}/badges"
+    badge_image_url = f"{config.base_url}/images/{badge_slug}.{niveau_number}.png" if badge_slug else None
     send(to, "scout_niveau_completed",
          email=to,
          scout_name=scout_name,
          badge_title=badge_title,
          niveau_number=niveau_number,
-         badge_url=badge_url)
+         badge_url=badge_url,
+         badge_image_url=badge_image_url)
+
+
+def send_membership_request_received_email(
+    to: str, naam: str, requester_name: str,
+    group_name: str, speltak_name: str | None, group_slug: str,
+) -> None:
+    requests_url = f"{config.base_url}/groups/{group_slug}/requests"
+    send(to, "membership_request_received",
+         email=to, naam=naam,
+         requester_name=requester_name,
+         group_name=group_name,
+         speltak_name=speltak_name,
+         requests_url=requests_url)
+
+
+def send_membership_request_approved_email(
+    to: str, naam: str, group_name: str, speltak_name: str | None,
+) -> None:
+    send(to, "membership_request_approved",
+         email=to, naam=naam,
+         group_name=group_name,
+         speltak_name=speltak_name)
+
+
+def send_membership_request_rejected_email(
+    to: str, naam: str, group_name: str, speltak_name: str | None,
+) -> None:
+    send(to, "membership_request_rejected",
+         email=to, naam=naam,
+         group_name=group_name,
+         speltak_name=speltak_name)
+
+
+def send_contact_form_email(to: str, sender_email: str, subject: str, body: str) -> None:
+    send(to, "contact_form",
+         email=to, sender_email=sender_email, subject=subject, body=body)
+
+
+def send_invite_group_leader_email(
+    to: str, invited_by_name: str,
+) -> None:
+    create_group_url = f"{config.base_url}/groups/new"
+    send(to, "invite_group_leader",
+         email=to,
+         invited_by_name=invited_by_name,
+         create_group_url=create_group_url)
+
+
+def send_email_change_confirm_email(to: str, naam: str, new_email: str, token: str) -> None:
+    confirm_url = f"{config.base_url}/profile/email-change/confirm/{quote_plus(token)}"
+    send(to, "email_change_confirm",
+         email=to, naam=naam, new_email=new_email, confirm_url=confirm_url)
+
+
+def send_email_change_revert_email(to: str, naam: str, old_email: str, new_email: str, token: str) -> None:
+    revert_url = f"{config.base_url}/profile/email-change/revert/{quote_plus(token)}"
+    send(to, "email_change_revert",
+         email=to, naam=naam, old_email=old_email, new_email=new_email, revert_url=revert_url)

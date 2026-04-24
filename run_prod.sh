@@ -19,6 +19,9 @@ if [ ! -f config.yml ]; then
     exit 1
 fi
 
+echo "Running database migrations..."
+venv/bin/python api/migrate.py
+
 # Read server settings from config.yml, allow env var overrides
 HOST="${INSIGNE_HOST:-$(venv/bin/python -c "from insigne.config import config; print(config.server_host)")}"
 PORT="${INSIGNE_PORT:-$(venv/bin/python -c "from insigne.config import config; print(config.server_port)")}"

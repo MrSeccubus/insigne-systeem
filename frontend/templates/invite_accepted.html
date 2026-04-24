@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Uitnodiging — Insigne Systeem{% endblock %}
+{% block content %}
+<main>
+    <div style="max-width:480px;margin:4rem auto;text-align:center;">
+        {% if success %}
+            <h1 style="font-size:1.5rem;margin-bottom:1rem;">Uitnodiging geaccepteerd</h1>
+            <p style="color:#555;margin-bottom:2rem;">Je bent toegevoegd aan de speltak. Log in om verder te gaan.</p>
+            <a href="/login" class="btn-success">Inloggen</a>
+        {% else %}
+            <h1 style="font-size:1.5rem;margin-bottom:1rem;">Ongeldige uitnodiging</h1>
+            <p style="color:#555;margin-bottom:2rem;">Deze uitnodigingslink is niet meer geldig of is al gebruikt.</p>
+            <a href="/" class="btn-neutral">Naar de startpagina</a>
+        {% endif %}
+    </div>
+</main>
+{% endblock %}

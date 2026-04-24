@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Groepsbeheer — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main>
+    <div class="page-header">
+        <h1>Groepsbeheer</h1>
+        <div style="display:flex;gap:0.5rem;">
+            {% if current_user %}
+                <a href="/groups/join" class="btn-neutral">Lid worden</a>
+            {% endif %}
+            {% if can_create %}
+                <a href="/groups/new" class="btn-success">Nieuwe groep</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if pending %}
+    <section style="margin-bottom:2rem;">
+        <h2 style="font-size:1.1rem;margin-bottom:0.75rem;">Openstaande aanvragen</h2>
+        {% include "partials/pending_requests.html" %}
+    </section>
+    {% endif %}
+
+    {% if groups %}
+        <ul class="item-list">
+            {% for group in groups %}
+            <li class="item-list-row">
+                <a href="/groups/{{ group.slug }}">{{ group.name }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="empty-state">Er zijn nog geen groepen aangemaakt.</p>
+    {% endif %}
+</main>
+{% endblock %}

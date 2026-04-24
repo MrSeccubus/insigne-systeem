@@ -219,6 +219,49 @@ All fields are optional. Progress and sign-offs are stored against `user_id`, so
 
 ---
 
+#### `GET /api/users/me/memberships` — Get own active memberships 🔒
+
+Returns all active (approved, not withdrawn) group and speltak memberships for the authenticated user.
+
+**Response `200`:**
+
+```json
+{
+  "group_memberships": [
+    { "group_id": "...", "role": "groepsleider", "approved": true, "withdrawn": false }
+  ],
+  "speltak_memberships": [
+    { "speltak_id": "...", "group_id": "...", "role": "scout", "approved": true, "withdrawn": false }
+  ]
+}
+```
+
+---
+
+#### `GET /api/users/me/requests` — List own membership requests 🔒
+
+Returns all membership requests submitted by the authenticated user (pending, approved, and rejected).
+
+**Response `200`:** `MembershipRequest[]`
+
+---
+
+#### `DELETE /api/users/me/requests/{req_id}` — Cancel a membership request 🔒
+
+Deletes the request if it belongs to the authenticated user. Silently ignored if the request belongs to another user.
+
+**Response `204`:** No content.
+
+---
+
+#### `DELETE /api/users/me/requests` — Cancel all membership requests 🔒
+
+Deletes all membership requests submitted by the authenticated user.
+
+**Response `204`:** No content.
+
+---
+
 ### Badges
 
 Badge data is read from YAML files on disk — there is no database table for badges.
@@ -434,7 +477,7 @@ Not allowed when status is `signed_off`.
 
 ---
 
-#### `POST /api/progress/{id}/signoff` — Request sign-off from a mentor 🔒
+#### `POST /api/progress/{id}/signoff` — Request sign-off (direct email path) 🔒
 
 The scout submits one mentor's email address. Can be called multiple times to invite additional mentors. The entry is completed as soon as any one mentor confirms.
 
@@ -451,9 +494,51 @@ The scout submits one mentor's email address. Can be called multiple times to in
 
 **Response `202`:** Sign-off request accepted. Email sent to mentor.
 
+**Response `403`:** Scout tried to invite themselves (`self_signoff`).
+
 **Response `404`:** Progress entry not found.
 
 **Response `409`:** This mentor has already been invited, or the entry is already `signed_off`, or the entry is not in `work_done`/`pending_signoff` status.
+
+---
+
+#### `POST /api/progress/{id}/signoff-speltak` — Request sign-off from all speltakleiders 🔒
+
+Sends a sign-off request to every speltakleider of the given speltak. Suitable for non-peer-signoff speltakken where the leiding signs off.
+
+**Request body:**
+
+```json
+{
+  "speltak_id": "speltak-uuid"
+}
+```
+
+**Response `202`:** Sign-off requests sent.
+
+**Response `404`:** Progress entry not found, or no eligible leiders found (`no_eligible_mentors`).
+
+**Response `409`:** Entry is already `signed_off`, or not in `work_done`/`pending_signoff` status.
+
+---
+
+#### `POST /api/progress/{id}/signoff-members` — Request sign-off from selected members 🔒
+
+Sends sign-off requests to the selected member(s). Suitable for peer-signoff speltakken.
+
+**Request body:**
+
+```json
+{
+  "mentor_ids": ["user-uuid-1", "user-uuid-2"]
+}
+```
+
+**Response `202`:** Sign-off requests sent.
+
+**Response `404`:** Progress entry not found, or all selected users were ineligible (`no_eligible_mentors`).
+
+**Response `409`:** Entry is already `signed_off`, or not in `work_done`/`pending_signoff` status.
 
 ---
 
@@ -464,7 +549,7 @@ The mentor must be authenticated and must have been invited.
 
 **Response `200`:** Updated progress entry with `status: "signed_off"`.
 
-**Response `403`:** Authenticated user is not an invited mentor.
+**Response `403`:** Authenticated user is not an invited mentor, or tried to sign off their own entry (`self_signoff`).
 
 **Response `404`:** Progress entry not found.
 
@@ -599,6 +684,473 @@ All errors follow the same shape:
 
 ---
 
+### Groups
+
+Groups organise scouts into a local scouting group. Each group contains one or more *speltakken* (age-based sub-groups). Membership of a group is managed via invites; managers can revoke invites and invitees can accept, deny, or dismiss them.
+
+**Roles:**
+
+| Role | Scope | Meaning |
+|------|-------|---------|
+| `groepsleider` | Group | Can manage the group, its speltakken, and all members |
+| `speltakleider` | Speltak | Can manage the speltak and its members |
+| `scout` | Speltak | Regular member |
+| `member` | Group | Generic group membership (auto-created when added to a speltak) |
+
+A user who is added to a speltak automatically receives a group-level `member` membership. If all speltak memberships are removed and the user holds no leadership role, the group membership is also removed.
+
+**Invite lifecycle:**
+
+```
+pending (approved=false) → accepted (approved=true)
+                         → denied (record deleted)
+                         → withdrawn by manager (withdrawn=true)
+                              → dismissed by invitee (record deleted)
+```
+
+---
+
+#### `GET /api/groups` — List groups
+
+Public. Returns groups sorted alphabetically (case-insensitive).
+
+**Response `200`:** `Group[]`
+
+---
+
+#### `POST /api/groups` — Create group 🔒
+
+Requires authentication. By default any authenticated user may create a group; this can be restricted to admins via `allow_any_user_to_create_groups: false` in `config.yml`.
+
+**Request body:**
+
+```json
+{ "name": "Groep Noord", "slug": "groep-noord" }
+```
+
+**Response `201`:** `Group`
+
+**Response `409`:** Slug already in use.
+
+---
+
+#### `GET /api/groups/{group_id}` — Get group
+
+**Response `200`:** `Group`
+
+**Response `404`:** Group not found.
+
+---
+
+#### `PUT /api/groups/{group_id}` — Update group 🔒
+
+Requires groepsleider.
+
+**Request body:** `{ "name": "...", "slug": "..." }`
+
+**Response `200`:** Updated `Group`.
+
+---
+
+#### `DELETE /api/groups/{group_id}` — Delete group 🔒
+
+Requires groepsleider.
+
+**Response `204`:** No content.
+
+---
+
+#### `GET /api/groups/{group_id}/members` — List members 🔒
+
+Requires groepsleider. Returns approved memberships only.
+
+**Response `200`:** `GroupMembership[]`
+
+---
+
+#### `GET /api/groups/{group_id}/members/pending` — List pending invites 🔒
+
+Requires groepsleider. Returns non-withdrawn pending memberships.
+
+**Response `200`:** `GroupMembership[]`
+
+---
+
+#### `GET /api/groups/{group_id}/members/without-speltak` — List members not in any speltak 🔒
+
+Requires groepsleider. Returns approved group members with role `member` who have no active speltak membership in this group.
+
+**Response `200`:** `GroupMembership[]`
+
+---
+
+#### `POST /api/groups/{group_id}/members` — Set member role 🔒
+
+Requires groepsleider. Creates or updates the membership for `user_id`.
+
+**Request body:**
+
+```json
+{ "user_id": "a1b2-...", "role": "groepsleider" }
+```
+
+Role must be `groepsleider` or `member`.
+
+**Response `204`:** No content.
+
+---
+
+#### `DELETE /api/groups/{group_id}/members/{user_id}` — Remove member 🔒
+
+Requires groepsleider.
+
+**Response `204`:** No content.
+
+---
+
+#### `POST /api/groups/{group_id}/members/{user_id}/withdraw` — Revoke invite 🔒
+
+Requires groepsleider. Sets `withdrawn=true` on a pending membership.
+
+**Response `204`:** No content.
+
+---
+
+#### `POST /api/groups/{group_id}/members/{user_id}/accept` — Accept invite 🔒
+
+Must be called by the invitee themselves (`user_id` must match the authenticated user).
+
+**Response `204`:** No content.
+
+---
+
+#### `POST /api/groups/{group_id}/members/{user_id}/deny` — Deny invite 🔒
+
+Must be called by the invitee. Deletes the pending membership record.
+
+**Response `204`:** No content.
+
+---
+
+#### `POST /api/groups/{group_id}/members/{user_id}/dismiss` — Dismiss withdrawn invite 🔒
+
+Must be called by the invitee. Deletes a withdrawn (`withdrawn=true`) membership record.
+
+**Response `204`:** No content.
+
+---
+
+#### `POST /api/groups/{group_id}/requests` — Submit membership request 🔒
+
+Creates a pending membership request for the authenticated user. `speltak_id` is optional; omit it to request group-level membership.
+
+**Request body:**
+
+```json
+{ "speltak_id": "..." }
+```
+
+**Response `201`:** `MembershipRequest`
+
+**Response `409`:** Already a member, or a pending request already exists.
+
+---
+
+#### `GET /api/groups/{group_id}/requests` — List pending requests 🔒
+
+Requires groepsleider. Returns all pending membership requests for the group.
+
+**Response `200`:** `MembershipRequest[]`
+
+---
+
+#### `POST /api/groups/{group_id}/requests/{req_id}/approve` — Approve request 🔒
+
+Requires groepsleider. Creates the membership and marks the request as `approved`.
+
+**Response `204`:** No content.
+
+**Response `404`:** Request not found.
+
+---
+
+#### `POST /api/groups/{group_id}/requests/{req_id}/reject` — Reject request 🔒
+
+Requires groepsleider. Marks the request as `rejected`. No membership is created.
+
+**Response `204`:** No content.
+
+**Response `404`:** Request not found.
+
+---
+
+#### `POST /api/groups/{group_id}/speltakken` — Create speltak 🔒
+
+Requires groepsleider.
+
+**Request body:**
+
+```json
+{ "name": "Welpen", "slug": "welpen", "peer_signoff": false }
+```
+
+`peer_signoff: true` marks the speltak as a volwassenen speltak where members may sign off each other's progress.
+
+**Response `201`:** `Speltak`
+
+**Response `409`:** Slug already in use within this group.
+
+---
+
+#### `PUT /api/groups/{group_id}/speltakken/{speltak_id}` — Update speltak 🔒
+
+Requires groepsleider.
+
+**Request body:** `{ "name": "...", "slug": "...", "peer_signoff": false }`
+
+**Response `200`:** Updated `Speltak`.
+
+---
+
+#### `DELETE /api/groups/{group_id}/speltakken/{speltak_id}` — Delete speltak 🔒
+
+Requires groepsleider.
+
+**Response `204`:** No content.
+
+---
+
+#### `GET /api/groups/{group_id}/speltakken/{speltak_id}/members` — List speltak members 🔒
+
+Requires speltakleider or groepsleider. Returns approved memberships only.
+
+**Response `200`:** `SpeltakMembership[]`
+
+---
+
+#### `GET /api/groups/{group_id}/speltakken/{speltak_id}/members/pending` — List pending speltak invites 🔒
+
+Requires speltakleider or groepsleider. Returns non-withdrawn pending memberships.
+
+**Response `200`:** `SpeltakMembership[]`
+
+---
+
+#### `POST /api/groups/{group_id}/speltakken/{speltak_id}/members` — Set speltak member role 🔒
+
+Requires speltakleider or groepsleider.
+
+**Request body:**
+
+```json
+{ "user_id": "a1b2-...", "role": "scout" }
+```
+
+Role must be `speltakleider` or `scout`.
+
+**Response `204`:** No content.
+
+---
+
+#### `DELETE /api/groups/{group_id}/speltakken/{speltak_id}/members/{user_id}` — Remove speltak member 🔒
+
+Requires speltakleider or groepsleider. Auto-removes the group membership if the user has no remaining speltak ties and no leadership role.
+
+**Response `204`:** No content.
+
+---
+
+#### `POST /api/groups/{group_id}/speltakken/{speltak_id}/members/{user_id}/transfer` — Transfer scout 🔒
+
+Moves the scout to a different speltak within the same group.
+
+**Request body:**
+
+```json
+{ "to_speltak_id": "b2c3-..." }
+```
+
+**Response `204`:** No content.
+
+---
+
+#### `POST /api/groups/{group_id}/speltakken/{speltak_id}/members/{user_id}/withdraw` — Revoke speltak invite 🔒
+
+Requires speltakleider or groepsleider. For scouts who were emailless and had an email attached: reverts the scout to emailless (clears email, restores active status, invalidates tokens) instead of marking withdrawn.
+
+**Response `204`:** No content.
+
+---
+
+#### `POST /api/groups/{group_id}/speltakken/{speltak_id}/members/{user_id}/accept` — Accept speltak invite 🔒
+
+Must be called by the invitee. If the invite has a linked emailless scout (`source_scout_id`), the scout record is cleaned up without merging progress (equivalent to `accept-without-merge`). Use `accept-with-merge` if the client wants the user to take over the scout's progress.
+
+**Response `204`:** No content.
+
+---
+
+#### `POST /api/groups/{group_id}/speltakken/{speltak_id}/members/{user_id}/accept-with-merge` — Accept speltak invite and merge scout progress 🔒
+
+Must be called by the invitee. If the invite has a linked emailless scout (`source_scout_id`), their progress entries are merged into the user's account (scout wins on higher status, existing user wins on equal/lower). The scout record is then deleted. If there is no linked scout this behaves identically to `accept`.
+
+**Response `204`:** No content.
+
+---
+
+#### `POST /api/groups/{group_id}/speltakken/{speltak_id}/members/{user_id}/deny` — Deny speltak invite 🔒
+
+Must be called by the invitee. Deletes the record.
+
+**Response `204`:** No content.
+
+---
+
+#### `POST /api/groups/{group_id}/speltakken/{speltak_id}/members/{user_id}/dismiss` — Dismiss withdrawn speltak invite 🔒
+
+Must be called by the invitee. Deletes a withdrawn record.
+
+**Response `204`:** No content.
+
+---
+
+#### `POST /api/groups/{group_id}/speltakken/{speltak_id}/scouts` — Add scout without account 🔒
+
+Requires speltakleider or groepsleider. Creates a name-only user record (no email, no password) and adds them to the speltak as `scout`.
+
+**Request body:**
+
+```json
+{ "name": "Piet" }
+```
+
+**Response `201`:**
+
+```json
+{ "id": "a1b2-...", "name": "Piet" }
+```
+
+---
+
+#### `POST /api/groups/{group_id}/speltakken/{speltak_id}/members/{user_id}/set-email` — Attach email to emailless scout 🔒
+
+Requires speltakleider or groepsleider.
+
+- **Email unknown**: assigns the email to the scout's account, puts it in `pending`, moves the speltak membership to pending, and sends a registration invite.
+- **Email belongs to active user**: merges progress into the existing user (higher status wins per step), deletes the emailless record, and creates a pending speltak invite for the existing user.
+
+**Request body:**
+
+```json
+{ "email": "piet@example.com" }
+```
+
+**Response `204`:** No content.
+
+**Response `409`:** Email already in use by a pending (not yet active) user.
+
+---
+
+### Invitations
+
+#### `GET /api/invitations/me` — Current user's invitations 🔒
+
+Returns all pending and withdrawn group and speltak invitations for the authenticated user.
+
+**Response `200`:**
+
+```json
+{
+  "group_invites": [
+    {
+      "group_id": "g1-...",
+      "group_name": "Groep Noord",
+      "role": "member",
+      "withdrawn": false,
+      "invited_by_id": "u1-..."
+    }
+  ],
+  "speltak_invites": [
+    {
+      "speltak_id": "s1-...",
+      "speltak_name": "Welpen",
+      "group_id": "g1-...",
+      "group_name": "Groep Noord",
+      "role": "scout",
+      "withdrawn": false,
+      "invited_by_id": "u1-...",
+      "source_scout_id": "u2-...",
+      "scout_has_progress": true
+    }
+  ]
+}
+```
+
+---
+
+### `GET /api/requests` — All pending requests across groups (leader view) 🔒
+
+Returns all pending membership requests for groups the authenticated user manages (i.e., is groepsleider of). Ordered by `created_at`.
+
+**Response `200`:** `MembershipRequest[]`
+
+---
+
+## Data Models (Groups)
+
+### `Group`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `name` | string | Display name |
+| `slug` | string | URL-safe identifier |
+| `created_at` | datetime | ISO 8601 |
+
+### `Speltak`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `group_id` | UUID | Parent group |
+| `name` | string | Display name |
+| `slug` | string | URL-safe identifier (unique within group) |
+| `peer_signoff` | boolean | If true, members may sign off each other's progress |
+
+### `GroupMembership`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `user_id` | UUID | The member |
+| `role` | string | `groepsleider` \| `member` |
+| `approved` | boolean | `false` = pending invite |
+| `withdrawn` | boolean | `true` = manager revoked, awaiting dismissal by invitee |
+| `invited_by_id` | UUID \| null | Who sent the invite |
+
+### `SpeltakMembership`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `user_id` | UUID | The member |
+| `role` | string | `speltakleider` \| `scout` |
+| `approved` | boolean | `false` = pending invite |
+| `withdrawn` | boolean | `true` = manager revoked, awaiting dismissal by invitee |
+| `invited_by_id` | UUID \| null | Who sent the invite |
+
+### `MembershipRequest`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `user_id` | UUID | Requester |
+| `group_id` | UUID | Target group |
+| `speltak_id` | UUID \| null | Target speltak (null = group-level request) |
+| `status` | string | `pending` \| `approved` \| `rejected` |
+| `reviewed_by_id` | UUID \| null | Who approved or rejected |
+| `created_at` | datetime | ISO 8601 |
+
+---
+
 ## HTML Endpoints
 
 These endpoints serve the HTMX frontend. Full pages are returned on direct navigation; HTML fragments (partials) are returned for HTMX requests. Authentication is via an `access_token` httponly cookie set on login/activation.
@@ -618,6 +1170,7 @@ These endpoints serve the HTMX frontend. Full pages are returned on direct navig
 | `GET` | `/forgot-password/confirm/{code}` | Reset link from email — redirects to set-password step |
 | `GET` | `/badges/{slug}` | Badge detail — all eisen and niveaus |
 | `GET` | `/signoff-requests` | Mentor dashboard — open sign-off requests (auth required) |
+| `GET` | `/contact` | Contact form |
 
 ### Form submissions (return HTML partials)
 
@@ -639,9 +1192,254 @@ These endpoints serve the HTMX frontend. Full pages are returned on direct navig
 |--------|------|-------------|
 | `GET` | `/badges/{slug}/niveau-checks/{niveau_index}` | Niveau progress check icons partial |
 | `POST` | `/badges/{slug}/log` | Log a step (auth required) — returns updated step card partial |
-| `POST` | `/progress/{id}/request-signoff` | Request sign-off from mentor (auth required) |
+| `POST` | `/progress/{id}/request-signoff` | Request sign-off via direct email (auth required) |
+| `POST` | `/progress/{id}/request-signoff-speltak` | Request sign-off from all speltakleiders of a speltak (auth required) |
+| `POST` | `/progress/{id}/request-signoff-members` | Request sign-off from selected peer members (auth required) |
 | `POST` | `/progress/{id}/cancel-signoff` | Cancel all pending sign-off requests (auth required) |
 | `POST` | `/progress/{id}/delete` | Delete a progress entry (auth required) |
 | `GET` | `/signoff-requests/count` | Pending sign-off count badge for nav (auth required) |
 | `POST` | `/progress/{id}/confirm-signoff` | Mentor confirms sign-off (auth required) |
-| `POST` | `/progress/{id}/reject-signoff` | Mentor rejects sign-off (auth required) |
+| `POST` | `/progress/{id}/reject-signoff` | Mentor rejects sign-off — removes only this mentor's request; reverts to `work_done` only if no requests remain (auth required) |
+
+### Groups HTML pages
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/groups` | List all groups, with pending request summary for leaders (auth required) |
+| `GET` | `/groups/join` | Browse groups and request membership (auth required) |
+| `GET` | `/groups/invite-leader` | Invite someone to create and lead a new group (auth required) |
+| `GET` | `/groups/new` | Create group form (auth required) |
+| `GET` | `/groups/{slug}` | Group detail — members, speltakken |
+| `GET` | `/groups/{slug}/edit` | Edit group form |
+| `GET` | `/groups/{slug}/speltakken/{speltak_slug}` | Speltak detail — members, pending invites |
+| `GET` | `/groups/{slug}/speltakken/{speltak_slug}/edit` | Edit speltak form |
+| `GET` | `/requests` | All pending membership requests across managed groups (auth required) |
+
+### Groups HTML utility endpoints (JSON responses)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/groups/search?q=` | Search groups by name — returns `[{id, name, slug}]` |
+| `GET` | `/groups/{slug}/members/check-email?email=` | Check if email belongs to an active user — returns `{exists}` |
+| `GET` | `/groups/{slug}/speltakken/{speltak_slug}/members/check-email?email=` | Same, also returns `{exists, in_group}` |
+
+### Groups HTML actions (form POST, redirect on success)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/groups/new` | Create group |
+| `POST` | `/groups/join` | Submit membership request (also accepts `Accept: application/json`, returns `{ok}` or `{error}`) |
+| `POST` | `/groups/invite-leader` | Send invite-to-create-group email |
+| `POST` | `/groups/{slug}/edit` | Update group name/slug |
+| `POST` | `/groups/{slug}/delete` | Delete group |
+| `POST` | `/groups/{slug}/members/add` | Add member by email (direct if known, invite if not) |
+| `POST` | `/groups/{slug}/members/invite` | Send group invite email |
+| `POST` | `/groups/{slug}/members/{uid}/role` | Change groepsleider/member role |
+| `POST` | `/groups/{slug}/members/{uid}/remove` | Remove member |
+| `POST` | `/groups/{slug}/members/{uid}/assign-speltak` | Assign a group member to a speltak |
+| `POST` | `/groups/{slug}/members/{uid}/withdraw` | Revoke pending invite (returns 204, called via fetch) |
+| `POST` | `/requests/{req_id}/approve` | Approve a membership request (leader only) |
+| `POST` | `/requests/{req_id}/reject` | Reject a membership request (leader only) |
+| `POST` | `/my-requests/{req_id}/cancel` | Cancel own membership request |
+| `POST` | `/my-requests/cancel-all` | Cancel all own membership requests |
+| `POST` | `/groups/{slug}/speltakken/new` | Create speltak |
+| `POST` | `/groups/{slug}/speltakken/{speltak_slug}/edit` | Update speltak |
+| `POST` | `/groups/{slug}/speltakken/{speltak_slug}/delete` | Delete speltak |
+| `POST` | `/groups/{slug}/speltakken/{speltak_slug}/members/add` | Add speltak member by email |
+| `POST` | `/groups/{slug}/speltakken/{speltak_slug}/members/invite` | Send speltak invite email |
+| `POST` | `/groups/{slug}/speltakken/{speltak_slug}/members/new-scout` | Add scout without account |
+| `POST` | `/groups/{slug}/speltakken/{speltak_slug}/members/{uid}/role` | Change speltakleider/scout role |
+| `POST` | `/groups/{slug}/speltakken/{speltak_slug}/members/{uid}/transfer` | Transfer scout to another speltak |
+| `POST` | `/groups/{slug}/speltakken/{speltak_slug}/members/{uid}/remove` | Remove speltak member |
+| `POST` | `/groups/{slug}/speltakken/{speltak_slug}/members/{uid}/withdraw` | Revoke pending invite (fetch, returns JSON `{reverted}`) |
+| `POST` | `/groups/{slug}/speltakken/{speltak_slug}/members/{uid}/set-email` | Attach email to emailless scout |
+| `GET` | `/groups/{slug}/speltakken/{speltak_slug}/members/check-email` | Check if email is known (JSON `{exists, in_group}`) |
+| `POST` | `/invitations/group/{group_id}/accept` | Accept group invite |
+| `POST` | `/invitations/group/{group_id}/deny` | Deny group invite |
+| `POST` | `/invitations/speltak/{speltak_id}/accept` | Accept speltak invite (shows merge prompt if linked to an emailless scout with progress) |
+| `POST` | `/invitations/speltak/{speltak_id}/accept-with-merge` | Accept speltak invite and merge progress from linked emailless scout |
+| `POST` | `/invitations/speltak/{speltak_id}/accept-without-merge` | Accept speltak invite and discard linked emailless scout's progress |
+| `POST` | `/invitations/speltak/{speltak_id}/deny` | Deny speltak invite |
+| `POST` | `/invitations/group/{group_id}/dismiss` | Dismiss withdrawn group invite |
+| `POST` | `/invitations/speltak/{speltak_id}/dismiss` | Dismiss withdrawn speltak invite |
+
+### Speltakleider progress HTML pages
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/my-speltakken` | Dispatch: redirects to speltak progress if only one; lists all explicit speltakleider memberships otherwise (auth required) |
+| `GET` | `/groups/{slug}/progress` | Group progress hub — lists all speltakken with member counts and links; groepsleider/admin only (auth required) |
+| `GET` | `/groups/{slug}/speltakken/{speltak_slug}/progress` | Badge-first progress overview for all scouts in the speltak; requires speltakleider or groepsleider (auth required) |
+
+**Query parameters for speltak progress page:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `only_favorites` | boolean | `false` | Show only badges marked as favorites for this speltak |
+
+### Speltakleider progress HTML actions (HTMX partials / form POST)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/groups/{slug}/speltakken/{speltak_slug}/scouts/{scout_id}/progress/set` | HTMX: cycle a scout's step status; returns updated `leider_step_check` partial. Requires speltakleider. |
+| `POST` | `/groups/{slug}/speltakken/{speltak_slug}/favorite-badge` | HTMX: toggle favorite status for a badge in this speltak; returns updated star span. Requires speltakleider. |
+
+**Form fields for `progress/set`:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `badge_slug` | string | Badge being updated |
+| `level_index` | integer | Eis index (0–4) |
+| `step_index` | integer | Niveau index (0–2) |
+| `status` | string | New status: `none` \| `in_progress` \| `work_done` \| `signed_off` |
+| `message` | string | **Required** when downgrading a `signed_off` entry; stored as a `SignoffRejection`. |
+
+**Form fields for `favorite-badge`:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `badge_slug` | string | Badge slug to toggle |
+
+---
+
+### Speltak and group favorite badge endpoints (JSON API)
+
+#### `GET /api/groups/{group_id}/speltakken/{speltak_id}/favorite-badges` — List speltak favorites 🔒
+
+Requires speltakleider or groepsleider.
+
+**Response `200`:** `string[]` — list of badge slugs marked as favorites for this speltak.
+
+---
+
+#### `POST /api/groups/{group_id}/speltakken/{speltak_id}/favorite-badges/toggle` — Toggle speltak favorite 🔒
+
+Requires speltakleider or groepsleider.
+
+**Request body:**
+
+```json
+{ "badge_slug": "vredeslicht" }
+```
+
+**Response `200`:**
+
+```json
+{ "badge_slug": "vredeslicht", "is_favorite": true }
+```
+
+---
+
+#### `GET /api/groups/{group_id}/favorite-badges` — List group favorites 🔒
+
+Requires groepsleider.
+
+**Response `200`:** `string[]` — list of badge slugs marked as favorites for this group.
+
+---
+
+#### `POST /api/groups/{group_id}/favorite-badges/toggle` — Toggle group favorite 🔒
+
+Requires groepsleider.
+
+**Request body:**
+
+```json
+{ "badge_slug": "vredeslicht" }
+```
+
+**Response `200`:**
+
+```json
+{ "badge_slug": "vredeslicht", "is_favorite": true }
+```
+
+---
+
+#### `POST /api/groups/{group_id}/speltakken/{speltak_id}/scouts/{scout_id}/progress/set` — Set scout progress 🔒
+
+Requires speltakleider or groepsleider. Sets a scout's step status. Downgrading a `signed_off` entry requires a non-empty `message`; the reason is stored as a `SignoffRejection`.
+
+**Request body:**
+
+```json
+{
+  "badge_slug": "vredeslicht",
+  "level_index": 0,
+  "step_index": 1,
+  "status": "in_progress",
+  "message": "Needs more practice"
+}
+```
+
+`status` must be `none`, `in_progress`, `work_done`, or `signed_off`. `none` deletes the entry. `message` is optional unless the entry is currently `signed_off` and `status` is not `signed_off`.
+
+**Response `200`:** Updated `ProgressEntry`, or `{}` when `status` is `none` (entry deleted).
+
+**Response `403`:** Not authorized to manage this speltak, or attempting to edit own progress, or scout is not in this speltak.
+
+**Response `409`:** Entry is in `pending_signoff` status and cannot be changed.
+
+**Response `422`:** Downgrading a `signed_off` entry without a `message`.
+
+---
+
+## Contact
+
+---
+
+#### `GET /api/contact/captcha` — Get a captcha challenge
+
+Returns a signed math question for anonymous contact form submissions. The token embeds a 10-minute time bucket and is signed with a key derived from the server secret (independent of the JWT signing key).
+
+Public endpoint (no token required).
+
+**Response `200`:**
+
+```json
+{ "token": "<signed-token>", "a": 3, "b": 5 }
+```
+
+The client must display "Wat is {a} + {b}?" and submit the user's answer together with the token.
+
+---
+
+#### `POST /api/contact` — Send a contact message
+
+Forwards the message to all configured system administrators by email.
+
+- **Authenticated** (`Authorization: Bearer <token>`): `sender_email`, `captcha_token`, and `captcha_answer` are ignored; the user's registered email is used.
+- **Anonymous**: `sender_email`, `captcha_token`, and `captcha_answer` are all required. The captcha must have been obtained from `GET /api/contact/captcha` within the last ~20 minutes.
+
+**Request body (authenticated):**
+
+```json
+{ "subject": "Mijn vraag", "body": "Hallo..." }
+```
+
+**Request body (anonymous):**
+
+```json
+{
+  "subject": "Mijn vraag",
+  "body": "Hallo...",
+  "sender_email": "user@example.com",
+  "captcha_token": "<token from GET /api/contact/captcha>",
+  "captcha_answer": 8
+}
+```
+
+**Response `202`:** `{ "detail": "Message sent." }`
+
+**Response `400`:** Invalid or expired captcha answer.
+
+**Response `422`:** Missing required fields for anonymous submission.
+
+---
+
+### Contact HTML pages
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/contact` | Contact form — anonymous users see email field + math captcha; authenticated users see only subject + body |
+| `POST` | `/contact` | Submit contact form — sends message to admins; returns success or re-renders form with error |

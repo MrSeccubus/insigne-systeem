@@ -1,0 +1,1 @@
+Je aanvraag voor {{ group_name }}{% if speltak_name %} / {{ speltak_name }}{% endif %} is afgewezen

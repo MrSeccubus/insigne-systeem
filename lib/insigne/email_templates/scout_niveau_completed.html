@@ -6,7 +6,12 @@
     <tr><td align="center">
       <table width="100%" style="max-width:520px;background:#fff;border-radius:4px;border:1px solid #ddd;border-top:3px solid #00A651;padding:2rem;">
         <tr><td style="text-align:center;">
+          {% if badge_image_url %}
+          <img src="{{ badge_image_url }}" alt="{{ badge_title }}" width="120" height="120"
+               style="display:block;margin:0 auto 1rem;object-fit:contain;">
+          {% else %}
           <p style="margin:0 0 0.5rem;font-size:3rem;line-height:1;">&#127942;</p>
+          {% endif %}
           <h1 style="margin:0 0 1.5rem;font-size:1.5rem;color:#1a1a1a;">Niveau {{ niveau_number }} voltooid!</h1>
           <p style="margin:0 0 1rem;color:#333;line-height:1.6;text-align:left;">Hoi {{ scout_name }},</p>
           <p style="margin:0 0 1.5rem;color:#333;line-height:1.6;text-align:left;">

@@ -31,6 +31,8 @@ case "${1:-}" in
         SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
         cd "$SCRIPT_DIR"
         git pull
+        venv/bin/pip install -q -r requirements.txt
+        venv/bin/python api/migrate.py
         systemctl --user restart "$SERVICE_NAME"
         systemctl --user status "$SERVICE_NAME" --no-pager
         ;;

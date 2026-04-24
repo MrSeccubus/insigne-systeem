@@ -103,7 +103,7 @@
         <nav class="site-nav">
             {% if current_user %}
                 <a href="/" class="nav-username">{{ current_user.name }}</a>
-                <a href="/signoff-requests">Aftekeningen <span hx-get="/signoff-requests/count" hx-trigger="load, signoff-updated from:body" hx-swap="outerHTML"></span></a>
+                <a href="/signoff-requests">Aftekeningen <span hx-get="/signoff-requests/count" hx-trigger="load, signoff-updated from:body" hx-swap="innerHTML"></span></a>
                 {% set my_speltakken_count = current_user.speltak_memberships | selectattr("role","eq","speltakleider") | selectattr("approved") | selectattr("withdrawn","eq",false) | list | length %}
                 {% if my_speltakken_count > 0 %}<a href="/my-speltakken">Mijn speltakken</a>{% endif %}
                 {% if current_user.is_admin or current_user.is_leader %}<a href="/groups">Groepsbeheer</a>{% endif %}

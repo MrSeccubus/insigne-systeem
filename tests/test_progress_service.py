@@ -145,7 +145,7 @@ def test_set_scout_progress_reverts_signed_off(db):
     db.commit()
     result = svc.set_scout_progress(db, leider_id=leider.id, scout_id=scout.id,
                                     speltak_id=s.id, badge_slug="badge", level_index=0,
-                                    step_index=0, status="work_done")
+                                    step_index=0, status="work_done", message="Needs more work")
     assert result.status == "work_done"
     assert result.signed_off_by_id is None
     assert result.signed_off_at is None

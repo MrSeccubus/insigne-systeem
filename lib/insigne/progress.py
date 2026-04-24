@@ -440,6 +440,15 @@ def set_scout_progress(
             return None
         if existing.status == "pending_signoff":
             raise Conflict("pending_signoff")
+        if existing.status == "signed_off":
+            if not message.strip():
+                raise ValueError("message_required_when_downgrading")
+            leider = db.get(User, leider_id)
+            db.add(SignoffRejection(
+                progress_entry_id=existing.id,
+                mentor_name=leider.name or leider.email,
+                message=message,
+            ))
         db.delete(existing)
         db.commit()
         return None
@@ -448,6 +457,8 @@ def set_scout_progress(
         if existing.status == "pending_signoff":
             raise Conflict("pending_signoff")
         if existing.status == "signed_off" and status != "signed_off":
+            if not message.strip():
+                raise ValueError("message_required_when_downgrading")
             existing.signed_off_by_id = None
             existing.signed_off_at = None
             existing.mentor_comment = None

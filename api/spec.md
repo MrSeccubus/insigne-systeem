@@ -1291,7 +1291,8 @@ These endpoints serve the HTMX frontend. Full pages are returned on direct navig
 | `badge_slug` | string | Badge being updated |
 | `level_index` | integer | Eis index (0–4) |
 | `step_index` | integer | Niveau index (0–2) |
-| `status` | string | New status: `none` \| `in_progress` \| `work_done` |
+| `status` | string | New status: `none` \| `in_progress` \| `work_done` \| `signed_off` |
+| `message` | string | **Required** when downgrading a `signed_off` entry; stored as a `SignoffRejection`. |
 
 **Form fields for `favorite-badge`:**
 
@@ -1357,7 +1358,7 @@ Requires groepsleider.
 
 #### `POST /api/groups/{group_id}/speltakken/{speltak_id}/scouts/{scout_id}/progress/set` — Set scout progress 🔒
 
-Requires speltakleider or groepsleider. Cycles a scout's step progress. A `signed_off` entry may be reverted to `work_done` to correct mistakes.
+Requires speltakleider or groepsleider. Sets a scout's step status. Downgrading a `signed_off` entry requires a non-empty `message`; the reason is stored as a `SignoffRejection`.
 
 **Request body:**
 
@@ -1366,17 +1367,20 @@ Requires speltakleider or groepsleider. Cycles a scout's step progress. A `signe
   "badge_slug": "vredeslicht",
   "level_index": 0,
   "step_index": 1,
-  "status": "in_progress"
+  "status": "in_progress",
+  "message": "Needs more practice"
 }
 ```
 
-`status` must be `none`, `in_progress`, or `work_done`. `none` deletes the entry.
+`status` must be `none`, `in_progress`, `work_done`, or `signed_off`. `none` deletes the entry. `message` is optional unless the entry is currently `signed_off` and `status` is not `signed_off`.
 
 **Response `200`:** Updated `ProgressEntry`, or `{}` when `status` is `none` (entry deleted).
 
 **Response `403`:** Not authorized to manage this speltak, or attempting to edit own progress, or scout is not in this speltak.
 
 **Response `409`:** Entry is in `pending_signoff` status and cannot be changed.
+
+**Response `422`:** Downgrading a `signed_off` entry without a `message`.
 
 ---
 

@@ -733,6 +733,51 @@ class TestSetScoutProgressAPI:
         )
         assert r.status_code == 409
 
+    def test_downgrade_signed_off_requires_message(self, client, db):
+        from insigne.models import ProgressEntry
+        g, s, token, leider, scout = self._setup(client, db)
+        e = ProgressEntry(user_id=scout.id, badge_slug="b", level_index=0,
+                           step_index=0, status="signed_off")
+        db.add(e); db.commit()
+        r = client.post(
+            f"/api/groups/{g.id}/speltakken/{s.id}/scouts/{scout.id}/progress/set",
+            json={"badge_slug": "b", "level_index": 0, "step_index": 0, "status": "work_done"},
+            headers=_auth(token),
+        )
+        assert r.status_code == 422
+
+    def test_downgrade_signed_off_with_message_succeeds(self, client, db):
+        from insigne.models import ProgressEntry, SignoffRejection
+        g, s, token, leider, scout = self._setup(client, db)
+        e = ProgressEntry(user_id=scout.id, badge_slug="b", level_index=0,
+                           step_index=0, status="signed_off")
+        db.add(e); db.commit()
+        r = client.post(
+            f"/api/groups/{g.id}/speltakken/{s.id}/scouts/{scout.id}/progress/set",
+            json={"badge_slug": "b", "level_index": 0, "step_index": 0,
+                  "status": "work_done", "message": "Needs more work"},
+            headers=_auth(token),
+        )
+        assert r.status_code == 200
+        assert r.json()["status"] == "work_done"
+        db.expire_all()
+        rejection = db.query(SignoffRejection).filter_by(progress_entry_id=e.id).first()
+        assert rejection is not None
+        assert rejection.message == "Needs more work"
+
+    def test_downgrade_to_none_requires_message(self, client, db):
+        from insigne.models import ProgressEntry
+        g, s, token, leider, scout = self._setup(client, db)
+        e = ProgressEntry(user_id=scout.id, badge_slug="b", level_index=0,
+                           step_index=0, status="signed_off")
+        db.add(e); db.commit()
+        r = client.post(
+            f"/api/groups/{g.id}/speltakken/{s.id}/scouts/{scout.id}/progress/set",
+            json={"badge_slug": "b", "level_index": 0, "step_index": 0, "status": "none"},
+            headers=_auth(token),
+        )
+        assert r.status_code == 422
+
 
 class TestSpeltakFavoriteBadgesAPI:
     def _setup(self, client, db):

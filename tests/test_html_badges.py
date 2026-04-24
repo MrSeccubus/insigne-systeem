@@ -379,14 +379,14 @@ class TestRibbon:
         user = _active_user(db)
         _set_auth(client, user)
         r = client.get("/")
-        assert "ribbon" not in r.text.lower() or "Behaalde niveaus" not in r.text
+        assert "ribbon" not in r.text.lower() or "Jouw insignes" not in r.text
 
     def test_ribbon_shown_when_niveau_fully_signed_off(self, client, db):
         user = _active_user(db)
         _set_auth(client, user)
         self._sign_off_all_eisen(db, user)
         r = client.get("/")
-        assert "Behaalde niveaus" in r.text
+        assert "Jouw insignes" in r.text
 
     def test_ribbon_links_to_badge_at_correct_niveau(self, client, db):
         user = _active_user(db)
@@ -404,11 +404,11 @@ class TestRibbon:
                                  level_index=level_index, step_index=0, status="signed_off"))
         db.commit()
         r = client.get("/")
-        assert "Behaalde niveaus" not in r.text
+        assert "Jouw insignes" not in r.text
 
     def test_ribbon_not_shown_for_anonymous(self, client, db):
         r = client.get("/")
-        assert "Behaalde niveaus" not in r.text
+        assert "Jouw insignes" not in r.text
 
 
 class TestNiveauChecks:

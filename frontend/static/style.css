@@ -1518,8 +1518,8 @@ button:disabled, a[disabled] {
 
 .ribbon__item {
     display: block;
-    width: 56px;
-    height: 56px;
+    width: 2.75rem;
+    height: 2.75rem;
     border-radius: 4px;
     overflow: hidden;
     transition: transform 0.15s, box-shadow 0.15s;

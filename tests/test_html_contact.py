@@ -2,7 +2,10 @@
 import hashlib
 import hmac
 
+from insigne import users as user_svc
+from insigne.auth import create_access_token
 from insigne.config import config
+from insigne.models import ConfirmationToken, User
 
 
 def _captcha_token(answer: int) -> str:
@@ -13,23 +16,39 @@ def _captcha_token(answer: int) -> str:
     ).hexdigest()
 
 
+def _register_and_activate(db, email="jan@example.com"):
+    user_svc.start_registration(db, email)
+    user = db.query(User).filter_by(email=email).first()
+    ct = db.query(ConfirmationToken).filter_by(user_id=user.id, type="email_confirmation").first()
+    setup = user_svc.confirm_email(db, ct.token)
+    user_svc.activate_account(db, setup, "validpass1", "Jan")
+    db.refresh(user)
+    return user
+
+
 class TestContactPage:
     def test_get_returns_200(self, client, db):
         r = client.get("/contact")
         assert r.status_code == 200
 
-    def test_page_contains_form_fields(self, client, db):
+    def test_anonymous_sees_email_field_and_captcha(self, client, db):
         r = client.get("/contact")
         assert "sender_email" in r.text
-        assert "subject" in r.text
         assert "captcha" in r.text.lower()
+
+    def test_authenticated_has_no_email_field_or_captcha(self, client, db):
+        user = _register_and_activate(db)
+        client.cookies.set("access_token", create_access_token(user.id)[0])
+        r = client.get("/contact")
+        assert "sender_email" not in r.text
+        assert "captcha" not in r.text.lower()
 
     def test_footer_contact_link_present_on_homepage(self, client, db):
         r = client.get("/")
         assert "/contact" in r.text
 
 
-class TestContactSubmit:
+class TestContactSubmitAnonymous:
     def _post(self, client, *, answer_override=None, **kwargs):
         a, b = 3, 4
         correct = a + b
@@ -71,3 +90,19 @@ class TestContactSubmit:
     def test_valid_submission_does_not_show_form_again(self, client, db):
         r = self._post(client)
         assert "captcha_token" not in r.text
+
+
+class TestContactSubmitAuthenticated:
+    def test_valid_submission_shows_success(self, client, db):
+        user = _register_and_activate(db)
+        client.cookies.set("access_token", create_access_token(user.id)[0])
+        r = client.post("/contact", data={"subject": "Vraag", "body": "Hallo"})
+        assert r.status_code == 200
+        assert "verzonden" in r.text.lower()
+
+    def test_no_captcha_required_for_authenticated_user(self, client, db):
+        user = _register_and_activate(db)
+        client.cookies.set("access_token", create_access_token(user.id)[0])
+        r = client.post("/contact", data={"subject": "Vraag", "body": "Hallo"})
+        assert r.status_code == 200
+        assert "onjuist" not in r.text.lower()

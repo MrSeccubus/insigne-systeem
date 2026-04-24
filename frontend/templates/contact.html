@@ -14,12 +14,14 @@
             {% if error %}
                 <p class="form-error">{{ error }}</p>
             {% endif %}
+            {% if not current_user %}
             <div class="field">
                 <label for="sender_email">Jouw e-mailadres</label>
                 <input type="email" id="sender_email" name="sender_email"
-                       value="{{ prefill_email or (current_user.email if current_user else '') }}"
+                       value="{{ prefill_email or '' }}"
                        required autocomplete="email">
             </div>
+            {% endif %}
             <div class="field">
                 <label for="subject">Onderwerp</label>
                 <input type="text" id="subject" name="subject"
@@ -31,12 +33,14 @@
                 <textarea id="body" name="body" rows="6" required
                           style="width:100%;box-sizing:border-box;">{{ prefill_body or '' }}</textarea>
             </div>
+            {% if not current_user %}
             <div class="field">
                 <label for="captcha_answer">Wat is {{ captcha_a }} + {{ captcha_b }}?</label>
                 <input type="number" id="captcha_answer" name="captcha_answer"
                        required style="width:6rem;">
                 <input type="hidden" name="captcha_token" value="{{ captcha_token }}">
             </div>
+            {% endif %}
             <button type="submit" class="btn-primary">Versturen</button>
         </form>
     </div>

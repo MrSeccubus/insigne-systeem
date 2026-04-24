@@ -1170,6 +1170,7 @@ These endpoints serve the HTMX frontend. Full pages are returned on direct navig
 | `GET` | `/forgot-password/confirm/{code}` | Reset link from email — redirects to set-password step |
 | `GET` | `/badges/{slug}` | Badge detail — all eisen and niveaus |
 | `GET` | `/signoff-requests` | Mentor dashboard — open sign-off requests (auth required) |
+| `GET` | `/contact` | Contact form |
 
 ### Form submissions (return HTML partials)
 
@@ -1376,3 +1377,65 @@ Requires speltakleider or groepsleider. Cycles a scout's step progress. A `signe
 **Response `403`:** Not authorized to manage this speltak, or attempting to edit own progress, or scout is not in this speltak.
 
 **Response `409`:** Entry is in `pending_signoff` status and cannot be changed.
+
+---
+
+## Contact
+
+---
+
+#### `GET /api/contact/captcha` — Get a captcha challenge
+
+Returns a signed math question for anonymous contact form submissions. The token embeds a 10-minute time bucket and is signed with a key derived from the server secret (independent of the JWT signing key).
+
+Public endpoint (no token required).
+
+**Response `200`:**
+
+```json
+{ "token": "<signed-token>", "a": 3, "b": 5 }
+```
+
+The client must display "Wat is {a} + {b}?" and submit the user's answer together with the token.
+
+---
+
+#### `POST /api/contact` — Send a contact message
+
+Forwards the message to all configured system administrators by email.
+
+- **Authenticated** (`Authorization: Bearer <token>`): `sender_email`, `captcha_token`, and `captcha_answer` are ignored; the user's registered email is used.
+- **Anonymous**: `sender_email`, `captcha_token`, and `captcha_answer` are all required. The captcha must have been obtained from `GET /api/contact/captcha` within the last ~20 minutes.
+
+**Request body (authenticated):**
+
+```json
+{ "subject": "Mijn vraag", "body": "Hallo..." }
+```
+
+**Request body (anonymous):**
+
+```json
+{
+  "subject": "Mijn vraag",
+  "body": "Hallo...",
+  "sender_email": "user@example.com",
+  "captcha_token": "<token from GET /api/contact/captcha>",
+  "captcha_answer": 8
+}
+```
+
+**Response `202`:** `{ "detail": "Message sent." }`
+
+**Response `400`:** Invalid or expired captcha answer.
+
+**Response `422`:** Missing required fields for anonymous submission.
+
+---
+
+### Contact HTML pages
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/contact` | Contact form — anonymous users see email field + math captcha; authenticated users see only subject + body |
+| `POST` | `/contact` | Submit contact form — sends message to admins; returns success or re-renders form with error |

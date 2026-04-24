@@ -269,3 +269,17 @@ class EmailChangeTokenRequest(BaseModel):
 class PendingEmailChangeResponse(BaseModel):
     new_email: str
     expires_at: datetime
+
+
+class ContactCaptchaResponse(BaseModel):
+    token: str
+    a: int
+    b: int
+
+
+class ContactRequest(BaseModel):
+    subject: str = Field(..., min_length=1, max_length=200)
+    body: str = Field(..., min_length=1)
+    sender_email: EmailStr | None = None
+    captcha_token: str | None = None
+    captcha_answer: int | None = None

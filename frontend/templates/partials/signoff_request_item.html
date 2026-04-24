@@ -1,11 +1,11 @@
 {% if confirmed is defined %}
     {# Response after confirming — show brief success then remove #}
     {% if rejected is defined and rejected %}
-    <div class="signoff-card" x-data x-init="setTimeout(() => $el.remove(), 1500)">
+    <div class="signoff-card" x-data x-init="htmx.trigger(document.body, 'signoff-updated'); setTimeout(() => $el.remove(), 1500)">
         <p class="signoff-confirmed">✓ Afwijzing verstuurd.</p>
     </div>
     {% elif confirmed %}
-    <div class="signoff-card" x-data x-init="setTimeout(() => $el.remove(), 1500)">
+    <div class="signoff-card" x-data x-init="htmx.trigger(document.body, 'signoff-updated'); setTimeout(() => $el.remove(), 1500)">
         <p class="signoff-confirmed">✓ Afgetekend!</p>
     </div>
     {% else %}

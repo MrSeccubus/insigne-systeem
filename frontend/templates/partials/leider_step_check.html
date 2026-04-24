@@ -46,23 +46,35 @@
          class="step-check-wrapper step-check-wrapper--review">
     <summary class="step-check step-check-pending_signoff"
              title="Wacht op aftekenen — klik om af te tekenen of af te wijzen">?</summary>
-    <div class="step-check-dropdown">
-        <button class="step-check-option"
-                hx-post="/progress/{{ entry.id }}/confirm-signoff"
-                hx-swap="none"
-                hx-on::after-request="window.location.reload()">
-            <span class="step-check step-check-signed_off" style="pointer-events:none;">✓</span> Aftekenen
-        </button>
-        <hr class="step-check-divider">
-        <form hx-post="/progress/{{ entry.id }}/reject-signoff"
-              hx-swap="none"
-              hx-on::after-request="window.location.reload()">
-            <textarea name="message" rows="2" required
-                      placeholder="Toelichting (verplicht)..."></textarea>
-            <button type="submit" class="step-check-option step-check-option--reject">
-                <span class="step-check step-check-work_done" style="pointer-events:none;"></span> Afwijzen
-            </button>
-        </form>
+    <div class="step-check-dropdown" x-data="{ rejecting: false }">
+        <template x-if="!rejecting">
+            <div style="display:contents;">
+                <button class="step-check-option"
+                        hx-post="/progress/{{ entry.id }}/confirm-signoff"
+                        hx-swap="none"
+                        hx-on::after-request="window.location.reload()">
+                    <span class="step-check step-check-signed_off" style="pointer-events:none;">✓</span> Aftekenen
+                </button>
+                <hr class="step-check-divider">
+                <button class="step-check-option" type="button" @click="rejecting = true">
+                    <span class="step-check step-check-work_done" style="pointer-events:none;"></span> Afwijzen
+                </button>
+            </div>
+        </template>
+        <template x-if="rejecting">
+            <form hx-post="/progress/{{ entry.id }}/reject-signoff"
+                  hx-swap="none"
+                  hx-on::after-request="window.location.reload()">
+                <textarea name="message" rows="2" required
+                          placeholder="Toelichting (verplicht)..." autofocus></textarea>
+                <button type="submit" class="step-check-option step-check-option--reject">
+                    <span class="step-check step-check-work_done" style="pointer-events:none;"></span> Afwijzen
+                </button>
+                <button type="button" class="step-check-option" @click="rejecting = false">
+                    Annuleer
+                </button>
+            </form>
+        </template>
     </div>
 </details>
 {% else %}

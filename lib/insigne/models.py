@@ -69,6 +69,9 @@ class User(Base):
     membership_requests: Mapped[list["MembershipRequest"]] = relationship(
         foreign_keys="MembershipRequest.user_id", back_populates="user", cascade="all, delete-orphan"
     )
+    email_change_requests: Mapped[list["EmailChangeRequest"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class ConfirmationToken(Base):
@@ -246,6 +249,24 @@ class GroupFavoriteBadge(Base):
         String(36), ForeignKey("groups.id"), primary_key=True
     )
     badge_slug: Mapped[str] = mapped_column(String(100), primary_key=True)
+
+
+class EmailChangeRequest(Base):
+    __tablename__ = "email_change_requests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    old_email: Mapped[str] = mapped_column(String, nullable=False)
+    new_email: Mapped[str] = mapped_column(String, nullable=False)
+    confirm_token: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    revert_token: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reverted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revert_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+
+    user: Mapped["User"] = relationship(back_populates="email_change_requests")
 
 
 class MembershipRequest(Base):

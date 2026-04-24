@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}E-mailadres wijzigen — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main>
+    {% if result == "confirmed" %}
+    <h1>E-mailadres bevestigd</h1>
+    <p>Je e-mailadres is gewijzigd naar <strong>{{ new_email }}</strong>. Je kunt nu inloggen met dit adres.</p>
+    <a href="/profile" class="btn-primary" style="display:inline-block;margin-top:1rem;">Naar mijn profiel</a>
+    {% elif result == "reverted" %}
+    <h1>Wijziging ongedaan gemaakt</h1>
+    <p>Je e-mailadres is teruggezet naar <strong>{{ old_email }}</strong>.</p>
+    <a href="/profile" class="btn-primary" style="display:inline-block;margin-top:1rem;">Naar mijn profiel</a>
+    {% else %}
+    <h1>Link verlopen of ongeldig</h1>
+    <p>Deze link is verlopen of al gebruikt. Ga naar je profiel om opnieuw een wijziging aan te vragen.</p>
+    <a href="/profile" class="btn-primary" style="display:inline-block;margin-top:1rem;">Naar mijn profiel</a>
+    {% endif %}
+</main>
+{% endblock %}

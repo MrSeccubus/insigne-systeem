@@ -8,7 +8,13 @@ from insigne import users as user_svc
 from insigne.auth import create_access_token, decode_access_token
 from insigne.config import config
 from insigne.database import get_db
-from insigne.email import send_password_reset_email, send_registration_email, send_welcome_email
+from insigne.email import (
+    send_email_change_confirm_email,
+    send_email_change_revert_email,
+    send_password_reset_email,
+    send_registration_email,
+    send_welcome_email,
+)
 from insigne.models import User
 from templates import templates as _TEMPLATES
 
@@ -145,12 +151,14 @@ async def profile_page(request: Request, db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)
     if current_user is None:
         return RedirectResponse(url="/login", status_code=303)
-    return _page(request, "profile.html", db)
+    pending = user_svc.pending_email_change(db, current_user.id)
+    return _page(request, "profile.html", db, pending_email_change=pending)
 
 
 @router.post("/profile", response_class=HTMLResponse)
 async def profile_update(
     request: Request,
+    background_tasks: BackgroundTasks,
     name: str = Form(""),
     email: str = Form(...),
     password: str = Form(""),
@@ -159,22 +167,104 @@ async def profile_update(
     current_user = _get_current_user(request, db)
     if current_user is None:
         return RedirectResponse(url="/login", status_code=303)
+
+    email_changing = email and email.strip().lower() != (current_user.email or "").lower()
+
     try:
         user_svc.update_user(
             db,
             current_user,
             name=name or None,
-            email=email or None,
+            email=None,  # email change handled separately
             password=password if password else None,
         )
     except ValueError:
         return _page(request, "profile.html", db,
                      error="Wachtwoord moet minimaal 8 tekens bevatten.")
-    except IntegrityError:
-        db.rollback()
+
+    if email_changing:
+        try:
+            req = user_svc.request_email_change(db, current_user, email)
+        except user_svc.EmailChangeError as exc:
+            if str(exc) == "email_taken":
+                return _page(request, "profile.html", db,
+                             error="Dit e-mailadres is al in gebruik.")
+            return _page(request, "profile.html", db,
+                         error="Ongeldige invoer.")
+        naam = current_user.name or (current_user.email or "").split("@")[0]
+        background_tasks.add_task(
+            send_email_change_confirm_email,
+            req.new_email, naam, req.new_email, req.confirm_token,
+        )
+        background_tasks.add_task(
+            send_email_change_revert_email,
+            req.old_email, naam, req.old_email, req.new_email, req.revert_token,
+        )
+        pending = user_svc.pending_email_change(db, current_user.id)
         return _page(request, "profile.html", db,
-                     error="Dit e-mailadres is al in gebruik.")
+                     success="Wijzigingen opgeslagen.",
+                     pending_email_change=pending)
+
     return _page(request, "profile.html", db, success="Wijzigingen opgeslagen.")
+
+
+# --- Email change confirm / revert ---
+
+@router.get("/profile/email-change/confirm/{token}", response_class=HTMLResponse)
+async def email_change_confirm(request: Request, token: str, db: Session = Depends(get_db)):
+    req = user_svc.confirm_email_change(db, token)
+    if req is None:
+        current_user = _get_current_user(request, db)
+        return _TEMPLATES.TemplateResponse(
+            request=request,
+            name="email_change_result.html",
+            context={"current_user": current_user, "result": "expired"},
+        )
+    current_user = _get_current_user(request, db)
+    return _TEMPLATES.TemplateResponse(
+        request=request,
+        name="email_change_result.html",
+        context={"current_user": current_user, "result": "confirmed", "new_email": req.new_email},
+    )
+
+
+@router.get("/profile/email-change/revert/{token}", response_class=HTMLResponse)
+async def email_change_revert_page(request: Request, token: str, db: Session = Depends(get_db)):
+    current_user = _get_current_user(request, db)
+    req = user_svc.get_revert_request(db, token)
+    if req is None:
+        return _TEMPLATES.TemplateResponse(
+            request=request,
+            name="email_change_result.html",
+            context={"current_user": current_user, "result": "expired"},
+        )
+    return _TEMPLATES.TemplateResponse(
+        request=request,
+        name="email_change_revert_confirm.html",
+        context={
+            "current_user": current_user,
+            "token": token,
+            "old_email": req.old_email,
+            "new_email": req.new_email,
+        },
+    )
+
+
+@router.post("/profile/email-change/revert/{token}", response_class=HTMLResponse)
+async def email_change_revert(request: Request, token: str, db: Session = Depends(get_db)):
+    req = user_svc.revert_email_change(db, token)
+    current_user = _get_current_user(request, db)
+    if req is None:
+        return _TEMPLATES.TemplateResponse(
+            request=request,
+            name="email_change_result.html",
+            context={"current_user": current_user, "result": "expired"},
+        )
+    return _TEMPLATES.TemplateResponse(
+        request=request,
+        name="email_change_result.html",
+        context={"current_user": current_user, "result": "reverted", "old_email": req.old_email},
+    )
 
 
 # --- Login ---

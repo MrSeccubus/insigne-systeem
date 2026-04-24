@@ -224,3 +224,15 @@ def send_invite_group_leader_email(
          email=to,
          invited_by_name=invited_by_name,
          create_group_url=create_group_url)
+
+
+def send_email_change_confirm_email(to: str, naam: str, new_email: str, token: str) -> None:
+    confirm_url = f"{config.base_url}/profile/email-change/confirm/{quote_plus(token)}"
+    send(to, "email_change_confirm",
+         email=to, naam=naam, new_email=new_email, confirm_url=confirm_url)
+
+
+def send_email_change_revert_email(to: str, naam: str, old_email: str, new_email: str, token: str) -> None:
+    revert_url = f"{config.base_url}/profile/email-change/revert/{quote_plus(token)}"
+    send(to, "email_change_revert",
+         email=to, naam=naam, old_email=old_email, new_email=new_email, revert_url=revert_url)

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}E-mailadres terugzetten — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main>
+    <h1>E-mailadres terugzetten</h1>
+    <p>Wil je je e-mailadres terugzetten van <strong>{{ new_email }}</strong> naar <strong>{{ old_email }}</strong>?</p>
+    <form method="post" action="/profile/email-change/revert/{{ token }}">
+        <button type="submit" class="btn-danger">Ja, terugzetten naar {{ old_email }}</button>
+        <a href="/" style="margin-left:1rem;">Annuleren</a>
+    </form>
+</main>
+{% endblock %}

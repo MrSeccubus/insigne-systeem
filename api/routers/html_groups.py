@@ -1166,6 +1166,7 @@ def speltak_set_scout_progress(
     level_index: int = Form(...),
     step_index: int = Form(...),
     status: str = Form(...),
+    message: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user, redirect = _require_user(request, db)
@@ -1181,6 +1182,7 @@ def speltak_set_scout_progress(
             db, leider_id=user.id, scout_id=scout_id,
             speltak_id=speltak.id, badge_slug=badge_slug,
             level_index=level_index, step_index=step_index, status=status,
+            message=message.strip(),
         )
         if entry and status == "signed_off":
             scout = entry.user
@@ -1226,6 +1228,7 @@ def speltak_set_scout_progress(
     entry_status = entry.status if entry else "none"
     can_edit = not speltak.peer_signoff
     can_edit_cell = can_edit and scout_id != user.id and entry_status != "pending_signoff"
+    can_review_cell = can_edit and scout_id != user.id and entry_status == "pending_signoff"
     return _TEMPLATES.TemplateResponse(
         request=request,
         name="partials/leider_step_check.html",
@@ -1235,9 +1238,11 @@ def speltak_set_scout_progress(
             "level_index": level_index,
             "step_index": step_index,
             "entry_status": entry_status,
+            "entry": entry,
             "group_slug": group_slug,
             "speltak_slug": speltak_slug,
             "can_edit_cell": can_edit_cell,
+            "can_review_cell": can_review_cell,
             "next_status": _NEXT_STATUS.get(entry_status, "in_progress"),
         },
     )

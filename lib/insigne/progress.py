@@ -401,6 +401,7 @@ def set_scout_progress(
     level_index: int,
     step_index: int,
     status: str,
+    message: str = "",
 ) -> ProgressEntry | None:
     """Set or clear a scout's progress step on behalf of a leider.
 
@@ -450,6 +451,12 @@ def set_scout_progress(
             existing.signed_off_by_id = None
             existing.signed_off_at = None
             existing.mentor_comment = None
+            leider = db.get(User, leider_id)
+            db.add(SignoffRejection(
+                progress_entry_id=existing.id,
+                mentor_name=leider.name or leider.email,
+                message=message,
+            ))
         existing.status = status
         if status == "signed_off":
             existing.signed_off_by_id = leider_id

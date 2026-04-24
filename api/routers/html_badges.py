@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 
 from insigne import groups as groups_svc
 from insigne import progress as progress_svc
-from insigne.badges import get_badge
+from datetime import datetime
+
+from insigne.badges import get_badge, list_badges
 from insigne.database import get_db
 from insigne.email import (
     send_mentor_signoff_invite_email,
@@ -15,7 +17,7 @@ from insigne.email import (
     send_scout_rejected_email,
     send_scout_signed_off_email,
 )
-from insigne.models import ProgressEntry
+from insigne.models import ProgressEntry, User
 
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
@@ -597,3 +599,245 @@ async def request_signoff_members(
         db.refresh(entry)
 
     return _step_card(request, entry.badge_slug, entry.level_index, level["name"], entry.step_index, step_text, entry, previous_mentors, error=error, current_user=current_user, scout_signoff_options=scout_signoff_options)
+
+
+# ── Per-scout progress (leider view) ─────────────────────────────────────────
+
+def _build_badge_catalogue(all_progress: dict) -> tuple[dict, list]:
+    """Return (all_badges_enriched, signed_off_niveaus) for the given progress map."""
+    all_badges = list_badges(_DATA_DIR)
+    for badges in all_badges.values():
+        for badge in badges:
+            detail = get_badge(_DATA_DIR, badge["slug"])
+            n_eisen = len(detail["levels"])
+            badge["level_cards"] = [
+                {
+                    "index": niveau_idx,
+                    "name": f"Niveau {niveau_idx + 1}",
+                    "image": f"/images/{badge['slug']}.{niveau_idx + 1}.png",
+                    "total": n_eisen,
+                    "completed": sum(
+                        1 for eis_idx in range(n_eisen)
+                        if all_progress.get(badge["slug"], {}).get((eis_idx, niveau_idx)) and
+                           all_progress[badge["slug"]][(eis_idx, niveau_idx)].status == "signed_off"
+                    ),
+                    "completed_at": max(
+                        (all_progress[badge["slug"]][(eis_idx, niveau_idx)].signed_off_at
+                         for eis_idx in range(n_eisen)
+                         if all_progress.get(badge["slug"], {}).get((eis_idx, niveau_idx)) and
+                            all_progress[badge["slug"]][(eis_idx, niveau_idx)].status == "signed_off" and
+                            all_progress[badge["slug"]][(eis_idx, niveau_idx)].signed_off_at),
+                        default=None,
+                    ),
+                }
+                for niveau_idx in range(3)
+            ]
+    signed_off_niveaus = sorted(
+        [
+            {
+                "slug": badge["slug"],
+                "title": badge["title"],
+                "niveau_number": card["index"] + 1,
+                "image": card["image"],
+                "completed_at": card["completed_at"],
+            }
+            for badges in all_badges.values()
+            for badge in badges
+            for card in badge["level_cards"]
+            if card["completed"] == card["total"] and card["total"] > 0
+        ],
+        key=lambda n: n["completed_at"] or datetime.min,
+    )
+    return all_badges, signed_off_niveaus
+
+
+def _require_scout_access(request: Request, scout_id: str, db: Session):
+    """Return (current_user, scout) or (None, redirect) on auth/access failure."""
+    current_user = _get_current_user(request, db)
+    if current_user is None:
+        return None, RedirectResponse("/login", status_code=303)
+    if scout_id == current_user.id:
+        return None, RedirectResponse("/", status_code=303)
+    scout = db.get(User, scout_id)
+    if scout is None or not groups_svc.can_view_scout_progress(current_user, db, scout_id):
+        return None, RedirectResponse("/", status_code=303)
+    return current_user, scout
+
+
+@router.get("/scouts/{scout_id}", response_class=HTMLResponse)
+async def scout_progress_home(scout_id: str, request: Request, db: Session = Depends(get_db)):
+    current_user, scout_or_redirect = _require_scout_access(request, scout_id, db)
+    if current_user is None:
+        return scout_or_redirect
+    scout = scout_or_redirect
+
+    edit_speltak_id = groups_svc.get_edit_speltak_for_scout(db, current_user.id, scout_id)
+    all_progress: dict[str, dict] = {}
+    for entry in progress_svc.list_progress(db, scout_id):
+        all_progress.setdefault(entry.badge_slug, {})[(entry.level_index, entry.step_index)] = entry
+
+    all_badges, signed_off_niveaus = _build_badge_catalogue(all_progress)
+    response = _TEMPLATES.TemplateResponse(
+        request=request,
+        name="scout_progress.html",
+        context={
+            "current_user": current_user,
+            "scout": scout,
+            "can_edit": edit_speltak_id is not None,
+            "edit_speltak_id": edit_speltak_id,
+            "all_badges": all_badges,
+            "all_progress": all_progress,
+            "signed_off_niveaus": signed_off_niveaus,
+        },
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@router.get("/scouts/{scout_id}/badges/{slug}", response_class=HTMLResponse)
+async def scout_badge_detail(
+    scout_id: str, slug: str,
+    request: Request,
+    niveau: int | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    current_user, scout_or_redirect = _require_scout_access(request, scout_id, db)
+    if current_user is None:
+        return scout_or_redirect
+    scout = scout_or_redirect
+
+    badge = get_badge(_DATA_DIR, slug)
+    if badge is None:
+        return RedirectResponse(f"/scouts/{scout_id}", status_code=303)
+
+    edit_speltak_id = groups_svc.get_edit_speltak_for_scout(db, current_user.id, scout_id)
+    progress_map: dict[tuple[int, int], ProgressEntry] = {}
+    for entry in progress_svc.list_progress(db, scout_id, badge_slug=slug):
+        progress_map[(entry.level_index, entry.step_index)] = entry
+
+    n_eisen = len(badge["levels"])
+    niveau_stats = [
+        {
+            "completed": sum(
+                1 for eis_idx in range(n_eisen)
+                if progress_map.get((eis_idx, niveau_idx)) and
+                   progress_map[(eis_idx, niveau_idx)].status == "signed_off"
+            ),
+            "total": n_eisen,
+        }
+        for niveau_idx in range(3)
+    ]
+
+    return _TEMPLATES.TemplateResponse(
+        request=request,
+        name="scout_badge.html",
+        context={
+            "current_user": current_user,
+            "scout": scout,
+            "badge": badge,
+            "progress_map": progress_map,
+            "can_edit": edit_speltak_id is not None,
+            "edit_speltak_id": edit_speltak_id,
+            "niveau_stats": niveau_stats,
+            "selected_niveaus": [niveau - 1] if niveau in (1, 2, 3) else [0, 1, 2],
+            "_post_url": f"/scouts/{scout_id}/set-progress",
+        },
+    )
+
+
+@router.get("/scouts/{scout_id}/badges/{slug}/niveau-checks/{niveau_index}", response_class=HTMLResponse)
+async def scout_niveau_checks(
+    scout_id: str, slug: str, niveau_index: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    current_user, scout_or_redirect = _require_scout_access(request, scout_id, db)
+    if current_user is None:
+        return scout_or_redirect
+
+    badge = get_badge(_DATA_DIR, slug)
+    if badge is None:
+        return HTMLResponse("")
+
+    progress_map: dict[tuple[int, int], ProgressEntry] = {}
+    for entry in progress_svc.list_progress(db, scout_id, badge_slug=slug):
+        progress_map[(entry.level_index, entry.step_index)] = entry
+
+    return _partial(
+        request, "scout_niveau_checks.html",
+        scout_id=scout_id,
+        slug=slug,
+        niveau_index=niveau_index,
+        n_eisen=len(badge["levels"]),
+        progress_map=progress_map,
+        style=None,
+    )
+
+
+@router.post("/scouts/{scout_id}/set-progress", response_class=HTMLResponse)
+async def scout_set_progress(
+    scout_id: str,
+    request: Request,
+    badge_slug: str = Form(...),
+    level_index: int = Form(...),
+    step_index: int = Form(...),
+    status: str = Form(...),
+    message: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    current_user = _get_current_user(request, db)
+    if current_user is None:
+        return RedirectResponse("/login", status_code=303)
+
+    edit_speltak_id = groups_svc.get_edit_speltak_for_scout(db, current_user.id, scout_id)
+    badge = get_badge(_DATA_DIR, badge_slug)
+    if edit_speltak_id is None or badge is None:
+        return HTMLResponse("", status_code=403)
+
+    _post_url = f"/scouts/{scout_id}/set-progress"
+    entry = None
+    try:
+        entry = progress_svc.set_scout_progress(
+            db, leider_id=current_user.id, scout_id=scout_id,
+            speltak_id=edit_speltak_id, badge_slug=badge_slug,
+            level_index=level_index, step_index=step_index,
+            status=status, message=message.strip(),
+        )
+        scout = db.get(User, scout_id)
+        if entry and entry.status == "signed_off" and scout and scout.email:
+            level = badge["levels"][level_index]
+            step_text = level["steps"][step_index]["text"]
+            send_scout_signed_off_email(
+                scout.email, scout.name or scout.email,
+                badge["title"], step_index + 1, step_text,
+            )
+    except ValueError:
+        entry = db.query(ProgressEntry).filter_by(
+            user_id=scout_id, badge_slug=badge_slug,
+            level_index=level_index, step_index=step_index,
+        ).first()
+        entry_status = entry.status if entry else "none"
+        return _partial(
+            request, "leider_step_check.html",
+            scout_id=scout_id, badge_slug=badge_slug,
+            level_index=level_index, step_index=step_index,
+            entry_status=entry_status, entry=entry,
+            can_edit_cell=entry_status != "pending_signoff",
+            can_review_cell=entry_status == "pending_signoff",
+            _post_url=_post_url,
+        )
+    except (progress_svc.Forbidden, progress_svc.Conflict):
+        return HTMLResponse("", status_code=403)
+
+    entry_status = entry.status if entry else "none"
+    partial_response = _partial(
+        request, "leider_step_check.html",
+        scout_id=scout_id, badge_slug=badge_slug,
+        level_index=level_index, step_index=step_index,
+        entry_status=entry_status, entry=entry,
+        can_edit_cell=entry_status != "pending_signoff",
+        can_review_cell=entry_status == "pending_signoff",
+        _post_url=_post_url,
+    )
+    partial_response.headers["HX-Trigger"] = "niveau-updated"
+    return partial_response

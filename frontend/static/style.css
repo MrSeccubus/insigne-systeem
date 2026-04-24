@@ -1493,6 +1493,50 @@ button:disabled, a[disabled] {
 
 [x-cloak] { display: none !important; }
 
+.ribbon {
+    margin: 1.5rem 0;
+    padding: 1rem 1.25rem;
+    background: #f9fdf9;
+    border: 1px solid #c8e6c9;
+    border-radius: 6px;
+}
+
+.ribbon__title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 0.75rem;
+}
+
+.ribbon__items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ribbon__item {
+    display: block;
+    width: 56px;
+    height: 56px;
+    border-radius: 4px;
+    overflow: hidden;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.ribbon__item:hover {
+    transform: scale(1.12);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+
+.ribbon__item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
 .site-footer {
     margin-top: 4rem;
     padding: 1.5rem 2rem;

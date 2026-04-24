@@ -361,6 +361,56 @@ class TestRejectSignoff:
 
 # ── niveau checks partial ─────────────────────────────────────────────────────
 
+class TestRibbon:
+    def _sign_off_all_eisen(self, db, user, badge_slug=_BADGE, step_index=0):
+        """Sign off all 5 eisen at a given niveau (step_index) for a badge."""
+        for level_index in range(5):
+            e = ProgressEntry(
+                user_id=user.id,
+                badge_slug=badge_slug,
+                level_index=level_index,
+                step_index=step_index,
+                status="signed_off",
+            )
+            db.add(e)
+        db.commit()
+
+    def test_ribbon_hidden_when_nothing_signed_off(self, client, db):
+        user = _active_user(db)
+        _set_auth(client, user)
+        r = client.get("/")
+        assert "ribbon" not in r.text.lower() or "Behaalde niveaus" not in r.text
+
+    def test_ribbon_shown_when_niveau_fully_signed_off(self, client, db):
+        user = _active_user(db)
+        _set_auth(client, user)
+        self._sign_off_all_eisen(db, user)
+        r = client.get("/")
+        assert "Behaalde niveaus" in r.text
+
+    def test_ribbon_links_to_badge_at_correct_niveau(self, client, db):
+        user = _active_user(db)
+        _set_auth(client, user)
+        self._sign_off_all_eisen(db, user, step_index=1)  # niveau 2
+        r = client.get("/")
+        assert f"/badges/{_BADGE}?niveau=2" in r.text
+
+    def test_partial_niveau_not_in_ribbon(self, client, db):
+        user = _active_user(db)
+        _set_auth(client, user)
+        # Sign off only 4 of 5 eisen at niveau 0
+        for level_index in range(4):
+            db.add(ProgressEntry(user_id=user.id, badge_slug=_BADGE,
+                                 level_index=level_index, step_index=0, status="signed_off"))
+        db.commit()
+        r = client.get("/")
+        assert "Behaalde niveaus" not in r.text
+
+    def test_ribbon_not_shown_for_anonymous(self, client, db):
+        r = client.get("/")
+        assert "Behaalde niveaus" not in r.text
+
+
 class TestNiveauChecks:
     def test_known_badge_returns_200(self, client, db):
         r = client.get(f"/badges/{_BADGE}/niveau-checks/0")

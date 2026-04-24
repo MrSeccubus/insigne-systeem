@@ -730,6 +730,11 @@ button:hover {
     white-space: nowrap;
 }
 .step-check-wrapper[open] .step-check-dropdown { display: flex; flex-direction: column; gap: 2px; }
+.step-check-wrapper--review[open] .step-check-dropdown { min-width: 200px; white-space: normal; }
+.step-check-wrapper--review .step-check-dropdown form { display: flex; flex-direction: column; gap: 4px; padding: 2px 4px 4px; }
+.step-check-wrapper--review .step-check-dropdown textarea { font-size: 0.8rem; padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 4px; resize: vertical; width: 100%; box-sizing: border-box; }
+.step-check-wrapper--review .step-check-option--reject { width: 100%; justify-content: center; }
+.step-check-divider { border: none; border-top: 1px solid #e5e7eb; margin: 2px 0; }
 .step-check-option {
     display: flex;
     align-items: center;

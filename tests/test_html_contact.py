@@ -61,7 +61,7 @@ class TestContactSubmitAnonymous:
     def test_valid_submission_shows_success(self, client, db):
         r = self._post(client)
         assert r.status_code == 200
-        assert "verzonden" in r.text.lower()
+        assert "verstuurd" in r.text.lower()
 
     def test_wrong_answer_shows_error(self, client, db):
         r = self._post(client, correct=7, submitted=99)
@@ -88,7 +88,7 @@ class TestContactSubmitAnonymous:
     def test_previous_bucket_still_accepted(self, client, db):
         prev_bucket = _current_bucket() - 1
         r = self._post(client, correct=7, token=_make_token(7, prev_bucket))
-        assert "verzonden" in r.text.lower()
+        assert "verstuurd" in r.text.lower()
 
     def test_old_bucket_rejected(self, client, db):
         old_bucket = _current_bucket() - 2
@@ -120,7 +120,7 @@ class TestContactSubmitAuthenticated:
         client.cookies.set("access_token", create_access_token(user.id)[0])
         r = client.post("/contact", data={"subject": "Vraag", "body": "Hallo"})
         assert r.status_code == 200
-        assert "verzonden" in r.text.lower()
+        assert "verstuurd" in r.text.lower()
 
     def test_no_captcha_required_for_authenticated_user(self, client, db):
         user = _register_and_activate(db)
@@ -139,4 +139,4 @@ class TestContactSubmitAuthenticated:
             "sender_email": "evil@attacker.com",
         })
         assert r.status_code == 200
-        assert "verzonden" in r.text.lower()
+        assert "verstuurd" in r.text.lower()

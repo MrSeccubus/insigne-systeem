@@ -184,3 +184,77 @@ class TestForgotPassword:
         r = client.get("/forgot-password/confirm/badtoken")
         assert r.status_code == 200
         assert "verlopen" in r.text.lower() or "ongeldig" in r.text.lower()
+
+
+# ── email change ──────────────────────────────────────────────────────────────
+
+class TestEmailChange:
+    def test_post_profile_with_new_email_does_not_change_email_immediately(self, client, db):
+        user = _register_and_activate(db)
+        client.cookies.set("access_token", create_access_token(user.id)[0])
+        client.post("/profile", data={"name": user.name, "email": "new@example.com", "password": ""})
+        db.refresh(user)
+        assert user.email == "jan@example.com"
+
+    def test_post_profile_with_new_email_creates_pending_change(self, client, db):
+        from insigne.models import EmailChangeRequest
+        user = _register_and_activate(db)
+        client.cookies.set("access_token", create_access_token(user.id)[0])
+        client.post("/profile", data={"name": user.name, "email": "new@example.com", "password": ""})
+        req = db.query(EmailChangeRequest).filter_by(user_id=user.id).first()
+        assert req is not None
+        assert req.new_email == "new@example.com"
+
+    def test_post_profile_same_email_does_not_create_pending_change(self, client, db):
+        from insigne.models import EmailChangeRequest
+        user = _register_and_activate(db)
+        client.cookies.set("access_token", create_access_token(user.id)[0])
+        client.post("/profile", data={"name": "NewName", "email": user.email, "password": ""})
+        assert db.query(EmailChangeRequest).filter_by(user_id=user.id).count() == 0
+
+    def test_confirm_link_with_valid_token_updates_email(self, client, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        r = client.get(f"/profile/email-change/confirm/{req.confirm_token}")
+        assert r.status_code == 200
+        db.refresh(user)
+        assert user.email == "new@example.com"
+
+    def test_confirm_link_with_invalid_token_shows_expired_page(self, client, db):
+        r = client.get("/profile/email-change/confirm/badtoken")
+        assert r.status_code == 200
+        assert "verlopen" in r.text.lower()
+
+    def test_revert_page_shows_confirmation_form(self, client, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        r = client.get(f"/profile/email-change/revert/{req.revert_token}")
+        assert r.status_code == 200
+        assert "jan@example.com" in r.text
+
+    def test_revert_page_with_invalid_token_shows_expired_page(self, client, db):
+        r = client.get("/profile/email-change/revert/badtoken")
+        assert r.status_code == 200
+        assert "verlopen" in r.text.lower()
+
+    def test_post_revert_restores_old_email(self, client, db):
+        user = _register_and_activate(db)
+        req = user_svc.request_email_change(db, user, "new@example.com")
+        user_svc.confirm_email_change(db, req.confirm_token)
+        r = client.post(f"/profile/email-change/revert/{req.revert_token}")
+        assert r.status_code == 200
+        db.refresh(user)
+        assert user.email == "jan@example.com"
+
+    def test_post_revert_with_invalid_token_shows_expired_page(self, client, db):
+        r = client.post("/profile/email-change/revert/badtoken")
+        assert r.status_code == 200
+        assert "verlopen" in r.text.lower()
+
+    def test_profile_page_shows_pending_change_banner(self, client, db):
+        user = _register_and_activate(db)
+        user_svc.request_email_change(db, user, "new@example.com")
+        client.cookies.set("access_token", create_access_token(user.id)[0])
+        r = client.get("/profile")
+        assert r.status_code == 200
+        assert "new@example.com" in r.text

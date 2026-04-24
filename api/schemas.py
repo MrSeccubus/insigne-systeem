@@ -260,3 +260,12 @@ class RequestSignoffSpeltakRequest(BaseModel):
 
 class RequestSignoffMembersRequest(BaseModel):
     mentor_ids: list[str]
+
+
+class EmailChangeTokenRequest(BaseModel):
+    token: str
+
+
+class PendingEmailChangeResponse(BaseModel):
+    new_email: str
+    expires_at: datetime

@@ -243,6 +243,7 @@ class SetScoutProgressRequest(BaseModel):
     level_index: int = Field(..., ge=0)
     step_index: int = Field(..., ge=0)
     status: str = Field(..., pattern=r"^(none|in_progress|work_done|signed_off)$")
+    message: str = ""
 
 
 class ToggleFavoriteBadgeRequest(BaseModel):

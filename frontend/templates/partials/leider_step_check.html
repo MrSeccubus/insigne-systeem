@@ -1,15 +1,52 @@
 {# Leider-editable step-check cell. Variables:
-   scout_id, badge_slug, level_index, step_index, entry_status,
-   group_slug, speltak_slug, can_edit_cell #}
+   scout_id, badge_slug, level_index, step_index, entry_status, entry,
+   group_slug, speltak_slug, can_edit_cell, can_review_cell #}
 {% set _post_url = "/groups/" ~ group_slug ~ "/speltakken/" ~ speltak_slug ~ "/scouts/" ~ scout_id ~ "/progress/set" %}
 {% set _vals_base = '"badge_slug":"' ~ badge_slug ~ '","level_index":' ~ level_index ~ ',"step_index":' ~ step_index %}
 {% if can_edit_cell %}
 <details id="leider-check-{{ scout_id }}-{{ badge_slug }}-{{ level_index }}-{{ step_index }}"
-         class="step-check-wrapper">
+         class="step-check-wrapper{% if entry_status == 'signed_off' %} step-check-wrapper--review{% endif %}">
     <summary class="step-check{% if entry_status and entry_status != 'none' %} step-check-{{ entry_status }}{% endif %}"
              title="{% if entry_status == 'signed_off' %}Afgetekend{% elif entry_status == 'work_done' %}Klaar{% elif entry_status == 'in_progress' %}Bezig{% else %}Niet gestart{% endif %}">
         {%- if entry_status == 'signed_off' -%}✓{%- endif -%}
     </summary>
+    {% if entry_status == 'signed_off' %}
+    <div class="step-check-dropdown" x-data="{ pendingStatus: null }">
+        <button class="step-check-option" x-show="pendingStatus === null" type="button"
+                @click.stop="pendingStatus = 'none'">
+            <span class="step-check" style="pointer-events:none;"></span> Niet gestart
+        </button>
+        <button class="step-check-option" x-show="pendingStatus === null" type="button"
+                @click.stop="pendingStatus = 'in_progress'">
+            <span class="step-check step-check-in_progress" style="pointer-events:none;"></span> Bezig
+        </button>
+        <button class="step-check-option" x-show="pendingStatus === null" type="button"
+                @click.stop="pendingStatus = 'work_done'">
+            <span class="step-check step-check-work_done" style="pointer-events:none;"></span> Klaar
+        </button>
+        <button class="step-check-option step-check-option--active" x-show="pendingStatus === null" type="button">
+            <span class="step-check step-check-signed_off" style="pointer-events:none;">✓</span> Afgetekend
+        </button>
+        <form x-show="pendingStatus !== null" x-cloak
+              hx-post="{{ _post_url }}"
+              hx-target="closest details"
+              hx-swap="outerHTML">
+            <input type="hidden" name="badge_slug" value="{{ badge_slug }}">
+            <input type="hidden" name="level_index" value="{{ level_index }}">
+            <input type="hidden" name="step_index" value="{{ step_index }}">
+            <input type="hidden" name="status" x-bind:value="pendingStatus">
+            <textarea name="message" rows="2" required
+                      x-bind:disabled="pendingStatus === null"
+                      placeholder="Reden voor afwijzing (verplicht)..."></textarea>
+            <button type="submit" class="step-check-option step-check-option--reject">
+                Bevestigen
+            </button>
+            <button type="button" class="step-check-option" @click.stop="pendingStatus = null">
+                Annuleer
+            </button>
+        </form>
+    </div>
+    {% else %}
     <div class="step-check-dropdown">
         <button class="step-check-option{% if entry_status == 'none' %} step-check-option--active{% endif %}"
                 hx-post="{{ _post_url }}"
@@ -32,13 +69,47 @@
                 hx-swap="outerHTML">
             <span class="step-check step-check-work_done" style="pointer-events:none;"></span> Klaar
         </button>
-        <button class="step-check-option{% if entry_status == 'signed_off' %} step-check-option--active{% endif %}"
+        <button class="step-check-option"
                 hx-post="{{ _post_url }}"
                 hx-vals='{ {{ _vals_base }},"status":"signed_off"}'
                 hx-target="closest details"
                 hx-swap="outerHTML">
             <span class="step-check step-check-signed_off" style="pointer-events:none;">✓</span> Afgetekend
         </button>
+    </div>
+    {% endif %}
+</details>
+{% elif can_review_cell %}
+<details id="leider-check-{{ scout_id }}-{{ badge_slug }}-{{ level_index }}-{{ step_index }}"
+         class="step-check-wrapper step-check-wrapper--review">
+    <summary class="step-check step-check-pending_signoff"
+             title="Wacht op aftekenen — klik om af te tekenen of af te wijzen">?</summary>
+    <div class="step-check-dropdown" x-data="{ rejecting: false }">
+        <button class="step-check-option" x-show="!rejecting"
+                hx-post="/progress/{{ entry.id }}/confirm-signoff"
+                hx-swap="none"
+                hx-on::after-request="window.location.reload()">
+            <span class="step-check step-check-signed_off" style="pointer-events:none;">✓</span> Aftekenen
+        </button>
+        <hr class="step-check-divider" x-show="!rejecting">
+        <button class="step-check-option" x-show="!rejecting"
+                type="button" @click.stop="rejecting = true">
+            <span class="step-check step-check-work_done" style="pointer-events:none;"></span> Afwijzen
+        </button>
+        <form x-show="rejecting" x-cloak
+              hx-post="/progress/{{ entry.id }}/reject-signoff"
+              hx-swap="none"
+              hx-on::after-request="window.location.reload()">
+            <textarea name="message" rows="2" required
+                      x-bind:disabled="!rejecting"
+                      placeholder="Toelichting (verplicht)..."></textarea>
+            <button type="submit" class="step-check-option step-check-option--reject">
+                <span class="step-check step-check-work_done" style="pointer-events:none;"></span> Afwijzen
+            </button>
+            <button type="button" class="step-check-option" @click.stop="rejecting = false">
+                Annuleer
+            </button>
+        </form>
     </div>
 </details>
 {% else %}

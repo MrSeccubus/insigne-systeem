@@ -712,6 +712,7 @@ def api_set_scout_progress(
             level_index=body.level_index,
             step_index=body.step_index,
             status=body.status,
+            message=body.message.strip(),
         )
     except progress_svc.Forbidden as e:
         raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))

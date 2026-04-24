@@ -401,6 +401,7 @@ def set_scout_progress(
     level_index: int,
     step_index: int,
     status: str,
+    message: str = "",
 ) -> ProgressEntry | None:
     """Set or clear a scout's progress step on behalf of a leider.
 
@@ -439,6 +440,15 @@ def set_scout_progress(
             return None
         if existing.status == "pending_signoff":
             raise Conflict("pending_signoff")
+        if existing.status == "signed_off":
+            if not message.strip():
+                raise ValueError("message_required_when_downgrading")
+            leider = db.get(User, leider_id)
+            db.add(SignoffRejection(
+                progress_entry_id=existing.id,
+                mentor_name=leider.name or leider.email,
+                message=message,
+            ))
         db.delete(existing)
         db.commit()
         return None
@@ -447,9 +457,17 @@ def set_scout_progress(
         if existing.status == "pending_signoff":
             raise Conflict("pending_signoff")
         if existing.status == "signed_off" and status != "signed_off":
+            if not message.strip():
+                raise ValueError("message_required_when_downgrading")
             existing.signed_off_by_id = None
             existing.signed_off_at = None
             existing.mentor_comment = None
+            leider = db.get(User, leider_id)
+            db.add(SignoffRejection(
+                progress_entry_id=existing.id,
+                mentor_name=leider.name or leider.email,
+                message=message,
+            ))
         existing.status = status
         if status == "signed_off":
             existing.signed_off_by_id = leider_id

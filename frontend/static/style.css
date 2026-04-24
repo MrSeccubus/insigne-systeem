@@ -1513,27 +1513,36 @@ button:disabled, a[disabled] {
 .ribbon__items {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0;
+    padding-bottom: 1.5rem;
+}
+
+.ribbon__pair {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 0.2rem;
 }
 
 .ribbon__item {
     display: block;
     width: 2.75rem;
-    height: 2.75rem;
-    border-radius: 4px;
-    overflow: hidden;
+    margin-right: -0.6rem;
+    position: relative;
     transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.ribbon__pair .ribbon__item:nth-child(2) {
+    top: 1.375rem; /* W/2 — honeycomb column offset */
 }
 
 .ribbon__item:hover {
     transform: scale(1.12);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    z-index: 1;
 }
 
 .ribbon__item img {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    height: auto;
     display: block;
 }
 

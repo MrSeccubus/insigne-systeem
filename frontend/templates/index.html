@@ -7,21 +7,6 @@
     {% if current_user %}
         <h1>Welkom terug, {{ current_user.name }}!</h1>
 
-        {% if signed_off_niveaus %}
-        <section class="ribbon">
-            <h2 class="ribbon__title">Jouw insignes</h2>
-            <div class="ribbon__items">
-                {% for n in signed_off_niveaus %}
-                <a href="/badges/{{ n.slug }}?niveau={{ n.niveau_number }}"
-                   class="ribbon__item"
-                   title="{{ n.title }} — Niveau {{ n.niveau_number }}">
-                    <img src="{{ n.image }}" alt="{{ n.title }} Niveau {{ n.niveau_number }}">
-                </a>
-                {% endfor %}
-            </div>
-        </section>
-        {% endif %}
-
         {% if my_group_memberships or my_speltak_memberships %}
         {% set n_groepsleider  = my_group_memberships   | selectattr('role','eq','groepsleider')  | list | length %}
         {% set n_speltakleider = my_speltak_memberships | selectattr('role','eq','speltakleider') | list | length %}
@@ -152,6 +137,23 @@
                 </li>
                 {% endfor %}
             </ul>
+        </section>
+        {% endif %}
+
+        {% if signed_off_niveaus %}
+        <section class="ribbon">
+            <h2 class="ribbon__title">Jouw insignes</h2>
+            <div class="ribbon__items">
+                {% for n in signed_off_niveaus %}
+                {% if loop.index0 % 2 == 0 %}<div class="ribbon__pair">{% endif %}
+                <a href="/badges/{{ n.slug }}?niveau={{ n.niveau_number }}"
+                   class="ribbon__item"
+                   title="{{ n.title }} — Niveau {{ n.niveau_number }}">
+                    <img src="{{ n.image }}" alt="{{ n.title }} Niveau {{ n.niveau_number }}">
+                </a>
+                {% if loop.index0 % 2 == 1 or loop.last %}</div>{% endif %}
+                {% endfor %}
+            </div>
         </section>
         {% endif %}
     {% else %}

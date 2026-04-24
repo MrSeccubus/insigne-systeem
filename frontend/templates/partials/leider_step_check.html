@@ -1,6 +1,6 @@
 {# Leider-editable step-check cell. Variables:
-   scout_id, badge_slug, level_index, step_index, entry_status,
-   group_slug, speltak_slug, can_edit_cell #}
+   scout_id, badge_slug, level_index, step_index, entry_status, entry,
+   group_slug, speltak_slug, can_edit_cell, can_review_cell #}
 {% set _post_url = "/groups/" ~ group_slug ~ "/speltakken/" ~ speltak_slug ~ "/scouts/" ~ scout_id ~ "/progress/set" %}
 {% set _vals_base = '"badge_slug":"' ~ badge_slug ~ '","level_index":' ~ level_index ~ ',"step_index":' ~ step_index %}
 {% if can_edit_cell %}
@@ -38,6 +38,26 @@
                 hx-target="closest details"
                 hx-swap="outerHTML">
             <span class="step-check step-check-signed_off" style="pointer-events:none;">✓</span> Afgetekend
+        </button>
+    </div>
+</details>
+{% elif can_review_cell %}
+<details id="leider-check-{{ scout_id }}-{{ badge_slug }}-{{ level_index }}-{{ step_index }}"
+         class="step-check-wrapper">
+    <summary class="step-check step-check-pending_signoff"
+             title="Wacht op aftekenen — klik om af te tekenen of af te wijzen">?</summary>
+    <div class="step-check-dropdown">
+        <button class="step-check-option"
+                hx-post="/progress/{{ entry.id }}/confirm-signoff"
+                hx-swap="none"
+                hx-on::after-request="window.location.reload()">
+            <span class="step-check step-check-signed_off" style="pointer-events:none;">✓</span> Aftekenen
+        </button>
+        <button class="step-check-option"
+                hx-post="/progress/{{ entry.id }}/reject-signoff"
+                hx-swap="none"
+                hx-on::after-request="window.location.reload()">
+            <span class="step-check step-check-work_done" style="pointer-events:none;"></span> Afwijzen
         </button>
     </div>
 </details>

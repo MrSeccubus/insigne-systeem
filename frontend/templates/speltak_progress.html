@@ -116,6 +116,7 @@
                                 {% set entry = scout_progress.get((badge_slug, level_index, step_index)) %}
                                 {% set entry_status = entry.status if entry else "none" %}
                                 {% set can_edit_cell = can_edit and m.user_id != leider_id and entry_status != "pending_signoff" %}
+                                {% set can_review_cell = can_edit and m.user_id != leider_id and entry_status == "pending_signoff" %}
                                 {% include "partials/leider_step_check.html" %}
                                 {% endfor %}
                             </div>

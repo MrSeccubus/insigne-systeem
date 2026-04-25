@@ -19,7 +19,14 @@ def _login(client, user) -> None:
 # ── GET /groups ───────────────────────────────────────────────────────────────
 
 class TestGroupsList:
-    def test_returns_200(self, client, db):
+    def test_unauthenticated_redirects_to_login(self, client, db):
+        r = client.get("/groups", follow_redirects=False)
+        assert r.status_code == 303
+        assert r.headers["location"] == "/login"
+
+    def test_authenticated_returns_200(self, client, db):
+        user = _user(db)
+        _login(client, user)
         r = client.get("/groups")
         assert r.status_code == 200
 
@@ -68,18 +75,37 @@ class TestGroupCreate:
 # ── GET /groups/{slug} ────────────────────────────────────────────────────────
 
 class TestGroupDetail:
-    def test_returns_200(self, client, db):
+    def test_unauthenticated_redirects_to_login(self, client, db):
         svc.create_group(db, name="G", slug="g")
+        r = client.get("/groups/g", follow_redirects=False)
+        assert r.status_code == 303
+        assert r.headers["location"] == "/login"
+
+    def test_non_leider_redirected_to_groups(self, client, db):
+        outsider = _user(db)
+        svc.create_group(db, name="G", slug="g")
+        _login(client, outsider)
+        r = client.get("/groups/g", follow_redirects=False)
+        assert r.status_code == 303
+        assert r.headers["location"] == "/groups"
+
+    def test_groepsleider_returns_200(self, client, db):
+        user = _user(db)
+        svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        _login(client, user)
         r = client.get("/groups/g")
         assert r.status_code == 200
 
     def test_unknown_slug_redirects(self, client, db):
+        user = _user(db)
+        _login(client, user)
         r = client.get("/groups/nonexistent", follow_redirects=False)
         assert r.status_code == 303
 
     def test_shows_groepsleiders(self, client, db):
         user = _user(db)
         svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        _login(client, user)
         r = client.get("/groups/g")
         assert "User" in r.text
 
@@ -305,6 +331,35 @@ def _speltakleider_add(db, user_id, group_id, speltak_id):
     from insigne.models import SpeltakMembership
     db.add(SpeltakMembership(user_id=user_id, speltak_id=speltak_id, role="speltakleider", approved=True))
     db.commit()
+
+
+# ── GET /groups/{slug}/speltakken/{slug} ──────────────────────────────────────
+
+class TestSpeltakDetail:
+    def test_unauthenticated_redirects_to_login(self, client, db):
+        g = svc.create_group(db, name="G", slug="g")
+        svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        r = client.get("/groups/g/speltakken/s", follow_redirects=False)
+        assert r.status_code == 303
+        assert r.headers["location"] == "/login"
+
+    def test_non_leider_redirected_to_group(self, client, db):
+        outsider = _user(db)
+        g = svc.create_group(db, name="G", slug="g")
+        svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        _login(client, outsider)
+        r = client.get("/groups/g/speltakken/s", follow_redirects=False)
+        assert r.status_code == 303
+        assert r.headers["location"] == "/groups/g"
+
+    def test_speltakleider_returns_200(self, client, db):
+        leider = _user(db)
+        g = svc.create_group(db, name="G", slug="g")
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        _speltakleider_add(db, leider.id, g.id, s.id)
+        _login(client, leider)
+        r = client.get("/groups/g/speltakken/s")
+        assert r.status_code == 200
 
 
 # ── GET /groups/{slug}/speltakken/{slug}/progress ─────────────────────────────

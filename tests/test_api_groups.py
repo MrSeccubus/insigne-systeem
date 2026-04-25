@@ -31,14 +31,20 @@ def _remove_admin(email):
 # ── GET /api/groups ───────────────────────────────────────────────────────────
 
 class TestListGroups:
-    def test_returns_empty_list(self, client, db):
+    def test_unauthenticated_returns_401(self, client, db):
         r = client.get("/api/groups")
+        assert r.status_code == 401
+
+    def test_returns_empty_list(self, client, db):
+        token = _full_register(client, db)
+        r = client.get("/api/groups", headers=_auth(token))
         assert r.status_code == 200
         assert r.json() == []
 
     def test_returns_created_groups(self, client, db):
+        token = _full_register(client, db)
         svc.create_group(db, name="Groep A", slug="groep-a")
-        r = client.get("/api/groups")
+        r = client.get("/api/groups", headers=_auth(token))
         assert len(r.json()) == 1
         assert r.json()[0]["slug"] == "groep-a"
 
@@ -80,6 +86,34 @@ class TestCreateGroup:
         assert r.status_code == 201
         config.allow_any_user_to_create_groups = True
         _remove_admin(email)
+
+
+# ── GET /api/groups/{id} ──────────────────────────────────────────────────────
+
+class TestGetGroup:
+    def test_unauthenticated_returns_401(self, client, db):
+        g = svc.create_group(db, name="G", slug="g")
+        r = client.get(f"/api/groups/{g.id}")
+        assert r.status_code == 401
+
+    def test_non_leider_returns_403(self, client, db):
+        token = _full_register(client, db)
+        g = svc.create_group(db, name="G", slug="g")
+        r = client.get(f"/api/groups/{g.id}", headers=_auth(token))
+        assert r.status_code == 403
+
+    def test_groepsleider_returns_200(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        r = client.get(f"/api/groups/{g.id}", headers=_auth(token))
+        assert r.status_code == 200
+        assert r.json()["slug"] == "g"
+
+    def test_unknown_group_returns_404(self, client, db):
+        token = _full_register(client, db)
+        r = client.get("/api/groups/nonexistent", headers=_auth(token))
+        assert r.status_code == 404
 
 
 # ── PUT /api/groups/{id} ──────────────────────────────────────────────────────

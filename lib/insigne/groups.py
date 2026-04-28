@@ -842,6 +842,57 @@ def list_scout_speltakken(db: Session, user_id: str) -> list[tuple[Group, Spelta
     return [(m.speltak.group, m.speltak, m.role) for m in memberships]
 
 
+def can_view_scout_progress(user: User, db: Session, scout_id: str) -> bool:
+    """Return True if user may view the per-scout progress page.
+
+    Allowed for: admins, groepsleiders and speltakleiders of any speltak/group the
+    scout belongs to.  Does NOT grant edit rights — use get_edit_speltak_for_scout.
+    """
+    if user.is_admin:
+        return True
+    scout_speltak_ids = {
+        m.speltak_id
+        for m in db.query(SpeltakMembership)
+        .filter_by(user_id=scout_id, approved=True, withdrawn=False)
+        .all()
+    }
+    for speltak_id in scout_speltak_ids:
+        if can_manage_speltak(user, db, speltak_id):
+            return True
+    return False
+
+
+def get_edit_speltak_for_scout(db: Session, viewer_id: str, scout_id: str) -> str | None:
+    """Return a speltak_id the viewer can use to edit the scout's progress.
+
+    Edit rights require the viewer to be an explicit speltakleider (not merely a
+    groepsleider or admin) in a non-peer_signoff speltak that the scout is also a
+    member of.  Returns None when the viewer has read-only access at most.
+    """
+    viewer_speltak_ids = {
+        m.speltak_id
+        for m in db.query(SpeltakMembership)
+        .filter_by(user_id=viewer_id, role="speltakleider", approved=True, withdrawn=False)
+        .all()
+    }
+    scout_speltak_ids = {
+        m.speltak_id
+        for m in db.query(SpeltakMembership)
+        .filter_by(user_id=scout_id, approved=True, withdrawn=False)
+        .all()
+    }
+    for speltak_id in viewer_speltak_ids & scout_speltak_ids:
+        speltak = db.get(Speltak, speltak_id)
+        if not speltak or speltak.peer_signoff:
+            continue
+        target_membership = db.query(SpeltakMembership).filter_by(
+            user_id=scout_id, speltak_id=speltak_id, approved=True, withdrawn=False
+        ).first()
+        if target_membership and target_membership.role == "scout":
+            return speltak_id
+    return None
+
+
 def list_speltakleiders_for_speltak(db: Session, speltak_id: str) -> list[User]:
     """Approved speltakleiders of the speltak who have an email address."""
     memberships = (

@@ -881,3 +881,102 @@ class TestGroupFavoriteBadgesAPI:
         other_token = _full_register(client, db, email="oth@x.com", name="Other")
         r = client.get(f"/api/groups/{g.id}/favorite-badges", headers=_auth(other_token))
         assert r.status_code == 403
+
+
+# ── /api/scouts — per-scout progress ─────────────────────────────────────────
+
+from insigne.models import GroupMembership, ProgressEntry, SpeltakMembership
+from insigne.auth import create_access_token
+
+
+def _quick_user(db, email):
+    u = User(email=email, name=email, status="active", password_hash="x")
+    db.add(u)
+    db.commit()
+    return u
+
+
+def _quick_auth(user):
+    token, _ = create_access_token(user.id)
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _speltak_setup(db, peer_signoff=False):
+    leider = _quick_user(db, "l@x.com")
+    scout = _quick_user(db, "s@x.com")
+    g = svc.create_group(db, name="G", slug="g-api-scout", created_by_id=leider.id)
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s-api-scout", peer_signoff=peer_signoff)
+    db.add(SpeltakMembership(user_id=leider.id, speltak_id=s.id, role="speltakleider", approved=True))
+    db.add(SpeltakMembership(user_id=scout.id, speltak_id=s.id, role="scout", approved=True))
+    db.commit()
+    return leider, scout, g, s
+
+
+class TestScoutProgressAPI:
+    def test_get_scout_progress_returns_entries(self, client, db):
+        leider, scout, g, s = _speltak_setup(db)
+        db.add(ProgressEntry(user_id=scout.id, badge_slug="kamperen",
+                             level_index=0, step_index=0, status="in_progress"))
+        db.commit()
+        r = client.get(f"/api/scouts/{scout.id}/progress", headers=_quick_auth(leider))
+        assert r.status_code == 200
+        assert len(r.json()) == 1
+
+    def test_get_scout_progress_forbidden_for_outsider(self, client, db):
+        _, scout, _, _ = _speltak_setup(db)
+        outsider = _quick_user(db, "out@x.com")
+        r = client.get(f"/api/scouts/{scout.id}/progress", headers=_quick_auth(outsider))
+        assert r.status_code == 403
+
+    def test_get_scout_progress_own_id_returns_400(self, client, db):
+        leider, _, _, _ = _speltak_setup(db)
+        r = client.get(f"/api/scouts/{leider.id}/progress", headers=_quick_auth(leider))
+        assert r.status_code == 400
+
+    def test_set_scout_progress_speltakleider_succeeds(self, client, db):
+        leider, scout, g, s = _speltak_setup(db)
+        r = client.post(
+            f"/api/scouts/{scout.id}/set-progress",
+            json={"badge_slug": "kamperen", "level_index": 0, "step_index": 0,
+                  "status": "in_progress", "message": ""},
+            headers=_quick_auth(leider),
+        )
+        assert r.status_code == 200
+
+    def test_set_scout_progress_groepsleider_returns_403(self, client, db):
+        groepsleider = _quick_user(db, "gl2@x.com")
+        scout = _quick_user(db, "sc2@x.com")
+        g = svc.create_group(db, name="GG2", slug="gg2-api", created_by_id=groepsleider.id)
+        s = svc.create_speltak(db, group_id=g.id, name="SS2", slug="ss2-api")
+        db.add(SpeltakMembership(user_id=scout.id, speltak_id=s.id, role="scout", approved=True))
+        db.commit()
+        r = client.post(
+            f"/api/scouts/{scout.id}/set-progress",
+            json={"badge_slug": "kamperen", "level_index": 0, "step_index": 0,
+                  "status": "in_progress", "message": ""},
+            headers=_quick_auth(groepsleider),
+        )
+        assert r.status_code == 403
+
+    def test_set_scout_progress_downgrade_requires_message(self, client, db):
+        leider, scout, g, s = _speltak_setup(db)
+        db.add(ProgressEntry(user_id=scout.id, badge_slug="kamperen",
+                             level_index=0, step_index=0, status="signed_off"))
+        db.commit()
+        r = client.post(
+            f"/api/scouts/{scout.id}/set-progress",
+            json={"badge_slug": "kamperen", "level_index": 0, "step_index": 0,
+                  "status": "work_done", "message": ""},
+            headers=_quick_auth(leider),
+        )
+        assert r.status_code == 422
+
+    def test_set_scout_progress_peer_signoff_returns_403(self, client, db):
+        leider, scout, g, s = _speltak_setup(db, peer_signoff=True)
+        r = client.post(
+            f"/api/scouts/{scout.id}/set-progress",
+            json={"badge_slug": "kamperen", "level_index": 0, "step_index": 0,
+                  "status": "in_progress", "message": ""},
+            headers=_quick_auth(leider),
+        )
+        assert r.status_code == 403

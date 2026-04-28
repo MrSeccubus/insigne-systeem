@@ -723,3 +723,72 @@ def test_accept_without_merge_deletes_scout_and_progress(db):
     # Membership approved
     m = db.query(SpeltakMembership).filter_by(user_id=existing.id, speltak_id=s.id).first()
     assert m.approved is True
+
+
+# ── can_view_scout_progress / get_edit_speltak_for_scout ──────────────────────
+
+def _setup_speltak(db, peer_signoff=False):
+    leider = _user(db, email="leider@x.com", name="Leider")
+    scout = _user(db, email="scout@x.com", name="Scout")
+    g = svc.create_group(db, name="G", slug="g2", created_by_id=leider.id)
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s2", peer_signoff=peer_signoff)
+    db.add(SpeltakMembership(user_id=leider.id, speltak_id=s.id, role="speltakleider", approved=True))
+    db.add(SpeltakMembership(user_id=scout.id, speltak_id=s.id, role="scout", approved=True))
+    db.commit()
+    return leider, scout, g, s
+
+
+def test_can_view_scout_progress_speltakleider(db):
+    leider, scout, g, s = _setup_speltak(db)
+    assert svc.can_view_scout_progress(leider, db, scout.id) is True
+
+
+def test_can_view_scout_progress_groepsleider(db):
+    groepsleider = _user(db, email="gl@x.com", name="GL")
+    scout = _user(db, email="sc@x.com", name="Scout")
+    g = svc.create_group(db, name="GG", slug="gg", created_by_id=groepsleider.id)
+    s = svc.create_speltak(db, group_id=g.id, name="SS", slug="ss")
+    db.add(SpeltakMembership(user_id=scout.id, speltak_id=s.id, role="scout", approved=True))
+    db.commit()
+    assert svc.can_view_scout_progress(groepsleider, db, scout.id) is True
+
+
+def test_can_view_scout_progress_false_for_outsider(db):
+    _, scout, _, _ = _setup_speltak(db)
+    outsider = _user(db, email="out@x.com")
+    assert svc.can_view_scout_progress(outsider, db, scout.id) is False
+
+
+def test_get_edit_speltak_returns_speltak_id(db):
+    leider, scout, g, s = _setup_speltak(db)
+    result = svc.get_edit_speltak_for_scout(db, leider.id, scout.id)
+    assert result == s.id
+
+
+def test_get_edit_speltak_returns_none_for_peer_signoff(db):
+    leider, scout, g, s = _setup_speltak(db, peer_signoff=True)
+    assert svc.get_edit_speltak_for_scout(db, leider.id, scout.id) is None
+
+
+def test_get_edit_speltak_returns_none_for_groepsleider_only(db):
+    groepsleider = _user(db, email="gl2@x.com", name="GL2")
+    scout = _user(db, email="sc2@x.com", name="Scout")
+    g = svc.create_group(db, name="GG2", slug="gg2", created_by_id=groepsleider.id)
+    s = svc.create_speltak(db, group_id=g.id, name="SS2", slug="ss2")
+    db.add(SpeltakMembership(user_id=scout.id, speltak_id=s.id, role="scout", approved=True))
+    db.commit()
+    assert svc.get_edit_speltak_for_scout(db, groepsleider.id, scout.id) is None
+
+
+def test_get_edit_speltak_returns_none_when_no_shared_speltak(db):
+    leider, scout, g, s = _setup_speltak(db)
+    stranger = _user(db, email="str@x.com")
+    assert svc.get_edit_speltak_for_scout(db, stranger.id, scout.id) is None
+
+
+def test_get_edit_speltak_returns_none_for_fellow_leider(db):
+    leider, _, g, s = _setup_speltak(db)
+    leider2 = _user(db, email="l2@x.com", name="L2")
+    db.add(SpeltakMembership(user_id=leider2.id, speltak_id=s.id, role="speltakleider", approved=True))
+    db.commit()
+    assert svc.get_edit_speltak_for_scout(db, leider.id, leider2.id) is None

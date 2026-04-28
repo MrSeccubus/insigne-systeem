@@ -1,7 +1,11 @@
 {# Leider-editable step-check cell. Variables:
    scout_id, badge_slug, level_index, step_index, entry_status, entry,
-   group_slug, speltak_slug, can_edit_cell, can_review_cell #}
+   can_edit_cell, can_review_cell
+   Optional: _post_url (overrides the default group/speltak URL),
+             group_slug, speltak_slug (used when _post_url is not provided) #}
+{% if _post_url is not defined or not _post_url %}
 {% set _post_url = "/groups/" ~ group_slug ~ "/speltakken/" ~ speltak_slug ~ "/scouts/" ~ scout_id ~ "/progress/set" %}
+{% endif %}
 {% set _vals_base = '"badge_slug":"' ~ badge_slug ~ '","level_index":' ~ level_index ~ ',"step_index":' ~ step_index %}
 {% if can_edit_cell %}
 <details id="leider-check-{{ scout_id }}-{{ badge_slug }}-{{ level_index }}-{{ step_index }}"

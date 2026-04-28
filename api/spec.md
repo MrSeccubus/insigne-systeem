@@ -1464,3 +1464,72 @@ Forwards the message to all configured system administrators by email.
 |--------|------|-------------|
 | `GET` | `/contact` | Contact form — anonymous users see email field + math captcha; authenticated users see only subject + body |
 | `POST` | `/contact` | Submit contact form — sends message to admins; returns success or re-renders form with error |
+
+---
+
+## Per-scout progress (leider view)
+
+Leiders can view and edit an individual scout's progress through a home-like screen.
+
+**Edit rights:** only granted when the viewer holds the `speltakleider` role (not groepsleider, not admin) in a non-`peer_signoff` speltak where the target user is a `scout`. Admins and groepsleiders may view but not edit.
+
+**Self-access:** navigating to your own scout_id redirects to `/` (HTML) or returns `400` (API).
+
+### HTML routes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/scouts/{scout_id}` | Per-scout home screen — badge catalogue with the scout's progress. Editable if viewer has speltakleider rights, read-only otherwise. Redirects to `/` for unknown scouts or no access. |
+| `GET` | `/scouts/{scout_id}/badges/{slug}` | Badge detail for the scout with leider step-check controls. Redirects to `/scouts/{scout_id}` for unknown badge. |
+| `GET` | `/scouts/{scout_id}/badges/{slug}/niveau-checks/{niveau_index}` | HTMX partial — niveau progress circles for the scout badge detail page. |
+| `POST` | `/scouts/{scout_id}/set-progress` | Set a single step's status for the scout. Returns updated `leider_step_check` partial. `403` if no edit rights. |
+
+`POST /scouts/{scout_id}/set-progress` form fields:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `badge_slug` | string | required |
+| `level_index` | int | required |
+| `step_index` | int | required |
+| `status` | string | `none \| in_progress \| work_done \| signed_off` |
+| `message` | string | required when downgrading from `signed_off` |
+
+### JSON API endpoints
+
+#### `GET /api/scouts/{scout_id}/progress`
+
+List all progress entries for a scout. Requires view access (speltakleider or groepsleider of a shared speltak/group, or admin).
+
+**Response `200`:** Array of `ProgressEntryResponse`.
+
+**Response `400`:** Viewer is querying their own ID — use `/api/progress` instead.
+
+**Response `403`:** No view access.
+
+**Response `404`:** Scout not found.
+
+#### `POST /api/scouts/{scout_id}/set-progress`
+
+Set a step's status for a scout. Requires speltakleider edit rights (not groepsleider or admin).
+
+**Request body:**
+
+```json
+{
+  "badge_slug": "kamperen",
+  "level_index": 0,
+  "step_index": 0,
+  "status": "in_progress",
+  "message": ""
+}
+```
+
+**Response `200`:** `ProgressEntryResponse` (or `null` when status is `none` and entry is deleted).
+
+**Response `400`:** Viewer is using their own ID.
+
+**Response `403`:** No edit rights (peer_signoff speltak, groepsleider-only, or outsider).
+
+**Response `409`:** Conflict (e.g. entry is in `pending_signoff`).
+
+**Response `422`:** `message_required_when_downgrading` — downgrading from `signed_off` requires a non-empty message.

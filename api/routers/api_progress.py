@@ -261,3 +261,56 @@ async def list_signoff_requests(
         )
         for sr in requests
     ]
+
+
+# ── Per-scout progress (leider view) ─────────────────────────────────────────
+
+from insigne import groups as groups_svc
+from schemas import SetScoutProgressRequest, UserResponse
+
+
+@router.get("/scouts/{scout_id}/progress", response_model=list[ProgressEntryResponse])
+async def get_scout_progress(
+    scout_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List all progress entries for a scout. Requires view access."""
+    if scout_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Use /api/progress to view your own progress.")
+    scout = db.get(User, scout_id)
+    if scout is None:
+        raise HTTPException(status_code=404, detail="Scout not found.")
+    if not groups_svc.can_view_scout_progress(current_user, db, scout_id):
+        raise HTTPException(status_code=403, detail="Not authorized to view this scout's progress.")
+    entries = progress_svc.list_progress(db, scout_id)
+    return [_entry_response(e) for e in entries]
+
+
+@router.post("/scouts/{scout_id}/set-progress", response_model=ProgressEntryResponse | None)
+async def api_scout_set_progress(
+    scout_id: str,
+    body: SetScoutProgressRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Set progress for a scout. Requires speltakleider edit rights (not groepsleider/admin)."""
+    if scout_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot edit your own progress via this endpoint.")
+    edit_speltak_id = groups_svc.get_edit_speltak_for_scout(db, current_user.id, scout_id)
+    if edit_speltak_id is None:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this scout's progress.")
+    try:
+        entry = progress_svc.set_scout_progress(
+            db, leider_id=current_user.id, scout_id=scout_id,
+            speltak_id=edit_speltak_id, badge_slug=body.badge_slug,
+            level_index=body.level_index, step_index=body.step_index,
+            status=body.status, message=body.message.strip(),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except progress_svc.Forbidden as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except progress_svc.Conflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return _entry_response(entry) if entry else None

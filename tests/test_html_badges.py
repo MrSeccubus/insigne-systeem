@@ -428,3 +428,128 @@ class TestNiveauChecks:
         _set_auth(client, user)
         r = client.get(f"/badges/{_BADGE}/niveau-checks/0")
         assert r.status_code == 200
+
+
+# ── per-scout progress (leider view) ─────────────────────────────────────────
+
+from insigne import groups as groups_svc
+from insigne.models import GroupMembership, SpeltakMembership
+
+
+def _make_speltak_with_leider_and_scout(db, peer_signoff=False):
+    leider = _active_user(db, email="leider@x.com", name="Leider")
+    scout = _active_user(db, email="scout@x.com", name="Scout")
+    g = groups_svc.create_group(db, name="G", slug="g-scout-test", created_by_id=leider.id)
+    s = groups_svc.create_speltak(db, group_id=g.id, name="S", slug="s-scout-test", peer_signoff=peer_signoff)
+    db.add(SpeltakMembership(user_id=leider.id, speltak_id=s.id, role="speltakleider", approved=True))
+    db.add(SpeltakMembership(user_id=scout.id, speltak_id=s.id, role="scout", approved=True))
+    db.commit()
+    return leider, scout, g, s
+
+
+class TestScoutProgressHome:
+    def test_redirects_to_login_when_unauthenticated(self, client, db):
+        scout = _active_user(db)
+        r = client.get(f"/scouts/{scout.id}", follow_redirects=False)
+        assert r.status_code == 303
+        assert "/login" in r.headers["location"]
+
+    def test_redirects_to_home_for_own_id(self, client, db):
+        user = _active_user(db)
+        _set_auth(client, user)
+        r = client.get(f"/scouts/{user.id}", follow_redirects=False)
+        assert r.status_code == 303
+        assert r.headers["location"] == "/"
+
+    def test_redirects_for_no_access(self, client, db):
+        user = _active_user(db, email="a@x.com")
+        stranger = _active_user(db, email="b@x.com")
+        _set_auth(client, user)
+        r = client.get(f"/scouts/{stranger.id}", follow_redirects=False)
+        assert r.status_code == 303
+
+    def test_returns_200_for_speltakleider(self, client, db):
+        leider, scout, g, s = _make_speltak_with_leider_and_scout(db)
+        _set_auth(client, leider)
+        r = client.get(f"/scouts/{scout.id}")
+        assert r.status_code == 200
+        assert scout.name in r.text
+
+    def test_shows_read_only_notice_for_peer_signoff(self, client, db):
+        leider, scout, g, s = _make_speltak_with_leider_and_scout(db, peer_signoff=True)
+        _set_auth(client, leider)
+        r = client.get(f"/scouts/{scout.id}")
+        assert r.status_code == 200
+        assert "alleen bekijken" in r.text
+
+    def test_badge_links_point_to_scout_route(self, client, db):
+        leider, scout, g, s = _make_speltak_with_leider_and_scout(db)
+        _set_auth(client, leider)
+        r = client.get(f"/scouts/{scout.id}")
+        assert f"/scouts/{scout.id}/badges/" in r.text
+
+
+class TestScoutBadgeDetail:
+    def test_returns_200_for_speltakleider(self, client, db):
+        leider, scout, g, s = _make_speltak_with_leider_and_scout(db)
+        _set_auth(client, leider)
+        r = client.get(f"/scouts/{scout.id}/badges/{_BADGE}")
+        assert r.status_code == 200
+
+    def test_unknown_badge_redirects_to_scout_home(self, client, db):
+        leider, scout, g, s = _make_speltak_with_leider_and_scout(db)
+        _set_auth(client, leider)
+        r = client.get(f"/scouts/{scout.id}/badges/doesnotexist", follow_redirects=False)
+        assert r.status_code == 303
+        assert f"/scouts/{scout.id}" in r.headers["location"]
+
+    def test_read_only_for_peer_signoff(self, client, db):
+        leider, scout, g, s = _make_speltak_with_leider_and_scout(db, peer_signoff=True)
+        _set_auth(client, leider)
+        r = client.get(f"/scouts/{scout.id}/badges/{_BADGE}")
+        assert r.status_code == 200
+        assert "alleen bekijken" in r.text
+
+
+class TestScoutSetProgress:
+    def test_speltakleider_can_set_progress(self, client, db):
+        leider, scout, g, s = _make_speltak_with_leider_and_scout(db)
+        _set_auth(client, leider)
+        r = client.post(
+            f"/scouts/{scout.id}/set-progress",
+            data={"badge_slug": _BADGE, "level_index": _LEVEL, "step_index": _STEP, "status": "in_progress"},
+        )
+        assert r.status_code == 200
+        entry = db.query(ProgressEntry).filter_by(user_id=scout.id).first()
+        assert entry is not None
+        assert entry.status == "in_progress"
+
+    def test_groepsleider_cannot_edit(self, client, db):
+        groepsleider = _active_user(db, email="gl@x.com", name="GL")
+        scout = _active_user(db, email="sc2@x.com", name="Scout2")
+        g = groups_svc.create_group(db, name="GG", slug="gg-t", created_by_id=groepsleider.id)
+        s = groups_svc.create_speltak(db, group_id=g.id, name="SS", slug="ss-t")
+        db.add(SpeltakMembership(user_id=scout.id, speltak_id=s.id, role="scout", approved=True))
+        db.commit()
+        _set_auth(client, groepsleider)
+        r = client.post(
+            f"/scouts/{scout.id}/set-progress",
+            data={"badge_slug": _BADGE, "level_index": _LEVEL, "step_index": _STEP, "status": "in_progress"},
+        )
+        assert r.status_code == 403
+
+    def test_signed_off_downgrade_requires_message(self, client, db):
+        leider, scout, g, s = _make_speltak_with_leider_and_scout(db)
+        _set_auth(client, leider)
+        # First sign off
+        db.add(ProgressEntry(user_id=scout.id, badge_slug=_BADGE, level_index=_LEVEL,
+                             step_index=_STEP, status="signed_off"))
+        db.commit()
+        r = client.post(
+            f"/scouts/{scout.id}/set-progress",
+            data={"badge_slug": _BADGE, "level_index": _LEVEL, "step_index": _STEP,
+                  "status": "work_done", "message": ""},
+        )
+        assert r.status_code == 200
+        entry = db.query(ProgressEntry).filter_by(user_id=scout.id).first()
+        assert entry.status == "signed_off"  # unchanged; message required

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}{{ badge.title }}{% if selected_niveaus | length == 1 %} — Niveau {{ selected_niveaus[0] + 1 }}{% endif %} — {{ scout.name or scout.email }} — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main style="max-width:1100px;">
+    <nav class="breadcrumb">
+        <a href="/">Home</a> ›
+        <a href="/scouts/{{ scout.id }}">{{ scout.name or scout.email or '(onbekend)' }}</a> ›
+        {{ badge.title }}
+    </nav>
+
+    <header class="badge-header">
+        <div class="badge-category">{{ badge.category }}</div>
+        {% if selected_niveaus | length == 1 %}
+        <div style="text-align:center;margin-bottom:0.75rem;">
+            <img src="/images/{{ badge.slug }}.{{ selected_niveaus[0] + 1 }}.png"
+                 alt="Niveau {{ selected_niveaus[0] + 1 }}"
+                 class="niveau-header-image" style="max-width:200px;max-height:200px;"
+                 onerror="this.style.display='none'">
+            {% set slug = badge.slug %}
+            {% set scout_id = scout.id %}
+            {% set niveau_index = selected_niveaus[0] %}
+            {% set n_eisen = badge.levels | length %}
+            {% set style = "justify-content:center;margin-top:0.5rem;" %}
+            {% include "partials/scout_niveau_checks.html" %}
+        </div>
+        {% endif %}
+        <h1>{{ badge.title }}{% if selected_niveaus | length == 1 %} — Niveau {{ selected_niveaus[0] + 1 }}{% endif %}</h1>
+        {% if badge.introduction %}
+        <div class="badge-introduction">{{ badge.introduction }}</div>
+        {% endif %}
+    </header>
+
+    {% if not can_edit %}
+    <div class="notification-bar" style="margin-bottom:1.5rem;">
+        Je kunt de voortgang van {{ scout.name or 'deze scout' }} alleen bekijken.
+    </div>
+    {% endif %}
+
+    <div class="badge-overview-grid" style="grid-template-columns: 160px repeat({{ selected_niveaus | length }}, 1fr);">
+
+        {% if selected_niveaus | length > 1 %}
+        <div></div>
+        {% for i in selected_niveaus %}
+        <div class="niveau-col-header">
+            <img src="/images/{{ badge.slug }}.{{ i + 1 }}.png"
+                 alt="Niveau {{ i + 1 }}"
+                 class="niveau-header-image"
+                 onerror="this.style.display='none'">
+            <div class="niveau-col-title">Niveau {{ i + 1 }}</div>
+            {% set slug = badge.slug %}
+            {% set scout_id = scout.id %}
+            {% set niveau_index = i %}
+            {% set n_eisen = badge.levels | length %}
+            {% set style = None %}
+            {% include "partials/scout_niveau_checks.html" %}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% for eis in badge.levels %}
+        {% set level_index = loop.index0 %}
+
+        <div class="eis-row-header">
+            <span class="eis-row-number">Eis {{ loop.index }}</span>
+            <span class="eis-row-name">{{ eis.name }}</span>
+        </div>
+
+        {% for step in eis.steps if step.index in selected_niveaus %}
+        {% set step_index = step.index %}
+        {% set entry = progress_map.get((level_index, step_index)) %}
+        {% set entry_status = entry.status if entry else "none" %}
+        {% set scout_id = scout.id %}
+        {% set badge_slug = badge.slug %}
+        {% set can_edit_cell = can_edit and entry_status != "pending_signoff" %}
+        {% set can_review_cell = can_edit and entry_status == "pending_signoff" %}
+        <div class="step-card">
+            <div class="step-card-text">{{ step.text }}</div>
+            <div style="margin-top:0.5rem;">
+                {% include "partials/leider_step_check.html" %}
+            </div>
+        </div>
+        {% endfor %}
+
+        {% endfor %}
+    </div>
+
+    {% if badge.afterword %}
+    <div class="badge-afterword">{{ badge.afterword }}</div>
+    {% endif %}
+</main>
+{% endblock %}

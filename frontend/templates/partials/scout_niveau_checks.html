@@ -1,0 +1,16 @@
+<div id="scout-niveau-checks-{{ scout_id }}-{{ slug }}-{{ niveau_index }}"
+     class="niveau-checks"{% if style %} style="{{ style }}"{% endif %}
+     hx-get="/scouts/{{ scout_id }}/badges/{{ slug }}/niveau-checks/{{ niveau_index }}"
+     hx-trigger="niveau-updated from:body"
+     hx-swap="outerHTML">
+    {% for eis_idx in range(n_eisen) %}
+    {% set eis_entry = progress_map.get((eis_idx, niveau_index)) %}
+    {% set eis_status = eis_entry.status if eis_entry else "none" %}
+    <span class="step-check step-check-{{ eis_status }}"
+          title="Eis {{ eis_idx + 1 }}: {% if eis_status == 'signed_off' %}Afgetekend{% elif eis_status == 'pending_signoff' %}Wacht op aftekening{% elif eis_status == 'work_done' %}Klaar gemeld{% elif eis_status == 'in_progress' %}Bezig{% else %}Niet gestart{% endif %}">
+        {%- if eis_status == "signed_off" -%}✓
+        {%- elif eis_status == "pending_signoff" -%}?
+        {%- endif -%}
+    </span>
+    {% endfor %}
+</div>

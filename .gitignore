@@ -12,4 +12,4 @@ api/data/insigne.db-wal
 *.db
 .coverage
 htmlcov/
-frontend/templates/privacy_policy_custom.html
+frontend/templates/privacy_policy_custom.md

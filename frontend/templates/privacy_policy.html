@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Privacybeleid — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main style="max-width:720px;">
+    {% if is_admin and is_default %}
+    <div class="form-error" style="margin-bottom:1.5rem;">
+        <strong>Dit is de standaard privacypagina.</strong>
+        Maak een bestand <code>frontend/templates/privacy_policy_custom.md</code> aan
+        (Markdown) om dit te vervangen door je eigen tekst.
+        Dat bestand wordt niet overschreven bij updates van het systeem.
+    </div>
+    {% endif %}
+    <div class="prose">
+        {{ content | safe }}
+    </div>
+</main>
+{% endblock %}

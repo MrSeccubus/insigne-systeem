@@ -122,34 +122,30 @@
                  notFound: false,
                  checking: false,
                  inviting: false,
+                 isUuid(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()); },
                  async checkAndAdd() {
                      if (!this.email) return;
+                     if (this.isUuid(this.email)) { this.$refs.addForm.submit(); return; }
                      this.checking = true;
                      try {
                          const r = await fetch('/groups/{{ group.slug }}/members/check-email?email=' + encodeURIComponent(this.email));
                          const data = await r.json();
-                         if (data.exists) {
-                             this.$refs.inviteForm.submit();
-                         } else {
-                             this.checking = false;
-                             this.notFound = true;
-                         }
-                     } catch (e) {
-                         this.checking = false;
-                     }
+                         if (data.exists) { this.$refs.addForm.submit(); }
+                         else { this.notFound = true; }
+                     } finally { this.checking = false; }
                  }
              }">
             {% if member_email_suggestions %}
             <datalist id="group-member-emails">
                 {% for u in member_email_suggestions %}
-                <option value="{{ u.email }}">{{ u.name or '(onbekend)' }}</option>
+                <option value="{{ u.id }}">{{ u.name or '(onbekend)' }}</option>
                 {% endfor %}
             </datalist>
             {% endif %}
             <form x-ref="addForm" method="post" action="/groups/{{ group.slug }}/members/add" x-show="!notFound">
                 <div class="field">
-                    <label for="member-email">Groepsleider toevoegen via e-mail</label>
-                    <input type="email" id="member-email" name="email" x-model="email"
+                    <label for="member-email">Groepsleider toevoegen via naam of e-mail</label>
+                    <input type="text" id="member-email" name="email" x-model="email"
                            required autocomplete="off"
                            {% if member_email_suggestions %}list="group-member-emails"{% endif %}>
                 </div>

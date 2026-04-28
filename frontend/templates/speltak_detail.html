@@ -118,8 +118,10 @@
                  existsNotInGroup: false,
                  checking: false,
                  inviting: false,
+                 isUuid(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()); },
                  async checkAndAdd() {
                      if (!this.email) return;
+                     if (this.isUuid(this.email)) { this.$refs.addForm.submit(); return; }
                      this.checking = true;
                      try {
                          const r = await fetch('/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/check-email?email=' + encodeURIComponent(this.email));
@@ -138,14 +140,16 @@
             <form x-ref="addForm" method="post" action="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/add" x-show="!showInvite">
                 <div style="display:flex;gap:0.75rem;align-items:flex-end;">
                     <div class="field" style="flex:1;margin-bottom:0;">
-                        <label for="email">E-mailadres</label>
-                        <input type="email" id="email" name="email" required autocomplete="off"
-                               x-model="email" list="group-member-suggestions">
+                        <label for="email">Naam of e-mailadres</label>
+                        <input type="text" id="email" name="email" required autocomplete="off"
+                               x-model="email" {% if suggested_users %}list="group-member-suggestions"{% endif %}>
+                        {% if suggested_users %}
                         <datalist id="group-member-suggestions">
                             {% for u in suggested_users %}
-                            <option value="{{ u.email }}">{{ u.name or '(onbekend)' }}</option>
+                            <option value="{{ u.id }}">{{ u.name or '(onbekend)' }}</option>
                             {% endfor %}
                         </datalist>
+                        {% endif %}
                     </div>
                     <div class="field" style="margin-bottom:0;">
                         <label for="role">Rol</label>

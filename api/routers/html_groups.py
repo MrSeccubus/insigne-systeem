@@ -17,6 +17,15 @@ from templates import templates as _TEMPLATES
 
 _DATA_DIR = Path(__file__).parent.parent / "data"
 
+import re as _re
+_UUID_RE = _re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', _re.I)
+
+def _lookup_user_by_email_or_id(db, value: str):
+    """Return User if value is a UUID (lookup by id) or an email address (lookup by email)."""
+    if _UUID_RE.match(value.strip()):
+        return db.get(UserModel, value.strip())
+    return db.query(UserModel).filter_by(email=value.strip().lower()).first()
+
 router = APIRouter()
 
 
@@ -556,8 +565,7 @@ def group_add_member(
     group = groups_svc.get_group_by_slug(db, slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse("/groups", status_code=303)
-    from insigne.models import User as UserModel
-    target = db.query(UserModel).filter_by(email=email).first()
+    target = _lookup_user_by_email_or_id(db, email)
     if not target:
         return _page(request, "group_detail.html", db,
                      **_group_detail_ctx(db, group, user),
@@ -876,8 +884,7 @@ def speltak_add_member(
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
         return RedirectResponse(f"/groups/{group_slug}", status_code=303)
-    from insigne.models import User as UserModel
-    target = db.query(UserModel).filter_by(email=email).first()
+    target = _lookup_user_by_email_or_id(db, email)
     error = None
     if not target:
         error = f"Geen gebruiker gevonden met e-mail {email}."

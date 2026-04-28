@@ -99,6 +99,12 @@
 </head>
 <body{% if dev %} class="dev"{% endif %}>
     {% if dev %}<div class="dev-banner">Development</div>{% endif %}
+    {% if current_user and current_user.is_admin and privacy_policy_is_default() %}
+    <div class="privacy-warning-banner">
+        U heeft uw privacy policy nog niet aangepast.
+        <a href="/privacy">Bekijk en pas de privacy policy aan.</a>
+    </div>
+    {% endif %}
     <header class="site-header">
         <a class="site-title" href="/">Insigne Systeem</a>
         <nav class="site-nav">

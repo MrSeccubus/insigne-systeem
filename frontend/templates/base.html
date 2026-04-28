@@ -125,7 +125,7 @@
         <span class="footer-version">Huidige versie: {{ app_version }}</span>
         {% set newer_release = get_newer_release() %}
         {% if newer_release %}
-        <span class="footer-update">Nieuwe versie beschikbaar: {{ newer_release }}</span>
+        <span class="footer-update" title="Voer als systeembeheerder `./insigne-ctl update` uit om de nieuwe release te installeren">Nieuwe versie beschikbaar: {{ newer_release }}</span>
         {% endif %}
     </footer>
 </body>

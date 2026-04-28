@@ -116,13 +116,18 @@
         {% endif %}
 
         {% if can_manage %}
+        {% if member_email_suggestions %}
+        <script id="group-leider-suggestions" type="application/json">
+        { {% for u in member_email_suggestions %}{{ (u.name or '(onbekend)') | tojson }}: {{ u.id | tojson }}{% if not loop.last %},{% endif %}{% endfor %} }
+        </script>
+        {% endif %}
         <div style="max-width:480px;margin-top:1rem;"
              x-data="{
                  display: '',
                  notFound: false,
                  checking: false,
                  inviting: false,
-                 suggestions: { {% for u in member_email_suggestions %}{{ (u.name or '(onbekend)') | tojson }}: {{ u.id | tojson }}{% if not loop.last %},{% endif %}{% endfor %} },
+                 suggestions: JSON.parse(document.getElementById('group-leider-suggestions')?.textContent || '{}'),
                  get submitValue() { return this.suggestions[this.display] ?? this.display; },
                  isUuid(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()); },
                  async checkAndAdd() {

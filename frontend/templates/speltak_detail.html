@@ -110,6 +110,11 @@
     {% if can_manage %}
     <section style="margin-top:2rem;">
         <h2>Lid toevoegen via e-mail</h2>
+        {% if suggested_users %}
+        <script id="speltak-member-suggestions" type="application/json">
+        { {% for u in suggested_users %}{{ (u.name or '(onbekend)') | tojson }}: {{ u.id | tojson }}{% if not loop.last %},{% endif %}{% endfor %} }
+        </script>
+        {% endif %}
         <div style="max-width:600px;"
              x-data="{
                  display: '',
@@ -118,7 +123,7 @@
                  existsNotInGroup: false,
                  checking: false,
                  inviting: false,
-                 suggestions: { {% for u in suggested_users %}{{ (u.name or '(onbekend)') | tojson }}: {{ u.id | tojson }}{% if not loop.last %},{% endif %}{% endfor %} },
+                 suggestions: JSON.parse(document.getElementById('speltak-member-suggestions')?.textContent || '{}'),
                  get submitValue() { return this.suggestions[this.display] ?? this.display; },
                  isUuid(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()); },
                  async checkAndAdd() {

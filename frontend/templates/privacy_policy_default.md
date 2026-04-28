@@ -8,6 +8,7 @@ Voor vragen over je persoonsgegevens kun je contact opnemen via de [contactpagin
 ## Welke gegevens verwerken wij?
 
 - Naam en e-mailadres van leden en leiders
+- Lidmaatschap en leiderschapsrollen binnen groepen en speltakken
 - Voortgang op insignes en stappen
 - Aftekeningsinformatie (door wie, wanneer)
 

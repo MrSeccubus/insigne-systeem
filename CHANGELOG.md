@@ -1,0 +1,57 @@
+# Versiegeschiedenis — Insigne Systeem
+
+Alle noemenswaardige wijzigingen per release, in omgekeerde chronologische volgorde.
+
+---
+
+## [v0.8.0] — 2026-04-24
+
+### Groepsbeheer en aftekening via speltak
+
+Deze release voegt volledige ondersteuning toe voor scoutinggroepen, speltakken en speltak-gerichte aftekening.
+
+#### Nieuw
+
+- **Groepen en speltakken beheren** — groepsleiders kunnen groepen aanmaken, speltakken toevoegen en leden uitnodigen of beheren.
+- **Rollenstelsel** — onderscheid tussen groepsleiders, speltakleiders en scouts; admins worden ingesteld via de configuratie.
+- **Lidmaatschapsverzoeken** — scouts kunnen een verzoek indienen om lid te worden van een groep; groepsleiders keuren dit goed of af.
+- **Speltak-gerichte aftekening** — scouts kunnen voor een gewone speltak alle speltakleiders tegelijk uitnodigen om af te tekenen; voor een volwassenenspeltak (peer-aftekening) kunnen ze één of meerdere mede-leden selecteren.
+- **Zelfaftekening geblokkeerd** — het is niet mogelijk jezelf af te tekenen.
+- **Voortgang beheren als speltakleider** — speltakleiders kunnen de voortgang van scouts in hun speltak bijhouden en aanpassen via het voortgangsoverzicht.
+- **Scout samenvoegen bij uitnodiging** — wanneer een scout zonder account een uitnodiging accepteert en al een account blijkt te hebben, kan de voortgang worden samengevoegd.
+- **E-mailadres wijzigen** — scouts kunnen hun e-mailadres wijzigen; een bevestigingsmail maakt de wijziging definitief.
+- **Contactformulier** — openbaar contactformulier met wiskundig captcha voor niet-ingelogde bezoekers.
+- **Insignelint** — afgetekende insigneniveaus worden als honingraatlint weergegeven op de homepagina.
+- **Databasemigraties** — Alembic beheert het databaseschema zodat upgrades soepel verlopen.
+- **Favoriete insignes** — speltakleiders kunnen insignes markeren als favoriet en het voortgangsoverzicht filteren.
+
+#### Verbeteringen
+
+- Navigatieteller voor openstaande aftekeenverzoeken werkt nu direct bij na bevestigen of afwijzen.
+- Aftekenen in het voortgangsraster vereist een motivatie wanneer een afgetekende stap wordt teruggedraaid.
+- Afwijzen van een aftekeenverzoek verwijdert alleen het verzoek van de afwijzende mentor; het voortgangsitem keert terug naar "klaar" zodra er geen openstaande verzoeken meer zijn.
+- Emailloze scouts worden verborgen in de ledenlijst zodra er een openstaande uitnodiging bestaat.
+
+---
+
+## [v0.5.0] — 2026-04-21
+
+### Initiële release — individuele scouts
+
+De eerste werkende release van het Insigne Systeem, gericht op individuele scouts die zelfstandig hun insignevoortgang bijhouden.
+
+#### Functionaliteiten
+
+- **Registratie en inloggen** — account aanmaken via e-mailbevestiging, wachtwoord instellen, inloggen met cookie-gebaseerde sessie.
+- **Insignecatalogus** — 20 insignedefinities (gewone en buitengewone insignes) met afbeeldingen en eisen per niveau.
+- **Voortgang bijhouden** — per eis de status instellen: bezig, klaar of afgetekend.
+- **Aftekenstroom** — een mentor uitnodigen via e-mail, bevestigen of afwijzen met een toelichting; de scout ontvangt een notificatie per e-mail.
+- **Aftekening annuleren** — scout kan een openstaand aftekeenverzoek zelf intrekken.
+- **Productieklare installatie** — systemd user service met `insigne-ctl` beheerscript; configureerbare host, poort en keep-alive instellingen.
+- **JSON API** — volledige REST API naast de HTML-interface.
+- **Testdekking** — >95% testdekking met unit- en integratietests.
+
+---
+
+[v0.8.0]: https://github.com/MrSeccubus/insigne-systeem/releases/tag/v0.8.0
+[v0.5.0]: https://github.com/MrSeccubus/insigne-systeem/releases/tag/v0.5.0

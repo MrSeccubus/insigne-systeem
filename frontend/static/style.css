@@ -1590,7 +1590,11 @@ button:disabled, a[disabled] {
     margin-top: 4rem;
     padding: 1.5rem 2rem;
     border-top: 1px solid #e5e7eb;
-    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
     font-size: 0.85rem;
     color: #6b7280;
 }
@@ -1605,8 +1609,12 @@ button:disabled, a[disabled] {
     text-decoration: underline;
 }
 
+.footer-sep {
+    color: #d1d5db;
+    user-select: none;
+}
+
 .footer-version {
-    margin-left: 1rem;
     color: #9ca3af;
     font-size: 0.8rem;
 }

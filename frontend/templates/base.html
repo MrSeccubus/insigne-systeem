@@ -128,7 +128,9 @@
     {% block scripts %}{% endblock %}
     <footer class="site-footer">
         <a href="/contact">Contact</a>
+        <span class="footer-sep" aria-hidden="true">|</span>
         <a href="/privacy">Privacybeleid</a>
+        <span class="footer-sep" aria-hidden="true">|</span>
         <span class="footer-version">Huidige versie: {{ app_version }}</span>
         {% set newer_release = get_newer_release() %}
         {% if newer_release %}

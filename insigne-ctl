@@ -30,7 +30,8 @@ case "${1:-}" in
     update)
         SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
         cd "$SCRIPT_DIR"
-        git pull
+        git fetch --tags origin
+        git checkout -B releases origin/releases
         venv/bin/pip install -q -r requirements.txt
         venv/bin/python api/migrate.py
         systemctl --user restart "$SERVICE_NAME"

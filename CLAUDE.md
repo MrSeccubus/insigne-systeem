@@ -94,6 +94,18 @@ Schema is managed by Alembic — `./serve_dev.sh` and `./run_prod.sh` run `alemb
 
 The full API spec lives at `api/spec.md`. **Keep it up to date** whenever you add, change, or remove endpoints — both the JSON API (`/api/…`) and the HTML layer.
 
+## Releases and the `releases` branch
+
+**Never push to the `releases` branch unless explicitly instructed by the user.**
+The `releases` branch always points to the latest released version and is only
+advanced when the user says to make a new release.
+
+When a new release is made:
+1. Tag the release commit (`git tag -a vX.Y.Z ...`)
+2. Fast-forward `releases` to that tag commit
+3. Create the GitHub release
+4. Update `CHANGELOG.md`
+
 ## Keeping the JSON API in sync with the library
 
 Every public function added to `lib/insigne/` must have a corresponding JSON API

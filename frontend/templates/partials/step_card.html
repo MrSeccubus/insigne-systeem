@@ -126,27 +126,25 @@
             </form>
             {% endfor %}
 
-            {# Previous mentors: UUID-based, no email shown #}
+            {# Direct form — name autocomplete resolves to UUID, falls back to email #}
             {% if previous_mentors %}
-            <p style="font-size:0.85rem;color:#555;margin:0.25rem 0 0.1rem;">Eerder uitgenodigd:</p>
-            {% for mentor in previous_mentors %}
-            <form style="display:inline-block;margin:0.15rem 0.25rem 0.15rem 0;"
-                  hx-post="/progress/{{ entry.id }}/request-signoff-members"
-                  hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
-                  hx-swap="outerHTML">
-                <input type="hidden" name="mentor_ids" value="{{ mentor.id }}">
-                <button type="submit" class="btn-path">{{ mentor.name or '(onbekend)' }}</button>
-            </form>
-            {% endfor %}
+            <script id="prev-mentors-{{ slug }}-{{ level_index }}-{{ step_index }}" type="application/json">
+            { {% for mentor in previous_mentors %}{{ (mentor.name or '(onbekend)') | tojson }}: {{ mentor.id | tojson }}{% if not loop.last %},{% endif %}{% endfor %} }
+            </script>
+            <datalist id="prev-mentors-list-{{ slug }}-{{ level_index }}-{{ step_index }}">
+                {% for mentor in previous_mentors %}
+                <option value="{{ mentor.name or '(onbekend)' }}">
+                {% endfor %}
+            </datalist>
             {% endif %}
-
-            {# Direct email form — for new people only #}
             <form x-show="signoffPath === 'direct'" x-cloak
-                  hx-post="/progress/{{ entry.id }}/request-signoff"
-                  hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
-                  hx-swap="outerHTML">
-                <input type="email" name="mentor_email" x-model="mentorEmail"
-                       placeholder="e-mail van (bege-)leider" required>
+                  @submit.prevent="
+                      const _m = JSON.parse(document.getElementById('prev-mentors-{{ slug }}-{{ level_index }}-{{ step_index }}')?.textContent || '{}');
+                      const _d = $el.elements['mentor_display'].value;
+                      htmx.ajax('POST', '/progress/{{ entry.id }}/request-signoff', { target: '#step-{{ slug }}-{{ level_index }}-{{ step_index }}', swap: 'outerHTML', values: { mentor_email: _m[_d] ?? _d } })">
+                <input type="text" name="mentor_display"
+                       placeholder="naam of e-mail van (bege-)leider" required
+                       {% if previous_mentors %}list="prev-mentors-list-{{ slug }}-{{ level_index }}-{{ step_index }}"{% endif %}>
                 <button type="submit" class="btn-secondary btn-sm">Versturen</button>
             </form>
 
@@ -217,22 +215,25 @@
             </form>
             {% endfor %}
 
-            {# Previous mentors: UUID-based, no email shown #}
+            {# Direct + previous mentors: unified text input with name autocomplete #}
             {% if previous_mentors %}
-            <p style="font-size:0.85rem;color:#555;margin:0.25rem 0 0.1rem;">Eerder uitgenodigd:</p>
-            {% for mentor in previous_mentors %}
-            <button type="button" class="btn-path"
-                    @click="htmx.ajax('POST', '/progress/' + entryId + '/request-signoff-members', { target: $root, swap: 'outerHTML', values: { mentor_ids: '{{ mentor.id }}', notes: notes } })">
-                {{ mentor.name or '(onbekend)' }}
-            </button>
-            {% endfor %}
+            <script id="wd-prev-mentors-{{ slug }}-{{ level_index }}-{{ step_index }}" type="application/json">
+            { {% for mentor in previous_mentors %}{{ (mentor.name or '(onbekend)') | tojson }}: {{ mentor.id | tojson }}{% if not loop.last %},{% endif %}{% endfor %} }
+            </script>
+            <datalist id="wd-prev-mentors-list-{{ slug }}-{{ level_index }}-{{ step_index }}">
+                {% for mentor in previous_mentors %}
+                <option value="{{ mentor.name or '(onbekend)' }}">
+                {% endfor %}
+            </datalist>
             {% endif %}
-
-            {# Direct email form — for new people only #}
             <form x-show="signoffPath === 'direct'" x-cloak
-                  @submit.prevent="htmx.ajax('POST', '/progress/' + entryId + '/request-signoff', { target: $root, swap: 'outerHTML', values: { mentor_email: mentorEmail, notes: notes } })">
-                <input type="email" x-model="mentorEmail"
-                       placeholder="e-mail van (bege-)leider" required>
+                  @submit.prevent="
+                      const _m = JSON.parse(document.getElementById('wd-prev-mentors-{{ slug }}-{{ level_index }}-{{ step_index }}')?.textContent || '{}');
+                      const _d = $el.elements['mentor_display'].value;
+                      htmx.ajax('POST', '/progress/' + entryId + '/request-signoff', { target: $root, swap: 'outerHTML', values: { mentor_email: _m[_d] ?? _d, notes: notes } })">
+                <input type="text" name="mentor_display"
+                       placeholder="naam of e-mail van (bege-)leider" required
+                       {% if previous_mentors %}list="wd-prev-mentors-list-{{ slug }}-{{ level_index }}-{{ step_index }}"{% endif %}>
                 <button type="submit" class="btn-secondary btn-sm">Versturen</button>
             </form>
 

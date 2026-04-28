@@ -4,6 +4,28 @@ Alle noemenswaardige wijzigingen per release, in omgekeerde chronologische volgo
 
 ---
 
+## [v0.9.0] — 2026-04-28
+
+### Scout-voortgang per speltak, versieweergave en beveiligingsverbeteringen
+
+#### Nieuw
+
+- **Voortgang per scout** — speltakleiders kunnen vanuit het voortgangsoverzicht op de naam van een scout klikken om een detailpagina te zien met alle insignes en stappen van die scout.
+- **Versieweergave in de footer** — de huidige versie staat altijd onderaan de pagina. In ontwikkelmodus wordt het aantal commits na de laatste release getoond (bijv. `v0.9.0+3`). Is er een nieuwere release beschikbaar op GitHub, dan verschijnt een oranje melding met de versie en uitleg hoe te updaten.
+- **`GET /api/version`** — nieuw JSON-endpoint dat de huidige versie en eventuele nieuwere release teruggeeft.
+- **`INSIGNE_MOCK_NEWER_RELEASE`** — omgevingsvariabele waarmee de "nieuwe versie beschikbaar"-melding gesimuleerd kan worden zonder een echte GitHub-release.
+
+#### Verbeteringen
+
+- Scoutnamen in het voortgangsoverzicht en de speltak-detailpagina zijn nu duidelijk klikbaar (blauw, onderstreept bij hover).
+
+#### Beveiligingsfixes
+
+- Groepspagina's en speltakpagina's vereisen nu een actieve inlogsessie; niet-ingelogde bezoekers worden doorgestuurd naar de inlogpagina.
+- Het `niveau-checks`-gedeelte geeft een 401-fout terug wanneer de gebruiker niet is ingelogd, zodat voortgangsdata niet openbaar opvraagbaar is.
+
+---
+
 ## [v0.8.0] — 2026-04-24
 
 ### Groepsbeheer en aftekening via speltak
@@ -53,5 +75,6 @@ De eerste werkende release van het Insigne Systeem, gericht op individuele scout
 
 ---
 
+[v0.9.0]: https://github.com/MrSeccubus/insigne-systeem/releases/tag/v0.9.0
 [v0.8.0]: https://github.com/MrSeccubus/insigne-systeem/releases/tag/v0.8.0
 [v0.5.0]: https://github.com/MrSeccubus/insigne-systeem/releases/tag/v0.5.0

@@ -122,11 +122,6 @@
     {% block scripts %}{% endblock %}
     <footer class="site-footer">
         <a href="/contact">Contact</a>
-        <span class="footer-version">{{ app_version }}</span>
-        {% set newer_release = get_newer_release() %}
-        {% if newer_release %}
-        <span class="footer-update">Nieuwe versie beschikbaar: {{ newer_release }}</span>
-        {% endif %}
     </footer>
 </body>
 </html>

@@ -131,22 +131,20 @@ async def get_pending_email_change(
     return PendingEmailChangeResponse(new_email=req.new_email, expires_at=req.expires_at)
 
 
-@router.post("/email-change/confirm", response_model=UserResponse)
+@router.post("/email-change/confirm")
 async def confirm_email_change(body: EmailChangeTokenRequest, db: Session = Depends(get_db)):
     req = user_svc.confirm_email_change(db, body.token)
     if req is None:
         raise HTTPException(status_code=400, detail="Invalid or expired token.")
-    user = db.get(User, req.user_id)
-    return _user_response(user)
+    return {"detail": "Email address updated successfully."}
 
 
-@router.post("/email-change/revert", response_model=UserResponse)
+@router.post("/email-change/revert")
 async def revert_email_change(body: EmailChangeTokenRequest, db: Session = Depends(get_db)):
     req = user_svc.revert_email_change(db, body.token)
     if req is None:
         raise HTTPException(status_code=400, detail="Invalid or expired token.")
-    user = db.get(User, req.user_id)
-    return _user_response(user)
+    return {"detail": "Email address reverted successfully."}
 
 
 @router.delete("/me", status_code=204)

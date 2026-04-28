@@ -182,13 +182,13 @@ class TestGetPendingEmailChange:
 # ── POST /api/users/email-change/confirm ─────────────────────────────────────
 
 class TestConfirmEmailChangeApi:
-    def test_valid_token_updates_email_and_returns_user(self, client, db):
+    def test_valid_token_updates_email(self, client, db):
         _full_register(client, db)
         user = db.query(User).filter_by(email="jan@example.com").first()
         req = user_svc.request_email_change(db, user, "new@example.com")
         r = client.post("/api/users/email-change/confirm", json={"token": req.confirm_token})
         assert r.status_code == 200
-        assert r.json()["email"] == "new@example.com"
+        assert "email" not in r.json()
         db.refresh(user)
         assert user.email == "new@example.com"
 
@@ -208,14 +208,14 @@ class TestConfirmEmailChangeApi:
 # ── POST /api/users/email-change/revert ──────────────────────────────────────
 
 class TestRevertEmailChangeApi:
-    def test_valid_token_reverts_email_and_returns_user(self, client, db):
+    def test_valid_token_reverts_email(self, client, db):
         _full_register(client, db)
         user = db.query(User).filter_by(email="jan@example.com").first()
         req = user_svc.request_email_change(db, user, "new@example.com")
         user_svc.confirm_email_change(db, req.confirm_token)
         r = client.post("/api/users/email-change/revert", json={"token": req.revert_token})
         assert r.status_code == 200
-        assert r.json()["email"] == "jan@example.com"
+        assert "email" not in r.json()
         db.refresh(user)
         assert user.email == "jan@example.com"
 

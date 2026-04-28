@@ -39,7 +39,7 @@
             <ul class="item-list">
                 {% for m in members_without_speltak %}
                 <li class="item-list-row">
-                    <span>{{ m.user.name or m.user.email or '(onbekend)' }}</span>
+                    <span>{{ m.user.name or '(onbekend)' }}</span>
                     <span class="role-badge role-badge--{{ m.role }}">{{ m.role }}</span>
                 </li>
                 {% endfor %}

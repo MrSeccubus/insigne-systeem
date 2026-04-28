@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Voortgang van {{ scout.name or scout.email }} — Insigne Systeem{% endblock %}
+{% block title %}Voortgang van {{ scout.name or '(onbekend)' }} — Insigne Systeem{% endblock %}
 
 {% block content %}
 <main>
     <nav class="breadcrumb" style="margin-bottom:1.5rem;">
-        <a href="/">Home</a> › Voortgang van {{ scout.name or scout.email or '(onbekend)' }}
+        <a href="/">Home</a> › Voortgang van {{ scout.name or '(onbekend)' }}
     </nav>
 
-    <h1>Voortgang van {{ scout.name or scout.email or '(onbekend)' }}</h1>
+    <h1>Voortgang van {{ scout.name or '(onbekend)' }}</h1>
 
     {% if not can_edit %}
     <div style="margin-bottom:1rem;padding:0.75rem 1rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:0.9rem;">

@@ -39,7 +39,7 @@
             <ul class="item-list">
                 {% for m in members %}
                 <li class="item-list-row" x-data="{ showEmail: false }">
-                    <span><a href="/scouts/{{ m.user_id }}" class="scout-name-link">{{ m.user.name or m.user.email or '(onbekend)' }}</a></span>
+                    <span><a href="/scouts/{{ m.user_id }}" class="scout-name-link">{{ m.user.name or '(onbekend)' }}</a></span>
                     <span class="row-actions">
                         <span class="role-badge">{{ m.role }}</span>
                         {% if can_manage %}
@@ -110,19 +110,28 @@
     {% if can_manage %}
     <section style="margin-top:2rem;">
         <h2>Lid toevoegen via e-mail</h2>
+        {% if suggested_users %}
+        <script id="speltak-member-suggestions" type="application/json">
+        { {% for u in suggested_users %}{{ (u.name or '(onbekend)') | tojson }}: {{ u.id | tojson }}{% if not loop.last %},{% endif %}{% endfor %} }
+        </script>
+        {% endif %}
         <div style="max-width:600px;"
              x-data="{
-                 email: '',
+                 display: '',
                  role: 'scout',
                  showInvite: false,
                  existsNotInGroup: false,
                  checking: false,
                  inviting: false,
+                 suggestions: JSON.parse(document.getElementById('speltak-member-suggestions')?.textContent || '{}'),
+                 get submitValue() { return this.suggestions[this.display] ?? this.display; },
+                 isUuid(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()); },
                  async checkAndAdd() {
-                     if (!this.email) return;
+                     if (!this.display) return;
+                     if (this.isUuid(this.submitValue)) { this.$refs.addForm.submit(); return; }
                      this.checking = true;
                      try {
-                         const r = await fetch('/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/check-email?email=' + encodeURIComponent(this.email));
+                         const r = await fetch('/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/check-email?email=' + encodeURIComponent(this.submitValue));
                          const data = await r.json();
                          if (data.exists && data.in_group) {
                              this.$refs.addForm.submit();
@@ -136,16 +145,19 @@
                  }
              }">
             <form x-ref="addForm" method="post" action="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/add" x-show="!showInvite">
+                <input type="hidden" name="email" :value="submitValue">
                 <div style="display:flex;gap:0.75rem;align-items:flex-end;">
                     <div class="field" style="flex:1;margin-bottom:0;">
-                        <label for="email">E-mailadres</label>
-                        <input type="email" id="email" name="email" required autocomplete="off"
-                               x-model="email" list="group-member-suggestions">
+                        <label for="email">Naam of e-mailadres</label>
+                        <input type="text" id="email" x-model="display" required autocomplete="off"
+                               {% if suggested_users %}list="group-member-suggestions"{% endif %}>
+                        {% if suggested_users %}
                         <datalist id="group-member-suggestions">
                             {% for u in suggested_users %}
-                            <option value="{{ u.email }}">{{ u.name or u.email }}</option>
+                            <option value="{{ u.name or '(onbekend)' }}">
                             {% endfor %}
                         </datalist>
+                        {% endif %}
                     </div>
                     <div class="field" style="margin-bottom:0;">
                         <label for="role">Rol</label>
@@ -161,21 +173,21 @@
             </form>
             <div class="invite-panel" x-show="showInvite" x-cloak>
                 <template x-if="existsNotInGroup">
-                    <p><strong x-text="email"></strong> heeft al een account maar is nog geen lid van <strong>{{ group.name }}</strong>.
+                    <p><strong x-text="submitValue"></strong> heeft al een account maar is nog geen lid van <strong>{{ group.name }}</strong>.
                        Er wordt een uitnodiging verstuurd om deel te nemen als <strong x-text="role"></strong> bij <strong>{{ speltak.name }}</strong>.</p>
                 </template>
                 <template x-if="!existsNotInGroup">
-                    <p>Geen account gevonden voor <strong x-text="email"></strong>.
+                    <p>Geen account gevonden voor <strong x-text="submitValue"></strong>.
                        Wil je deze persoon uitnodigen als <strong x-text="role"></strong> bij <strong>{{ speltak.name }}</strong>?</p>
                 </template>
                 <form x-ref="inviteForm" method="post" action="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/invite" style="display:contents;">
-                    <input type="hidden" name="email" :value="email">
+                    <input type="hidden" name="email" :value="submitValue">
                     <input type="hidden" name="role" :value="role">
                     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
                         <button type="button" class="btn-success" :disabled="inviting"
                                 x-text="inviting ? 'Bezig…' : 'Uitnodigen'"
                                 @click="inviting = true; $refs.inviteForm.submit()"></button>
-                        <button type="button" @click="showInvite = false; email = ''; inviting = false; existsNotInGroup = false" class="btn-cancel">Annuleren</button>
+                        <button type="button" @click="showInvite = false; display = ''; inviting = false; existsNotInGroup = false" class="btn-cancel">Annuleren</button>
                     </div>
                 </form>
             </div>

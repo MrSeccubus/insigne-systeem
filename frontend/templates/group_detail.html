@@ -48,7 +48,7 @@
             <ul class="item-list">
                 {% for m in members_without_speltak %}
                 <li class="item-list-row">
-                    <span>{{ m.user.name or m.user.email or '(onbekend)' }}</span>
+                    <span>{{ m.user.name or '(onbekend)' }}</span>
                     <span class="row-actions">
                         {% if group.speltakken %}
                         <form method="post" action="/groups/{{ group.slug }}/members/{{ m.user_id }}/assign-speltak" style="display:contents;">
@@ -79,7 +79,7 @@
             <ul class="item-list">
                 {% for m in groepsleiders %}
                 <li class="item-list-row">
-                    <span>{{ m.user.name or m.user.email or '(onbekend)' }}</span>
+                    <span>{{ m.user.name or '(onbekend)' }}</span>
                     {% if can_manage %}
                     <span class="row-actions">
                         <span class="role-badge">groepsleider</span>
@@ -116,40 +116,44 @@
         {% endif %}
 
         {% if can_manage %}
+        {% if member_email_suggestions %}
+        <script id="group-leider-suggestions" type="application/json">
+        { {% for u in member_email_suggestions %}{{ (u.name or '(onbekend)') | tojson }}: {{ u.id | tojson }}{% if not loop.last %},{% endif %}{% endfor %} }
+        </script>
+        {% endif %}
         <div style="max-width:480px;margin-top:1rem;"
              x-data="{
-                 email: '',
+                 display: '',
                  notFound: false,
                  checking: false,
                  inviting: false,
+                 suggestions: JSON.parse(document.getElementById('group-leider-suggestions')?.textContent || '{}'),
+                 get submitValue() { return this.suggestions[this.display] ?? this.display; },
+                 isUuid(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()); },
                  async checkAndAdd() {
-                     if (!this.email) return;
+                     if (!this.display) return;
+                     if (this.isUuid(this.submitValue)) { this.$refs.addForm.submit(); return; }
                      this.checking = true;
                      try {
-                         const r = await fetch('/groups/{{ group.slug }}/members/check-email?email=' + encodeURIComponent(this.email));
+                         const r = await fetch('/groups/{{ group.slug }}/members/check-email?email=' + encodeURIComponent(this.submitValue));
                          const data = await r.json();
-                         if (data.exists) {
-                             this.$refs.inviteForm.submit();
-                         } else {
-                             this.checking = false;
-                             this.notFound = true;
-                         }
-                     } catch (e) {
-                         this.checking = false;
-                     }
+                         if (data.exists) { this.$refs.addForm.submit(); }
+                         else { this.notFound = true; }
+                     } finally { this.checking = false; }
                  }
              }">
             {% if member_email_suggestions %}
             <datalist id="group-member-emails">
                 {% for u in member_email_suggestions %}
-                <option value="{{ u.email }}">{{ u.name or u.email }}</option>
+                <option value="{{ u.name or '(onbekend)' }}">
                 {% endfor %}
             </datalist>
             {% endif %}
             <form x-ref="addForm" method="post" action="/groups/{{ group.slug }}/members/add" x-show="!notFound">
+                <input type="hidden" name="email" :value="submitValue">
                 <div class="field">
-                    <label for="member-email">Groepsleider toevoegen via e-mail</label>
-                    <input type="email" id="member-email" name="email" x-model="email"
+                    <label for="member-email">Groepsleider toevoegen via naam of e-mail</label>
+                    <input type="text" id="member-email" x-model="display"
                            required autocomplete="off"
                            {% if member_email_suggestions %}list="group-member-emails"{% endif %}>
                 </div>
@@ -157,15 +161,15 @@
                         x-text="checking ? 'Controleren…' : 'Toevoegen'"></button>
             </form>
             <div class="invite-panel" x-show="notFound" x-cloak>
-                <p>Geen account gevonden voor <strong x-text="email"></strong>.
+                <p>Geen account gevonden voor <strong x-text="submitValue"></strong>.
                    Wil je deze persoon uitnodigen als groepsleider voor <strong>{{ group.name }}</strong>?</p>
                 <form x-ref="inviteForm" method="post" action="/groups/{{ group.slug }}/members/invite" style="display:contents;">
-                    <input type="hidden" name="email" :value="email">
+                    <input type="hidden" name="email" :value="submitValue">
                     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
                         <button type="button" class="btn-success" :disabled="inviting"
                                 x-text="inviting ? 'Bezig…' : 'Uitnodigen'"
                                 @click="inviting = true; $refs.inviteForm.submit()"></button>
-                        <button type="button" @click="notFound = false; email = ''; inviting = false" class="btn-cancel">Annuleren</button>
+                        <button type="button" @click="notFound = false; display = ''; inviting = false" class="btn-cancel">Annuleren</button>
                     </div>
                 </form>
             </div>

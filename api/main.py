@@ -12,7 +12,7 @@ from insigne import progress as progress_svc
 from insigne.badges import get_badge, list_badges
 from insigne.config import config
 from insigne.database import get_db
-from routers import api_auth, api_badges, api_contact, api_groups, api_progress, api_users, html_badges, html_contact, html_groups, users
+from routers import api_auth, api_badges, api_contact, api_groups, api_progress, api_users, api_version, html_badges, html_contact, html_groups, users
 from routers.api_groups import invitations_router, pending_requests_router
 from routers.users import _get_current_user
 from templates import templates
@@ -33,6 +33,7 @@ app.include_router(api_contact.router, prefix="/api")
 app.include_router(api_auth.router, prefix="/api")
 app.include_router(api_progress.router, prefix="/api")
 app.include_router(api_badges.router, prefix="/api")
+app.include_router(api_version.router, prefix="/api")
 app.include_router(api_groups.router, prefix="/api")
 app.include_router(invitations_router, prefix="/api")
 app.include_router(pending_requests_router, prefix="/api")

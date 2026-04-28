@@ -1569,3 +1569,20 @@ button:disabled, a[disabled] {
     color: #00A651;
     text-decoration: underline;
 }
+
+.footer-version {
+    margin-left: 1rem;
+    color: #9ca3af;
+    font-size: 0.8rem;
+}
+
+.footer-update {
+    display: inline-block;
+    margin-left: 1rem;
+    padding: 0.1rem 0.5rem;
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    border-radius: 4px;
+    color: #92400e;
+    font-size: 0.8rem;
+}

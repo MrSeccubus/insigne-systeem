@@ -39,7 +39,7 @@
             <ul class="item-list">
                 {% for m in members %}
                 <li class="item-list-row" x-data="{ showEmail: false }">
-                    <span><a href="/scouts/{{ m.user_id }}" style="color:inherit;text-decoration:none;">{{ m.user.name or m.user.email or '(onbekend)' }}</a></span>
+                    <span><a href="/scouts/{{ m.user_id }}" class="scout-name-link">{{ m.user.name or m.user.email or '(onbekend)' }}</a></span>
                     <span class="row-actions">
                         <span class="role-badge">{{ m.role }}</span>
                         {% if can_manage %}

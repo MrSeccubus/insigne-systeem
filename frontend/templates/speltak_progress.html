@@ -109,7 +109,7 @@
                     {% set scout_id = m.user_id %}
                     <tr>
                         <td class="badge-progress-name" title="{{ m.user.name or m.user.email or '(onbekend)' }}">
-                            <a href="/scouts/{{ m.user_id }}" style="color:inherit;text-decoration:none;">{{ m.user.name or m.user.email or '(onbekend)' }}</a>
+                            <a href="/scouts/{{ m.user_id }}" class="scout-name-link">{{ m.user.name or m.user.email or '(onbekend)' }}</a>
                         </td>
                         {% for step_index in range(3) %}
                         <td>

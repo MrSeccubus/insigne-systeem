@@ -41,6 +41,27 @@ http://localhost:8000
 
 ---
 
+### Version
+
+#### `GET /api/version`
+
+Returns the running application version and whether a newer release is available on GitHub.
+
+No authentication required.
+
+**Response `200`:**
+```json
+{
+  "version": "v0.8.0",
+  "newer_release": null
+}
+```
+
+- `version` — current version string. Format `vX.Y.Z` when running on a tagged release, `vX.Y.Z+N` when N commits ahead of the latest tag (development/unreleased build).
+- `newer_release` — tag name of the latest GitHub release if it is newer than the running version, otherwise `null`. Determined via a background cache refreshed at most once per hour.
+
+---
+
 ### Users
 
 Registration is a three-step process. The forgot-password flow reuses steps 2 and 3.

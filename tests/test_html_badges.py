@@ -412,14 +412,22 @@ class TestRibbon:
 
 
 class TestNiveauChecks:
-    def test_known_badge_returns_200(self, client, db):
+    def test_unauthenticated_returns_401(self, client, db):
         r = client.get(f"/badges/{_BADGE}/niveau-checks/0")
-        assert r.status_code == 200
+        assert r.status_code == 401
 
-    def test_unknown_badge_returns_empty(self, client, db):
+    def test_unknown_badge_returns_empty_when_authenticated(self, client, db):
+        user = _active_user(db)
+        _set_auth(client, user)
         r = client.get("/badges/doesnotexist/niveau-checks/0")
         assert r.status_code == 200
         assert r.text.strip() == ""
+
+    def test_known_badge_returns_200_when_authenticated(self, client, db):
+        user = _active_user(db)
+        _set_auth(client, user)
+        r = client.get(f"/badges/{_BADGE}/niveau-checks/0")
+        assert r.status_code == 200
 
 
 # ── per-scout progress (leider view) ─────────────────────────────────────────

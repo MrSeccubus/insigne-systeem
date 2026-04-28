@@ -84,14 +84,15 @@ def _build_signoff_options(db, current_user):
 @router.get("/badges/{slug}/niveau-checks/{niveau_index}", response_class=HTMLResponse)
 async def niveau_checks(request: Request, slug: str, niveau_index: int, db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)
+    if not current_user:
+        return HTMLResponse("<p>Niet ingelogd.</p>", status_code=401)
     badge = get_badge(_DATA_DIR, slug)
     if badge is None:
         return HTMLResponse("")
 
     progress_map: dict[tuple[int, int], ProgressEntry] = {}
-    if current_user:
-        for entry in progress_svc.list_progress(db, current_user.id, badge_slug=slug):
-            progress_map[(entry.level_index, entry.step_index)] = entry
+    for entry in progress_svc.list_progress(db, current_user.id, badge_slug=slug):
+        progress_map[(entry.level_index, entry.step_index)] = entry
 
     return _partial(
         request, "niveau_checks.html",

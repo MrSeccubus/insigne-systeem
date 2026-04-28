@@ -2,6 +2,8 @@ import hashlib
 import hmac
 import random
 import time
+from datetime import date
+from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import HTMLResponse
@@ -12,6 +14,8 @@ from insigne.database import get_db
 from insigne.email import send_contact_form_email
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
+
+_CUSTOM_POLICY = Path(__file__).parent.parent.parent / "frontend" / "templates" / "privacy_policy_custom.html"
 
 router = APIRouter()
 
@@ -111,3 +115,21 @@ async def contact_submit(
             background_tasks.add_task(send_contact_form_email, admin_email, email, subject, body)
 
     return _render(request, current_user, success=True)
+
+
+@router.get("/privacy", response_class=HTMLResponse)
+async def privacy_page(request: Request, db: Session = Depends(get_db)):
+    current_user = _get_current_user(request, db)
+    is_default = not _CUSTOM_POLICY.exists()
+    template = "privacy_policy_default.html" if is_default else "privacy_policy_custom.html"
+    is_admin = bool(current_user and current_user.is_admin)
+    return _TEMPLATES.TemplateResponse(
+        request=request,
+        name=template,
+        context={
+            "current_user": current_user,
+            "is_admin": is_admin,
+            "is_default": is_default,
+            "current_date": date.today().strftime("%d-%m-%Y"),
+        },
+    )

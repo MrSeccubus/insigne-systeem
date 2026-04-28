@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}{{ badge.title }}{% if selected_niveaus | length == 1 %} — Niveau {{ selected_niveaus[0] + 1 }}{% endif %} — {{ scout.name or scout.email }} — Insigne Systeem{% endblock %}
+{% block title %}{{ badge.title }}{% if selected_niveaus | length == 1 %} — Niveau {{ selected_niveaus[0] + 1 }}{% endif %} — {{ scout.name or '(onbekend)' }} — Insigne Systeem{% endblock %}
 
 {% block content %}
 <main style="max-width:1100px;">
     <nav class="breadcrumb">
         <a href="/">Home</a> ›
-        <a href="/scouts/{{ scout.id }}">{{ scout.name or scout.email or '(onbekend)' }}</a> ›
+        <a href="/scouts/{{ scout.id }}">{{ scout.name or '(onbekend)' }}</a> ›
         {{ badge.title }}
     </nav>
 

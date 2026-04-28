@@ -48,7 +48,7 @@
             <ul class="item-list">
                 {% for m in members_without_speltak %}
                 <li class="item-list-row">
-                    <span>{{ m.user.name or m.user.email or '(onbekend)' }}</span>
+                    <span>{{ m.user.name or '(onbekend)' }}</span>
                     <span class="row-actions">
                         {% if group.speltakken %}
                         <form method="post" action="/groups/{{ group.slug }}/members/{{ m.user_id }}/assign-speltak" style="display:contents;">
@@ -79,7 +79,7 @@
             <ul class="item-list">
                 {% for m in groepsleiders %}
                 <li class="item-list-row">
-                    <span>{{ m.user.name or m.user.email or '(onbekend)' }}</span>
+                    <span>{{ m.user.name or '(onbekend)' }}</span>
                     {% if can_manage %}
                     <span class="row-actions">
                         <span class="role-badge">groepsleider</span>
@@ -104,7 +104,7 @@
                 <li class="item-list-row"
                     x-data="{ visible: true }"
                     x-show="visible">
-                    <span>{{ m.user.name or m.user.email or '(onbekend)' }}</span>
+                    <span>{{ m.user.name or '(onbekend)' }}</span>
                     <span class="row-actions">
                         <span class="role-badge role-badge--pending">uitnodiging verstuurd</span>
                         <button type="button" class="btn-danger btn-sm"
@@ -142,7 +142,7 @@
             {% if member_email_suggestions %}
             <datalist id="group-member-emails">
                 {% for u in member_email_suggestions %}
-                <option value="{{ u.email }}">{{ u.name or u.email }}</option>
+                <option value="{{ u.email }}">{{ u.name or '(onbekend)' }}</option>
                 {% endfor %}
             </datalist>
             {% endif %}

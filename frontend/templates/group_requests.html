@@ -16,7 +16,7 @@
             {% for req in pending %}
             <li class="item-list-row" x-data="{ visible: true }" x-show="visible">
                 <span>
-                    <strong>{{ req.user.name or req.user.email or '(onbekend)' }}</strong>
+                    <strong>{{ req.user.name or '(onbekend)' }}</strong>
                     {% if req.speltak %}
                         — speltak <em>{{ req.speltak.name }}</em>
                     {% else %}

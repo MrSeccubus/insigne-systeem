@@ -26,7 +26,7 @@
     {# ── signed_off — server-rendered ── #}
     {% if _status == "signed_off" %}
     <p class="step-signoff-info">
-        ✓ Afgetekend door {{ entry.signed_off_by.name or entry.signed_off_by.email }}
+        ✓ Afgetekend door {{ entry.signed_off_by.name or '(onbekend)' }}
         op {{ entry.signed_off_at.strftime("%d-%m-%Y") }}
     </p>
     {% if entry.mentor_comment %}
@@ -63,7 +63,7 @@
         <p class="step-mentor-list">
             Wacht op aftekening van:
             {% for sr in entry.signoff_requests %}
-                {{ sr.mentor.name or sr.mentor.email }}{% if not loop.last %}, {% endif %}
+                {{ sr.mentor.name or '(onbekend)' }}{% if not loop.last %}, {% endif %}
             {% endfor %}
         </p>
         {% if current_user %}
@@ -118,7 +118,7 @@
                     {% for member in opt.members %}
                     <label class="signoff-member-label">
                         <input type="checkbox" name="mentor_ids" value="{{ member.id }}">
-                        {{ member.name or member.email }}
+                        {{ member.name or '(onbekend)' }}
                     </label>
                     {% endfor %}
                 </div>
@@ -126,21 +126,27 @@
             </form>
             {% endfor %}
 
-            {# Direct email form #}
+            {# Previous mentors: UUID-based, no email shown #}
+            {% if previous_mentors %}
+            <p style="font-size:0.85rem;color:#555;margin:0.25rem 0 0.1rem;">Eerder uitgenodigd:</p>
+            {% for mentor in previous_mentors %}
+            <form style="display:inline-block;margin:0.15rem 0.25rem 0.15rem 0;"
+                  hx-post="/progress/{{ entry.id }}/request-signoff-members"
+                  hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
+                  hx-swap="outerHTML">
+                <input type="hidden" name="mentor_ids" value="{{ mentor.id }}">
+                <button type="submit" class="btn-path">{{ mentor.name or '(onbekend)' }}</button>
+            </form>
+            {% endfor %}
+            {% endif %}
+
+            {# Direct email form — for new people only #}
             <form x-show="signoffPath === 'direct'" x-cloak
                   hx-post="/progress/{{ entry.id }}/request-signoff"
                   hx-target="#step-{{ slug }}-{{ level_index }}-{{ step_index }}"
                   hx-swap="outerHTML">
-                {% if previous_mentors %}
-                <datalist id="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-ps">
-                    {% for mentor in previous_mentors %}
-                    <option value="{{ mentor.email }}">{{ mentor.name or mentor.email }}</option>
-                    {% endfor %}
-                </datalist>
-                {% endif %}
                 <input type="email" name="mentor_email" x-model="mentorEmail"
-                       placeholder="e-mail van (bege-)leider" required
-                       {% if previous_mentors %}list="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-ps"{% endif %}>
+                       placeholder="e-mail van (bege-)leider" required>
                 <button type="submit" class="btn-secondary btn-sm">Versturen</button>
             </form>
 
@@ -203,7 +209,7 @@
                     {% for member in opt.members %}
                     <label class="signoff-member-label">
                         <input type="checkbox" name="mentor_ids" value="{{ member.id }}">
-                        {{ member.name or member.email }}
+                        {{ member.name or '(onbekend)' }}
                     </label>
                     {% endfor %}
                 </div>
@@ -211,19 +217,22 @@
             </form>
             {% endfor %}
 
-            {# Direct email form #}
+            {# Previous mentors: UUID-based, no email shown #}
+            {% if previous_mentors %}
+            <p style="font-size:0.85rem;color:#555;margin:0.25rem 0 0.1rem;">Eerder uitgenodigd:</p>
+            {% for mentor in previous_mentors %}
+            <button type="button" class="btn-path"
+                    @click="htmx.ajax('POST', '/progress/' + entryId + '/request-signoff-members', { target: $root, swap: 'outerHTML', values: { mentor_ids: '{{ mentor.id }}', notes: notes } })">
+                {{ mentor.name or '(onbekend)' }}
+            </button>
+            {% endfor %}
+            {% endif %}
+
+            {# Direct email form — for new people only #}
             <form x-show="signoffPath === 'direct'" x-cloak
                   @submit.prevent="htmx.ajax('POST', '/progress/' + entryId + '/request-signoff', { target: $root, swap: 'outerHTML', values: { mentor_email: mentorEmail, notes: notes } })">
-                {% if previous_mentors %}
-                <datalist id="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-wd">
-                    {% for mentor in previous_mentors %}
-                    <option value="{{ mentor.email }}">{{ mentor.name or mentor.email }}</option>
-                    {% endfor %}
-                </datalist>
-                {% endif %}
                 <input type="email" x-model="mentorEmail"
-                       placeholder="e-mail van (bege-)leider" required
-                       {% if previous_mentors %}list="mentors-{{ slug }}-{{ level_index }}-{{ step_index }}-wd"{% endif %}>
+                       placeholder="e-mail van (bege-)leider" required>
                 <button type="submit" class="btn-secondary btn-sm">Versturen</button>
             </form>
 

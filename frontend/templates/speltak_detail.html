@@ -39,7 +39,7 @@
             <ul class="item-list">
                 {% for m in members %}
                 <li class="item-list-row" x-data="{ showEmail: false }">
-                    <span><a href="/scouts/{{ m.user_id }}" class="scout-name-link">{{ m.user.name or m.user.email or '(onbekend)' }}</a></span>
+                    <span><a href="/scouts/{{ m.user_id }}" class="scout-name-link">{{ m.user.name or '(onbekend)' }}</a></span>
                     <span class="row-actions">
                         <span class="role-badge">{{ m.role }}</span>
                         {% if can_manage %}
@@ -95,7 +95,7 @@
                 <li class="item-list-row"
                     x-data="{ visible: true }"
                     x-show="visible">
-                    <span>{{ m.user.name or m.user.email or '(onbekend)' }}</span>
+                    <span>{{ m.user.name or '(onbekend)' }}</span>
                     <span class="row-actions">
                         <span class="role-badge role-badge--pending">uitnodiging verstuurd</span>
                         <button type="button" class="btn-danger btn-sm"
@@ -143,7 +143,7 @@
                                x-model="email" list="group-member-suggestions">
                         <datalist id="group-member-suggestions">
                             {% for u in suggested_users %}
-                            <option value="{{ u.email }}">{{ u.name or u.email }}</option>
+                            <option value="{{ u.email }}">{{ u.name or '(onbekend)' }}</option>
                             {% endfor %}
                         </datalist>
                     </div>

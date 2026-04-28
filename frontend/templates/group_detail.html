@@ -104,7 +104,7 @@
                 <li class="item-list-row"
                     x-data="{ visible: true }"
                     x-show="visible">
-                    <span>{{ m.user.name or '(onbekend)' }}</span>
+                    <span>{{ m.user.name or m.user.email or '(onbekend)' }}</span>
                     <span class="row-actions">
                         <span class="role-badge role-badge--pending">uitnodiging verstuurd</span>
                         <button type="button" class="btn-danger btn-sm"

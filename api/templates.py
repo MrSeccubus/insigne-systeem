@@ -13,4 +13,5 @@ templates.env.globals["current_user"] = None
 templates.env.globals["dev"] = os.environ.get("INSIGNE_DEV") == "1"
 templates.env.globals["allow_any_user_to_create_groups"] = config.allow_any_user_to_create_groups
 templates.env.globals["app_version"] = APP_VERSION
-templates.env.globals["get_newer_release"] = get_newer_release
+_mock_release = os.environ.get("INSIGNE_MOCK_NEWER_RELEASE")
+templates.env.globals["get_newer_release"] = (lambda: _mock_release) if _mock_release else get_newer_release

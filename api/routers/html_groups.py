@@ -157,12 +157,12 @@ def dismiss_speltak_invite(speltak_id: str, request: Request, db: Session = Depe
 
 @router.get("/groups", response_class=HTMLResponse)
 def groups_list(request: Request, db: Session = Depends(get_db)):
-    current_user = _get_current_user(request, db)
-    groups = groups_svc.list_groups_for_user(db, current_user) if current_user else []
-    can_create = current_user and (
-        current_user.is_admin or config.allow_any_user_to_create_groups
-    )
-    pending_flat = groups_svc.list_all_pending_requests_for_leader(db, current_user.id) if current_user else []
+    current_user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
+    groups = groups_svc.list_groups_for_user(db, current_user)
+    can_create = current_user.is_admin or config.allow_any_user_to_create_groups
+    pending_flat = groups_svc.list_all_pending_requests_for_leader(db, current_user.id)
     pending = groups_svc.group_pending_requests(pending_flat)
     return _page(request, "groups.html", db,
                  groups=groups, can_create=can_create, pending=pending)
@@ -452,9 +452,16 @@ def _group_detail_ctx(db: Session, group, user):
 
 @router.get("/groups/{slug}", response_class=HTMLResponse)
 def group_detail(slug: str, request: Request, db: Session = Depends(get_db)):
-    current_user = _get_current_user(request, db)
+    current_user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
     group = groups_svc.get_group_by_slug(db, slug)
     if not group:
+        return RedirectResponse("/groups", status_code=303)
+    is_leider = groups_svc.can_manage_group(current_user, db, group.id) or any(
+        groups_svc.can_manage_speltak(current_user, db, s.id) for s in group.speltakken
+    )
+    if not is_leider:
         return RedirectResponse("/groups", status_code=303)
     return _page(request, "group_detail.html", db,
                  **_group_detail_ctx(db, group, current_user))
@@ -682,14 +689,18 @@ def speltak_create(
 def speltak_detail(
     group_slug: str, speltak_slug: str, request: Request, db: Session = Depends(get_db)
 ):
-    current_user = _get_current_user(request, db)
+    current_user, redirect = _require_user(request, db)
+    if redirect:
+        return redirect
     group = groups_svc.get_group_by_slug(db, group_slug)
     if not group:
         return RedirectResponse("/groups", status_code=303)
     speltak = groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak:
         return RedirectResponse(f"/groups/{group_slug}", status_code=303)
-    can_manage = bool(current_user and groups_svc.can_manage_speltak(current_user, db, speltak.id))
+    can_manage = groups_svc.can_manage_speltak(current_user, db, speltak.id)
+    if not can_manage:
+        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
     members = groups_svc.list_speltak_members(db, speltak.id)
     pending_members = groups_svc.list_pending_speltak_members(db, speltak.id) if can_manage else []
     other_speltakken = [s for s in group.speltakken if s.id != speltak.id]

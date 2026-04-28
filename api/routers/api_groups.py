@@ -65,7 +65,10 @@ def _speltak_membership_response(m) -> SpeltakMembershipResponse:
 # ── Groups ────────────────────────────────────────────────────────────────────
 
 @router.get("", response_model=list[GroupResponse])
-def list_groups(db: Session = Depends(get_db)):
+def list_groups(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     return [_group_response(g) for g in groups_svc.list_groups(db)]
 
 
@@ -85,10 +88,19 @@ def create_group(
 
 
 @router.get("/{group_id}", response_model=GroupResponse)
-def get_group(group_id: str, db: Session = Depends(get_db)):
+def get_group(
+    group_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     g = groups_svc.get_group(db, group_id)
     if not g:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found.")
+    is_leider = groups_svc.can_manage_group(current_user, db, group_id) or any(
+        groups_svc.can_manage_speltak(current_user, db, s.id) for s in g.speltakken
+    )
+    if not is_leider:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed.")
     return _group_response(g)
 
 

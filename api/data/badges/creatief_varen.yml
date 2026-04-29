@@ -8,33 +8,27 @@ eisen:
   - naam: Varia
     eisen:
       - |
-        Niveau 1.
         Spelen op het water zonder boot. Kies één van de volgende activiteiten.
         a. Lopen in een (opblaas) waterbal over het water.
         b. Fietsen of varen met een waterfiets.
         c. (Speel)varen met een sup.
       - |
-        Niveau 2.
         Windsurfen.
         a. Vaar of windsurf met een surfplank.
       - |
-        Niveau 3.
         Gewijzigde tuigage.
         a. Regel een grotere fok en grootzeil (bijv. 16 m²) voor je lelievlet. Monteer deze en ga daarmee varen.
         b. Observeer hoe de vaareigenschappen veranderen en leg dit uit.
   - naam: Alternatief varen
     eisen:
       - |
-        Niveau 1.
         a. Sleep je boot minstens 25 meter voort met een anker of emmers.
       - |
-        Niveau 2.
         Smal vaarwater.
         a. Jaag je lelievlet minimaal 200 meter door smal vaarwater.
         b. Boom je lelievlet minstens 50 meter door smal vaarwater.
         c. Wrik je vlet minstens 200 meter door smal vaarwater.
       - |
-        Niveau 3.
         Creatieve koppeling. Kies één van de volgende eisen.
         a. Monteer twee lelievletten aan elkaar zodat er een catamaran ontstaat. Ga hiermee zeilen.
         b. Maak zelf een catamaran, bestaande uit minimaal twee drijvers en een mast.
@@ -42,41 +36,32 @@ eisen:
   - naam: Andere zeilboten
     eisen:
       - |
-        Niveau 1.
         a. Vaar zelf in een klein zeilbootje zoals een Piraat, Optimist of Leukothea.
       - |
-        Niveau 2.
         a. Vaar (zelf) met een Laser, Valk, BM, 16² of een andere open zeilboot vergelijkbaar met een lelievlet.
       - |
-        Niveau 3.
         Groot schip.
         a. Vaar zelf in een (zeil)schip langer dan 10 meter.
         b. Vaar (mee) op een tweemaster.
   - naam: Duurzaam varen
     eisen:
       - |
-        Niveau 1.
         Milieuvriendelijk spelevaren.
         a. Maak een vlot van afvalmaterialen of eenvoudige materialen (bijv. piepschuim, reddingsvesten, PET-flessen, oude jerrycans of regentonnen).
       - |
-        Niveau 2.
         Motorschip.
         a. Vaar zelf op een schip met (buitenboord)motor, zoals een Zodiac. Kies bij voorkeur een boot met een zo duurzame mogelijke aandrijving.
       - |
-        Niveau 3.
         Alternatieve voortdrijving.
         a. Beweeg je boot minimaal 500 meter voort zonder zeilen, roeien, wrikken, brandstofmotor of standaard elektrische motor. Bedenk zelf een duurzame alternatieve voortdrijvingsmethode.
   - naam: Modelvaren
     eisen:
       - |
-        Niveau 1.
         a. Maak een zeilklomp of varend modelbootje. Gebruik hiervoor duurzame materialen.
       - |
-        Niveau 2.
         Model lelievlet.
         a. Maak een model van een lelievlet en ga dit testvaren.
       - |
-        Niveau 3.
         Buitenlandse zeilboot.
         a. Maak een model van een buitenlandse zeilboot met een afwijkende zeilconfiguratie (geen topzeil of gaffelzeil).
         b. Ga (proef)varen met het model. Maak het model bestuurbaar op afstand zodra je de vaareigenschappen kent.

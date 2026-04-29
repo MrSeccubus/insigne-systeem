@@ -46,18 +46,27 @@
     {# ── Desktop: one card per niveau ── #}
     <div class="badge-grid">
         {% for card in badge.level_cards %}
-        <a href="/scouts/{{ scout.id }}/badges/{{ badge.slug }}?niveau={{ card.index + 1 }}" class="badge-card">
-            <img src="{{ card.image }}" alt="{{ badge.title }} {{ card.name }}"
-                 class="badge-card-image"
-                 onerror="this.style.display='none'">
-            <h3 class="badge-card-level">{{ card.name }}</h3>
-            {% set progress_map = all_progress.get(badge.slug, {}) %}
-            {% set slug = badge.slug %}
-            {% set niveau_index = card.index %}
-            {% set n_eisen = card.total %}
-            {% set style = None %}
-            {% include "partials/niveau_checks.html" %}
-        </a>
+        {% set pm = all_progress.get(badge.slug, {}) %}
+        {% set badge_slug = badge.slug %}
+        {% set _post_url = "/scouts/" ~ scout.id ~ "/set-progress" %}
+        <div class="badge-card">
+            <a href="/scouts/{{ scout.id }}/badges/{{ badge.slug }}?niveau={{ card.index + 1 }}" class="badge-card-link">
+                <img src="{{ card.image }}" alt="{{ badge.title }} {{ card.name }}"
+                     class="badge-card-image"
+                     onerror="this.style.display='none'">
+                <h3 class="badge-card-level">{{ card.name }}</h3>
+            </a>
+            <div class="niveau-checks">
+                {% for level_index in range(card.total) %}
+                {% set step_index = card.index %}
+                {% set entry = pm.get((level_index, step_index)) %}
+                {% set entry_status = entry.status if entry else "none" %}
+                {% set can_edit_cell = can_edit and entry_status != "pending_signoff" %}
+                {% set can_review_cell = can_edit and entry_status == "pending_signoff" %}
+                {% include "partials/leider_step_check.html" %}
+                {% endfor %}
+            </div>
+        </div>
         {% endfor %}
     </div>
 

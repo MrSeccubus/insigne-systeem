@@ -376,6 +376,15 @@ button:hover {
     border-color: #00A651;
 }
 
+.badge-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+.badge-card-link:hover .badge-card-level {
+    color: #00A651;
+}
+
 .badge-card-image {
     width: 100%;
     height: auto;

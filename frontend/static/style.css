@@ -1645,13 +1645,25 @@ button:disabled, a[disabled] {
     color: #555;
 }
 
-.mobile-niveau-selector select {
-    font-size: 1rem;
-    padding: 0.4rem 0.6rem;
+.mobile-niveau-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    padding: 0.3rem 0.75rem;
     border: 1px solid #ccc;
     border-radius: 4px;
     background: #fff;
-    font-family: inherit;
+    color: #333;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.mobile-niveau-tab--active {
+    background: #166534;
+    border-color: #166534;
+    color: #fff;
 }
 
 /* ── Mobile badge card ──────────────────────────────────────────────────── */

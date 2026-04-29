@@ -11,7 +11,6 @@
     </nav>
 
     <header class="badge-header">
-        <div class="badge-category">{{ badge.category }}</div>
         {% if selected_niveaus | length == 1 %}
         <div style="text-align:center;margin-bottom:0.75rem;">
             <img src="/images/{{ badge.slug }}.{{ selected_niveaus[0] + 1 }}.png"
@@ -43,16 +42,11 @@
          x-init="if (window.innerWidth <= 640 && !new URLSearchParams(location.search).has('niveau')) {
              location.replace('/scouts/{{ scout.id }}/badges/{{ badge.slug }}?niveau={{ mobile_default_niveau }}');
          }">
-        <label class="mobile-niveau-label" for="mobile-niveau-scout">Niveau:</label>
-        <select id="mobile-niveau-scout"
-                onchange="location.href='/scouts/{{ scout.id }}/badges/{{ badge.slug }}?niveau=' + this.value">
-            {% for i in [0, 1, 2] %}
-            <option value="{{ i + 1 }}"
-                {% if selected_niveaus | length == 1 and selected_niveaus[0] == i %}selected
-                {% elif selected_niveaus | length > 1 and i + 1 == mobile_default_niveau %}selected
-                {% endif %}>Niveau {{ i + 1 }}</option>
-            {% endfor %}
-        </select>
+        <span class="mobile-niveau-label">Niveau:</span>
+        {% for i in [0, 1, 2] %}
+        <a href="/scouts/{{ scout.id }}/badges/{{ badge.slug }}?niveau={{ i + 1 }}"
+           class="mobile-niveau-tab{% if selected_niveaus | length == 1 and selected_niveaus[0] == i %} mobile-niveau-tab--active{% endif %}">{{ i + 1 }}</a>
+        {% endfor %}
     </div>
 
     <div class="scroll-x">

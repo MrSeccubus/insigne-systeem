@@ -4,6 +4,33 @@ Alle noemenswaardige wijzigingen per release, in omgekeerde chronologische volgo
 
 ---
 
+## [v0.10.0] — 2026-04-29
+
+### Mobielvriendelijke interface, privacybeleid en e-mailprivacy
+
+#### Nieuw
+
+- **Mobielvriendelijke interface** — het systeem is volledig herschreven voor gebruik op smartphones en tablets. Insignebadges worden getoond als honingraatkaarten met voortgangsbollen; de niveauselectie op de detailpagina werkt via tabknoppen in plaats van een dropdownmenu; speltakleiders kunnen ook op mobiel de voortgang van scouts inline bewerken.
+- **Privacybeleid** — er is een privacybeleidpagina toegevoegd die beheerders kunnen aanpassen. Zolang het standaardbeleid niet is aangepast, ziet de beheerder een banner bovenaan elke pagina als herinnering.
+- **GitHub-link in de footer** — directe link naar de broncode op GitHub.
+
+#### Verbeteringen
+
+- Uitloggen is verplaatst van de navigatiebalk naar de profielpagina (rode knop onderaan), zodat de navigatie overzichtelijker is.
+- Gebruikersnaamlink in de navigatiebalk verwijderd (was overbodig naast de systeemtitel).
+- Overbodige "Niveau X."-kopregel verwijderd uit alle 22 insignedefinities; de tekst loopt nu direct door.
+- Versiecontrole op beschikbare GitHub-releases werkt nu op de achtergrond en wordt elk uur vernieuwd.
+- E-mailadressen van uitgenodigde scouts die nog geen naam hebben ingesteld, worden nu correct getoond in het voortgangsoverzicht en de speltak-detailpagina.
+- Voeterelementen netjes gescheiden met `|`-tekens.
+
+#### Privacyverbeteringen
+
+- E-mailadressen van scouts worden niet meer getoond in uitnodigings-datalists; in plaats daarvan wordt de naam weergegeven en het UUID transparant doorgegeven.
+- E-mailadressen zijn verwijderd uit de respons van niet-geverifieerde e-mailwijzigingsendpoints.
+- E-mailadres verborgen in het directe aftekeningsdialoogvenster bij de status "klaar".
+
+---
+
 ## [v0.9.0] — 2026-04-28
 
 ### Scout-voortgang per speltak, versieweergave en beveiligingsverbeteringen
@@ -75,6 +102,7 @@ De eerste werkende release van het Insigne Systeem, gericht op individuele scout
 
 ---
 
+[v0.10.0]: https://github.com/MrSeccubus/insigne-systeem/releases/tag/v0.10.0
 [v0.9.0]: https://github.com/MrSeccubus/insigne-systeem/releases/tag/v0.9.0
 [v0.8.0]: https://github.com/MrSeccubus/insigne-systeem/releases/tag/v0.8.0
 [v0.5.0]: https://github.com/MrSeccubus/insigne-systeem/releases/tag/v0.5.0

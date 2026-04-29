@@ -37,6 +37,7 @@
     </div>
     {% endif %}
 
+    <div class="scroll-x">
     <div class="badge-overview-grid" style="grid-template-columns: 160px repeat({{ selected_niveaus | length }}, 1fr);">
 
         {# ── Column headers (only when showing all niveaus) ── #}
@@ -82,6 +83,7 @@
         {% endfor %}
 
         {% endfor %}
+    </div>
     </div>
 
     {% if badge.afterword %}

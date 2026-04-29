@@ -105,9 +105,12 @@
         <a href="/privacy">Bekijk en pas de privacy policy aan.</a>
     </div>
     {% endif %}
-    <header class="site-header">
+    <header class="site-header" x-data="{ navOpen: false }">
         <a class="site-title" href="/">Insigne Systeem</a>
-        <nav class="site-nav">
+        <button class="nav-hamburger" @click="navOpen = !navOpen" :aria-expanded="navOpen" aria-label="Menu">
+            <span></span><span></span><span></span>
+        </button>
+        <nav class="site-nav" :class="navOpen ? 'site-nav--open' : ''">
             {% if current_user %}
                 <a href="/" class="nav-username">{{ current_user.name }}</a>
                 <a href="/signoff-requests">Aftekeningen <span hx-get="/signoff-requests/count" hx-trigger="load, signoff-updated from:body" hx-swap="innerHTML"></span></a>

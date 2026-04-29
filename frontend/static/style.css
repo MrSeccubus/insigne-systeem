@@ -1629,3 +1629,133 @@ button:disabled, a[disabled] {
     color: #92400e;
     font-size: 0.8rem;
 }
+
+/* ── Scroll wrapper for wide grids/tables ───────────────────────────────── */
+
+.scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ── Hamburger button (hidden on desktop) ───────────────────────────────── */
+
+.nav-hamburger {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    margin-left: auto;
+}
+
+.nav-hamburger span {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: #333;
+    border-radius: 2px;
+    transition: background 0.15s;
+}
+
+.nav-hamburger:hover span {
+    background: #00A651;
+}
+
+/* ── Responsive: tablet (≤ 900px) ──────────────────────────────────────── */
+
+@media (max-width: 900px) {
+    .badge-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ── Responsive: mobile (≤ 640px) ──────────────────────────────────────── */
+
+@media (max-width: 640px) {
+    main {
+        padding: 0.75rem;
+    }
+
+    /* Header: show hamburger, hide nav by default */
+    .site-header {
+        flex-wrap: wrap;
+        height: auto;
+        padding: 0 1rem;
+        min-height: 56px;
+        gap: 0;
+    }
+
+    .site-title {
+        padding: 0.75rem 0;
+    }
+
+    .nav-hamburger {
+        display: flex;
+    }
+
+    .site-nav {
+        display: none;
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+        padding: 0.5rem 0 0.75rem;
+        gap: 0;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .site-nav--open {
+        display: flex;
+    }
+
+    .site-nav a,
+    .site-nav .nav-logout-form {
+        width: 100%;
+        padding: 0.55rem 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .site-nav a:last-child,
+    .site-nav .nav-logout-form {
+        border-bottom: none;
+    }
+
+    .nav-logout-form button {
+        padding: 0.55rem 0;
+        font-size: 1rem;
+    }
+
+    /* Badge grid: single column */
+    .badge-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Section header: allow wrap */
+    .section-header-row {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    /* Row actions: allow wrap and shrink */
+    .row-actions {
+        flex-shrink: 1;
+        flex-wrap: wrap;
+    }
+
+    /* Step actions: wrap buttons */
+    .step-actions {
+        flex-wrap: wrap;
+    }
+
+    /* Auth card: remove fixed centering overhead on tiny screens */
+    .auth-wrapper {
+        padding: 1rem;
+        align-items: flex-start;
+    }
+
+    .auth-card {
+        padding: 1.25rem;
+    }
+}

@@ -158,7 +158,7 @@ class TestGetBadge:
     def test_first_step_of_first_group_vredeslicht(self):
         badge = get_badge(DATA_DIR, "vredeslicht")
         first_step = badge["levels"][0]["steps"][0]["text"]
-        assert first_step.startswith("Niveau 1.")
+        assert first_step.startswith("Ontdek waar het Vredeslicht")
 
     def test_sport_spel_step_group_names_match_yml(self):
         badge = get_badge(DATA_DIR, "sport_spel")

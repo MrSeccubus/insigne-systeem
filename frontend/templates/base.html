@@ -117,9 +117,6 @@
                 {% if my_speltakken_count > 0 %}<a href="/my-speltakken">Mijn speltakken</a>{% endif %}
                 {% if current_user.is_admin or current_user.is_leader %}<a href="/groups">Groepsbeheer</a>{% endif %}
                 <a href="/profile">Mijn profiel</a>
-                <form method="post" action="/logout" class="nav-logout-form">
-                    <button type="submit">Uitloggen</button>
-                </form>
             {% else %}
                 <a href="/login">Inloggen</a>
                 <a href="/register">Registreren</a>

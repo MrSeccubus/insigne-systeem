@@ -115,17 +115,16 @@ section {
     padding: 0.35rem 0.9rem;
     font-size: 0.9rem;
     cursor: pointer;
-    border: 1px solid #ccc;
+    border: 1px solid #dc2626;
     border-radius: 4px;
     background: #fff;
-    color: #333;
+    color: #dc2626;
     font-weight: 500;
 }
 
 .nav-logout-form button:hover {
-    border-color: #00A651;
-    color: #00A651;
-    background: #fff;
+    background: #dc2626;
+    color: #fff;
 }
 
 /* Generic buttons */
@@ -231,6 +230,22 @@ button:hover {
 
 .btn-primary:hover {
     background: #008a44;
+}
+
+.btn-danger {
+    padding: 0.6rem 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #dc2626;
+    border-radius: 4px;
+    background: #fff;
+    color: #dc2626;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    color: #fff;
 }
 
 .form-error {

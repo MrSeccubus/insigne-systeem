@@ -1630,6 +1630,30 @@ button:disabled, a[disabled] {
     font-size: 0.8rem;
 }
 
+/* ── Mobile niveau selector (badge detail) ──────────────────────────────── */
+
+.mobile-niveau-selector {
+    display: none;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+}
+
+.mobile-niveau-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #555;
+}
+
+.mobile-niveau-selector select {
+    font-size: 1rem;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    font-family: inherit;
+}
+
 /* ── Mobile badge card ──────────────────────────────────────────────────── */
 
 .badge-mobile-card {
@@ -1829,5 +1853,35 @@ button:disabled, a[disabled] {
 
     .auth-card {
         padding: 1.25rem;
+    }
+
+    /* Badge detail: show niveau dropdown */
+    .mobile-niveau-selector {
+        display: flex;
+    }
+
+    /* Badge detail: single-niveau single-column layout */
+    .badge-overview-grid--single {
+        grid-template-columns: 1fr !important;
+        overflow-x: visible;
+    }
+
+    .badge-overview-grid--single .eis-row-header {
+        flex-direction: row;
+        align-items: baseline;
+        gap: 0.5rem;
+        border-right: none;
+        border-bottom: 2px solid #e5e7eb;
+        padding: 0.6rem 0;
+        margin-top: 0.75rem;
+    }
+
+    .badge-overview-grid--single .eis-row-number {
+        flex-shrink: 0;
+    }
+
+    /* Hide niveau label in step header — shown in dropdown */
+    .badge-overview-grid--single .step-number {
+        display: none;
     }
 }

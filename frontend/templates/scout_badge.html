@@ -38,8 +38,26 @@
     </div>
     {% endif %}
 
+    <div class="mobile-niveau-selector"
+         x-data
+         x-init="if (window.innerWidth <= 640 && !new URLSearchParams(location.search).has('niveau')) {
+             location.replace('/scouts/{{ scout.id }}/badges/{{ badge.slug }}?niveau={{ mobile_default_niveau }}');
+         }">
+        <label class="mobile-niveau-label" for="mobile-niveau-scout">Niveau:</label>
+        <select id="mobile-niveau-scout"
+                onchange="location.href='/scouts/{{ scout.id }}/badges/{{ badge.slug }}?niveau=' + this.value">
+            {% for i in [0, 1, 2] %}
+            <option value="{{ i + 1 }}"
+                {% if selected_niveaus | length == 1 and selected_niveaus[0] == i %}selected
+                {% elif selected_niveaus | length > 1 and i + 1 == mobile_default_niveau %}selected
+                {% endif %}>Niveau {{ i + 1 }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
     <div class="scroll-x">
-    <div class="badge-overview-grid" style="grid-template-columns: 160px repeat({{ selected_niveaus | length }}, 1fr);">
+    <div class="badge-overview-grid {% if selected_niveaus | length == 1 %}badge-overview-grid--single{% endif %}"
+         style="grid-template-columns: 160px repeat({{ selected_niveaus | length }}, 1fr);">
 
         {% if selected_niveaus | length > 1 %}
         <div></div>

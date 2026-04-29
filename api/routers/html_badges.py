@@ -19,10 +19,24 @@ from insigne.email import (
 )
 from insigne.models import ProgressEntry, User
 
+import re as _re
+
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
 
+_UUID_RE = _re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', _re.I)
+
 router = APIRouter()
+
+
+def _mobile_default_niveau(progress_map: dict, n_eisen: int) -> int:
+    """Return the highest niveau (1-3) with any progress, falling back to 1."""
+    for niveau_idx in reversed(range(3)):
+        for eis_idx in range(n_eisen):
+            entry = progress_map.get((eis_idx, niveau_idx))
+            if entry and entry.status != "none":
+                return niveau_idx + 1
+    return 1
 
 _DATA_DIR = Path(__file__).parent.parent / "data"
 
@@ -159,6 +173,7 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
             "level_stats": level_stats,
             "niveau_stats": niveau_stats,
             "selected_niveaus": [niveau - 1] if niveau in (1, 2, 3) else [0, 1, 2],
+            "mobile_default_niveau": _mobile_default_niveau(progress_map, n_eisen),
         },
     )
 
@@ -245,13 +260,18 @@ async def request_signoff(
     scout_signoff_options = _build_signoff_options(db, current_user)
 
     error = ""
+    scout_name = current_user.name or current_user.email.split("@")[0]
     try:
-        entry, mentor, created = progress_svc.request_signoff(db, current_user.id, entry_id, mentor_email)
-        scout_name = current_user.name or current_user.email.split("@")[0]
-        if created:
-            background_tasks.add_task(send_mentor_signoff_invite_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
+        if _UUID_RE.match(mentor_email.strip()):
+            entry, invited = progress_svc.request_signoff_from_members(db, current_user.id, entry_id, [mentor_email.strip()])
+            for mentor in invited:
+                background_tasks.add_task(send_mentor_signoff_request_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
         else:
-            background_tasks.add_task(send_mentor_signoff_request_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
+            entry, mentor, created = progress_svc.request_signoff(db, current_user.id, entry_id, mentor_email)
+            if created:
+                background_tasks.add_task(send_mentor_signoff_invite_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
+            else:
+                background_tasks.add_task(send_mentor_signoff_request_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
     except progress_svc.Forbidden as exc:
         if str(exc) == "self_signoff":
             error = "Je kunt jezelf niet uitnodigen om af te tekenen."
@@ -741,6 +761,7 @@ async def scout_badge_detail(
             "edit_speltak_id": edit_speltak_id,
             "niveau_stats": niveau_stats,
             "selected_niveaus": [niveau - 1] if niveau in (1, 2, 3) else [0, 1, 2],
+            "mobile_default_niveau": _mobile_default_niveau(progress_map, n_eisen),
             "_post_url": f"/scouts/{scout_id}/set-progress",
         },
     )

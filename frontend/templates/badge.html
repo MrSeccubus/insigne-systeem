@@ -9,7 +9,6 @@
     </nav>
 
     <header class="badge-header">
-        <div class="badge-category">{{ badge.category }}</div>
         {% if selected_niveaus | length == 1 %}
         <div style="text-align:center;margin-bottom:0.75rem;">
             <img src="/images/{{ badge.slug }}.{{ selected_niveaus[0] + 1 }}.png"
@@ -37,7 +36,21 @@
     </div>
     {% endif %}
 
-    <div class="badge-overview-grid" style="grid-template-columns: 160px repeat({{ selected_niveaus | length }}, 1fr);">
+    <div class="mobile-niveau-selector"
+         x-data
+         x-init="if (window.innerWidth <= 640 && !new URLSearchParams(location.search).has('niveau')) {
+             location.replace('/badges/{{ badge.slug }}?niveau={{ mobile_default_niveau }}');
+         }">
+        <span class="mobile-niveau-label">Niveau:</span>
+        {% for i in [0, 1, 2] %}
+        <a href="/badges/{{ badge.slug }}?niveau={{ i + 1 }}"
+           class="mobile-niveau-tab{% if selected_niveaus | length == 1 and selected_niveaus[0] == i %} mobile-niveau-tab--active{% endif %}">{{ i + 1 }}</a>
+        {% endfor %}
+    </div>
+
+    <div class="scroll-x">
+    <div class="badge-overview-grid {% if selected_niveaus | length == 1 %}badge-overview-grid--single{% endif %}"
+         style="grid-template-columns: 160px repeat({{ selected_niveaus | length }}, 1fr);">
 
         {# ── Column headers (only when showing all niveaus) ── #}
         {% if selected_niveaus | length > 1 %}
@@ -82,6 +95,7 @@
         {% endfor %}
 
         {% endfor %}
+    </div>
     </div>
 
     {% if badge.afterword %}

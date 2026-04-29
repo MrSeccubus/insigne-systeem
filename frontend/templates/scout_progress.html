@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Voortgang van {{ scout.name or '(onbekend)' }} — Insigne Systeem{% endblock %}
+{% block title %}Voortgang van {{ scout.name or scout.email or '(onbekend)' }} — Insigne Systeem{% endblock %}
 
 {% block content %}
 <main>
     <nav class="breadcrumb" style="margin-bottom:1.5rem;">
-        <a href="/">Home</a> › Voortgang van {{ scout.name or '(onbekend)' }}
+        <a href="/">Home</a> › Voortgang van {{ scout.name or scout.email or '(onbekend)' }}
     </nav>
 
-    <h1>Voortgang van {{ scout.name or '(onbekend)' }}</h1>
+    <h1>Voortgang van {{ scout.name or scout.email or '(onbekend)' }}</h1>
 
     {% if not can_edit %}
     <div style="margin-bottom:1rem;padding:0.75rem 1rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:0.9rem;">
@@ -42,22 +42,69 @@
     <h3 class="badge-group-title">
         <a href="/scouts/{{ scout.id }}/badges/{{ badge.slug }}">{{ badge.title }}</a>
     </h3>
+
+    {# ── Desktop: one card per niveau ── #}
     <div class="badge-grid">
         {% for card in badge.level_cards %}
-        <a href="/scouts/{{ scout.id }}/badges/{{ badge.slug }}?niveau={{ card.index + 1 }}" class="badge-card">
-            <img src="{{ card.image }}" alt="{{ badge.title }} {{ card.name }}"
-                 class="badge-card-image"
-                 onerror="this.style.display='none'">
-            <h3 class="badge-card-level">{{ card.name }}</h3>
-            {% set progress_map = all_progress.get(badge.slug, {}) %}
-            {% set slug = badge.slug %}
-            {% set niveau_index = card.index %}
-            {% set n_eisen = card.total %}
-            {% set style = None %}
-            {% include "partials/niveau_checks.html" %}
-        </a>
+        {% set pm = all_progress.get(badge.slug, {}) %}
+        {% set badge_slug = badge.slug %}
+        {% set _post_url = "/scouts/" ~ scout.id ~ "/set-progress" %}
+        <div class="badge-card">
+            <a href="/scouts/{{ scout.id }}/badges/{{ badge.slug }}?niveau={{ card.index + 1 }}" class="badge-card-link">
+                <img src="{{ card.image }}" alt="{{ badge.title }} {{ card.name }}"
+                     class="badge-card-image"
+                     onerror="this.style.display='none'">
+                <h3 class="badge-card-level">{{ card.name }}</h3>
+            </a>
+            <div class="niveau-checks">
+                {% for level_index in range(card.total) %}
+                {% set step_index = card.index %}
+                {% set entry = pm.get((level_index, step_index)) %}
+                {% set entry_status = entry.status if entry else "none" %}
+                {% set can_edit_cell = can_edit and entry_status != "pending_signoff" %}
+                {% set can_review_cell = can_edit and entry_status == "pending_signoff" %}
+                {% include "partials/leider_step_check.html" %}
+                {% endfor %}
+            </div>
+        </div>
         {% endfor %}
     </div>
+
+    {# ── Mobile: one card per badge, honeycomb + N1/N2/N3 rows ── #}
+    <div class="badge-mobile-card">
+        <a href="/scouts/{{ scout.id }}/badges/{{ badge.slug }}" class="badge-mobile-card-link">
+            <div class="badge-mobile-honeycomb">
+                {% for card in badge.level_cards %}
+                <img src="{{ card.image }}"
+                     alt="Niveau {{ card.index + 1 }}"
+                     class="badge-mobile-img badge-mobile-img--{{ card.index + 1 }}"
+                     onerror="this.style.display='none'">
+                {% endfor %}
+            </div>
+        </a>
+        <div class="badge-mobile-progress">
+            {% for card in badge.level_cards %}
+            {% set pm = all_progress.get(badge.slug, {}) %}
+            {% set badge_slug = badge.slug %}
+            {% set _post_url = "/scouts/" ~ scout.id ~ "/set-progress" %}
+            <div class="badge-mobile-niveau">
+                <span class="badge-mobile-niveau-label">N{{ card.index + 1 }}</span>
+                <div class="badge-mobile-dots">
+                    {% for eis_idx in range(card.total) %}
+                    {% set level_index = eis_idx %}
+                    {% set step_index = card.index %}
+                    {% set entry = pm.get((level_index, step_index)) %}
+                    {% set entry_status = entry.status if entry else "none" %}
+                    {% set can_edit_cell = can_edit and entry_status != "pending_signoff" %}
+                    {% set can_review_cell = can_edit and entry_status == "pending_signoff" %}
+                    {% include "partials/leider_step_check.html" %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
     {% endfor %}
 
     {% endfor %}

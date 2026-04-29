@@ -18,7 +18,6 @@ def _run_git(*args) -> str:
 def _compute_version() -> str:
     try:
         desc = _run_git("describe", "--tags", "--long", "--match", "v*")
-        # v0.8.0-0-gabcdef1 (on tag) or v0.8.0-3-gabcdef1 (3 commits ahead)
         parts = desc.rsplit("-", 2)
         if len(parts) == 3:
             tag, commits, _ = parts
@@ -50,50 +49,78 @@ def _parse_version(v: str) -> tuple[int, ...]:
         return (0,)
 
 
-# Computed once at startup — never blocks
+# Startup value — used as fallback before the first background refresh completes
 APP_VERSION: str = _compute_version()
 
-_cache: dict = {"version": None, "checked_at": None}
-_cache_lock = threading.Lock()
+_state: dict = {"app_version": APP_VERSION, "github": None, "checked_at": None}
+_state_lock = threading.Lock()
+_refreshing = False
 
 
-def _refresh_github_in_background() -> None:
-    def _fetch():
-        import httpx
-        api_url = _github_api_url()
-        if not api_url:
+def _refresh_in_background() -> None:
+    global _refreshing
+    with _state_lock:
+        if _refreshing:
             return
+        _refreshing = True
+
+    def _fetch():
+        global _refreshing
         try:
-            r = httpx.get(api_url, timeout=5,
-                          headers={"Accept": "application/vnd.github+json"})
-            latest = r.json().get("tag_name") if r.status_code == 200 else None
-        except Exception:
+            import httpx
+
+            new_version = _compute_version()
+
+            api_url = _github_api_url()
             latest = None
-        now = datetime.now()
-        with _cache_lock:
-            if latest is not None:
-                _cache["version"] = latest
-            _cache["checked_at"] = now
+            if api_url:
+                try:
+                    r = httpx.get(api_url, timeout=5,
+                                  headers={"Accept": "application/vnd.github+json"})
+                    latest = r.json().get("tag_name") if r.status_code == 200 else None
+                except Exception:
+                    pass
+
+            now = datetime.now()
+            with _state_lock:
+                _state["app_version"] = new_version
+                if latest is not None:
+                    _state["github"] = latest
+                _state["checked_at"] = now
+        finally:
+            with _state_lock:
+                _refreshing = False
 
     threading.Thread(target=_fetch, daemon=True).start()
 
 
-def get_newer_release() -> str | None:
-    """Return the latest GitHub release tag if newer than APP_VERSION, else None.
-
-    Non-blocking: triggers a background refresh when the cache is stale and
-    returns whatever was last cached (None on the first call).
-    """
-    with _cache_lock:
-        latest = _cache["version"]
-        checked_at = _cache["checked_at"]
-
+def get_app_version() -> str:
+    """Return the current app version, refreshing from git in the background hourly."""
+    with _state_lock:
+        v = _state["app_version"]
+        checked_at = _state["checked_at"]
     if not checked_at or datetime.now() - checked_at >= timedelta(hours=1):
-        _refresh_github_in_background()
+        _refresh_in_background()
+    return v
 
+
+def get_newer_release() -> str | None:
+    """Return the latest GitHub release tag if newer than the current version, else None.
+
+    Non-blocking: triggers a background refresh when the cache is stale.
+    """
+    with _state_lock:
+        latest = _state["github"]
+        checked_at = _state["checked_at"]
+    if not checked_at or datetime.now() - checked_at >= timedelta(hours=1):
+        _refresh_in_background()
     if not latest:
         return None
-    current_tag = APP_VERSION.split("+")[0]
+    current_tag = get_app_version().split("+")[0]
     if _parse_version(latest) > _parse_version(current_tag):
         return latest
     return None
+
+
+# Fire at import time so the cache is warm before the first request arrives
+_refresh_in_background()

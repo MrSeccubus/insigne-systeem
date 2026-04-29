@@ -115,17 +115,16 @@ section {
     padding: 0.35rem 0.9rem;
     font-size: 0.9rem;
     cursor: pointer;
-    border: 1px solid #ccc;
+    border: 1px solid #dc2626;
     border-radius: 4px;
     background: #fff;
-    color: #333;
+    color: #dc2626;
     font-weight: 500;
 }
 
 .nav-logout-form button:hover {
-    border-color: #00A651;
-    color: #00A651;
-    background: #fff;
+    background: #dc2626;
+    color: #fff;
 }
 
 /* Generic buttons */
@@ -231,6 +230,23 @@ button:hover {
 
 .btn-primary:hover {
     background: #008a44;
+}
+
+.btn-danger {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #dc2626;
+    border-radius: 4px;
+    background: #fff;
+    color: #dc2626;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    color: #fff;
 }
 
 .form-error {
@@ -374,6 +390,15 @@ button:hover {
 .badge-card:hover {
     box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     border-color: #00A651;
+}
+
+.badge-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+.badge-card-link:hover .badge-card-level {
+    color: #00A651;
 }
 
 .badge-card-image {
@@ -1628,4 +1653,286 @@ button:disabled, a[disabled] {
     border-radius: 4px;
     color: #92400e;
     font-size: 0.8rem;
+}
+
+/* ── Mobile niveau selector (badge detail) ──────────────────────────────── */
+
+.mobile-niveau-selector {
+    display: none;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+}
+
+.mobile-niveau-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #555;
+}
+
+.mobile-niveau-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    color: #333;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.mobile-niveau-tab--active {
+    background: #166534;
+    border-color: #166534;
+    color: #fff;
+}
+
+/* ── Mobile badge card ──────────────────────────────────────────────────── */
+
+.badge-mobile-card {
+    display: none; /* shown only on mobile via media query */
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    align-items: center;
+    gap: 1rem;
+}
+
+.badge-mobile-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    flex-shrink: 0;
+}
+
+.badge-mobile-card-link:hover + .badge-mobile-progress,
+.badge-mobile-card:has(.badge-mobile-card-link:hover) {
+    border-color: #00A651;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+
+.badge-mobile-honeycomb {
+    position: relative;
+    width: 116px;
+    height: 94px;
+    flex-shrink: 0;
+}
+
+.badge-mobile-img {
+    position: absolute;
+    width: 68px;
+    height: auto;
+}
+
+.badge-mobile-img--1 { left: 0;   top: 0; }
+.badge-mobile-img--2 { left: 46px; top: 0; }
+.badge-mobile-img--3 { left: 23px; top: 36px; }
+
+.badge-mobile-progress {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.badge-mobile-niveau {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.badge-mobile-niveau-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #555;
+    min-width: 1.6rem;
+}
+
+.badge-mobile-dots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+}
+
+.badge-mobile-dots-hint {
+    font-size: 0.72rem;
+    color: #888;
+}
+
+/* ── Scroll wrapper for wide grids/tables ───────────────────────────────── */
+
+.scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ── Hamburger button (hidden on desktop) ───────────────────────────────── */
+
+.nav-hamburger {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    margin-left: auto;
+}
+
+.nav-hamburger span {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: #333;
+    border-radius: 2px;
+    transition: background 0.15s;
+}
+
+.nav-hamburger:hover span {
+    background: #00A651;
+}
+
+/* ── Responsive: tablet (≤ 900px) ──────────────────────────────────────── */
+
+@media (max-width: 900px) {
+    .badge-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ── Responsive: mobile (≤ 640px) ──────────────────────────────────────── */
+
+@media (max-width: 640px) {
+    main {
+        padding: 0.75rem;
+    }
+
+    /* Header: show hamburger, hide nav by default */
+    .site-header {
+        flex-wrap: wrap;
+        height: auto;
+        padding: 0 1rem;
+        min-height: 56px;
+        gap: 0;
+    }
+
+    .site-title {
+        padding: 0.75rem 0;
+    }
+
+    .nav-hamburger {
+        display: flex;
+    }
+
+    .site-nav {
+        display: none;
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+        padding: 0.5rem 0 0.75rem;
+        gap: 0;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .site-nav--open {
+        display: flex;
+    }
+
+    .site-nav a,
+    .site-nav .nav-logout-form {
+        width: 100%;
+        padding: 0.55rem 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .site-nav a:last-child,
+    .site-nav .nav-logout-form {
+        border-bottom: none;
+    }
+
+    .nav-logout-form button {
+        padding: 0.55rem 0;
+        font-size: 1rem;
+    }
+
+    /* Badge grid: hide on mobile, replaced by badge-mobile-card */
+    .badge-grid {
+        display: none;
+    }
+
+    .badge-mobile-card {
+        display: flex;
+    }
+
+    /* Step-check dropdown: use absolute positioning on mobile so it stays
+       within the viewport instead of overflowing the right edge */
+    .step-check-dropdown {
+        position: absolute;
+        right: 0;
+        left: auto;
+    }
+
+    /* Section header: allow wrap */
+    .section-header-row {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    /* Row actions: allow wrap and shrink */
+    .row-actions {
+        flex-shrink: 1;
+        flex-wrap: wrap;
+    }
+
+    /* Step actions: wrap buttons */
+    .step-actions {
+        flex-wrap: wrap;
+    }
+
+    /* Auth card: remove fixed centering overhead on tiny screens */
+    .auth-wrapper {
+        padding: 1rem;
+        align-items: flex-start;
+    }
+
+    .auth-card {
+        padding: 1.25rem;
+    }
+
+    /* Badge detail: show niveau dropdown */
+    .mobile-niveau-selector {
+        display: flex;
+    }
+
+    /* Badge detail: single-niveau single-column layout */
+    .badge-overview-grid--single {
+        grid-template-columns: 1fr !important;
+        overflow-x: visible;
+    }
+
+    .badge-overview-grid--single .eis-row-header {
+        flex-direction: row;
+        align-items: baseline;
+        gap: 0.5rem;
+        border-right: none;
+        border-bottom: 2px solid #e5e7eb;
+        padding: 0.6rem 0;
+        margin-top: 0.75rem;
+    }
+
+    .badge-overview-grid--single .eis-row-number {
+        flex-shrink: 0;
+    }
+
+    /* Hide niveau label in step header — shown in dropdown */
+    .badge-overview-grid--single .step-number {
+        display: none;
+    }
 }

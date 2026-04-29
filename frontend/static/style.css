@@ -1679,8 +1679,6 @@ button:disabled, a[disabled] {
 
 .badge-mobile-card {
     display: none; /* shown only on mobile via media query */
-    text-decoration: none;
-    color: inherit;
     background: #fff;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -1690,7 +1688,15 @@ button:disabled, a[disabled] {
     gap: 1rem;
 }
 
-.badge-mobile-card:hover {
+.badge-mobile-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    flex-shrink: 0;
+}
+
+.badge-mobile-card-link:hover + .badge-mobile-progress,
+.badge-mobile-card:has(.badge-mobile-card-link:hover) {
     border-color: #00A651;
     box-shadow: 0 2px 8px rgba(0,0,0,0.07);
 }
@@ -1847,6 +1853,14 @@ button:disabled, a[disabled] {
 
     .badge-mobile-card {
         display: flex;
+    }
+
+    /* Step-check dropdown: use absolute positioning on mobile so it stays
+       within the viewport instead of overflowing the right edge */
+    .step-check-dropdown {
+        position: absolute;
+        right: 0;
+        left: auto;
     }
 
     /* Section header: allow wrap */

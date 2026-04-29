@@ -2,8 +2,9 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from PIL import Image
 from sqlalchemy.orm import Session
 
 import insigne.models  # noqa: F401 — registers all ORM classes on Base.metadata
@@ -39,7 +40,25 @@ app.include_router(invitations_router, prefix="/api")
 app.include_router(pending_requests_router, prefix="/api")
 
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+THUMB_DIR = IMAGES_DIR / "thumb"
+THUMB_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="static")
+
+
+@app.get("/images/thumb/{filename}")
+def serve_thumb(filename: str):
+    thumb_path = THUMB_DIR / filename
+    if not thumb_path.exists():
+        src = IMAGES_DIR / filename
+        if not src.exists():
+            from fastapi import HTTPException
+            raise HTTPException(404)
+        img = Image.open(src)
+        img.thumbnail((200, 200), Image.LANCZOS)
+        img.save(thumb_path, optimize=True)
+    return FileResponse(thumb_path, media_type="image/png")
+
+
 app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
 

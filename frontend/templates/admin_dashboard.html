@@ -23,13 +23,19 @@
         <h2 class="section-header">Statistieken</h2>
         <div class="admin-charts-grid">
             <div class="admin-chart-card">
-                <h3 class="admin-chart-title">Gebruikers per groep</h3>
-                <div class="admin-chart-wrap admin-chart-wrap--pie">
-                    <canvas id="chart-groups"></canvas>
-                </div>
-                <h3 class="admin-chart-title" style="margin-top:1.25rem;">Actief vs uitgenodigd</h3>
-                <div class="admin-chart-wrap admin-chart-wrap--pie">
-                    <canvas id="chart-status"></canvas>
+                <div class="admin-pie-row">
+                    <div class="admin-pie-col">
+                        <h3 class="admin-chart-title">Gebruikers per groep</h3>
+                        <div class="admin-chart-wrap admin-chart-wrap--pie">
+                            <canvas id="chart-groups"></canvas>
+                        </div>
+                    </div>
+                    <div class="admin-pie-col">
+                        <h3 class="admin-chart-title">Actief vs uitgenodigd</h3>
+                        <div class="admin-chart-wrap admin-chart-wrap--pie">
+                            <canvas id="chart-status"></canvas>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="admin-chart-card">

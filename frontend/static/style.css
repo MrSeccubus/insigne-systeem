@@ -2004,7 +2004,17 @@ button:disabled, a[disabled] {
 }
 
 .admin-chart-wrap--pie {
-    height: 260px;
+    height: 220px;
+}
+
+.admin-pie-row {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.admin-pie-col {
+    flex: 1;
+    min-width: 0;
 }
 
 .admin-user-card {

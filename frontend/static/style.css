@@ -1936,3 +1936,117 @@ button:disabled, a[disabled] {
         display: none;
     }
 }
+
+/* ── Admin dashboard ─────────────────────────────────────────────────────── */
+
+.admin-stat-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 1rem 0 1.5rem;
+}
+
+.admin-stat-card {
+    flex: 1;
+    min-width: 120px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.admin-stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #00A651;
+    line-height: 1;
+}
+
+.admin-stat-label {
+    font-size: 0.8rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.admin-charts-section,
+.admin-delete-section {
+    margin-bottom: 2.5rem;
+}
+
+.admin-charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+}
+
+.admin-chart-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem 1.25rem 1.25rem;
+}
+
+.admin-chart-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 0.75rem;
+}
+
+.admin-chart-wrap {
+    position: relative;
+    height: 220px;
+}
+
+.admin-chart-wrap--pie {
+    height: 260px;
+}
+
+.admin-user-card {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    max-width: 480px;
+}
+
+.admin-user-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+}
+
+.admin-user-name {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.admin-user-email {
+    color: #4b5563;
+    font-size: 0.9rem;
+}
+
+.admin-user-status {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.admin-user-status--active   { background: #d1fae5; color: #065f46; }
+.admin-user-status--pending  { background: #fef3c7; color: #92400e; }
+.admin-user-status--inactive { background: #f3f4f6; color: #6b7280; }
+
+@media (max-width: 700px) {
+    .admin-charts-grid {
+        grid-template-columns: 1fr;
+    }
+}

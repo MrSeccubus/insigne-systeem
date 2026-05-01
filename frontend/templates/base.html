@@ -116,6 +116,7 @@
                 {% set my_speltakken_count = current_user.speltak_memberships | selectattr("role","eq","speltakleider") | selectattr("approved") | selectattr("withdrawn","eq",false) | list | length %}
                 {% if my_speltakken_count > 0 %}<a href="/my-speltakken">Mijn speltakken</a>{% endif %}
                 {% if current_user.is_admin or current_user.is_leader %}<a href="/groups">Groepsbeheer</a>{% endif %}
+                {% if current_user.is_admin %}<a href="/admin">Admin</a>{% endif %}
                 <a href="/profile">Mijn profiel</a>
             {% else %}
                 <a href="/login">Inloggen</a>

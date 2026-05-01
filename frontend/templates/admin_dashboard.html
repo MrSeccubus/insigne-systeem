@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Beheerdersdashboard — Insigne Systeem{% endblock %}
+{% block content %}
+<main style="max-width:1100px;">
+    <h1 style="margin-bottom:0.25rem;">Beheerdersdashboard</h1>
+
+    <div class="admin-stat-row">
+        <div class="admin-stat-card">
+            <span class="admin-stat-value">{{ stats.total_users }}</span>
+            <span class="admin-stat-label">Gebruikers</span>
+        </div>
+        <div class="admin-stat-card">
+            <span class="admin-stat-value">{{ stats.users_by_group | rejectattr("label", "eq", "Zonder groep") | list | length }}</span>
+            <span class="admin-stat-label">Groepen</span>
+        </div>
+        <div class="admin-stat-card">
+            <span class="admin-stat-value">{{ (stats.users_by_group | selectattr("label", "eq", "Zonder groep") | list | first).count if (stats.users_by_group | selectattr("label", "eq", "Zonder groep") | list) else 0 }}</span>
+            <span class="admin-stat-label">Zonder groep</span>
+        </div>
+    </div>
+
+    <section class="admin-charts-section">
+        <h2 class="section-header">Statistieken</h2>
+        <div class="admin-charts-grid">
+            <div class="admin-chart-card">
+                <h3 class="admin-chart-title">Gebruikers per groep</h3>
+                <div class="admin-chart-wrap admin-chart-wrap--pie">
+                    <canvas id="chart-groups"></canvas>
+                </div>
+                <h3 class="admin-chart-title" style="margin-top:1.25rem;">Actief vs uitgenodigd</h3>
+                <div class="admin-chart-wrap admin-chart-wrap--pie">
+                    <canvas id="chart-status"></canvas>
+                </div>
+            </div>
+            <div class="admin-chart-card">
+                <h3 class="admin-chart-title">Gebruikers over tijd</h3>
+                <div class="admin-chart-wrap">
+                    <canvas id="chart-users"></canvas>
+                </div>
+            </div>
+            <div class="admin-chart-card">
+                <h3 class="admin-chart-title">Aftekeenverzoeken per maand</h3>
+                <div class="admin-chart-wrap">
+                    <canvas id="chart-signoffs"></canvas>
+                </div>
+            </div>
+            <div class="admin-chart-card">
+                <h3 class="admin-chart-title">Behaalde insignes per maand</h3>
+                <div class="admin-chart-wrap">
+                    <canvas id="chart-badges"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="admin-delete-section">
+        <h2 class="section-header">Account verwijderen</h2>
+        <p style="font-size:0.9rem;color:#555;margin-bottom:1rem;">
+            Zoek een gebruiker op e-mailadres. Het account en alle bijbehorende gegevens worden permanent verwijderd.
+        </p>
+        <form hx-post="/admin/find-user"
+              hx-target="#admin-user-result"
+              hx-swap="innerHTML"
+              style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+            <input type="email" name="email" placeholder="E-mailadres" required
+                   style="flex:1;min-width:220px;padding:0.4rem 0.6rem;border:1px solid #ccc;border-radius:4px;font-size:0.95rem;">
+            <button type="submit" class="btn-primary" style="white-space:nowrap;">Zoeken</button>
+        </form>
+        <div id="admin-user-result"></div>
+    </section>
+</main>
+{% endblock %}
+{% block scripts %}
+<script id="admin-stats-data" type="application/json">{{ stats | tojson }}</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    const stats = JSON.parse(document.getElementById('admin-stats-data').textContent);
+    const green = '#00A651';
+    const PIE_COLORS = [
+        '#00A651','#3B82F6','#F59E0B','#EF4444','#8B5CF6',
+        '#06B6D4','#F97316','#84CC16','#EC4899','#14B8A6',
+    ];
+
+    function lineChart(id, label, rows, color) {
+        const ctx = document.getElementById(id);
+        if (!ctx) return;
+        if (!rows.length) {
+            ctx.parentElement.innerHTML = '<p style="color:#888;font-size:0.85rem;padding:1rem 0;">Nog geen gegevens.</p>';
+            return;
+        }
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: rows.map(r => r.month),
+                datasets: [{
+                    label,
+                    data: rows.map(r => r.count),
+                    borderColor: color,
+                    backgroundColor: color + '22',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: rows.length < 20 ? 4 : 2,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                    x: { ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 12 } },
+                },
+            },
+        });
+    }
+
+    function pieChart(id, rows) {
+        const ctx = document.getElementById(id);
+        if (!ctx) return;
+        if (!rows.length) {
+            ctx.parentElement.innerHTML = '<p style="color:#888;font-size:0.85rem;padding:1rem 0;">Nog geen gegevens.</p>';
+            return;
+        }
+        const total = rows.reduce((s, r) => s + r.count, 0);
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: rows.map(r => r.label),
+                datasets: [{
+                    data: rows.map(r => r.count),
+                    backgroundColor: rows.map((_, i) => PIE_COLORS[i % PIE_COLORS.length]),
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 14,
+                            padding: 10,
+                            font: { size: 12 },
+                            generateLabels(chart) {
+                                const d = chart.data;
+                                return d.labels.map((label, i) => ({
+                                    text: `${label}: ${d.datasets[0].data[i]}`,
+                                    fillStyle: d.datasets[0].backgroundColor[i],
+                                    strokeStyle: '#fff',
+                                    lineWidth: 2,
+                                    index: i,
+                                    hidden: false,
+                                }));
+                            },
+                        },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => ` ${ctx.label}: ${ctx.parsed} (${Math.round(ctx.parsed / total * 100)}%)`,
+                        },
+                    },
+                },
+            },
+        });
+    }
+
+    pieChart('chart-groups', stats.users_by_group);
+    pieChart('chart-status', stats.users_by_status);
+
+    lineChart('chart-users',    'Gebruikers (cumulatief)', stats.users_over_time,   green);
+    lineChart('chart-signoffs', 'Aftekeenverzoeken',        stats.signoff_over_time, '#3B82F6');
+    lineChart('chart-badges',   'Behaalde insignes',        stats.badges_over_time,  '#F59E0B');
+})();
+</script>
+{% endblock %}

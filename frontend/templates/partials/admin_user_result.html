@@ -1,0 +1,37 @@
+{% if deleted_email %}
+<div class="notification-bar" style="background:#f0fdf4;border-color:#86efac;color:#166534;">
+    Account <strong>{{ deleted_email }}</strong> is verwijderd.
+</div>
+{% elif searched_email and not found_user %}
+<div class="notification-bar" style="background:#fef2f2;border-color:#fca5a5;color:#991b1b;">
+    Geen gebruiker gevonden met e-mailadres <strong>{{ searched_email }}</strong>.
+</div>
+{% elif found_user %}
+<div class="admin-user-card" x-data="{ confirming: false }">
+    <div class="admin-user-info">
+        <span class="admin-user-name">{{ found_user.name or '(geen naam)' }}</span>
+        <span class="admin-user-email">{{ found_user.email }}</span>
+        <span class="admin-user-status admin-user-status--{{ found_user.status }}">{{ found_user.status }}</span>
+    </div>
+    <div x-show="!confirming" style="margin-top:0.75rem;">
+        <button class="btn-danger" style="width:auto;" @click="confirming = true">
+            Verwijder account
+        </button>
+    </div>
+    <div x-show="confirming" style="margin-top:0.75rem;">
+        <p style="margin:0 0 0.5rem;font-size:0.9rem;color:#991b1b;font-weight:600;">
+            Weet u zeker dat u het account van <strong>{{ found_user.name or found_user.email }}</strong> wilt verwijderen?
+            Dit verwijdert alle voortgang, aftekeenverzoeken en lidmaatschappen permanent.
+        </p>
+        <div style="display:flex;gap:0.5rem;">
+            <button class="btn-danger" style="width:auto;"
+                    hx-post="/admin/delete-user/{{ found_user.id }}"
+                    hx-target="#admin-user-result"
+                    hx-swap="innerHTML">
+                Ja, verwijder definitief
+            </button>
+            <button class="btn-neutral" style="width:auto;" @click="confirming = false">Annuleren</button>
+        </div>
+    </div>
+</div>
+{% endif %}

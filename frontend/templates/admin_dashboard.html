@@ -49,7 +49,7 @@
                 <div class="admin-chart-wrap">
                     <canvas id="chart-users"></canvas>
                 </div>
-                <p class="admin-chart-hint">Scroll om in te zoomen · sleep om te verschuiven</p>
+                <p class="admin-chart-hint">Sleep om bereik te selecteren · scroll om te zoomen · Ctrl+sleep om te verschuiven</p>
             </div>
             <div class="admin-chart-card">
                 <div class="admin-chart-header">
@@ -62,7 +62,7 @@
                 <div class="admin-chart-wrap">
                     <canvas id="chart-signoffs"></canvas>
                 </div>
-                <p class="admin-chart-hint">Scroll om in te zoomen · sleep om te verschuiven</p>
+                <p class="admin-chart-hint">Sleep om bereik te selecteren · scroll om te zoomen · Ctrl+sleep om te verschuiven</p>
             </div>
             <div class="admin-chart-card">
                 <div class="admin-chart-header">
@@ -75,7 +75,7 @@
                 <div class="admin-chart-wrap">
                     <canvas id="chart-badges"></canvas>
                 </div>
-                <p class="admin-chart-hint">Scroll om in te zoomen · sleep om te verschuiven</p>
+                <p class="admin-chart-hint">Sleep om bereik te selecteren · scroll om te zoomen · Ctrl+sleep om te verschuiven</p>
             </div>
         </div>
     </section>
@@ -169,8 +169,8 @@
                 plugins: {
                     legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 10 } },
                     zoom: {
-                        zoom: { wheel: { enabled: true, speed: 0.15 }, pinch: { enabled: true }, mode: 'x' },
-                        pan: { enabled: true, mode: 'x' },
+                        zoom: { wheel: { enabled: true, speed: 0.15 }, pinch: { enabled: true }, drag: { enabled: true, backgroundColor: 'rgba(0,166,81,0.15)', borderColor: '#00A651', borderWidth: 1 }, mode: 'x' },
+                        pan: { enabled: true, mode: 'x', modifierKey: 'ctrl' },
                     },
                 },
                 scales: {
@@ -212,11 +212,13 @@
                         zoom: {
                             wheel: { enabled: true, speed: 0.15 },
                             pinch: { enabled: true },
+                            drag: { enabled: true, backgroundColor: 'rgba(59,130,246,0.15)', borderColor: '#3B82F6', borderWidth: 1 },
                             mode: 'x',
                         },
                         pan: {
                             enabled: true,
                             mode: 'x',
+                            modifierKey: 'ctrl',
                         },
                     },
                 },

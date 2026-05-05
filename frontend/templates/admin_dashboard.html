@@ -41,7 +41,10 @@
             <div class="admin-chart-card">
                 <div class="admin-chart-header">
                     <h3 class="admin-chart-title">Gebruikers over tijd</h3>
-                    <button class="admin-chart-reset" onclick="resetChart('chart-users')" title="Zoom terugzetten">↺</button>
+                    <div class="admin-chart-actions">
+                        <button class="admin-chart-reset" onclick="resetChart('chart-users')" title="Zoom terugzetten">↺</button>
+                        <button class="admin-chart-fullscreen" onclick="toggleFullscreen(this)" title="Volledig scherm">{% include "partials/icon_expand.svg" %}</button>
+                    </div>
                 </div>
                 <div class="admin-chart-wrap">
                     <canvas id="chart-users"></canvas>
@@ -51,7 +54,10 @@
             <div class="admin-chart-card">
                 <div class="admin-chart-header">
                     <h3 class="admin-chart-title">Aftekeenactiviteit</h3>
-                    <button class="admin-chart-reset" onclick="resetChart('chart-signoffs')" title="Zoom terugzetten">↺</button>
+                    <div class="admin-chart-actions">
+                        <button class="admin-chart-reset" onclick="resetChart('chart-signoffs')" title="Zoom terugzetten">↺</button>
+                        <button class="admin-chart-fullscreen" onclick="toggleFullscreen(this)" title="Volledig scherm">{% include "partials/icon_expand.svg" %}</button>
+                    </div>
                 </div>
                 <div class="admin-chart-wrap">
                     <canvas id="chart-signoffs"></canvas>
@@ -61,7 +67,10 @@
             <div class="admin-chart-card">
                 <div class="admin-chart-header">
                     <h3 class="admin-chart-title">Behaalde insignes</h3>
-                    <button class="admin-chart-reset" onclick="resetChart('chart-badges')" title="Zoom terugzetten">↺</button>
+                    <div class="admin-chart-actions">
+                        <button class="admin-chart-reset" onclick="resetChart('chart-badges')" title="Zoom terugzetten">↺</button>
+                        <button class="admin-chart-fullscreen" onclick="toggleFullscreen(this)" title="Volledig scherm">{% include "partials/icon_expand.svg" %}</button>
+                    </div>
                 </div>
                 <div class="admin-chart-wrap">
                     <canvas id="chart-badges"></canvas>
@@ -108,6 +117,23 @@
         if (chartInstances[id]) chartInstances[id].resetZoom();
     }
     window.resetChart = resetChart;
+
+    function toggleFullscreen(btn) {
+        const card = btn.closest('.admin-chart-card');
+        if (!document.fullscreenElement) {
+            card.requestFullscreen().catch(() => {});
+        } else {
+            document.exitFullscreen();
+        }
+    }
+    window.toggleFullscreen = toggleFullscreen;
+
+    document.addEventListener('fullscreenchange', () => {
+        // Force Chart.js to recalculate size after entering/exiting fullscreen
+        setTimeout(() => {
+            Object.values(chartInstances).forEach(c => c.resize());
+        }, 50);
+    });
 
     function lineChart(id, label, rows, color) {
         const ctx = document.getElementById(id);

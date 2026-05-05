@@ -2005,21 +2005,44 @@ button:disabled, a[disabled] {
     margin: 0;
 }
 
-.admin-chart-reset {
-    background: none;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    padding: 0.1rem 0.4rem;
-    font-size: 0.85rem;
-    color: #6b7280;
-    cursor: pointer;
-    line-height: 1.4;
+.admin-chart-actions {
+    display: flex;
+    gap: 0.3rem;
     flex-shrink: 0;
 }
 
-.admin-chart-reset:hover {
+.admin-chart-reset,
+.admin-chart-fullscreen {
+    background: none;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.85rem;
+    color: #6b7280;
+    cursor: pointer;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+
+.admin-chart-reset:hover,
+.admin-chart-fullscreen:hover {
     background: #f3f4f6;
     color: #374151;
+}
+
+/* Fullscreen state */
+.admin-chart-card:fullscreen {
+    background: #fff;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.admin-chart-card:fullscreen .admin-chart-wrap {
+    flex: 1;
+    height: auto !important;
 }
 
 .admin-chart-hint {

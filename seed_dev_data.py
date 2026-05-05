@@ -60,6 +60,7 @@ def get_or_create_user(email, name, created_at, *, email_none=False):
 def get_or_create_group(name, slug, created_by, created_at):
     g = db.query(Group).filter_by(slug=slug).first()
     if g:
+        g.created_at = created_at
         return g, False
     g = Group(name=name, slug=slug, created_by_id=created_by.id)
     db.add(g)
@@ -71,6 +72,7 @@ def get_or_create_group(name, slug, created_by, created_at):
 def get_or_create_speltak(group, name, slug, created_at, peer_signoff=False):
     s = db.query(Speltak).filter_by(group_id=group.id, slug=slug).first()
     if s:
+        s.created_at = created_at
         return s, False
     s = Speltak(group_id=group.id, name=name, slug=slug, peer_signoff=peer_signoff)
     db.add(s)

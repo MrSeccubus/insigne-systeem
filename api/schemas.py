@@ -298,5 +298,7 @@ class AdminDashboardStats(BaseModel):
     users_by_group: list[dict]
     users_by_status: list[dict]
     users_over_time: list[dict]
+    groups_over_time: list[dict]
+    speltakken_over_time: list[dict]
     signoff_over_time: list[dict]
     badges_over_time: list[dict]

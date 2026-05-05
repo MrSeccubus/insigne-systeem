@@ -9,6 +9,7 @@ from .models import (
     MembershipRequest,
     ProgressEntry,
     SignoffRequest,
+    Speltak,
     SpeltakMembership,
     User,
 )
@@ -58,18 +59,38 @@ def get_dashboard_stats(db: Session) -> dict:
         for s, c in sorted(status_rows, key=lambda x: x[0])
     ]
 
-    # Line: cumulative users over time (daily)
+    def _cumulative(rows) -> list[dict]:
+        total = 0
+        result = []
+        for day, count in rows:
+            total += count
+            result.append({"month": day or "?", "count": total})
+        return result
+
+    # Line: cumulative users / groups / speltakken over time (daily)
     daily_users = (
         db.query(func.strftime("%Y-%m-%d", User.created_at), func.count(User.id))
         .group_by(func.strftime("%Y-%m-%d", User.created_at))
         .order_by(func.strftime("%Y-%m-%d", User.created_at))
         .all()
     )
-    cumulative = 0
-    users_over_time = []
-    for day, count in daily_users:
-        cumulative += count
-        users_over_time.append({"month": day or "?", "count": cumulative})
+    users_over_time = _cumulative(daily_users)
+
+    daily_groups = (
+        db.query(func.strftime("%Y-%m-%d", Group.created_at), func.count(Group.id))
+        .group_by(func.strftime("%Y-%m-%d", Group.created_at))
+        .order_by(func.strftime("%Y-%m-%d", Group.created_at))
+        .all()
+    )
+    groups_over_time = _cumulative(daily_groups)
+
+    daily_speltakken = (
+        db.query(func.strftime("%Y-%m-%d", Speltak.created_at), func.count(Speltak.id))
+        .group_by(func.strftime("%Y-%m-%d", Speltak.created_at))
+        .order_by(func.strftime("%Y-%m-%d", Speltak.created_at))
+        .all()
+    )
+    speltakken_over_time = _cumulative(daily_speltakken)
 
     # Line: sign-off activity per day — combines pending requests (SignoffRequest)
     # with completed sign-offs (ProgressEntry.signed_off_at).  SignoffRequest rows are
@@ -113,6 +134,8 @@ def get_dashboard_stats(db: Session) -> dict:
         "users_by_group": users_by_group,
         "users_by_status": users_by_status,
         "users_over_time": users_over_time,
+        "groups_over_time": groups_over_time,
+        "speltakken_over_time": speltakken_over_time,
         "signoff_over_time": signoff_over_time,
         "badges_over_time": badges_over_time,
     }

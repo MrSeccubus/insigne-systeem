@@ -135,6 +135,53 @@
         }, 50);
     });
 
+    function multiLineChart(id, series) {
+        const ctx = document.getElementById(id);
+        if (!ctx) return;
+        // Merge all unique labels (dates) across series, sorted
+        const allDates = [...new Set(series.flatMap(s => s.rows.map(r => r.month)))].sort();
+        if (!allDates.length) {
+            ctx.parentElement.innerHTML = '<p style="color:#888;font-size:0.85rem;padding:1rem 0;">Nog geen gegevens.</p>';
+            return;
+        }
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: allDates,
+                datasets: series.map(s => ({
+                    label: s.label,
+                    data: allDates.map(d => {
+                        const found = s.rows.find(r => r.month === d);
+                        // For cumulative series: carry forward the last known value
+                        return found ? found.count : null;
+                    }),
+                    borderColor: s.color,
+                    backgroundColor: s.color + '22',
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: allDates.length < 30 ? 4 : 2,
+                    spanGaps: true,
+                })),
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 10 } },
+                    zoom: {
+                        zoom: { wheel: { enabled: true, speed: 0.15 }, pinch: { enabled: true }, mode: 'x' },
+                        pan: { enabled: true, mode: 'x' },
+                    },
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                    x: { ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 14 } },
+                },
+            },
+        });
+        chartInstances[id] = chart;
+    }
+
     function lineChart(id, label, rows, color) {
         const ctx = document.getElementById(id);
         if (!ctx) return;
@@ -237,9 +284,13 @@
     pieChart('chart-groups', stats.users_by_group);
     pieChart('chart-status', stats.users_by_status);
 
-    lineChart('chart-users',    'Gebruikers (cumulatief)', stats.users_over_time,   green);
-    lineChart('chart-signoffs', 'Aftekenactiviteit',        stats.signoff_over_time, '#3B82F6');
-    lineChart('chart-badges',   'Behaalde insignes',        stats.badges_over_time,  '#F59E0B');
+    multiLineChart('chart-users', [
+        { label: 'Gebruikers',  rows: stats.users_over_time,      color: green },
+        { label: 'Groepen',     rows: stats.groups_over_time,     color: '#3B82F6' },
+        { label: 'Speltakken',  rows: stats.speltakken_over_time, color: '#F59E0B' },
+    ]);
+    lineChart('chart-signoffs', 'Aftekenactiviteit', stats.signoff_over_time, '#3B82F6');
+    lineChart('chart-badges',   'Behaalde insignes', stats.badges_over_time,  '#F59E0B');
 })();
 </script>
 {% endblock %}

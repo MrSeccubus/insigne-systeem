@@ -40,6 +40,8 @@ class TestAdminStats:
         assert "users_by_group" in body
         assert "users_by_status" in body
         assert "users_over_time" in body
+        assert "groups_over_time" in body
+        assert "speltakken_over_time" in body
         assert "signoff_over_time" in body
         assert "badges_over_time" in body
 

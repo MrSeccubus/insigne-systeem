@@ -20,7 +20,12 @@ def get_dashboard_stats(db: Session) -> dict:
     all_groups = {g.id: g.name for g in db.query(Group).all()}
     active_memberships = (
         db.query(GroupMembership.user_id, GroupMembership.group_id)
-        .filter_by(approved=True, withdrawn=False)
+        .join(User, User.id == GroupMembership.user_id)
+        .filter(
+            GroupMembership.approved == True,
+            GroupMembership.withdrawn == False,
+            User.status == "active",
+        )
         .all()
     )
     user_to_groups: dict[str, set[str]] = defaultdict(set)
@@ -35,7 +40,9 @@ def get_dashboard_stats(db: Session) -> dict:
         for gid, cnt in sorted(group_user_count.items(), key=lambda x: all_groups[x[0]])
     ]
     total_users: int = db.query(func.count(User.id)).scalar() or 0
-    ungrouped = total_users - len(user_to_groups)
+    # Only active users (registered + emailless scouts) are relevant for the group pie
+    active_users: int = db.query(func.count(User.id)).filter(User.status == "active").scalar() or 0
+    ungrouped = active_users - len(user_to_groups)
     if ungrouped > 0:
         users_by_group.append({"label": "Zonder groep", "count": ungrouped})
 

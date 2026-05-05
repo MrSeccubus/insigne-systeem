@@ -39,22 +39,34 @@
                 </div>
             </div>
             <div class="admin-chart-card">
-                <h3 class="admin-chart-title">Gebruikers over tijd</h3>
+                <div class="admin-chart-header">
+                    <h3 class="admin-chart-title">Gebruikers over tijd</h3>
+                    <button class="admin-chart-reset" onclick="resetChart('chart-users')" title="Zoom terugzetten">↺</button>
+                </div>
                 <div class="admin-chart-wrap">
                     <canvas id="chart-users"></canvas>
                 </div>
+                <p class="admin-chart-hint">Scroll om in te zoomen · sleep om te verschuiven</p>
             </div>
             <div class="admin-chart-card">
-                <h3 class="admin-chart-title">Aftekeenactiviteit per maand</h3>
+                <div class="admin-chart-header">
+                    <h3 class="admin-chart-title">Aftekeenactiviteit</h3>
+                    <button class="admin-chart-reset" onclick="resetChart('chart-signoffs')" title="Zoom terugzetten">↺</button>
+                </div>
                 <div class="admin-chart-wrap">
                     <canvas id="chart-signoffs"></canvas>
                 </div>
+                <p class="admin-chart-hint">Scroll om in te zoomen · sleep om te verschuiven</p>
             </div>
             <div class="admin-chart-card">
-                <h3 class="admin-chart-title">Behaalde insignes per maand</h3>
+                <div class="admin-chart-header">
+                    <h3 class="admin-chart-title">Behaalde insignes</h3>
+                    <button class="admin-chart-reset" onclick="resetChart('chart-badges')" title="Zoom terugzetten">↺</button>
+                </div>
                 <div class="admin-chart-wrap">
                     <canvas id="chart-badges"></canvas>
                 </div>
+                <p class="admin-chart-hint">Scroll om in te zoomen · sleep om te verschuiven</p>
             </div>
         </div>
     </section>
@@ -79,6 +91,8 @@
 {% block scripts %}
 <script id="admin-stats-data" type="application/json">{{ stats | tojson }}</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script>
 (function () {
     const stats = JSON.parse(document.getElementById('admin-stats-data').textContent);
@@ -88,6 +102,13 @@
         '#06B6D4','#F97316','#84CC16','#EC4899','#14B8A6',
     ];
 
+    const chartInstances = {};
+
+    function resetChart(id) {
+        if (chartInstances[id]) chartInstances[id].resetZoom();
+    }
+    window.resetChart = resetChart;
+
     function lineChart(id, label, rows, color) {
         const ctx = document.getElementById(id);
         if (!ctx) return;
@@ -95,7 +116,7 @@
             ctx.parentElement.innerHTML = '<p style="color:#888;font-size:0.85rem;padding:1rem 0;">Nog geen gegevens.</p>';
             return;
         }
-        new Chart(ctx, {
+        const chart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: rows.map(r => r.month),
@@ -106,19 +127,33 @@
                     backgroundColor: color + '22',
                     fill: true,
                     tension: 0.3,
-                    pointRadius: rows.length < 20 ? 4 : 2,
+                    pointRadius: rows.length < 30 ? 4 : 2,
                 }],
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
-                plugins: { legend: { display: false } },
+                plugins: {
+                    legend: { display: false },
+                    zoom: {
+                        zoom: {
+                            wheel: { enabled: true, speed: 0.15 },
+                            pinch: { enabled: true },
+                            mode: 'x',
+                        },
+                        pan: {
+                            enabled: true,
+                            mode: 'x',
+                        },
+                    },
+                },
                 scales: {
                     y: { beginAtZero: true, ticks: { stepSize: 1 } },
-                    x: { ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 12 } },
+                    x: { ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 14 } },
                 },
             },
         });
+        chartInstances[id] = chart;
     }
 
     function pieChart(id, rows) {

@@ -58,55 +58,55 @@ def get_dashboard_stats(db: Session) -> dict:
         for s, c in sorted(status_rows, key=lambda x: x[0])
     ]
 
-    # Line: cumulative users over time (by month)
-    monthly_users = (
-        db.query(func.strftime("%Y-%m", User.created_at), func.count(User.id))
-        .group_by(func.strftime("%Y-%m", User.created_at))
-        .order_by(func.strftime("%Y-%m", User.created_at))
+    # Line: cumulative users over time (daily)
+    daily_users = (
+        db.query(func.strftime("%Y-%m-%d", User.created_at), func.count(User.id))
+        .group_by(func.strftime("%Y-%m-%d", User.created_at))
+        .order_by(func.strftime("%Y-%m-%d", User.created_at))
         .all()
     )
     cumulative = 0
     users_over_time = []
-    for month, count in monthly_users:
+    for day, count in daily_users:
         cumulative += count
-        users_over_time.append({"month": month or "?", "count": cumulative})
+        users_over_time.append({"month": day or "?", "count": cumulative})
 
-    # Line: sign-off activity per month — combines pending requests (SignoffRequest)
+    # Line: sign-off activity per day — combines pending requests (SignoffRequest)
     # with completed sign-offs (ProgressEntry.signed_off_at).  SignoffRequest rows are
     # deleted on confirmation, so completed history only survives in ProgressEntry.
-    pending_by_month: dict[str, int] = {
-        m: c for m, c in (
-            db.query(func.strftime("%Y-%m", SignoffRequest.created_at), func.count(SignoffRequest.id))
-            .group_by(func.strftime("%Y-%m", SignoffRequest.created_at))
+    pending_by_day: dict[str, int] = {
+        d: c for d, c in (
+            db.query(func.strftime("%Y-%m-%d", SignoffRequest.created_at), func.count(SignoffRequest.id))
+            .group_by(func.strftime("%Y-%m-%d", SignoffRequest.created_at))
             .all()
         )
     }
-    completed_by_month: dict[str, int] = {
-        m: c for m, c in (
-            db.query(func.strftime("%Y-%m", ProgressEntry.signed_off_at), func.count(ProgressEntry.id))
+    completed_by_day: dict[str, int] = {
+        d: c for d, c in (
+            db.query(func.strftime("%Y-%m-%d", ProgressEntry.signed_off_at), func.count(ProgressEntry.id))
             .filter(ProgressEntry.signed_off_at.isnot(None))
-            .group_by(func.strftime("%Y-%m", ProgressEntry.signed_off_at))
+            .group_by(func.strftime("%Y-%m-%d", ProgressEntry.signed_off_at))
             .all()
         )
     }
-    all_signoff_months = sorted(set(pending_by_month) | set(completed_by_month))
+    all_signoff_days = sorted(set(pending_by_day) | set(completed_by_day))
     signoff_over_time = [
-        {"month": m, "count": pending_by_month.get(m, 0) + completed_by_month.get(m, 0)}
-        for m in all_signoff_months
+        {"month": d, "count": pending_by_day.get(d, 0) + completed_by_day.get(d, 0)}
+        for d in all_signoff_days
     ]
 
-    # Line: badges earned (signed_off) per month
+    # Line: badges earned (signed_off) per day
     badges_rows = (
         db.query(
-            func.strftime("%Y-%m", ProgressEntry.signed_off_at),
+            func.strftime("%Y-%m-%d", ProgressEntry.signed_off_at),
             func.count(ProgressEntry.id),
         )
         .filter(ProgressEntry.status == "signed_off", ProgressEntry.signed_off_at.isnot(None))
-        .group_by(func.strftime("%Y-%m", ProgressEntry.signed_off_at))
-        .order_by(func.strftime("%Y-%m", ProgressEntry.signed_off_at))
+        .group_by(func.strftime("%Y-%m-%d", ProgressEntry.signed_off_at))
+        .order_by(func.strftime("%Y-%m-%d", ProgressEntry.signed_off_at))
         .all()
     )
-    badges_over_time = [{"month": m or "?", "count": c} for m, c in badges_rows]
+    badges_over_time = [{"month": d or "?", "count": c} for d, c in badges_rows]
 
     return {
         "total_users": total_users,

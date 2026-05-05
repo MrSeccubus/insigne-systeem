@@ -53,7 +53,7 @@
             </div>
             <div class="admin-chart-card">
                 <div class="admin-chart-header">
-                    <h3 class="admin-chart-title">Aftekeenactiviteit</h3>
+                    <h3 class="admin-chart-title">Aftekenactiviteit</h3>
                     <div class="admin-chart-actions">
                         <button class="admin-chart-reset" onclick="resetChart('chart-signoffs')" title="Zoom terugzetten">↺</button>
                         <button class="admin-chart-fullscreen" onclick="toggleFullscreen(this)" title="Volledig scherm">{% include "partials/icon_expand.svg" %}</button>
@@ -238,7 +238,7 @@
     pieChart('chart-status', stats.users_by_status);
 
     lineChart('chart-users',    'Gebruikers (cumulatief)', stats.users_over_time,   green);
-    lineChart('chart-signoffs', 'Aftekeenactiviteit',        stats.signoff_over_time, '#3B82F6');
+    lineChart('chart-signoffs', 'Aftekenactiviteit',        stats.signoff_over_time, '#3B82F6');
     lineChart('chart-badges',   'Behaalde insignes',        stats.badges_over_time,  '#F59E0B');
 })();
 </script>

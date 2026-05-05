@@ -1533,3 +1533,109 @@ Set a step's status for a scout. Requires speltakleider edit rights (not groepsl
 **Response `409`:** Conflict (e.g. entry is in `pending_signoff`).
 
 **Response `422`:** `message_required_when_downgrading` — downgrading from `signed_off` requires a non-empty message.
+
+---
+
+## Admin
+
+System administrators are defined in `config.yml` under `admins:` (list of email addresses). All admin endpoints require the authenticated user's email to be in that list; otherwise `403` is returned.
+
+### HTML routes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/admin` | Admin dashboard — stat cards and four charts (users by group, active vs invited, users over time, sign-off activity, badges earned). Redirects to `/login` if unauthenticated, to `/` if not admin. |
+| `POST` | `/admin/find-user` | HTMX — search for a user by email address. Returns `partials/admin_user_result.html` with the user card or a "not found" message. |
+| `POST` | `/admin/delete-user/{user_id}` | HTMX — permanently delete the user and all owned data. Returns `partials/admin_user_result.html` with a confirmation banner. |
+
+`POST /admin/find-user` form fields:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `email` | string | Email address to search for (case-insensitive) |
+
+### JSON API endpoints
+
+#### `GET /api/admin/stats`
+
+Returns aggregated dashboard statistics.
+
+**Auth:** Bearer token required; admin only (`403` otherwise).
+
+**Response `200`:**
+
+```json
+{
+  "total_users": 30,
+  "users_by_group": [
+    { "label": "Scouting TBM", "count": 20 },
+    { "label": "Zonder groep", "count": 5 }
+  ],
+  "users_by_status": [
+    { "label": "Actief", "count": 28 },
+    { "label": "Uitgenodigd / in afwachting", "count": 2 }
+  ],
+  "users_over_time": [
+    { "month": "2026-02-01", "count": 3 }
+  ],
+  "signoff_over_time": [
+    { "month": "2026-03-10", "count": 5 }
+  ],
+  "badges_over_time": [
+    { "month": "2026-03-10", "count": 5 }
+  ]
+}
+```
+
+Notes:
+- `users_by_group` counts only **active** users (status `active`) per group; a user in multiple groups is counted once per group. Includes a `"Zonder groep"` entry for active users with no approved group membership.
+- `users_by_status` groups all users by their `status` field (`active` / `pending`).
+- `users_over_time` is **cumulative** (total users at each day, not new registrations).
+- `signoff_over_time` combines pending `SignoffRequest` rows (by `created_at`) with completed sign-offs from `ProgressEntry.signed_off_at`, because confirmed sign-off requests are deleted on approval.
+- `badges_over_time` counts individual `ProgressEntry` rows with `status = signed_off`, grouped by `signed_off_at`.
+- All time-series dates are in `YYYY-MM-DD` format (daily granularity).
+
+---
+
+#### `GET /api/admin/users`
+
+Look up a single user by email address.
+
+**Auth:** Bearer token required; admin only.
+
+**Query parameters:**
+
+| Parameter | Type | Notes |
+|-----------|------|-------|
+| `email` | string | Required. Exact match (case-insensitive). |
+
+**Response `200`:** `AdminUserResponse`
+
+```json
+{
+  "id": "uuid",
+  "email": "scout@example.com",
+  "name": "Jan de Vries",
+  "status": "active"
+}
+```
+
+**Response `404`:** No user with that email address.
+
+---
+
+#### `DELETE /api/admin/users/{user_id}`
+
+Permanently delete a user and all owned data:
+- All `ProgressEntry` rows (cascades `SignoffRequest` and `SignoffRejection` per entry)
+- All `SignoffRequest` rows where the user is the mentor
+- All group and speltak memberships, membership requests, confirmation tokens, e-mail change requests
+- Non-cascading FK back-references (`signed_off_by_id`, `created_by_id`, `invited_by_id`, `reviewed_by_id`) are set to `NULL` before deletion
+
+**Auth:** Bearer token required; admin only.
+
+**Response `204`:** User deleted.
+
+**Response `400`:** `detail: "Cannot delete your own account"` — an admin cannot delete themselves.
+
+**Response `404`:** User not found.

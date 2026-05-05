@@ -1,4 +1,6 @@
-from insigne.models import ConfirmationToken, ProgressEntry, User
+from datetime import datetime, timezone
+
+from insigne.models import ConfirmationToken, ProgressEntry, SignoffRequest, User
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -71,6 +73,42 @@ class TestAdminStats:
         counts = [row["count"] for row in rows]
         assert counts == sorted(counts)  # cumulative → non-decreasing
 
+    def test_users_over_time_daily_granularity(self, client, db):
+        token = _admin_token(client, db)
+        r = client.get("/api/admin/stats", headers=_auth(token))
+        for row in r.json()["users_over_time"]:
+            # dates must be YYYY-MM-DD (10 chars), not YYYY-MM (7 chars)
+            assert len(row["month"]) == 10
+
+    def test_users_by_group_excludes_pending_users(self, client, db):
+        admin_token = _admin_token(client, db)
+        # Create a pending (uninvited) user — must NOT appear in group counts
+        pending = User(email="pending@example.com", name="Pending", status="pending")
+        db.add(pending)
+        db.commit()
+        r = client.get("/api/admin/stats", headers=_auth(admin_token))
+        body = r.json()
+        total_in_groups = sum(g["count"] for g in body["users_by_group"])
+        active_count = next(g["count"] for g in body["users_by_status"] if g["label"] == "Actief")
+        # group totals must not exceed active user count
+        assert total_in_groups <= active_count
+
+    def test_signoff_over_time_includes_completed_signoffs(self, client, db):
+        admin_token = _admin_token(client, db)
+        _full_register(client, db, email="scout2@example.com")
+        scout = db.query(User).filter_by(email="scout2@example.com").first()
+        # Add a completed sign-off entry (SignoffRequest already deleted at confirmation time)
+        entry = ProgressEntry(
+            user_id=scout.id, badge_slug="sport_spel",
+            level_index=0, step_index=0, status="signed_off",
+            signed_off_at=datetime(2026, 3, 10, tzinfo=timezone.utc),
+        )
+        db.add(entry)
+        db.commit()
+        r = client.get("/api/admin/stats", headers=_auth(admin_token))
+        months = [row["month"] for row in r.json()["signoff_over_time"]]
+        assert any(m.startswith("2026-03") for m in months)
+
 
 # ── GET /api/admin/users ──────────────────────────────────────────────────────
 
@@ -97,6 +135,13 @@ class TestAdminFindUser:
     def test_requires_auth(self, client, db):
         r = client.get("/api/admin/users", params={"email": "x@x.com"})
         assert r.status_code == 401
+
+    def test_find_is_case_insensitive(self, client, db):
+        admin_token = _admin_token(client, db)
+        _full_register(client, db, email="upper@example.com", name="Upper")
+        r = client.get("/api/admin/users", params={"email": "UPPER@example.com"}, headers=_auth(admin_token))
+        assert r.status_code == 200
+        assert r.json()["email"] == "upper@example.com"
 
 
 # ── DELETE /api/admin/users/{user_id} ─────────────────────────────────────────
@@ -145,3 +190,25 @@ class TestAdminDeleteUser:
     def test_requires_auth(self, client, db):
         r = client.delete("/api/admin/users/some-id")
         assert r.status_code == 401
+
+    def test_delete_removes_mentor_signoff_requests(self, client, db):
+        admin_token = _admin_token(client, db)
+        _full_register(client, db, email="mentor@example.com")
+        _full_register(client, db, email="scout3@example.com")
+        mentor = db.query(User).filter_by(email="mentor@example.com").first()
+        scout = db.query(User).filter_by(email="scout3@example.com").first()
+        entry = ProgressEntry(
+            user_id=scout.id, badge_slug="sport_spel",
+            level_index=0, step_index=0, status="pending_signoff",
+        )
+        db.add(entry)
+        db.flush()
+        req = SignoffRequest(progress_entry_id=entry.id, mentor_id=mentor.id)
+        db.add(req)
+        db.commit()
+        r = client.delete(f"/api/admin/users/{mentor.id}", headers=_auth(admin_token))
+        assert r.status_code == 204
+        db.expire_all()
+        assert db.query(SignoffRequest).filter_by(mentor_id=mentor.id).count() == 0
+        # Scout's entry must still exist
+        assert db.query(ProgressEntry).filter_by(id=entry.id).first() is not None

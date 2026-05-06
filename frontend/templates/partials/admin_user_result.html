@@ -7,7 +7,7 @@
     Geen gebruiker gevonden met e-mailadres <strong>{{ searched_email }}</strong>.
 </div>
 {% elif found_user %}
-<div class="admin-user-card" x-data="{ confirming: false }">
+<div class="admin-user-card" x-data="{ confirming: false, deleting: false }">
     <div class="admin-user-info">
         <span class="admin-user-name">{{ found_user.name or '(geen naam)' }}</span>
         <span class="admin-user-email">{{ found_user.email }}</span>
@@ -25,12 +25,16 @@
         </p>
         <div style="display:flex;gap:0.5rem;">
             <button class="btn-danger" style="width:auto;"
+                    :disabled="deleting"
+                    :style="deleting ? 'opacity:0.5;cursor:not-allowed;' : ''"
+                    @click="deleting = true"
                     hx-post="/admin/delete-user/{{ found_user.id }}"
                     hx-target="#admin-user-result"
                     hx-swap="innerHTML">
-                Ja, verwijder definitief
+                <span x-show="!deleting">Ja, verwijder definitief</span>
+                <span x-show="deleting">Bezig met verwijderen…</span>
             </button>
-            <button class="btn-neutral" style="width:auto;" @click="confirming = false">Annuleren</button>
+            <button class="btn-neutral" style="width:auto;" :disabled="deleting" @click="confirming = false">Annuleren</button>
         </div>
     </div>
 </div>

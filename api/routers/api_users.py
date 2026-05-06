@@ -7,6 +7,7 @@ from insigne import users as user_svc
 from insigne.auth import create_access_token
 from insigne.database import get_db
 from insigne.email import (
+    send_account_deleted_email,
     send_email_change_confirm_email,
     send_email_change_revert_email,
     send_password_reset_email,
@@ -152,6 +153,8 @@ async def delete_me(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if current_user.email:
+        send_account_deleted_email(current_user.email, current_user.name or current_user.email)
     user_svc.delete_user(db, current_user)
     return Response(status_code=204)
 

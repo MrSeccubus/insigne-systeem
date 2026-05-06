@@ -236,6 +236,8 @@ All fields are optional. Progress and sign-offs are stored against `user_id`, so
 
 #### `DELETE /api/users/me` — Delete own account 🔒
 
+**Side-effect:** A confirmation email (`account_deleted`) is sent to the user's address before the record is removed.
+
 **Response `204`:** No content.
 
 ---

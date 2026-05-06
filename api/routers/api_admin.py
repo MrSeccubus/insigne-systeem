@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from deps import get_current_user
 from insigne import admin as admin_svc
 from insigne.database import get_db
+from insigne.email import send_account_deleted_email
 from insigne.models import User
 from schemas import AdminDashboardStats, AdminUserResponse
 
@@ -49,4 +50,6 @@ def delete_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if target.id == current_user.id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete your own account")
+    if target.email:
+        send_account_deleted_email(target.email, target.name or target.email)
     admin_svc.delete_user(db, user_id)

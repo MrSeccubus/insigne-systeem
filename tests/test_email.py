@@ -5,6 +5,7 @@ import pytest
 import insigne.email as email_mod
 from insigne.email import (
     send,
+    send_account_deleted_email,
     send_mentor_signoff_invite_email,
     send_mentor_signoff_request_email,
     send_password_reset_email,
@@ -187,3 +188,8 @@ class TestConvenienceFunctions:
             send_password_reset_email("s@example.com", "Scout", "reset-code")
         kwargs = mock.call_args[1]
         assert "reset-code" in kwargs["confirm_url"]
+
+    def test_send_account_deleted_uses_correct_template(self):
+        with self._patched_send() as mock:
+            send_account_deleted_email("s@example.com", "Scout")
+        assert mock.call_args[0][1] == "account_deleted"

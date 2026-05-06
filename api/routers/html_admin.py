@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from insigne import admin as admin_svc
 from insigne.database import get_db
+from insigne.email import send_account_deleted_email
 from insigne.models import User as UserModel
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
@@ -66,6 +67,9 @@ def admin_delete_user(
         return redirect
     target = db.get(UserModel, user_id)
     deleted_email = target.email if target else ""
+    deleted_name = target.name or deleted_email if target else ""
+    if target and target.email:
+        send_account_deleted_email(target.email, deleted_name)
     admin_svc.delete_user(db, user_id)
     return _TEMPLATES.TemplateResponse(
         request=request,

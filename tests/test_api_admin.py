@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from unittest.mock import patch
 
 from insigne.models import ConfirmationToken, ProgressEntry, SignoffRequest, User
 
@@ -192,6 +193,23 @@ class TestAdminDeleteUser:
     def test_requires_auth(self, client, db):
         r = client.delete("/api/admin/users/some-id")
         assert r.status_code == 401
+
+    def test_sends_deletion_email_to_user(self, client, db):
+        admin_token = _admin_token(client, db)
+        _full_register(client, db, email="farewell@example.com", name="Farewell")
+        target = db.query(User).filter_by(email="farewell@example.com").first()
+        with patch("routers.api_admin.send_account_deleted_email") as mock_send:
+            client.delete(f"/api/admin/users/{target.id}", headers=_auth(admin_token))
+        mock_send.assert_called_once_with("farewell@example.com", "Farewell")
+
+    def test_no_deletion_email_for_emailless_user(self, client, db):
+        admin_token = _admin_token(client, db)
+        emailless = User(name="No Email", status="active")
+        db.add(emailless)
+        db.commit()
+        with patch("routers.api_admin.send_account_deleted_email") as mock_send:
+            client.delete(f"/api/admin/users/{emailless.id}", headers=_auth(admin_token))
+        mock_send.assert_not_called()
 
     def test_delete_removes_mentor_signoff_requests(self, client, db):
         admin_token = _admin_token(client, db)

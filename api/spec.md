@@ -1634,6 +1634,8 @@ Permanently delete a user and all owned data:
 
 **Auth:** Bearer token required; admin only.
 
+**Side-effect:** If the user has an email address, a confirmation email (`account_deleted`) is sent to them before the record is removed. Emailless scouts (no email address) receive no email.
+
 **Response `204`:** User deleted.
 
 **Response `400`:** `detail: "Cannot delete your own account"` — an admin cannot delete themselves.

@@ -1,9 +1,13 @@
+from pathlib import Path
+
+import yaml
 import jwt
-from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from insigne import progress_export as export_svc
 from insigne import users as user_svc
 from insigne.auth import create_access_token, decode_access_token
 from insigne.config import config
@@ -19,6 +23,7 @@ from insigne.models import User
 from templates import templates as _TEMPLATES
 
 _secure_cookies = config.base_url.startswith("https://")
+_DATA_DIR = Path(__file__).parent.parent / "data"
 
 router = APIRouter()
 
@@ -397,3 +402,52 @@ async def forgot_password_reset(
         max_age=30 * 24 * 3600,
     )
     return response
+
+
+# --- Export / Import ---
+
+@router.get("/export", response_class=HTMLResponse)
+async def export_page(request: Request, db: Session = Depends(get_db)):
+    current_user = _get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+    return _page(request, "export.html", db, import_result=None)
+
+
+@router.post("/export/import", response_class=HTMLResponse)
+async def import_progress_html(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    current_user = _get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    raw = await file.read()
+    filename = file.filename or ""
+    error = None
+    count = 0
+
+    try:
+        if filename.lower().endswith(".pdf"):
+            yaml_str = export_svc.extract_yaml_from_pdf(raw)
+            if not yaml_str:
+                error = "Geen voortgangsgegevens gevonden in de PDF."
+            else:
+                data = yaml.safe_load(yaml_str)
+        elif filename.lower().endswith((".yml", ".yaml")):
+            data = yaml.safe_load(raw.decode())
+        else:
+            error = "Upload een .yml- of .pdf-bestand."
+
+        if not error:
+            if not isinstance(data, dict) or data.get("version") != 1:
+                error = "Onbekend exportformaat."
+            else:
+                count = export_svc.import_progress(db, current_user.id, data)
+    except Exception:
+        error = "Het bestand kon niet worden verwerkt."
+
+    return _page(request, "export.html", db,
+                 import_result={"error": error, "count": count} if error is None else {"error": error, "count": 0})

@@ -1,8 +1,13 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
+from pathlib import Path
+
+import yaml
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from insigne import groups as groups_svc
+from insigne import progress_export as export_svc
 from insigne import users as user_svc
 from insigne.auth import create_access_token
 from insigne.database import get_db
@@ -157,6 +162,60 @@ async def delete_me(
         send_account_deleted_email(current_user.email, current_user.name or current_user.email)
     user_svc.delete_user(db, current_user)
     return Response(status_code=204)
+
+
+_DATA_DIR = Path(__file__).parent.parent / "data"
+
+
+@router.get("/me/export")
+def export_progress(
+    format: str = Query("yaml", pattern="^(yaml|pdf)$"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    data = export_svc.export_data(db, current_user.id)
+    name = (current_user.name or "export").replace(" ", "_")
+    if format == "pdf":
+        yaml_str = export_svc.to_yaml(data)
+        pdf_bytes = export_svc.to_pdf(data, data_dir=_DATA_DIR)
+        content = export_svc.embed_yaml_in_pdf(pdf_bytes, yaml_str)
+        return StreamingResponse(
+            iter([content]),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{name}_voortgang.pdf"'},
+        )
+    yaml_str = export_svc.to_yaml(data)
+    return StreamingResponse(
+        iter([yaml_str.encode()]),
+        media_type="application/x-yaml",
+        headers={"Content-Disposition": f'attachment; filename="{name}_voortgang.yml"'},
+    )
+
+
+@router.post("/me/import")
+async def import_progress(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    raw = await file.read()
+    filename = file.filename or ""
+    if filename.lower().endswith(".pdf"):
+        yaml_str = export_svc.extract_yaml_from_pdf(raw)
+        if not yaml_str:
+            raise HTTPException(status_code=400, detail="No progress data found in PDF.")
+    elif filename.lower().endswith((".yml", ".yaml")):
+        yaml_str = raw.decode()
+    else:
+        raise HTTPException(status_code=400, detail="Upload a .yml or .pdf file.")
+    try:
+        data = yaml.safe_load(yaml_str)
+    except yaml.YAMLError:
+        raise HTTPException(status_code=400, detail="Invalid YAML.")
+    if not isinstance(data, dict) or data.get("version") != 1:
+        raise HTTPException(status_code=400, detail="Unrecognised export format.")
+    count = export_svc.import_progress(db, current_user.id, data)
+    return {"imported": count}
 
 
 @router.get("/me/memberships", response_model=ActiveMembershipsResponse)

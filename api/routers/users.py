@@ -414,6 +414,33 @@ async def export_page(request: Request, db: Session = Depends(get_db)):
     return _page(request, "export.html", db, import_result=None)
 
 
+@router.get("/export/download")
+def export_download(request: Request, format: str = "yaml", db: Session = Depends(get_db)):
+    from fastapi.responses import StreamingResponse
+    current_user = _get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+    if format not in ("yaml", "pdf"):
+        format = "yaml"
+    data = export_svc.export_data(db, current_user.id)
+    name = (current_user.name or "export").replace(" ", "_")
+    if format == "pdf":
+        yaml_str = export_svc.to_yaml(data)
+        pdf_bytes = export_svc.to_pdf(data, data_dir=_DATA_DIR)
+        content = export_svc.embed_yaml_in_pdf(pdf_bytes, yaml_str)
+        return StreamingResponse(
+            iter([content]),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{name}_voortgang.pdf"'},
+        )
+    yaml_str = export_svc.to_yaml(data)
+    return StreamingResponse(
+        iter([yaml_str.encode()]),
+        media_type="application/x-yaml",
+        headers={"Content-Disposition": f'attachment; filename="{name}_voortgang.yml"'},
+    )
+
+
 @router.post("/export/import", response_class=HTMLResponse)
 async def import_progress_html(
     request: Request,

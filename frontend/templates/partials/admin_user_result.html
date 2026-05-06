@@ -18,6 +18,11 @@
             Verwijder account
         </button>
     </div>
+    {% if error_message %}
+    <div class="notification-bar" style="background:#fef2f2;border-color:#fca5a5;color:#991b1b;margin-top:0.75rem;">
+        {{ error_message }}
+    </div>
+    {% endif %}
     <div x-show="confirming" style="margin-top:0.75rem;">
         <p style="margin:0 0 0.5rem;font-size:0.9rem;color:#991b1b;font-weight:600;">
             Weet u zeker dat u het account van <strong>{{ found_user.name or found_user.email }}</strong> wilt verwijderen?

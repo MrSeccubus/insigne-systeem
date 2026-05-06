@@ -180,6 +180,16 @@ class TestAdminDeleteUser:
         r = client.delete(f"/api/admin/users/{admin.id}", headers=_auth(token))
         assert r.status_code == 400
 
+    def test_cannot_delete_another_admin(self, client, db):
+        from insigne.config import config as _config
+        token = _admin_token(client, db)
+        _full_register(client, db, email="admin2@example.com", name="Admin Two")
+        _config.admins = list(_config.admins) + ["admin2@example.com"]
+        target = db.query(User).filter_by(email="admin2@example.com").first()
+        r = client.delete(f"/api/admin/users/{target.id}", headers=_auth(token))
+        assert r.status_code == 400
+        assert "beheerdersrechten" in r.json()["detail"].lower() or "admin" in r.json()["detail"].lower()
+
     def test_returns_404_for_unknown(self, client, db):
         token = _admin_token(client, db)
         r = client.delete("/api/admin/users/00000000-0000-0000-0000-000000000000", headers=_auth(token))

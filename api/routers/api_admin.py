@@ -50,6 +50,8 @@ def delete_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if target.id == current_user.id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete your own account")
+    if target.is_admin:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete an admin account. Remove admin privileges first.")
     if target.email:
         send_account_deleted_email(target.email, target.name or target.email)
     admin_svc.delete_user(db, user_id)

@@ -1642,4 +1642,6 @@ Permanently delete a user and all owned data:
 
 **Response `400`:** `detail: "Cannot delete your own account"` — an admin cannot delete themselves.
 
+**Response `400`:** `detail: "Cannot delete an admin account. Remove admin privileges first."` — the target user is listed under `admins:` in `config.yml`. Remove the entry from the config before deleting the account.
+
 **Response `404`:** User not found.

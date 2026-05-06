@@ -66,6 +66,18 @@ def admin_delete_user(
     if redirect:
         return redirect
     target = db.get(UserModel, user_id)
+    if target and target.is_admin:
+        return _TEMPLATES.TemplateResponse(
+            request=request,
+            name="partials/admin_user_result.html",
+            context={
+                "current_user": user,
+                "found_user": target,
+                "searched_email": target.email or "",
+                "deleted_email": None,
+                "error_message": "Dit account heeft beheerdersrechten. Verwijder eerst de beheerdersrechten uit de configuratie voordat u het account verwijdert.",
+            },
+        )
     deleted_email = target.email if target else ""
     deleted_name = target.name or deleted_email if target else ""
     if target and target.email:
@@ -79,5 +91,6 @@ def admin_delete_user(
             "found_user": None,
             "searched_email": "",
             "deleted_email": deleted_email,
+            "error_message": None,
         },
     )

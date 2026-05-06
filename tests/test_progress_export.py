@@ -268,6 +268,138 @@ class TestImportProgress:
         assert len(holders) == 1
 
 
+# ── full export → import roundtrip ───────────────────────────────────────────
+
+class TestFullRoundtrip:
+    """Export from user A; import YAML on user B and PDF on user C; verify parity."""
+
+    def _setup_source(self, db):
+        mentor = User(email="mentor@example.com", name="Leider Piet", status="active")
+        db.add(mentor)
+        db.commit()
+        scout = _make_user(db, email="scout_a@example.com", name="Scout A")
+        _make_entry(db, scout.id, level_index=0, step_index=0,
+                    status="in_progress", notes="Bezig met voorbereiding")
+        _make_entry(db, scout.id, level_index=0, step_index=1,
+                    status="work_done")
+        _make_entry(db, scout.id, level_index=1, step_index=0,
+                    status="signed_off", signed_off_by_id=mentor.id,
+                    signed_off_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
+                    notes="Goed gedaan")
+        _make_entry(db, scout.id, level_index=2, step_index=0,
+                    status="pending_signoff")  # must be absent from export
+        return scout
+
+    def _sorted_entries(self, db, user_id):
+        return (
+            db.query(ProgressEntry)
+            .filter_by(user_id=user_id)
+            .order_by(ProgressEntry.badge_slug,
+                      ProgressEntry.level_index,
+                      ProgressEntry.step_index)
+            .all()
+        )
+
+    def test_yaml_import_matches_export(self, db):
+        scout = self._setup_source(db)
+        data = export_data(db, scout.id)
+        yaml_str = to_yaml(data)
+
+        user_b = _make_user(db, email="scout_b@example.com", name="Scout B")
+        import_progress(db, user_b.id, yaml.safe_load(yaml_str))
+
+        entries = self._sorted_entries(db, user_b.id)
+        exported = sorted(data["progress"],
+                          key=lambda x: (x["badge_slug"], x["level_index"], x["step_index"]))
+
+        assert len(entries) == len(exported) == 3  # pending_signoff not exported
+        for item, entry in zip(exported, entries):
+            assert entry.badge_slug  == item["badge_slug"]
+            assert entry.level_index == item["level_index"]
+            assert entry.step_index  == item["step_index"]
+            assert entry.status      == item["status"]
+            assert entry.notes       == item["notes"]
+            signer = entry.signed_off_by.name if entry.signed_off_by else None
+            assert signer == item["signed_off_by"]
+
+    def test_pdf_import_matches_export(self, db):
+        scout = self._setup_source(db)
+        data = export_data(db, scout.id)
+        yaml_str = to_yaml(data)
+        pdf = embed_yaml_in_pdf(to_pdf(data), yaml_str)
+
+        user_c = _make_user(db, email="scout_c@example.com", name="Scout C")
+        extracted = extract_yaml_from_pdf(pdf)
+        assert extracted is not None
+        import_progress(db, user_c.id, yaml.safe_load(extracted))
+
+        entries = self._sorted_entries(db, user_c.id)
+        exported = sorted(data["progress"],
+                          key=lambda x: (x["badge_slug"], x["level_index"], x["step_index"]))
+
+        assert len(entries) == len(exported) == 3
+        for item, entry in zip(exported, entries):
+            assert entry.badge_slug  == item["badge_slug"]
+            assert entry.level_index == item["level_index"]
+            assert entry.step_index  == item["step_index"]
+            assert entry.status      == item["status"]
+            assert entry.notes       == item["notes"]
+            signer = entry.signed_off_by.name if entry.signed_off_by else None
+            assert signer == item["signed_off_by"]
+
+    def test_yaml_and_pdf_imports_are_equivalent(self, db):
+        """YAML and PDF imports of the same source produce identical progress."""
+        scout = self._setup_source(db)
+        data = export_data(db, scout.id)
+        yaml_str = to_yaml(data)
+        pdf = embed_yaml_in_pdf(to_pdf(data), yaml_str)
+
+        user_b = _make_user(db, email="scout_b@example.com", name="Scout B")
+        user_c = _make_user(db, email="scout_c@example.com", name="Scout C")
+
+        import_progress(db, user_b.id, yaml.safe_load(yaml_str))
+        import_progress(db, user_c.id, yaml.safe_load(extract_yaml_from_pdf(pdf)))
+
+        entries_b = self._sorted_entries(db, user_b.id)
+        entries_c = self._sorted_entries(db, user_c.id)
+
+        assert len(entries_b) == len(entries_c)
+        for b, c in zip(entries_b, entries_c):
+            assert b.badge_slug  == c.badge_slug
+            assert b.level_index == c.level_index
+            assert b.step_index  == c.step_index
+            assert b.status      == c.status
+            assert b.notes       == c.notes
+            b_signer = b.signed_off_by.name if b.signed_off_by else None
+            c_signer = c.signed_off_by.name if c.signed_off_by else None
+            assert b_signer == c_signer
+
+    def test_one_nameholder_per_signer_name(self, db):
+        """Importing the same signer via both YAML and PDF creates exactly one emailless user."""
+        scout = self._setup_source(db)
+        data = export_data(db, scout.id)
+        yaml_str = to_yaml(data)
+        pdf = embed_yaml_in_pdf(to_pdf(data), yaml_str)
+
+        user_b = _make_user(db, email="scout_b@example.com", name="Scout B")
+        user_c = _make_user(db, email="scout_c@example.com", name="Scout C")
+
+        import_progress(db, user_b.id, yaml.safe_load(yaml_str))
+        import_progress(db, user_c.id, yaml.safe_load(extract_yaml_from_pdf(pdf)))
+
+        # Collect all signer names referenced in the export
+        signer_names = {
+            item["signed_off_by"]
+            for item in data["progress"]
+            if item.get("signed_off_by")
+        }
+        for name in signer_names:
+            holders = db.query(User).filter(User.email.is_(None), User.name == name).all()
+            assert len(holders) == 1, (
+                f"Expected exactly 1 emailless user for '{name}', found {len(holders)}"
+            )
+
+
 # ── API endpoints ─────────────────────────────────────────────────────────────
 
 def _full_register(client, db, email="scout@example.com", password="validpass1", name="Scout"):

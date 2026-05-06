@@ -425,13 +425,16 @@ def export_download(request: Request, format: str = "yaml", db: Session = Depend
     data = export_svc.export_data(db, current_user.id)
     name = (current_user.name or "export").replace(" ", "_")
     if format == "pdf":
+        from datetime import datetime, timezone
         yaml_str = export_svc.to_yaml(data)
-        pdf_bytes = export_svc.to_pdf(data, data_dir=_DATA_DIR)
-        content = export_svc.embed_yaml_in_pdf(pdf_bytes, yaml_str)
+        pdf_bytes = export_svc.to_pdf(data, data_dir=_DATA_DIR, base_url=config.base_url)
+        content = export_svc.embed_yaml_in_pdf(pdf_bytes, yaml_str, base_url=config.base_url)
+        date_tag = datetime.now(timezone.utc).strftime("%Y%m%d")
+        filename = f"insignesysteem_export_{name}-{date_tag}.pdf"
         return StreamingResponse(
             iter([content]),
             media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{name}_voortgang.pdf"'},
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
     yaml_str = export_svc.to_yaml(data)
     return StreamingResponse(

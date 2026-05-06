@@ -284,3 +284,21 @@ class ContactRequest(BaseModel):
     sender_email: EmailStr | None = None
     captcha_token: str | None = None
     captcha_answer: int | None = None
+
+
+class AdminUserResponse(BaseModel):
+    id: str
+    email: str | None
+    name: str | None
+    status: str
+
+
+class AdminDashboardStats(BaseModel):
+    total_users: int
+    users_by_group: list[dict]
+    users_by_status: list[dict]
+    users_over_time: list[dict]
+    groups_over_time: list[dict]
+    speltakken_over_time: list[dict]
+    signoff_over_time: list[dict]
+    badges_over_time: list[dict]

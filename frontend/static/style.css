@@ -1169,6 +1169,49 @@ button:disabled, a[disabled] {
 
 /* ── Notifications ───────────────────────────────────────────────────────── */
 
+.drop-zone {
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+    padding: 2rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    background: #fafafa;
+    user-select: none;
+}
+
+.drop-zone:hover,
+.drop-zone--active {
+    border-color: #00A651;
+    background: #f0fdf4;
+}
+
+.drop-zone-icon {
+    width: 2rem;
+    height: 2rem;
+    color: #9ca3af;
+    margin: 0 auto 0.5rem;
+    display: block;
+}
+
+.drop-zone--active .drop-zone-icon,
+.drop-zone:hover .drop-zone-icon {
+    color: #00A651;
+}
+
+.drop-zone-text {
+    margin: 0 0 0.25rem;
+    font-size: 0.9rem;
+    color: #374151;
+    font-weight: 500;
+}
+
+.drop-zone-hint {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #9ca3af;
+}
+
 .notification-bar {
     background: #eff6ff;
     border: 1px solid #bfdbfe;

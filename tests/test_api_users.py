@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from insigne import users as user_svc
 from insigne.models import ConfirmationToken, EmailChangeRequest, User
 
@@ -244,6 +246,12 @@ class TestDeleteMe:
         token = _full_register(client, db)
         client.delete("/api/users/me", headers=_auth(token))
         assert db.query(User).filter_by(email="jan@example.com").first() is None
+
+    def test_sends_deletion_confirmation_email(self, client, db):
+        token = _full_register(client, db)
+        with patch("routers.api_users.send_account_deleted_email") as mock_send:
+            client.delete("/api/users/me", headers=_auth(token))
+        mock_send.assert_called_once_with("jan@example.com", "Jan")
 
 
 # ── POST /api/auth/token ──────────────────────────────────────────────────────

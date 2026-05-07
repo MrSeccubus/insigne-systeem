@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Voortgang exporteren — Insigne Systeem{% endblock %}
+{% block content %}
+<main style="max-width:640px;">
+    <h1>Voortgang exporteren & importeren</h1>
+
+    {% if import_result %}
+        {% if import_result.error %}
+        <div class="notification-bar" style="background:#fef2f2;border-color:#fca5a5;color:#991b1b;margin-bottom:1.5rem;">
+            {{ import_result.error }}
+        </div>
+        {% else %}
+        <div class="notification-bar" style="background:#f0fdf4;border-color:#86efac;color:#166534;margin-bottom:1.5rem;">
+            Import geslaagd — {{ import_result.count }} regel{{ 's' if import_result.count != 1 else '' }} verwerkt.
+        </div>
+        {% endif %}
+    {% endif %}
+
+    <section style="margin-bottom:2rem;">
+        <h2 style="font-size:1.1rem;margin-bottom:0.5rem;">Exporteren</h2>
+        <p style="font-size:0.9rem;color:#555;margin-bottom:1rem;">
+            Download je volledige voortgang. Aftekenverzoeken die nog openstaan worden niet meegenomen.
+            Zowel het PDF als het YAML bestand kun je later weer importeren.
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+            <a href="/export/download?format=pdf" class="btn-neutral"
+               style="text-decoration:none;text-align:center;">
+                Download PDF
+            </a>
+            <a href="/export/download?format=yaml" class="btn-neutral"
+               style="text-decoration:none;text-align:center;">
+                Download YAML
+            </a>
+        </div>
+    </section>
+
+    <section>
+        <h2 style="font-size:1.1rem;margin-bottom:0.5rem;">Importeren</h2>
+        <p style="font-size:0.9rem;color:#555;margin-bottom:1rem;">
+            Upload een eerder geëxporteerd <code>.yml</code>- of <code>.pdf</code>-bestand.
+            Bestaande voortgang wordt niet overschreven tenzij de geïmporteerde status verder is.
+            Openstaande aftekenverzoeken worden niet hersteld.
+        </p>
+        <form method="post" action="/export/import" enctype="multipart/form-data" id="import-form"
+              x-data="{
+                  dragging: false,
+                  filename: '',
+                  setFile(file) {
+                      this.filename = file ? file.name : '';
+                      const dt = new DataTransfer();
+                      if (file) dt.items.add(file);
+                      document.getElementById('import-file-input').files = dt.files;
+                  }
+              }"
+              @dragover.prevent="dragging = true"
+              @dragleave.prevent="dragging = false"
+              @drop.prevent="dragging = false; setFile($event.dataTransfer.files[0])">
+            <div class="drop-zone" :class="dragging ? 'drop-zone--active' : ''"
+                 @click="$refs.fileInput.click()">
+                <svg class="drop-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M12 16V8m0 0-3 3m3-3 3 3M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <p class="drop-zone-text" x-text="filename || 'Sleep een bestand hierheen of klik om te kiezen'"></p>
+                <p class="drop-zone-hint" x-show="!filename">.pdf, .yml of .yaml</p>
+                <input type="file" id="import-file-input" name="file" accept=".yml,.yaml,.pdf" required
+                       x-ref="fileInput" style="display:none;"
+                       @change="filename = $event.target.files[0]?.name || ''">
+            </div>
+            <div style="margin-top:0.75rem;">
+                <button type="submit" class="btn-primary" :disabled="!filename">Importeren</button>
+            </div>
+        </form>
+    </section>
+</main>
+{% endblock %}

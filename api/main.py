@@ -12,7 +12,7 @@ from insigne import progress as progress_svc
 from insigne.badges import get_badge, list_badges
 from insigne.config import config
 from insigne.database import get_db
-from routers import api_auth, api_badges, api_contact, api_groups, api_progress, api_users, api_version, html_badges, html_contact, html_groups, users
+from routers import api_admin, api_auth, api_badges, api_contact, api_groups, api_progress, api_users, api_version, html_admin, html_badges, html_contact, html_groups, users
 from routers.api_groups import invitations_router, pending_requests_router
 from routers.users import _get_current_user
 from templates import templates
@@ -25,6 +25,7 @@ IMAGES_DIR = DATA_DIR / "images"
 app = FastAPI()
 
 app.include_router(users.router)
+app.include_router(html_admin.router)
 app.include_router(html_badges.router)
 app.include_router(html_groups.router)
 app.include_router(html_contact.router)
@@ -34,6 +35,7 @@ app.include_router(api_auth.router, prefix="/api")
 app.include_router(api_progress.router, prefix="/api")
 app.include_router(api_badges.router, prefix="/api")
 app.include_router(api_version.router, prefix="/api")
+app.include_router(api_admin.router, prefix="/api")
 app.include_router(api_groups.router, prefix="/api")
 app.include_router(invitations_router, prefix="/api")
 app.include_router(pending_requests_router, prefix="/api")

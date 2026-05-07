@@ -221,6 +221,10 @@ def send_contact_form_email(to: str, sender_email: str, subject: str, body: str)
          email=to, sender_email=sender_email, subject=subject, body=body)
 
 
+def send_account_deleted_email(to: str, naam: str) -> None:
+    send(to, "account_deleted", email=to, naam=naam)
+
+
 def send_invite_group_leader_email(
     to: str, invited_by_name: str,
 ) -> None:

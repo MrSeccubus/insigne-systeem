@@ -4,6 +4,43 @@ Alle noemenswaardige wijzigingen per release, in omgekeerde chronologische volgo
 
 ---
 
+## [v0.11.0] — 2026-05-07
+
+### Beheerderspaneel met statistieken en voortgang exporteren/importeren
+
+#### Nieuw
+
+- **Beheerderspaneel** — admins zien nu een dashboardpagina (`/admin/dashboard`) met interactieve statistieken:
+  - Gebruikers over tijd, aftekeningactiviteit en groepsgrootte als lijngrafiek met dagelijkse granulariteit, zoom/pan en volledig scherm.
+  - Verdeling van gebruikers over groepen en speltakken als twee cirkeldiagrammen naast elkaar.
+  - Sleepselectie om een tijdsbereik in te zoomen; Ctrl+sleep om te verschuiven.
+- **Gebruikers verwijderen** — admins kunnen accounts verwijderen vanuit het beheerderspaneel.
+  - Bij verwijdering ontvangt de gebruiker een bevestigingsmail.
+  - Admins kunnen geen adminaccount verwijderen; de adminrechten moeten eerst worden ingetrokken.
+  - De verwijderknop wordt grijs en toont "Bezig met verwijderen…" tijdens de actie.
+  - Zelf-verwijdering via `/profile` stuurt ook een bevestigingsmail.
+- **Voortgang exporteren** — scouts kunnen hun volledige voortgang downloaden als YAML of PDF via het nieuwe scherm *Importeren/exporteren* (bereikbaar via het gebruikersmenu).
+  - De PDF toont per insigne een raster van 5 eisgroepen × 3 niveaus met de insigneafbeeldingen als kolomkoppen en statuskleurcodering.
+  - De PDF bevat een ingebedde YAML-bijlage die als paperclip-annotatie zichtbaar is in macOS Preview; de PDF-metadata (titel, auteur, onderwerp, aanmaakdatum) is correct ingesteld.
+  - Bestandsnaam: `insignesysteem_export_<naam>-<jjjjmmdd>.pdf`.
+- **Voortgang importeren** — scouts kunnen een eerder geëxporteerd YAML- of PDF-bestand uploaden om voortgang te herstellen.
+  - Bestaande voortgang wordt nooit verlaagd; een hogere status wint altijd.
+  - Openstaande aftekenverzoeken worden niet hersteld.
+  - De naam van de aftekener wordt bewaard (geen e-mailadres); bij import wordt een gedeelde naamhouder aangemaakt of hergebruikt.
+  - Drag-and-drop uploadzone op de importpagina.
+- **Gebruikersmenu** — de navigatiebalk toont nu een dropdown met de naam van de ingelogde gebruiker, met submenu-items: *Profiel bewerken*, *Importeren/exporteren* en *Uitloggen*.
+
+#### Verbeteringen
+
+- Uitloggen is verplaatst van de profielpagina naar het navigatiemenu.
+- Seed-script werkt correct wanneer groepen of speltakken al bestaan.
+
+#### Tests
+
+- 34 nieuwe tests voor de export/import-service en bijbehorende API-endpoints, inclusief volledige roundtrip-tests (YAML en PDF op verschillende gebruikers).
+
+---
+
 ## [v0.10.0] — 2026-04-29
 
 ### Mobielvriendelijke interface, privacybeleid en e-mailprivacy

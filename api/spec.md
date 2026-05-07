@@ -242,6 +242,42 @@ All fields are optional. Progress and sign-offs are stored against `user_id`, so
 
 ---
 
+#### `GET /api/users/me/export` — Export own progress 🔒
+
+Download all non-pending progress as a YAML or PDF file.
+
+Query parameter: `format` — `yaml` (default) or `pdf`.
+
+- **YAML**: UTF-8 encoded YAML file containing a `version: 1` document.
+- **PDF**: Human-readable PDF with a progress table per badge. The PDF also contains an embedded file attachment (`insigne_progress.yml`) with the full YAML, so both the PDF and the YAML can be used for import.
+
+Pending sign-off requests are excluded from the export. The `signed_off_by` field contains the mentor's **name**, not their email address.
+
+**Response `200`:** File download (`application/x-yaml` or `application/pdf`).
+
+---
+
+#### `POST /api/users/me/import` — Import progress 🔒
+
+Upload a previously exported `.yml`, `.yaml`, or `.pdf` file to restore progress entries.
+
+- If a `.pdf` is uploaded the embedded YAML attachment is extracted automatically.
+- Existing entries are **not downgraded**: an entry is only updated if the imported status is further along (`in_progress` → `work_done` → `signed_off`).
+- Pending sign-off requests are not restored.
+- For entries with `status: signed_off`, the value of `signed_off_by` (a name string) is resolved to an existing emailless user with that name, or a new emailless nameholder user is created. These nameholder users have no group or speltak memberships.
+
+**Request:** `multipart/form-data` with field `file`.
+
+**Response `200`:**
+
+```json
+{ "imported": 3 }
+```
+
+**Response `400`:** Wrong file type, unrecognised format, or no YAML attachment found in PDF.
+
+---
+
 #### `GET /api/users/me/memberships` — Get own active memberships 🔒
 
 Returns all active (approved, not withdrawn) group and speltak memberships for the authenticated user.
@@ -1404,6 +1440,17 @@ Requires speltakleider or groepsleider. Sets a scout's step status. Downgrading 
 **Response `409`:** Entry is in `pending_signoff` status and cannot be changed.
 
 **Response `422`:** Downgrading a `signed_off` entry without a `message`.
+
+---
+
+## Export / Import
+
+### HTML routes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/export` | Export & import page — download buttons for YAML/PDF export and a file-upload form for import. Auth required; redirects to `/login` otherwise. |
+| `POST` | `/export/import` | Handle import form submission — accepts `.yml`, `.yaml`, or `.pdf`; shows result inline. |
 
 ---
 

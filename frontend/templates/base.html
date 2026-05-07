@@ -117,7 +117,18 @@
                 {% if my_speltakken_count > 0 %}<a href="/my-speltakken">Mijn speltakken</a>{% endif %}
                 {% if current_user.is_admin or current_user.is_leader %}<a href="/groups">Groepsbeheer</a>{% endif %}
                 {% if current_user.is_admin %}<a href="/admin">Admin</a>{% endif %}
-                <a href="/profile">Mijn profiel</a>
+                <div class="nav-user-menu" x-data="{ open: false }" @click.outside="open = false">
+                    <button class="nav-user-btn" @click="open = !open" :aria-expanded="open">
+                        {{ current_user.name or current_user.email }}<span class="nav-user-caret" :class="open ? 'nav-user-caret--open' : ''">▾</span>
+                    </button>
+                    <div class="nav-user-dropdown" x-show="open" x-transition.duration.150ms @click="open = false">
+                        <a href="/profile" class="nav-user-item">Profiel bewerken</a>
+                        <a href="/export" class="nav-user-item">Importeren/exporteren</a>
+                        <form method="post" action="/logout" style="margin:0;">
+                            <button type="submit" class="nav-user-item nav-user-item--btn">Uitloggen</button>
+                        </form>
+                    </div>
+                </div>
             {% else %}
                 <a href="/login">Inloggen</a>
                 <a href="/register">Registreren</a>

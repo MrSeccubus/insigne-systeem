@@ -577,6 +577,19 @@ button:hover {
     margin: 0;
 }
 
+.badge-introduction ul,
+.badge-introduction ol,
+.badge-afterword ul,
+.badge-afterword ol {
+    margin: 0;
+    padding-left: 1.4em;
+}
+
+.badge-introduction li,
+.badge-afterword li {
+    margin: 0;
+}
+
 /* ── Badge overview grid (3 niveaus × 5 eisen) ───────────────────────────── */
 
 .badge-overview-grid {

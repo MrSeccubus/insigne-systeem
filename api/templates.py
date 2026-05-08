@@ -20,8 +20,8 @@ def _render_eis(text: str) -> Markup:
     """Render eis text as markdown; ==...== segments are coloured green."""
     _md.reset()
     html = _md.convert(text)
-    # Strip paragraph wrappers; separate multiple paragraphs with a single break
-    html = re.sub(r"</p>\s*<p>", "<br>", html)
+    # Strip paragraph wrappers; separate multiple paragraphs with a blank line
+    html = re.sub(r"</p>\s*<p>", "<br><br>", html)
     html = re.sub(r"^<p>|</p>$", "", html.strip())
     # nl2br emits "<br />\n" — collapse to a clean <br> so whitespace-mode never matters
     html = html.replace("<br />\n", "<br>")

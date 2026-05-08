@@ -35,11 +35,12 @@ eisen:
         a. Onderzoek de betekenis achter de logo's van WOSM en WAGGGS.
         b. Zoek uit in welke regio's de WOSM en WAGGGS zijn verdeeld en onder welke regio's Scouting Nederland valt.
         c. Maak een kwartetspel op basis van de regio's van WOSM of WAGGGS en speel het tijdens een opkomst.
-      - |
-        Duurzaamheid krijgt wereldwijd veel aandacht, ook binnen Scouting.
-        a. Verken de specifieke programma's op het gebied van duurzaamheid die WOSM en WAGGGS aanbieden.
-        b. Kies een activiteit uit één van deze programma's om zelf uit te voeren.
-        c. Zoek vijf voorbeelden van duurzaamheidsinsignes uit andere landen. Kies een activiteit om met je speltak uit te voeren.
+      - tekst: |
+          Duurzaamheid krijgt wereldwijd veel aandacht, ook binnen Scouting.
+          a. Verken de specifieke programma's op het gebied van duurzaamheid die WOSM en WAGGGS aanbieden.
+          b. Kies een activiteit uit één van deze programma's om zelf uit te voeren.
+          c. Zoek vijf voorbeelden van duurzaamheidsinsignes uit andere landen. Kies een activiteit om met je speltak uit te voeren.
+        groen: true
   - naam: Internationale contacten
     eisen:
       - |

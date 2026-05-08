@@ -726,9 +726,14 @@ button:hover {
 
 .step-text {
     font-size: 0.875rem;
-    line-height: 1.6;
+    line-height: 1.4;
     flex: 1;
     color: #333;
+    white-space: normal;
+}
+
+.step-text p {
+    margin: 0;
 }
 
 .eis-groen {

@@ -736,6 +736,16 @@ button:hover {
     margin: 0;
 }
 
+.step-text ul,
+.step-text ol {
+    margin: 0;
+    padding-left: 1.4em;
+}
+
+.step-text li {
+    margin: 0;
+}
+
 .eis-groen {
     color: #16a34a;
 }

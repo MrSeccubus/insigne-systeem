@@ -1,7 +1,9 @@
 import os
+import re
 from pathlib import Path
 
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup, escape
 
 from insigne.config import config
 from insigne.version import APP_VERSION, get_app_version, get_newer_release
@@ -9,8 +11,19 @@ from insigne.version import APP_VERSION, get_app_version, get_newer_release
 _FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 _CUSTOM_POLICY = _FRONTEND_DIR / "templates" / "privacy_policy_custom.md"
 
+_GREEN_RE = re.compile(r"==(.+?)==", re.DOTALL)
+
+
+def _render_eis(text: str) -> Markup:
+    """Convert ==...== markers to green <span> elements; HTML-escape everything else."""
+    escaped = str(escape(text))
+    rendered = _GREEN_RE.sub(r'<span class="eis-groen">\1</span>', escaped)
+    return Markup(rendered)
+
+
 templates = Jinja2Templates(directory=_FRONTEND_DIR / "templates")
 templates.env.globals["current_user"] = None
+templates.env.filters["render_eis"] = _render_eis
 templates.env.globals["dev"] = os.environ.get("INSIGNE_DEV") == "1"
 templates.env.globals["allow_any_user_to_create_groups"] = config.allow_any_user_to_create_groups
 templates.env.globals["app_version"] = get_app_version

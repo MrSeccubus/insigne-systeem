@@ -43,13 +43,21 @@ def get_badge(data_dir: Path, slug: str) -> dict | None:
         None,
     )
 
+    def _parse_step(i, step):
+        if isinstance(step, dict):
+            text = step.get("tekst", "").strip()
+            bevat_groen = step.get("bevat_groen", False)
+        else:
+            text = step.strip()
+            bevat_groen = False
+        if bevat_groen and "==" not in text:
+            text = f"=={text}=="
+        return {"index": i, "text": text, "green": bevat_groen or "==" in text}
+
     step_groups = [
         {
             "name": group["naam"],
-            "steps": [
-                {"index": i, "text": step.strip()}
-                for i, step in enumerate(group["eisen"])
-            ],
+            "steps": [_parse_step(i, step) for i, step in enumerate(group["eisen"])],
         }
         for group in raw.get("eisen", [])
     ]

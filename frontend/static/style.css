@@ -732,6 +732,10 @@ button:hover {
     color: #333;
 }
 
+.eis-groen {
+    color: #16a34a;
+}
+
 .step-check {
     width: 22px;
     height: 22px;

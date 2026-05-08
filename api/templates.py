@@ -13,9 +13,12 @@ _FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 _CUSTOM_POLICY = _FRONTEND_DIR / "templates" / "privacy_policy_custom.md"
 
 _GREEN_RE = re.compile(r"==(.+?)==", re.DOTALL)
-# Markdown requires a blank line before a bullet list.  Insert one when a
-# non-list line is immediately followed by a "* " or "- " list item.
-_ENSURE_LIST_GAP_RE = re.compile(r"(?m)^([^*\-\n][^\n]*)\n([*\-] )")
+# Markdown requires a blank line before a list.  Insert one when a
+# non-list, non-indented line is immediately followed by any list item
+# (unindented or indented bullet/ordered).  Excludes lines that are
+# themselves list items (start with space, * or -) so we don't double-space
+# consecutive list items.
+_ENSURE_LIST_GAP_RE = re.compile(r"(?m)^([^ \t*\-\n][^\n]*)\n( *(?:[*\-]|\d+\.) )")
 _md = _markdown_lib.Markdown(extensions=["nl2br"])
 
 

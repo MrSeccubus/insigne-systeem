@@ -2,8 +2,9 @@ import os
 import re
 from pathlib import Path
 
+import markdown as _markdown_lib
 from fastapi.templating import Jinja2Templates
-from markupsafe import Markup, escape
+from markupsafe import Markup
 
 from insigne.config import config
 from insigne.version import APP_VERSION, get_app_version, get_newer_release
@@ -12,14 +13,20 @@ _FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 _CUSTOM_POLICY = _FRONTEND_DIR / "templates" / "privacy_policy_custom.md"
 
 _GREEN_RE = re.compile(r"==(.+?)==", re.DOTALL)
-_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+_md = _markdown_lib.Markdown(extensions=["nl2br"])
 
 
 def _render_eis(text: str) -> Markup:
-    """Convert ==...== markers to green <span> and [text](url) to <a>; HTML-escape everything else."""
-    escaped = str(escape(text))
-    linked = _LINK_RE.sub(r'<a href="\2" target="_blank" rel="noopener noreferrer">\1</a>', escaped)
-    rendered = _GREEN_RE.sub(r'<span class="eis-groen">\1</span>', linked)
+    """Render eis text as markdown; ==...== segments are coloured green."""
+    _md.reset()
+    html = _md.convert(text)
+    # Strip paragraph wrappers; separate multiple paragraphs with a blank line
+    html = re.sub(r"</p>\s*<p>", "<br>\n", html)
+    html = re.sub(r"^<p>|</p>$", "", html.strip())
+    # Open links in a new tab
+    html = html.replace("<a href=", '<a target="_blank" rel="noopener noreferrer" href=')
+    # Convert ==...== to green spans
+    rendered = _GREEN_RE.sub(r'<span class="eis-groen">\1</span>', html)
     return Markup(rendered)
 
 

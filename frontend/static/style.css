@@ -727,7 +727,6 @@ button:hover {
 .step-text {
     font-size: 0.875rem;
     line-height: 1.6;
-    white-space: pre-line;
     flex: 1;
     color: #333;
 }
@@ -1428,7 +1427,6 @@ button:disabled, a[disabled] {
 .signoff-step-text {
     font-size: 0.875rem;
     color: #333;
-    white-space: pre-line;
     line-height: 1.55;
     background: #f9fafb;
     padding: 0.5rem 0.7rem;

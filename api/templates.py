@@ -12,12 +12,14 @@ _FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 _CUSTOM_POLICY = _FRONTEND_DIR / "templates" / "privacy_policy_custom.md"
 
 _GREEN_RE = re.compile(r"==(.+?)==", re.DOTALL)
+_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 
 
 def _render_eis(text: str) -> Markup:
-    """Convert ==...== markers to green <span> elements; HTML-escape everything else."""
+    """Convert ==...== markers to green <span> and [text](url) to <a>; HTML-escape everything else."""
     escaped = str(escape(text))
-    rendered = _GREEN_RE.sub(r'<span class="eis-groen">\1</span>', escaped)
+    linked = _LINK_RE.sub(r'<a href="\2" target="_blank" rel="noopener noreferrer">\1</a>', escaped)
+    rendered = _GREEN_RE.sub(r'<span class="eis-groen">\1</span>', linked)
     return Markup(rendered)
 
 

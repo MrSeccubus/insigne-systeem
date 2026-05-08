@@ -46,7 +46,7 @@ def get_badge(data_dir: Path, slug: str) -> dict | None:
     def _parse_step(i, step):
         if isinstance(step, dict):
             text = step.get("tekst", "").strip()
-            bevat_groen = step.get("bevat_groen", False)
+            bevat_groen = step.get("groen", False)
         else:
             text = step.strip()
             bevat_groen = False

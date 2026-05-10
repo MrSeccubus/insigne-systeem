@@ -28,9 +28,9 @@ def _render_eis(text: str) -> Markup:
     processed = _ENSURE_LIST_GAP_RE.sub(r"\1\n\n\2", text)
     html = _md.convert(processed)
     # Normalise block boundaries so the result is inline-friendly
-    html = re.sub(r"</p>\s*<p>", "<br><br>", html)   # paragraph gap
+    html = re.sub(r"</p>\s*<p>", "<br><br>", html)  # explicit blank line between paragraphs
     html = re.sub(r"</p>(\s*)<", r"<br>\1<", html)   # </p> before any other block
-    html = re.sub(r"(</\w+>)\s*<p>", r"\1<br>", html) # closing block before <p>
+    html = re.sub(r"(</\w+>)\s*<p>", r"\1", html)    # closing block before <p> — no extra <br>
     html = re.sub(r"</?p>", "", html.strip())
     # nl2br emits "<br />\n" — collapse to a clean <br>
     html = html.replace("<br />\n", "<br>")

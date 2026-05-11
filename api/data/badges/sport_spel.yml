@@ -1,7 +1,7 @@
 slug: sport_spel
 titel: Insigne Sport & Spel
 introductie: |
-  Dit insigne maakt deel uit van het activiteitengebied Sport & Spel.
+  ***Dit insigne maakt deel uit van het activiteitengebied Sport & Spel.***
   Sport & Spel is een activiteitengebied met heel veel mogelijkheden om zelf of samen met anderen te
   doen. Met dit insigne maak je kennis met enkele sporten die je nog niet kent en leer je zelf een spel- of
   sportactiviteit te organiseren.
@@ -31,20 +31,23 @@ eisen:
         a. Meld je aan bij de organisatie van een regioactiviteit. Neem de leiding over ten minste één onderdeel, bereid deze zelfstandig voor en zorg voor de uitvoering.
   - naam: Bedenken
     eisen:
-      - |
-        Spellen spelen is niet alleen leuk, maar ook leerzaam!
-        a. Maak een kwartetspel met onderwerpen over natuur en duurzaamheid.
-        b. Maak aanvullend materiaal, zoals een uitlegboekje met spelregels of een eigen spelbord. Test het nieuwe spel met je speltak.
-      - |
-        Je kunt spellen bedenken voor verschillende speltakken.
-        a. Zoek een spel dat te maken heeft met duurzaamheid of pas daarvoor een bekend spel aan.
-        b. Geef speluitleg aan en speel het spel met je eigen of een andere speltak.
-        c. Evalueer het spel na afloop met de leiding, aan de hand van tips en tops.
-      - |
-        Duurzaamheid is een belangrijk thema. Het is een mooie uitdaging om dit thema te integreren in je spellen.
-        a. Organiseer een spellencircuit met ten minste vijf activiteiten gericht op duurzaamheid, geschikt voor minimaal 25 deelnemers. Regel, indien nodig, vrijwilligers om te helpen bij het begeleiden van de verschillende onderdelen.
-        b. Evalueer het spel na afloop met de deelnemers en vrijwilligers.
-        c. Onderzoek hoeveel materiaal en energie verbruikt zijn voorafgaand aan en tijdens het spellencircuit. Bedenk manieren om deze voetafdruk in de toekomst te laten verdwijnen.
+      - groen: true
+        tekst: |
+          Spellen spelen is niet alleen leuk, maar ook leerzaam!
+          a. Maak een kwartetspel met onderwerpen over natuur en duurzaamheid.
+          b. Maak aanvullend materiaal, zoals een uitlegboekje met spelregels of een eigen spelbord. Test het nieuwe spel met je speltak.
+      - groen: true
+        tekst: |
+          Je kunt spellen bedenken voor verschillende speltakken.
+          a. Zoek een spel dat te maken heeft met duurzaamheid of pas daarvoor een bekend spel aan.
+          b. Geef speluitleg aan en speel het spel met je eigen of een andere speltak.
+          c. Evalueer het spel na afloop met de leiding, aan de hand van tips en tops.
+      - groen: true
+        tekst: |
+          Duurzaamheid is een belangrijk thema. Het is een mooie uitdaging om dit thema te integreren in je spellen.
+          a. Organiseer een spellencircuit met ten minste vijf activiteiten gericht op duurzaamheid, geschikt voor minimaal 25 deelnemers. Regel, indien nodig, vrijwilligers om te helpen bij het begeleiden van de verschillende onderdelen.
+          b. Evalueer het spel na afloop met de deelnemers en vrijwilligers.
+          c. Onderzoek hoeveel materiaal en energie verbruikt zijn voorafgaand aan en tijdens het spellencircuit. Bedenk manieren om deze voetafdruk in de toekomst te laten verdwijnen.
   - naam: Spelleiding
     eisen:
       - |

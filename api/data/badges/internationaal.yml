@@ -1,7 +1,7 @@
 slug: internationaal
 titel: Insigne Internationaal
 introductie: |
-  Dit insigne maakt deel uit van het activiteitengebied Internationaal.
+  ***Dit insigne maakt deel uit van het activiteitengebied Internationaal.***
   Scouting is een internationale, wereldwijde organisatie. Bij het activiteitengebied Internationaal doe je
   activiteiten waarbij je meer te weten komt over Scouting wereldwijd en andere culturen of je doet mee aan
   internationale uitwisselingen. Met deze insignes maak je kennis met het internationale aspect van Scouting.
@@ -76,11 +76,12 @@ eisen:
         Ieder land heeft een nationale vlag met een unieke betekenis.
         a. Teken vijf verschillende bestaande vlaggen van andere landen en zoek uit wat de betekenis is van de kleuren of afbeeldingen.
         b. Presenteer je tekeningen aan je speltak. Vertel van welk land elke vlag is en wat de betekenis ervan is.
-      - |
-        In Nederland woont bijna iedereen in stenen huizen, maar dat is niet overal zo.
-        a. Selecteer vijf verschillende bouwstijlen uit vijf verschillende landen. Onderzoek de oorsprong en duurzaamheid van elke stijl.
-        b. Presenteer je onderzoek aan de hand van een creatie, zoals een plakboek, PowerPoint of miniatuurnabootsingen.
-        c. Onderzoek de ecologische voetafdruk van de vijf landen en identificeer de belangrijkste oorzaken van eventuele verschillen.
+      - tekst: |
+          In Nederland woont bijna iedereen in stenen huizen, maar dat is niet overal zo.
+          a. Selecteer vijf verschillende bouwstijlen uit vijf verschillende landen. Onderzoek de oorsprong en duurzaamheid van elke stijl.
+          b. Presenteer je onderzoek aan de hand van een creatie, zoals een plakboek, PowerPoint of miniatuurnabootsingen.
+          c. Onderzoek de ecologische voetafdruk van de vijf landen en identificeer de belangrijkste oorzaken van eventuele verschillen.
+        groen: true
       - |
         Elk land heeft z'n eigen cultuur en dat kan effect hebben op de lokale Scoutingorganisatie en -activiteiten.
         a. Kies een land buiten Europa en onderzoek hoe culturele gebruiken daar de organisatie en activiteiten van Scouting beïnvloeden.

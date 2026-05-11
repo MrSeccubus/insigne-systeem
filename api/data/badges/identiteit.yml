@@ -1,16 +1,17 @@
 slug: identiteit
 titel: Insigne Identiteit
 introductie: |
-  Dit insigne maakt deel uit van het activiteitengebied Identiteit.
+  ***Dit insigne maakt deel uit van het activiteitengebied Identiteit.***
   Bij dit activiteitengebied doe je activiteiten die te maken hebben met wie je zelf bent (zelfbeeld),
   je levensovertuiging en de identiteit van je groep. Met dit insigne ga je aan de slag met wat jou
   en jouw groep uniek maakt en hoe je naar jezelf en anderen kijkt.
 eisen:
   - naam: Ik
     eisen:
-      - |
-        a. Teken of schilder een zelfportret. Noteer daarbij welke hobby's en talenten je hebt.
-        b. Maak een foto van jezelf in de natuur en voeg deze toe aan het portret. Leg daarbij uit wat je graag doet in de natuur en waarom de natuur belangrijk voor je is.
+      - tekst: |
+          a. Teken of schilder een zelfportret. Noteer daarbij welke hobby's en talenten je hebt.
+          b. Maak een foto van jezelf in de natuur en voeg deze toe aan het portret. Leg daarbij uit wat je graag doet in de natuur en waarom de natuur belangrijk voor je is.
+        groen: true
       - |
         a. Vraag vijf mensen om te delen waar jij goed in bent en waarom.
         b. Vraag vijf mensen om te delen waar jij je nog in kunt ontwikkelen.
@@ -38,10 +39,11 @@ eisen:
       - |
         a. Leer de wet en belofte uit je hoofd. Vertel in je eigen woorden wat de wet en belofte voor jou betekenen.
         b. Bedenk twee manieren hoe je de normen en waarden uit de wet en belofte buiten Scouting kunt toepassen. Voer deze acties uit en deel de resultaten.
-      - |
-        a. Geef een presentatie over welke waarde de natuur voor jou heeft en welke waarden je belangrijk vindt.
-        b. Ontwikkel een plan om met jouw waarden de natuur te verbeteren.
-        c. Voer je natuurverbeterplan uit en evalueer het resultaat.
+      - tekst: |
+          a. Geef een presentatie over welke waarde de natuur voor jou heeft en welke waarden je belangrijk vindt.
+          b. Ontwikkel een plan om met jouw waarden de natuur te verbeteren.
+          c. Voer je natuurverbeterplan uit en evalueer het resultaat.
+        groen: true
       - |
         a. Reflecteer op de betekenis van: 'Ik wil samen met anderen het goede zoeken en bevorderen'. Beschrijf wat 'het goede' voor jou inhoudt binnen Scouting.
         b. Ontwikkel een plan om actief bij te dragen aan het bevorderen van 'het goede'. Voer dit plan uit en deel je ervaringen.
@@ -70,6 +72,7 @@ eisen:
         a. Inventariseer de verschillende culturen en geloofsovertuigingen binnen je speltak.
         b. Noteer de feestdagen die gevierd worden en benoem eventuele overeenkomsten.
         c. Kies een feestdag die je zelf nog niet kent en organiseer een passende activiteit.
-      - |
-        a. Vergelijk hoe natuur wordt beleefd in Nederland met een land of cultuur waar de natuurbeleving anders is.
-        b. Presenteer de verschillen aan je speltak en geef je mening.
+      - tekst: |
+          a. Vergelijk hoe natuur wordt beleefd in Nederland met een land of cultuur waar de natuurbeleving anders is.
+          b. Presenteer de verschillen aan je speltak en geef je mening.
+        groen: true

@@ -19,53 +19,83 @@ eisen:
         Gewijzigde tuigage.
         a. Regel een grotere fok en grootzeil (bijv. 16 m²) voor je lelievlet. Monteer deze en ga daarmee varen.
         b. Observeer hoe de vaareigenschappen veranderen en leg dit uit.
+
+        *(Lees ook de toelichting bij dit insigne!)*
   - naam: Alternatief varen
     eisen:
       - |
-        a. Sleep je boot minstens 25 meter voort met een anker of emmers.
+        Je kan je boot ook op andere manieren voortbewegen.
+        a.  Sleep je boot minstens 25 meter voort met een anker of emmers.
       - |
-        Smal vaarwater.
-        a. Jaag je lelievlet minimaal 200 meter door smal vaarwater.
-        b. Boom je lelievlet minstens 50 meter door smal vaarwater.
-        c. Wrik je vlet minstens 200 meter door smal vaarwater.
+        Soms kom je in smal vaarwater en is zeilen niet goed mogelijk. Je wilt dan toch varen.
+        a.  Jaag je lelievlet minimaal 200 meter door smal vaarwater.
+        b.  Boom je lelievlet minstens 50 meter door smal vaarwater.
+        c.  Wrik je vlet minstens 200 meter door smal vaarwater.
       - |
-        Creatieve koppeling. Kies één van de volgende eisen.
-        a. Monteer twee lelievletten aan elkaar zodat er een catamaran ontstaat. Ga hiermee zeilen.
-        b. Maak zelf een catamaran, bestaande uit minimaal twee drijvers en een mast.
-        c. Creëer een tweemaster door twee lelievletten achter elkaar te zetten. Ga hiermee zeilen.
+        Je kunt ook twee boten op een creatieve manier met elkaar verbinden. 
+        *Kies één van de volgende eisen:*
+        a.  Monteer twee lelievletten aan elkaar zodat er een catamaran ontstaat. Ga hiermee zeilen.
+        b.  Maak zelf een catamaran, bestaande uit minimaal twee drijvers en een mast.
+        c.  Creëer een tweemaster door twee lelievletten achter elkaar te zetten. Ga hiermee zeilen.
+
+        *(Lees de toelichting bij dit insigne!)*
   - naam: Andere zeilboten
     eisen:
       - |
-        a. Vaar zelf in een klein zeilbootje zoals een Piraat, Optimist of Leukothea.
+        Bij Scouting gebruiken we vaak lelievletten, maar er zijn natuurlijk nog heel veel andere soorten zeilboten waar je mee kunt leren zeilen.
+        a.  Vaar zelf in een klein zeilbootje zoals een Piraat, Optimist of Leukothea.
       - |
-        a. Vaar (zelf) met een Laser, Valk, BM, 16² of een andere open zeilboot vergelijkbaar met een lelievlet.
+        Er zijn meerdere open zeilboten die in grootte vergelijkbaar zijn met een lelievlet. Elk type boot heeft z’n eigen karakter.
+        a.  Vaar (zelf) met een Laser, Valk, BM, 16² of met een andere open zeilboot die qua grootte vergelijkbaar is met een lelievlet.
       - |
-        Groot schip.
-        a. Vaar zelf in een (zeil)schip langer dan 10 meter.
-        b. Vaar (mee) op een tweemaster.
+        Kleine bootjes, grote bootjes. Als ervaren bemanningslid heb je met beide ervaring.
+        a.  Vaar zelf in een (zeil)schip langer dan 10 meter.
+        b.  Vaar (mee) op een tweemaster.
   - naam: Duurzaam varen
     eisen:
-      - |
-        Milieuvriendelijk spelevaren.
-        a. Maak een vlot van afvalmaterialen of eenvoudige materialen (bijv. piepschuim, reddingsvesten, PET-flessen, oude jerrycans of regentonnen).
-      - |
-        Motorschip.
-        a. Vaar zelf op een schip met (buitenboord)motor, zoals een Zodiac. Kies bij voorkeur een boot met een zo duurzame mogelijke aandrijving.
-      - |
-        Alternatieve voortdrijving.
-        a. Beweeg je boot minimaal 500 meter voort zonder zeilen, roeien, wrikken, brandstofmotor of standaard elektrische motor. Bedenk zelf een duurzame alternatieve voortdrijvingsmethode.
+      - tekst: |
+          Ook zonder boot kun je spelevaren op een milieuvriendelijke manier, zonder brandstof te gebruiken. 
+          a.  Maak een vlot met afvalmaterialen of eenvoudige materialen. Denk aan (oud) piepschuim, reddingsvesten, PET-flessen, oude jerrycans of regentonnen.
+        groen: true
+      - tekst: |
+          Als bemanningslid maak je ook kennis met boten met een (buitenboord)motor.
+          a.  Vaar zelf op een schip met (buitenboord)motor, zoals een Zodiac.
+
+          ==Als je kunt kiezen uit verschillende soorten boten, kies dan een boot met een zo duurzame mogelijke aandrijving, dus een elektrische motor of biobrandstof of soortgelijke aandrijving. ==
+        groen: true
+      - tekst: |
+          Wees creatief in het voortbewegen van je boot. 
+          a.  Beweeg je boot minimaal 500 meter voort zonder zeilen, roeien, wrikken, brandstofmotor of standaard elektrische motor. Bedenk zelf een duurzame alternatieve voortdrijvingsmethode. 
+        groen: true        
   - naam: Modelvaren
     eisen:
+      - tekst: |
+          Je kan in het klein al oefenen met varen.
+          a.  Maak een zeilklomp of varend modelbootje. Gebruik hiervoor duurzame materialen.
+        groen: true
       - |
-        a. Maak een zeilklomp of varend modelbootje. Gebruik hiervoor duurzame materialen.
+        Om iets in het groot te kunnen ontwerpen beginnen scheepsbouwers vaak eerst in het klein.
+        a.  Maak een model van een lelievlet en ga dit testvaren
       - |
-        Model lelievlet.
-        a. Maak een model van een lelievlet en ga dit testvaren.
-      - |
-        Buitenlandse zeilboot.
-        a. Maak een model van een buitenlandse zeilboot met een afwijkende zeilconfiguratie (geen topzeil of gaffelzeil).
-        b. Ga (proef)varen met het model. Maak het model bestuurbaar op afstand zodra je de vaareigenschappen kent.
+        Kijk eens over de grenzen heen naar andere typen zeilboten en zeilconfiguraties. 
+        a.  Maak een model van een buitenlandse zeilboot. Dit scheepje moet een afwijkende zeilconfiguratie hebben (geen topzeil of gaffelzeil).
+        b.  Ga (proef)varen met het model. Maak het model bestuurbaar op afstand zodra je de vaareigenschappen kent.
 nawoord: |
-  Door het experimentele karakter brengt dit insigne iets meer risico's met zich mee. Zorg voor goede
-  begeleiding en extra aandacht voor veiligheidsmaatregelen (NTR), met name reddingsvesten.
-  Niveau 1 is uitvoerbaar voor niet-waterscouts. Niveaus 2 en 3 zijn vooral bedoeld voor waterscouts.
+  # Toelichting Insigne Creatief Varen
+
+  **Algemeen**
+  Sommige eisen vragen minder gebruikelijke vaarmiddelen. Hierbij kun je kiezen om een opkomst een keer te combineren met een uitwisseling met een watersportvereniging o.i.d. of regel dergelijke vaartuigen met meerdere speltakken of groepen. Daarmee beperk je de kosten. Je hoeft niet precies het genoemde vaartuig te regelen, het mag ook een gelijkwaardig alternatief zijn, zolang het de scouts laat kennismaken met nieuwe vaarmiddelen en ook een zelfde soort uitdaging biedt.
+
+  **Veiligheid en verzekeringen**
+  Door het experimentele karakter brengt dit insigne iets meer risico’s met zich mee in vergelijking met andere insignes. Daarmee is dit insigne meer geschikt voor jeugdleden met meer ervaring in varen en goede zwemvaardigheid. Zorg ook voor goede begeleiding en let ook extra goed op je veiligheidsmaatregelen, zoals ook omschreven in de NTR, met name op het gebied van reddingsvesten. 
+
+  Dit hogere risico kan ook meespelen in verzekeringen. In sommige verzekeringen wordt het aanpassen van je schip buiten de gebruikelijke configuraties niet toegestaan en kan de dekking vervallen bij schade. Kies dan voor een alternatieve eis. Soms is die omschreven, maar je kunt zelf ook kijken naar een gelijkwaardige eis met een soortgelijke uitdaging.
+
+  **Insigne Creatief Varen voor niet-waterscouts**
+  Niveau 1 van het insigne is zonder aanpassingen uitvoerbaar voor niet-waterscouts. Voor niveau 2 en 3 is meer ervaring met varen noodzakelijk, hier zitten ook onderdelen bij met hoger risico. De niveaus 2 en 3 zijn dan ook vooral bedoeld voor waterscouts.
+
+  Voor dit insigne is het goed om contact te leggen met een waterscoutinggroep. Zij hebben veel vaarmateriaal en weten hier goed mee om te gaan. Binnen de richtlijnen van Scouting Nederland, de [Nautisch Technische Richtlijnen (NTR)](https://www.scouting.nl/bestuur/afspraken-maken/ntr-veiligheid-op-het-water), is het ook verplicht om begeleiding met passende kwalificaties bij je activiteit te hebben. 
+
+  **Handige links en informatie:**
+  Voor spelen op en rond het water zijn veel voorbeelden te vinden op de Activiteitenbank, kies dan voor locatie ‘Op en om het water’, 
+  [https://activiteitenbank.scouting.nl/](https://activiteitenbank.scouting.nl/)

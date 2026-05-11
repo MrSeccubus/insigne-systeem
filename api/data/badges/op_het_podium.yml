@@ -1,16 +1,17 @@
 slug: op_het_podium
 titel: Insigne Op het podium
 introductie: |
-  Dit insigne maakt deel uit van het activiteitengebied Expressie.
+  ***Dit insigne maakt deel uit van het activiteitengebied Expressie.***
   In dit activiteitengebied doe je activiteiten waarmee je je kunt uitdrukken, zoals dansen, filmen,
   handvaardigheid, toneelspelen, muziek maken en schrijven. Met dit insigne ga je aan de slag met
   activiteiten waarmee je jezelf tijdens een voorstelling of op een podium kunt laten zien.
 eisen:
   - naam: Toneelspel
     eisen:
-      - |
-        Met toneelspel kun je heel goed een boodschap overbrengen.
-        a. Verzin een reclame over het hergebruiken (recyclen) van spullen of verpakkingsmaterialen en presenteer dat aan je speltak. Je mag andere leden van je speltak vragen met je mee te doen.
+      - tekst: |
+          Met toneelspel kun je heel goed een boodschap overbrengen.
+          a. Verzin een reclame over het hergebruiken (recyclen) van spullen of verpakkingsmaterialen en presenteer dat aan je speltak. Je mag andere leden van je speltak vragen met je mee te doen.
+        groen: true
       - |
         Durf te improviseren en laat je fantasie de vrije loop!
         a. Zoek uit waar het theatersportprincipe 'LEF' voor staat.
@@ -22,19 +23,24 @@ eisen:
         b. Doe een podiumoptreden waarbij je een sketch, toneelstuk of presentatie voordraagt in een rol. Besteed aandacht aan de aankleding van het podium, jezelf en eventueel schmink.
   - naam: Verhalen vertellen
     eisen:
-      - |
-        Je kunt een verhaal vertellen door het uit te beelden, zonder woorden.
-        a. Verzin een kort verhaal om milieuvervuiling tegen te gaan en beeld dat in maximaal 1 minuut uit in een sketch tijdens een opkomst, weekend of kamp.
-        b. Speel het verhaal drie keer: één keer boos, één keer blij en één keer verdrietig.
-      - |
-        Er zijn verschillende manieren om een verhaal te vertellen.
-        a. Zoek minimaal zes verschillende technieken op die je kunt gebruiken om een verhaal te vertellen.
-        b. Kies drie technieken uit die je toepast in een verhaal over duurzaamheid dat je vertelt of voordraagt aan je speltak.
-        c. Vraag tips en tops aan de leden van je speltak.
-        d. Vertel een deel van het verhaal nog een keer en gebruik daarbij de verbetertips.
-      - |
-        Een verhaal goed voordragen is een kunst.
-        a. Schrijf een monoloog over duurzaamheid en draag dit voor als verhaal of kampvuursketch, waarbij je rekening houdt met de opbouw en de spanningsboog.
+      - groen: true
+        tekst: |
+          Je kunt een verhaal vertellen door het uit te beelden, zonder woorden.
+          ==a. Verzin een kort verhaal om milieuvervuiling tegen te gaan en beeld dat in maximaal 1 minuut uit in een sketch tijdens een opkomst, weekend of kamp.==
+          b. Speel het verhaal drie keer: één keer boos, één keer blij en één keer verdrietig.
+      - groen: true
+        tekst: |
+          Er zijn verschillende manieren om een verhaal te vertellen.
+          a. Zoek minimaal zes verschillende technieken op die je kunt gebruiken om een verhaal te vertellen.
+          ==b. Kies drie technieken uit die je toepast in een verhaal over duurzaamheid dat je vertelt of voordraagt aan je speltak.==
+          c. Vraag tips en tops aan de leden van je speltak.
+          d. Vertel een deel van het verhaal nog een keer en gebruik daarbij de verbetertips.
+
+          _Tip: Op [wikipedia](https://nl.wikipedia.org/wiki/Verteltechniek) is veel informatie te vinden over de verschillende verteltechnieken._
+      - groen: true
+        tekst: |
+          Een verhaal goed voordragen is een kunst.
+          a. Schrijf een monoloog over duurzaamheid en draag dit voor als verhaal of kampvuursketch, waarbij je rekening houdt met de opbouw en de spanningsboog.
   - naam: Dansen
     eisen:
       - |

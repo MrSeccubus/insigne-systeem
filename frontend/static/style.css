@@ -1952,12 +1952,6 @@ button:disabled, a[disabled] {
 
 /* ── Responsive: tablet (≤ 900px) ──────────────────────────────────────── */
 
-@media (max-width: 900px) {
-    .badge-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
 /* ── Responsive: mobile (≤ 640px) ──────────────────────────────────────── */
 
 @media (max-width: 640px) {

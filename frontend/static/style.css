@@ -1952,15 +1952,9 @@ button:disabled, a[disabled] {
 
 /* ── Responsive: tablet (≤ 900px) ──────────────────────────────────────── */
 
-@media (max-width: 900px) {
-    .badge-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
+/* ── Responsive: mobile (≤ 640px) ──────────────────────────────────────── */
 
-/* ── Responsive: mobile (portrait ≤ 640px, or landscape phone ≤ 900px) ─── */
-
-@media (max-width: 640px), (max-width: 900px) and (orientation: landscape) {
+@media (max-width: 640px) {
     main {
         padding: 0.75rem;
     }

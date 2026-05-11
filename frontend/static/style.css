@@ -1958,9 +1958,9 @@ button:disabled, a[disabled] {
     }
 }
 
-/* ── Responsive: mobile (≤ 640px) ──────────────────────────────────────── */
+/* ── Responsive: mobile (portrait ≤ 640px, or landscape phone ≤ 900px) ─── */
 
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-width: 900px) and (orientation: landscape) {
     main {
         padding: 0.75rem;
     }

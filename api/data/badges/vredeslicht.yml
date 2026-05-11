@@ -62,24 +62,27 @@ eisen:
         a. Schrijf een interview over wat het Vredeslicht voor iemand betekent (bijv. staflid, ouder) en neem het af.
         b. Organiseer een activiteit waarin je het thema 'vrede' bespreekt met jongere speltakken (spel, verhaal, gesprek).
         c. Ontwerp een poster of social media post die laat zien hoe jij het Vredeslicht en vrede zou uitdragen.
-        d. Onderzoek hoe het Vredeslicht verbonden is met het landgoed 'Zeewolde' en wat de betekenis hierachter is (tip: kijk op https://Vredeslicht.nl).
+        d. Onderzoek hoe het Vredeslicht verbonden is met het landgoed 'Zeewolde' en wat de betekenis hierachter is (tip: kijk op [https://Vredeslicht.nl](https://Vredeslicht.nl)).
   - naam: Creatief en duurzaam
     eisen:
-      - |
-        Laat je fantasie de vrije loop en creëer je eigen vredeskunstwerk.
-        a. Versier een stompkaars met stiften of kaarsvet (onder toezicht van een volwassene).
-        b. Knutsel een 'Vredeslantaarn' met gerecyclede materialen (wc-rol, melkpak, glazen pot) en plaats daar een Vredeslichtje in.
-        c. Verzamel bladeren en maak er een natuurcollage van met het woord "Vrede".
-        d. Geef iemand buiten je familie een knutselwerkje of tekening met een vredeswens.
-      - |
-        Creëer je eigen vredeskunstwerk met woorden en gerecycled materiaal.
-        a. Maak een lantaarn van een oud leeg blik en sla een licht patroon met spijkers in het blik.
-        b. Schrijf een vredeslicht wens van minimaal 2 alinea's en draag dat voor.
-        c. Maak een nieuwe kaars van oude gebruikte kaarsen.
-      - |
-        Het Vredeslicht wordt over de hele wereld verspreid.
-        a. Organiseer een opkomst waarbij vredeslantaarns worden gemaakt voor de eigen of een andere (jongere) speltak en verspreid zo het Vredeslicht.
-        b. Ontwerp een plan om het Vredeslicht op nog een andere duurzame manier in je groep te verspreiden (bijv. zonder wegwerp kaarsjes, met fietstocht i.p.v. auto).
+      - groen: true
+        tekst: |
+          Laat je fantasie de vrije loop en creëer je eigen vredeskunstwerk.
+          a. Versier een stompkaars met stiften of kaarsvet (onder toezicht van een volwassene).
+          ==b. Knutsel een 'Vredeslantaarn' met gerecyclede materialen (wc-rol, melkpak, glazen pot) en plaats daar een Vredeslichtje in.==
+          ==c. Verzamel bladeren en maak er een natuurcollage van met het woord "Vrede".==
+          d. Geef iemand buiten je familie een knutselwerkje of tekening met een vredeswens.
+      - groen: true
+        tekst: |
+          Creëer je eigen vredeskunstwerk met woorden en gerecycled materiaal.
+          ==a. Maak een lantaarn van een oud leeg blik en sla een licht patroon met spijkers in het blik.==
+          ==b. Schrijf een vredeslicht wens van minimaal 2 alinea's en draag dat voor.==
+          ==c. Maak een nieuwe kaars van oude gebruikte kaarsen.==
+      - groen: true
+        tekst: |
+          Het Vredeslicht wordt over de hele wereld verspreid.
+          ==a. Organiseer een opkomst waarbij vredeslantaarns worden gemaakt voor de eigen of een andere (jongere) speltak en verspreid zo het Vredeslicht.==
+          ==b. Ontwerp een plan om het Vredeslicht op nog een andere duurzame manier in je groep te verspreiden (bijv. zonder wegwerp kaarsjes, met fietstocht i.p.v. auto).==
   - naam: Evenement en eigen bijdrage
     eisen:
       - |
@@ -105,6 +108,6 @@ nawoord: |
   voor de evenementen worden gepost op de socials van Vredeslicht Nederland.
 
   Informatiebronnen:
-  https://Vredeslicht.nl
-  https://nl.scoutwiki.org/Vredeslicht
-  https://friedenslicht.orf.at/navigation/international/index.html
+  [https://Vredeslicht.nl](https://Vredeslicht.nl)
+  [https://nl.scoutwiki.org/Vredeslicht](https://nl.scoutwiki.org/Vredeslicht)
+  [https://friedenslicht.orf.at/navigation/international/index.html](https://friedenslicht.orf.at/navigation/international/index.html)

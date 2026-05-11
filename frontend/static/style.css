@@ -556,7 +556,6 @@ button:hover {
 .badge-introduction {
     color: #444;
     line-height: 1.7;
-    white-space: pre-line;
     border-left: 3px solid #00A651;
     padding-left: 1rem;
     margin-top: 1rem;
@@ -571,7 +570,24 @@ button:hover {
     background: #f9fafb;
     border-radius: 4px;
     margin-top: 2rem;
-    white-space: pre-line;
+}
+
+.badge-introduction p,
+.badge-afterword p {
+    margin: 0;
+}
+
+.badge-introduction ul,
+.badge-introduction ol,
+.badge-afterword ul,
+.badge-afterword ol {
+    margin: 0;
+    padding-left: 1.4em;
+}
+
+.badge-introduction li,
+.badge-afterword li {
+    margin: 0;
 }
 
 /* ── Badge overview grid (3 niveaus × 5 eisen) ───────────────────────────── */
@@ -726,10 +742,28 @@ button:hover {
 
 .step-text {
     font-size: 0.875rem;
-    line-height: 1.6;
-    white-space: pre-line;
+    line-height: 1.4;
     flex: 1;
     color: #333;
+    white-space: normal;
+}
+
+.step-text p {
+    margin: 0;
+}
+
+.step-text ul,
+.step-text ol {
+    margin: 0;
+    padding-left: 1.4em;
+}
+
+.step-text li {
+    margin: 0;
+}
+
+.eis-groen {
+    color: #16a34a;
 }
 
 .step-check {
@@ -1424,7 +1458,6 @@ button:disabled, a[disabled] {
 .signoff-step-text {
     font-size: 0.875rem;
     color: #333;
-    white-space: pre-line;
     line-height: 1.55;
     background: #f9fafb;
     padding: 0.5rem 0.7rem;

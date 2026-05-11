@@ -27,7 +27,7 @@
         {% endif %}
         <h1>{{ badge.title }}{% if selected_niveaus | length == 1 %} — Niveau {{ selected_niveaus[0] + 1 }}{% endif %}</h1>
         {% if badge.introduction %}
-        <div class="badge-introduction">{{ badge.introduction }}</div>
+        <div class="badge-introduction">{{ badge.introduction | render_eis }}</div>
         {% endif %}
     </header>
 
@@ -101,7 +101,7 @@
     </div>
 
     {% if badge.afterword %}
-    <div class="badge-afterword">{{ badge.afterword }}</div>
+    <div class="badge-afterword">{{ badge.afterword | render_eis }}</div>
     {% endif %}
 </main>
 {% endblock %}

@@ -23,7 +23,7 @@
         <p class="signoff-badge-info">{{ req.badge_title }} — Niveau {{ req.niveau_number }}</p>
         <p class="signoff-requested-at">Aangevraagd op {{ req.requested_at }}</p>
         <p class="signoff-level-name">Opdracht/eis {{ req.level_number }}: {{ req.level_name }}</p>
-        <div class="signoff-step-text">{{ req.step_text }}</div>
+        <div class="signoff-step-text">{{ req.step_text | render_eis }}</div>
         {% if req.notes %}
         <div class="signoff-notes-section">
             <span class="signoff-notes-label">Notitie van de scout</span>

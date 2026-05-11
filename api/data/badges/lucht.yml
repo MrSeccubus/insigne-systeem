@@ -63,20 +63,24 @@ eisen:
         c. Simuleer een vlucht met kaart, kompas of GPS, bepaal koers en maak een mini-vluchtplan.
   - naam: Duurzaamheid, weer en veiligheid
     eisen:
-      - |
-        Milieu, weer en duurzaamheid zijn belangrijke dingen in de luchtvaart.
-        a. Noem twee manieren om vliegen milieuvriendelijker te maken.
-        b. Leg uit waarom windrichting en omgeving belangrijk zijn.
-        c. Noem drie veiligheidsregels voor drones, vliegers of ballonnen.
-      - |
-        Gewicht en materiaalkeuze in de luchtvaart heeft invloed op duurzaamheid en veiligheid.
-        a. Leg uit hoe gewicht en materiaalkeuze het verbruik en de prestaties beïnvloeden en welke van deze het meest duurzaam is.
-        b. Benoem de basisregels in Nederland voor drones en modelvliegtuigen.
-      - |
-        Een goede voorbereiding en kennis van veiligheidsregels zijn belangrijk.
-        a. Voer vóór het vliegmoment een weerobservatie uit (wind, luchtdruk, wolken) en bepaal of vliegen verstandig is.
-        b. Stel een veiligheidsprotocol op en gebruik het tijdens een activiteit.
-        c. Onderzoek de impact van jouw vlieggedrag. Bereken hoeveel CO₂ een gemiddelde vlucht uitstoot en geef twee manieren waarop passagiers zelf kunnen bijdragen aan duurzamer vliegen.
+      - groen: true
+        tekst: |
+          Milieu, weer en duurzaamheid zijn belangrijke dingen in de luchtvaart.
+          ==a. Noem twee manieren om vliegen milieuvriendelijker te maken.==
+          b. Leg uit waarom windrichting en omgeving belangrijk zijn.
+          c. Noem drie veiligheidsregels voor drones, vliegers of ballonnen.
+      - groen: true
+        tekst: |
+          Gewicht en materiaalkeuze in de luchtvaart heeft invloed op duurzaamheid en veiligheid.
+          ==a. Leg uit hoe gewicht en materiaalkeuze het verbruik en de prestaties beïnvloeden en welke van deze het meest duurzaam is.==
+          b. Benoem de basisregels in Nederland voor drones en modelvliegtuigen.
+      - groen: true
+        tekst: |
+          Een goede voorbereiding en kennis van veiligheidsregels zijn belangrijk.
+          a. Voer vóór het vliegmoment een weerobservatie uit (wind, luchtdruk, wolken) en bepaal of vliegen verstandig is.
+          b. Stel een veiligheidsprotocol op en gebruik het tijdens een activiteit.
+          ==c. Onderzoek de impact van jouw vlieggedrag. 
+            - Bereken hoeveel CO₂ een gemiddelde vlucht uitstoot en geef twee manieren waarop passagiers zelf kunnen bijdragen aan duurzamer vliegen.==
   - naam: Reflectie en kennisdeling
     eisen:
       - |
@@ -93,9 +97,9 @@ nawoord: |
   Er is op internet diverse informatie te vinden over luchtscouting, buiten gewone insignes van Scouting
   en de 'gouden wing' die luchtscouts kunnen behalen.
 
-  Informatiebronnen:
-  - Algemene informatie over luchtscouting bij Scouting Nederland: https://www.scouting.nl/over-scouting/hoe-werkt-het/kijken-bij-scouting
-  - Wat meer specifieke informatie over luchtscouting in Nederland: https://nl.scoutwiki.org/Luchtscouting
-  - Toelichting op buiten gewone insignes: https://activiteitenbank.scouting.nl/insignes-en-badges/buiten-gewone-insignes
-  - Informatie over een speciale badge voor luchtscouts: https://activiteitenbank.scouting.nl/images/userUpload/MKI/Insignes/Scouts/Gouden-Wing.pdf
-  - Activiteiten voor luchtscouts: https://activiteitenbank.scouting.nl/component/k2/itemlist/filter?moduleId=119&Itemid=148&ftitle=&fitem_all=luchtscouting
+  **Informatiebronnen:**
+  - Algemene informatie over luchtscouting bij Scouting Nederland: [https://www.scouting.nl/over-scouting/hoe-werkt-het/kijken-bij-scouting](https://www.scouting.nl/over-scouting/hoe-werkt-het/kijken-bij-scouting)
+  - Wat meer specifieke informatie over luchtscouting in Nederland: [https://nl.scoutwiki.org/Luchtscouting](https://nl.scoutwiki.org/Luchtscouting)
+  - Toelichting op buiten gewone insignes: [https://activiteitenbank.scouting.nl/insignes-en-badges/buiten-gewone-insignes](https://activiteitenbank.scouting.nl/insignes-en-badges/buiten-gewone-insignes)
+  - Informatie over een speciale badge voor luchtscouts: [https://activiteitenbank.scouting.nl/images/userUpload/MKI/Insignes/Scouts/Gouden-Wing.pdf](https://activiteitenbank.scouting.nl/images/userUpload/MKI/Insignes/Scouts/Gouden-Wing.pdf)
+  - Activiteiten voor luchtscouts: [https://activiteitenbank.scouting.nl/component/k2/itemlist/filter?moduleId=119&Itemid=148&ftitle=&fitem_all=luchtscouting](https://activiteitenbank.scouting.nl/component/k2/itemlist/filter?moduleId=119&Itemid=148&ftitle=&fitem_all=luchtscouting)

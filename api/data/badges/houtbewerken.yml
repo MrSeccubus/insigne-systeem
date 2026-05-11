@@ -1,7 +1,7 @@
 slug: houtbewerken
 titel: Insigne Houtbewerken
 introductie: |
-  Dit insigne maakt deel uit van het activiteitengebied Uitdagende Scoutingtechnieken.
+  ***Dit insigne maakt deel uit van het activiteitengebied Uitdagende Scoutingtechnieken.***
   Met dit insigne leer je verschillende manieren om op een veilige manier te hakken, zagen en snijden.
 eisen:
   - naam: Mes
@@ -11,9 +11,15 @@ eisen:
         b. Laat zien dat je weet waar alle onderdelen voor zijn, hoe je een zakmes veilig doorgeeft, hoe je het openklapt en hoe de beveiliging werkt.
         c. Maak een blikje open met de opener, draai een schroef of gebruik een ander onderdeel voor het juiste doel.
         d. Maak een stok om een broodje bij het kampvuur te bakken. Haal een deel van de bast weg en doe dit zo dat je alleen de stok beweegt, niet je mes.
+
+        _Tip: Als je zelf (nog) geen zakmes hebt met verschillende onderdelen, dan kun je dat misschien wel lenen van je leiding of een andere scout._
       - |
-        a. Laat zien dat je de volgende handgrepen beheerst: kniegreep, borstgreep, versterkte greep, aardappelgreep.
-        b. Maak met je mes een houten tentharing met scherpe punt en inkeping voor een touw.
+        a. Laat zien dat je de volgende handgrepen beheerst: 
+        kniegreep
+        - borstgreep
+        - versterkte greep
+        - aardappelgreep.
+        b. Maak met je mes een houten tentharing met scherpe punt en inkeping voor een touw. Let op je snijtechniek en de juiste greep om veilig en gecontroleerd te werken.
       - |
         a. Zoek op wat een Trystick is en leg uit waar alle inkepingen voor zijn, welke snijtechnieken je gebruikt en hoe ze werken.
         b. Maak je eigen Trystick.
@@ -21,14 +27,17 @@ eisen:
   - naam: Bijl
     eisen:
       - |
+        Leer veilig met een bijl omgaan. Gebruik hiervoor alleen de steel van een bijl of bijvoorbeeld een hamer.
         a. Laat zien hoe je een bijl veilig doorgeeft (gebruik alleen de steel).
         b. Leg uit hoeveel ruimte je nodig hebt en waar je rekening mee moet houden bij het hakken.
       - |
+        Klein hout kun je het beste hakken met een handbijl. Dat is een bijl die je in één hand kunt vasthouden. 
         a. Laat zien hoe je een stammetje doorhakt.
         b. Laat zien hoe je een V'tje hakt.
         c. Geef aan waar je op moet letten om goed en veilig te hakken.
         d. Noem voorbeelden van drie verschillende soorten handbijlen en leg uit waar je ze voor gebruikt.
       - |
+        Grote stammen doorhakken of bomen vellen doe je met een grote bijl met lange steel die je met twee handen vasthoudt. Deze bijlen worden vaak (halve) axe genoemd, maar kunnen ook andere namen hebben. 
         a. Laat zien hoe je een grote stam doorhakt.
         b. Laat zien hoe je een wig gebruikt.
         c. Laat zien hoe je hout moet kloven.
@@ -37,41 +46,65 @@ eisen:
   - naam: Zaag
     eisen:
       - |
+        Hout kun je op allerlei manieren bewerken, ook met een zaag.
         a. Laat zien hoe je een figuurzaag gebruikt en hoe je het zaagje vervangt.
         b. Zaag met een figuurzaagje een figuur uit een stuk hout (tip: triplex of multiplex).
       - |
+        Om hout in kleinere stukken te delen of takken te snoeien kun je ook een boog-/beugelzaag gebruiken. 
         a. Laat zien hoe je een boog-/beugelzaag of spanzaag gebruikt en hoe je deze doorgeeft.
         b. Leg uit waarvoor deze zagen geschikt zijn.
         c. Zaag een platte schijf van een boomstam met een diameter van minimaal vijftien centimeter.
       - |
+        Er zijn verschillende soorten zagen die elk op een eigen manier gebruikt kunnen worden.
         a. Laat zien hoe je een klapzaag gebruikt en hoe je deze doorgeeft.
         b. Laat zien hoe je een trekzaag gebruikt. Zaag een flinke stam door, alleen en met twee personen.
         c. Leg uit waarvoor deze zagen geschikt zijn.
   - naam: Kennis en onderhoud
     eisen:
-      - |
-        a. Leg uit welk hout je mag gebruiken voor snijwerk, broodstokken of ander houtwerk zonder de natuur te beschadigen.
-        b. Laat zien hoe je een zakmes schoonmaakt en wat je doet als onderdelen vastzitten.
-      - |
-        a. Leg uit welk hout je wel of niet mag gebruiken bij hakken, zagen en snijden.
-        b. Noem geschikte houtsoorten voor houtsnijwerk en geef voor- en nadelen.
-        c. Laat zien hoe je een zakmes slijpt.
-        d. Laat zien hoe je bijlen en zagen na gebruik opbergt.
-      - |
-        a. Laat zien dat je weet hoe je de steel van een bijl, het blad van een hand-/boogzaag/spanzaag en het blad van een klapzaag vervangt.
-        b. Laat zien hoe je een bijl slijpt.
-        c. Geef aan hoe je messen, bijlen en zagen voor een langere tijd duurzaam kunt opbergen.
+      - groen: true
+        tekst: |
+          Een goede kennis van materialen is belangrijk.
+          a. Leg uit welk hout je mag gebruiken voor snijwerk, broodstokken of ander houtwerk zonder de natuur te beschadigen.
+          b. Laat zien hoe je een zakmes schoonmaakt en wat je doet als onderdelen vastzitten.
+      - groen: true
+        tekst: |
+          Duurzaam leren hakken, zagen en snijden betekent onder andere dat niet in levende bomen en planten snijdt en je materiaal goed onderhoudt.
+          a. Leg uit welk hout je wel of niet mag gebruiken bij hakken, zagen en snijden.
+          b. Noem geschikte houtsoorten voor houtsnijwerk en geef voor- en nadelen.
+          c. Laat zien hoe je een zakmes slijpt.
+          d. Laat zien hoe je bijlen en zagen na gebruik opbergt.
+      - groen: true
+        tekst: |
+          Gereedschappen slijten op den duur en moeten soms vervangen worden. Door goed en duurzaam onderhoud gaan gereedschappen langer mee en hoef je minder vaak nieuw te kopen. 
+          a. Laat zien dat je weet hoe je de volgende dingen vervangt:
+          - de steel van een bijl
+          - het blad van een hand-/boogzaag 
+          - en/of spanzaag
+          - Het blad van een klapzaag
+          b. Laat zien hoe je een bijl slijpt.
+          c. Geef aan hoe je messen, bijlen en zagen voor een langere tijd duurzaam kunt opbergen.
   - naam: Sierwerk
     eisen:
       - |
-        a. Laat zien dat je een schilmesje veilig gebruikt (appel schillen, komkommer snijden).
-        b. Snij een eenvoudig figuurtje in een stuk zacht hout (zoals wilgen- of lindenhout), zoals een gezichtje of een simpel patroon.
+        Om te oefenen in houtsnijden kun je ook groente en fruit gebruiken.
+        a. Laat zien dat je weet hoe je een schilmesje gebruikt, bijvoorbeeld door een appel te schillen en komkommer in reepjes te snijden.
+        b. Om te leren snijden, kun je beginnen met zacht hout zoals wilgen- of lindenhout. Laat zien dat je een mes veilig kunt gebruiken door een eenvoudig figuurtje in een stuk hout te snijden, zoals een gezichtje of een simpel patroon (denk aan strepen, stippen of een ster).
+        
+        _Tip: Gebruik vers hout, dat snijdt makkelijker. Snijdt of trek daarvoor geen hout van bomen, maar gebruik daarvoor afgewaaide takken of kijk bijvoorbeeld in de groenbak in je buurt._
       - |
-        a. Maak een werkstuk uit vers hout (kabouter, kerfstok, spatel of lepel). Laat het drogen en schuur het glad.
+        Van hout kun je mooie sier- en gebruiksvoorwerpen maken.
+        a. Maak een werkstuk uit vers hout (kabouter, kerfstok, spatel of lepel). Laat het drogen en schuur het glad, van grof naar fijn schuurpapier.
         b. Werk het voorwerp mooi af. Zorg dat een gebruiksvoorwerp ook echt gebruikt kan worden.
       - |
-        a. Maak een werkstuk waarin chipcarving en Kohlrosing is verwerkt.
+        Voor het maken van sierwerken bestaan speciale technieken.
+        a. Maak een werkstuk waarin chipcarving *2 en Kohlrosing *3 is verwerkt.
 nawoord: |
-  Veel informatie voor dit insigne is te vinden op de site van de MPSE (messen, bijlen, zagen, snij- en
-  haktechnieken en onderhoud). Denk bij houtkeuze aan: niet snijden in levende bomen/planten, oppassen
-  met gebruikt hout van pallets (spijkers/splinters), geen erg nat hout gebruiken.
+  Veel informatie voor dit insigne is te vinden op de site van de [MPSE](https://mpse.nl/). Hier kan je veel terugvinden over messen bijlen en zagen, snij- en haktechnieken en hoe je al dit materiaal goed kunt onderhouden.
+  
+  Voetnoten:
+    1. Denk hierbij aan:
+      * Het niet snijden in levende bomen en planten;
+      * Oppassen met gebruikt hout van bijvoorbeeld pallets in verband met spijkers en splinters;
+      * Niet gebruiken van erg nat hout.
+    2. Chip carving is een stijl van snijden waarbij messen, gutsen of beitels worden gebruikt om kleine schilfers van het materiaal in één stuk van een plat oppervlak te verwijderen. Pas deze techniek zelf helemaal toe en laat zien hoe je dit in een opkomst kan inzetten.
+    3. Kohlrosing is de Scandinavische traditie van het insnijden van dunne decoratieve lijnen en patronen in gesneden hout en het vullen met donkere poeders of gekleurde was, enz. voor contrast. Maak zelf een mooi stuk hout waarbij je deze techniek gebruikt.

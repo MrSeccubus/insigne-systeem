@@ -15,7 +15,7 @@
      x-init="signoffPath = ''">
 
     <div class="step-header">
-        <span class="step-number">N{{ step_index + 1 }}</span>
+        <span class="step-number">{{ niveau_label_kort }}{{ step_index + 1 }}</span>
         <div class="step-text">{{ step_text | render_eis }}</div>
         <span :class="'step-check step-check-' + status"
               :title="({'signed_off':'Afgetekend','pending_signoff':'Wacht op aftekening','work_done':'Klaar gemeld','in_progress':'Bezig','none':'Niet gestart'})[status] || 'Niet gestart'">

@@ -18,7 +18,8 @@
             {% if current_user %}
             {% set slug = badge.slug %}
             {% set niveau_index = selected_niveaus[0] %}
-            {% set n_eisen = badge.levels | length %}
+            {% set _ns = namespace(n=0) %}{% for _g in badge.levels %}{% if _g.steps[niveau_index].text %}{% set _ns.n = _ns.n + 1 %}{% endif %}{% endfor %}
+            {% set n_eisen = _ns.n %}
             {% set style = "justify-content:center;margin-top:0.5rem;" %}
             {% include "partials/niveau_checks.html" %}
             {% endif %}
@@ -65,7 +66,8 @@
             {% if current_user %}
             {% set slug = badge.slug %}
             {% set niveau_index = i %}
-            {% set n_eisen = badge.levels | length %}
+            {% set _ns = namespace(n=0) %}{% for _g in badge.levels %}{% if _g.steps[niveau_index].text %}{% set _ns.n = _ns.n + 1 %}{% endif %}{% endfor %}
+            {% set n_eisen = _ns.n %}
             {% set style = None %}
             {% include "partials/niveau_checks.html" %}
             {% endif %}
@@ -86,6 +88,7 @@
 
         {# niveau cells (filtered by selected_niveaus) #}
         {% set slug = badge.slug %}
+        {% set niveau_label_kort = badge.niveau_label_kort %}
         {% for step in eis.steps if step.index in selected_niveaus %}
         {% if step.text %}
         {% set step_index = step.index %}

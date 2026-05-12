@@ -47,6 +47,7 @@ def _partial(request: Request, name: str, **ctx):
 
 
 def _step_card(request, slug, level_index, level_name, step_index, step_text, entry, previous_mentors=None, error="", current_user=None, scout_signoff_options=None):
+    _badge = get_badge(_DATA_DIR, slug)
     response = _partial(
         request, "step_card.html",
         slug=slug,
@@ -59,6 +60,7 @@ def _step_card(request, slug, level_index, level_name, step_index, step_text, en
         error=error,
         current_user=current_user,
         scout_signoff_options=scout_signoff_options or [],
+        niveau_label_kort=_badge.get("niveau_label_kort", "N") if _badge else "N",
     )
     response.headers["HX-Trigger"] = "niveau-updated"
     return response

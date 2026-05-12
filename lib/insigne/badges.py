@@ -1,6 +1,9 @@
+import re
 from pathlib import Path
 
 import yaml
+
+_SLUG_RE = re.compile(r"^[a-z0-9_-]+$")
 
 
 def _images(slug: str) -> list[str]:
@@ -31,6 +34,8 @@ def list_badges(data_dir: Path) -> dict:
 
 def get_badge(data_dir: Path, slug: str) -> dict | None:
     """Return full badge detail for slug, or None if not found."""
+    if not _SLUG_RE.match(slug):
+        return None
     badge_path = data_dir / "badges" / f"{slug}.yml"
     if not badge_path.exists():
         return None

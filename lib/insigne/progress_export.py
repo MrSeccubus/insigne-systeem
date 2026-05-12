@@ -209,7 +209,7 @@ def to_pdf(data: dict, data_dir: Path | None = None, base_url: str = "") -> byte
 
         badges_by_cat = list_badges(data_dir)
         for category, badge_list in badges_by_cat.items():
-            cat_label = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "jaarbadges": "Jaarbadges"}.get(category, category)
+            cat_label = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "jaarbadges": "Explorers"}.get(category, category)
             cat_para = Paragraph(cat_label, cat_st)
 
             for badge_idx, badge_info in enumerate(badge_list):

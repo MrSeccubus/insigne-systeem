@@ -36,7 +36,11 @@ def get_badge(data_dir: Path, slug: str) -> dict | None:
     """Return full badge detail for slug, or None if not found."""
     if not _SLUG_RE.match(slug):
         return None
-    badge_path = data_dir / "badges" / f"{slug}.yml"
+
+    badges_dir = (data_dir / "badges").resolve()
+    badge_path = (badges_dir / f"{slug}.yml").resolve()
+    if not badge_path.is_relative_to(badges_dir):
+        return None
     if not badge_path.exists():
         return None
 

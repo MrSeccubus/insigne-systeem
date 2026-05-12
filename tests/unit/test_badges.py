@@ -80,6 +80,17 @@ class TestGetBadge:
     def test_returns_none_for_unknown_slug(self):
         assert get_badge(DATA_DIR, "nonexistent") is None
 
+    @pytest.mark.parametrize("slug", [
+        "../badges.yml",
+        "../../etc/passwd",
+        "foo/bar",
+        "foo bar",
+        "FOO",
+        "",
+    ])
+    def test_rejects_invalid_slug(self, slug):
+        assert get_badge(DATA_DIR, slug) is None
+
     def test_returns_dict_for_known_slug(self):
         assert get_badge(DATA_DIR, "vredeslicht") is not None
         assert get_badge(DATA_DIR, "sport_spel") is not None

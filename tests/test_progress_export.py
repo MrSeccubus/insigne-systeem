@@ -131,16 +131,9 @@ class TestToYaml:
         assert parsed["progress"][0]["status"] == "work_done"
 
 
-try:
-    import fitz as _fitz
-except ImportError:
-    _fitz = None
-
-_requires_fitz = pytest.mark.skipif(_fitz is None, reason="PyMuPDF (fitz) not installed")
-
-
 def _pdf_text(pdf_bytes: bytes) -> str:
-    doc = _fitz.open(stream=pdf_bytes, filetype="pdf")
+    import fitz
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     return "".join(page.get_text() for page in doc)
 
 
@@ -159,7 +152,6 @@ class TestToPdf:
         pdf = to_pdf(data)
         assert len(pdf) > 1000
 
-    @_requires_fitz
     def test_pdf_contains_explorers_category_heading(self, db):
         user = _make_user(db)
         data = export_data(db, user.id)
@@ -167,7 +159,6 @@ class TestToPdf:
         text = _pdf_text(pdf)
         assert "Explorers" in text
 
-    @_requires_fitz
     def test_pdf_explorer_jaarbadge_uses_jaarbadge_label(self, db):
         user = _make_user(db)
         data = export_data(db, user.id)
@@ -177,7 +168,6 @@ class TestToPdf:
         assert "Jaarbadge 2" in text
         assert "Jaarbadge 3" in text
 
-    @_requires_fitz
     def test_pdf_regular_badge_uses_niveau_label(self, db):
         user = _make_user(db)
         data = export_data(db, user.id)

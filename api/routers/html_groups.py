@@ -9,14 +9,14 @@ from insigne import email as email_svc
 from insigne import groups as groups_svc
 from insigne import progress as progress_svc
 from insigne import users as users_svc
-from insigne.badges import get_badge, list_badges
+from insigne.badges import BadgeCatalogue
 from insigne.config import config
 from insigne.database import get_db
 from insigne.models import GroupMembership, ProgressEntry, Speltak, SpeltakMembership, User as UserModel
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
 
-_DATA_DIR = Path(__file__).parent.parent / "data"
+_CATALOGUE = BadgeCatalogue(Path(__file__).parent.parent / "data")
 
 import re as _re
 _UUID_RE = _re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', _re.I)
@@ -83,7 +83,7 @@ def accept_speltak_invite(speltak_id: str, request: Request, db: Session = Depen
         }
         badge_rows = []
         for slug in sorted({k[0] for k in scout_map}):
-            badge = get_badge(_DATA_DIR, slug)
+            badge = _CATALOGUE.get(slug)
             if not badge:
                 continue
             n_levels = len(badge["levels"])
@@ -491,7 +491,7 @@ def group_assign_speltak(
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse("/groups", status_code=303)
     groups_svc.set_speltak_role(db, user_id=member_id, speltak_id=to_speltak_id, role="scout")
-    return RedirectResponse(f"/groups/{slug}", status_code=303)
+    return RedirectResponse(f"/groups/{group.slug}", status_code=303)
 
 
 @router.get("/groups/{slug}/edit", response_class=HTMLResponse)
@@ -519,7 +519,7 @@ def group_edit(
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse("/groups", status_code=303)
     groups_svc.update_group(db, group, name=name, slug=group.slug)
-    return RedirectResponse(f"/groups/{slug}", status_code=303)
+    return RedirectResponse(f"/groups/{group.slug}", status_code=303)
 
 
 @router.post("/groups/{slug}/delete", response_class=HTMLResponse)
@@ -572,7 +572,7 @@ def group_add_member(
                      **_group_detail_ctx(db, group, user),
                      invite_email=email)
     groups_svc.set_group_role(db, user_id=target.id, group_id=group.id, role="groepsleider")
-    return RedirectResponse(f"/groups/{slug}", status_code=303)
+    return RedirectResponse(f"/groups/{group.slug}", status_code=303)
 
 
 @router.post("/groups/{slug}/members/invite", response_class=HTMLResponse)
@@ -645,7 +645,7 @@ def group_remove_member(
     group = groups_svc.get_group_by_slug(db, slug)
     if group and groups_svc.can_manage_group(user, db, group.id):
         groups_svc.remove_group_member(db, user_id=member_id, group_id=group.id)
-    return RedirectResponse(f"/groups/{slug}", status_code=303)
+    return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
 
 
 @router.post("/groups/{slug}/members/{member_id}/withdraw")
@@ -671,7 +671,7 @@ def speltak_new_form(group_slug: str, request: Request, db: Session = Depends(ge
         return redirect
     group = groups_svc.get_group_by_slug(db, group_slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
-        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+        return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
     return _page(request, "speltak_edit.html", db, group=group, speltak=None, error=None)
 
 
@@ -688,10 +688,10 @@ def speltak_create(
         return redirect
     group = groups_svc.get_group_by_slug(db, group_slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
-        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+        return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
     slug = groups_svc.unique_speltak_slug(db, group.id, groups_svc.name_to_slug(name))
     groups_svc.create_speltak(db, group_id=group.id, name=name, slug=slug, peer_signoff=peer_signoff)
-    return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+    return RedirectResponse(f"/groups/{group.slug}", status_code=303)
 
 
 @router.get("/groups/{group_slug}/speltakken/{speltak_slug}", response_class=HTMLResponse)
@@ -706,10 +706,10 @@ def speltak_detail(
         return RedirectResponse("/groups", status_code=303)
     speltak = groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak:
-        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+        return RedirectResponse(f"/groups/{group.slug}", status_code=303)
     can_manage = groups_svc.can_manage_speltak(current_user, db, speltak.id)
     if not can_manage:
-        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+        return RedirectResponse(f"/groups/{group.slug}", status_code=303)
     members = groups_svc.list_speltak_members(db, speltak.id)
     pending_members = groups_svc.list_pending_speltak_members(db, speltak.id) if can_manage else []
     other_speltakken = [s for s in group.speltakken if s.id != speltak.id]
@@ -734,7 +734,7 @@ def speltak_edit_form(
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_group(user, db, group.id):
-        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+        return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
     return _page(request, "speltak_edit.html", db, group=group, speltak=speltak, error=None)
 
 
@@ -753,9 +753,9 @@ def speltak_edit(
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_group(user, db, group.id):
-        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+        return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
     groups_svc.update_speltak(db, speltak, name=name, slug=speltak.slug, peer_signoff=peer_signoff)
-    return RedirectResponse(f"/groups/{group_slug}/speltakken/{speltak.slug}", status_code=303)
+    return RedirectResponse(f"/groups/{group.slug}/speltakken/{speltak.slug}", status_code=303)
 
 
 @router.post("/groups/{group_slug}/speltakken/{speltak_slug}/delete", response_class=HTMLResponse)
@@ -769,7 +769,7 @@ def speltak_delete(
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if speltak and groups_svc.can_manage_group(user, db, group.id):
         groups_svc.delete_speltak(db, speltak)
-    return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+    return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
 
 
 # ── Speltak member actions ────────────────────────────────────────────────────
@@ -812,7 +812,7 @@ def speltak_invite_member(
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
-        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+        return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
     from insigne.models import User as UserModel
     invitee = db.query(UserModel).filter_by(email=email.strip().lower()).first()
 
@@ -884,7 +884,7 @@ def speltak_add_member(
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
-        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+        return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
     target = _lookup_user_by_email_or_id(db, email)
     error = None
     if not target:
@@ -897,7 +897,7 @@ def speltak_add_member(
         return _page(request, "speltak_detail.html", db,
                      group=group, speltak=speltak, members=members,
                      can_manage=True, other_speltakken=other_speltakken, error=error)
-    return RedirectResponse(f"/groups/{group_slug}/speltakken/{speltak_slug}", status_code=303)
+    return RedirectResponse(f"/groups/{group.slug}/speltakken/{speltak.slug}", status_code=303)
 
 
 @router.post("/groups/{group_slug}/speltakken/{speltak_slug}/members/new-scout",
@@ -915,10 +915,10 @@ def speltak_create_scout(
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
-        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+        return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
     scout = groups_svc.create_emailless_scout(db, name=name, created_by_id=user.id)
     groups_svc.set_speltak_role(db, user_id=scout.id, speltak_id=speltak.id, role="scout")
-    return RedirectResponse(f"/groups/{group_slug}/speltakken/{speltak_slug}", status_code=303)
+    return RedirectResponse(f"/groups/{group.slug}/speltakken/{speltak.slug}", status_code=303)
 
 
 @router.post("/groups/{group_slug}/speltakken/{speltak_slug}/members/{member_id}/set-email",
@@ -935,7 +935,7 @@ def speltak_set_member_email(
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
-        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+        return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
 
     members = groups_svc.list_speltak_members(db, speltak.id)
     pending_members = groups_svc.list_pending_speltak_members(db, speltak.id)
@@ -997,7 +997,7 @@ def speltak_remove_member(
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if speltak and groups_svc.can_manage_speltak(user, db, speltak.id):
         groups_svc.remove_speltak_member(db, user_id=member_id, speltak_id=speltak.id)
-    return RedirectResponse(f"/groups/{group_slug}/speltakken/{speltak_slug}", status_code=303)
+    return RedirectResponse(f"/groups/{group.slug}/speltakken/{speltak.slug}" if speltak else (f"/groups/{group.slug}" if group else "/groups"), status_code=303)
 
 
 @router.post("/groups/{group_slug}/speltakken/{speltak_slug}/members/{member_id}/withdraw")
@@ -1033,7 +1033,7 @@ def speltak_transfer_member(
     if speltak and groups_svc.can_manage_speltak(user, db, speltak.id):
         groups_svc.transfer_scout(db, user_id=member_id,
                                   from_speltak_id=speltak.id, to_speltak_id=to_speltak_id)
-    return RedirectResponse(f"/groups/{group_slug}/speltakken/{speltak_slug}", status_code=303)
+    return RedirectResponse(f"/groups/{group.slug}/speltakken/{speltak.slug}" if speltak else (f"/groups/{group.slug}" if group else "/groups"), status_code=303)
 
 
 @router.post("/groups/{group_slug}/speltakken/{speltak_slug}/members/{member_id}/role",
@@ -1052,7 +1052,7 @@ def speltak_set_role(
     if speltak and groups_svc.can_manage_speltak(user, db, speltak.id):
         groups_svc.set_speltak_role(db, user_id=member_id,
                                     speltak_id=speltak.id, role=role)
-    return RedirectResponse(f"/groups/{group_slug}/speltakken/{speltak_slug}", status_code=303)
+    return RedirectResponse(f"/groups/{group.slug}/speltakken/{speltak.slug}" if speltak else (f"/groups/{group.slug}" if group else "/groups"), status_code=303)
 
 
 
@@ -1097,7 +1097,7 @@ def group_progress(group_slug: str, request: Request, db: Session = Depends(get_
     if not group:
         return RedirectResponse("/groups", status_code=303)
     if not groups_svc.can_manage_group(user, db, group.id):
-        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+        return RedirectResponse(f"/groups/{group.slug}", status_code=303)
     speltakken_data = [
         {
             "speltak": s,
@@ -1129,9 +1129,9 @@ def speltak_progress(
         return RedirectResponse("/groups", status_code=303)
     speltak = groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak:
-        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+        return RedirectResponse(f"/groups/{group.slug}", status_code=303)
     if not groups_svc.can_manage_speltak(user, db, speltak.id):
-        return RedirectResponse(f"/groups/{group_slug}", status_code=303)
+        return RedirectResponse(f"/groups/{group.slug}", status_code=303)
 
     memberships = groups_svc.list_speltak_members(db, speltak.id)
     pending = groups_svc.list_pending_speltak_members(db, speltak.id)
@@ -1153,12 +1153,12 @@ def speltak_progress(
         only_favorites = bool(favorite_slugs)
     can_edit = not speltak.peer_signoff
 
-    all_badges_raw = list_badges(_DATA_DIR)
+    all_badges_raw = _CATALOGUE.list()
     all_badges = {}
     for category, summaries in all_badges_raw.items():
         badge_list = []
         for summary in summaries:
-            badge = get_badge(_DATA_DIR, summary["slug"])
+            badge = _CATALOGUE.get(summary["slug"])
             if badge:
                 badge["n_levels"] = len(badge["levels"])
                 badge_list.append(badge)
@@ -1206,7 +1206,7 @@ def speltak_set_scout_progress(
         if entry and status == "signed_off":
             scout = entry.user
             if scout.email:
-                badge = get_badge(_DATA_DIR, badge_slug)
+                badge = _CATALOGUE.get(badge_slug)
                 level = badge["levels"][level_index]
                 step_text = level["steps"][step_index]["text"]
                 mentor_name = user.name or user.email

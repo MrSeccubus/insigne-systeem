@@ -78,7 +78,7 @@ def to_yaml(data: dict) -> str:
     return yaml.dump(data, allow_unicode=True, sort_keys=False, default_flow_style=False)
 
 
-def to_pdf(data: dict, data_dir: Path | None = None, base_url: str = "") -> bytes:
+def to_pdf(data: dict, catalogue=None, base_url: str = "") -> bytes:
     """Render a PDF resembling the home page badge grid.
 
     Per badge: a table with 5 eis-group rows × 3 niveau columns.
@@ -153,9 +153,9 @@ def to_pdf(data: dict, data_dir: Path | None = None, base_url: str = "") -> byte
 
     def _badge_img(slug: str, n: int):
         """Return a downscaled RLImage for badge image n (1/2/3), or None."""
-        if not data_dir:
+        if not catalogue:
             return None
-        img_path = data_dir / "images" / f"{slug}.{n}.png"
+        img_path = catalogue.data_dir / "images" / f"{slug}.{n}.png"
         if not img_path.exists():
             return None
         try:
@@ -204,17 +204,15 @@ def to_pdf(data: dict, data_dir: Path | None = None, base_url: str = "") -> byte
         Paragraph(site_line, sub_st),
     ]
 
-    if data_dir:
-        from insigne.badges import list_badges, get_badge
-
-        badges_by_cat = list_badges(data_dir)
+    if catalogue:
+        badges_by_cat = catalogue.list()
         for category, badge_list in badges_by_cat.items():
             cat_label = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "explorers": "Explorers"}.get(category, category)
             cat_para = Paragraph(cat_label, cat_st)
 
             for badge_idx, badge_info in enumerate(badge_list):
                 slug = badge_info["slug"]
-                badge_full = get_badge(data_dir, slug)
+                badge_full = catalogue.get(slug)
                 if not badge_full:
                     continue
 

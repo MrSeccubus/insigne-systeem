@@ -7,9 +7,12 @@ from unittest.mock import patch
 import yaml
 import pytest
 
+from insigne.badges import BadgeCatalogue
 from insigne.models import ProgressEntry, User
 
 _DATA_DIR = Path(__file__).parent.parent.parent / "api" / "data"
+_CATALOGUE = BadgeCatalogue(_DATA_DIR)
+
 from insigne.progress_export import (
     embed_yaml_in_pdf,
     export_data,
@@ -155,14 +158,14 @@ class TestToPdf:
     def test_pdf_contains_explorers_category_heading(self, db):
         user = _make_user(db)
         data = export_data(db, user.id)
-        pdf = to_pdf(data, data_dir=_DATA_DIR)
+        pdf = to_pdf(data, catalogue=_CATALOGUE)
         text = _pdf_text(pdf)
         assert "Explorers" in text
 
     def test_pdf_explorer_jaarbadge_uses_jaarbadge_label(self, db):
         user = _make_user(db)
         data = export_data(db, user.id)
-        pdf = to_pdf(data, data_dir=_DATA_DIR)
+        pdf = to_pdf(data, catalogue=_CATALOGUE)
         text = _pdf_text(pdf)
         assert "Jaarbadge 1" in text
         assert "Jaarbadge 2" in text
@@ -171,7 +174,7 @@ class TestToPdf:
     def test_pdf_regular_badge_uses_niveau_label(self, db):
         user = _make_user(db)
         data = export_data(db, user.id)
-        pdf = to_pdf(data, data_dir=_DATA_DIR)
+        pdf = to_pdf(data, catalogue=_CATALOGUE)
         text = _pdf_text(pdf)
         assert "Niveau 1" in text
         assert "Niveau 2" in text

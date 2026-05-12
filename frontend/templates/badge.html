@@ -86,12 +86,16 @@
 
         {# niveau cells (filtered by selected_niveaus) #}
         {% set slug = badge.slug %}
-        {% for step in eis.steps if step.index in selected_niveaus and step.text %}
+        {% for step in eis.steps if step.index in selected_niveaus %}
+        {% if step.text %}
         {% set step_index = step.index %}
         {% set step_text = step.text %}
         {% set entry = progress_map.get((level_index, step_index)) %}
         {% set error = "" %}
         {% include "partials/step_card.html" %}
+        {% else %}
+        <div></div>
+        {% endif %}
         {% endfor %}
 
         {% endfor %}

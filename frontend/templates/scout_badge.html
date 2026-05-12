@@ -80,7 +80,8 @@
             <span class="eis-row-name">{{ eis.name }}</span>
         </div>
 
-        {% for step in eis.steps if step.index in selected_niveaus and step.text %}
+        {% for step in eis.steps if step.index in selected_niveaus %}
+        {% if step.text %}
         {% set step_index = step.index %}
         {% set entry = progress_map.get((level_index, step_index)) %}
         {% set entry_status = entry.status if entry else "none" %}
@@ -94,6 +95,9 @@
                 {% include "partials/leider_step_check.html" %}
             </div>
         </div>
+        {% else %}
+        <div></div>
+        {% endif %}
         {% endfor %}
 
         {% endfor %}

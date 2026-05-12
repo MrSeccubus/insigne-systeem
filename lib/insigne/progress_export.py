@@ -67,7 +67,7 @@ def export_data(db: Session, user_id: str) -> dict:
         progress.append(item)
 
     return {
-        "version": 1,
+        "version": 2,
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "user": {"name": user.name if user else None},
         "progress": progress,
@@ -209,7 +209,7 @@ def to_pdf(data: dict, data_dir: Path | None = None, base_url: str = "") -> byte
 
         badges_by_cat = list_badges(data_dir)
         for category, badge_list in badges_by_cat.items():
-            cat_label = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "jaarbadges": "Explorers"}.get(category, category)
+            cat_label = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "explorers": "Explorers"}.get(category, category)
             cat_para = Paragraph(cat_label, cat_st)
 
             for badge_idx, badge_info in enumerate(badge_list):
@@ -426,8 +426,17 @@ def extract_yaml_from_pdf(pdf_bytes: bytes) -> str | None:
 
 # ── import ────────────────────────────────────────────────────────────────────
 
+EXPORT_VERSION = 2
+
+
 def import_progress(db: Session, user_id: str, data: dict) -> int:
     """Upsert progress entries from export data. Returns count of created/updated rows."""
+    file_version = data.get("version", 1)
+    if file_version > EXPORT_VERSION:
+        raise ValueError(
+            f"Export versie {file_version} wordt niet ondersteund door deze installatie "
+            f"(ondersteunt t/m versie {EXPORT_VERSION}). Upgrade de applicatie eerst."
+        )
     count = 0
     for item in data.get("progress", []):
         badge_slug = item.get("badge_slug")

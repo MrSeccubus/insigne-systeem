@@ -64,7 +64,7 @@ class TestListBadges:
         keys = list(result.keys())
         assert keys[0] == "gewoon"
         assert keys[1] == "buitengewoon"
-        assert "jaarbadges" in keys
+        assert "explorers" in keys
 
     def test_list_items_have_no_levels(self):
         result = list_badges(DATA_DIR)
@@ -184,7 +184,7 @@ class TestBadgeStructure:
         assert len(badge["levels"]) >= 1, (
             f"{slug}: verwacht minimaal 1 eis, gevonden {len(badge['levels'])}"
         )
-        if badge["category"] not in ("jaarbadges",):
+        if badge["category"] not in ("explorers",):
             assert len(badge["levels"]) == 5, (
                 f"{slug}: verwacht 5 eisen voor gewone/buitengewone insignes, gevonden {len(badge['levels'])}"
             )

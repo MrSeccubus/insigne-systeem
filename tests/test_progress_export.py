@@ -105,7 +105,7 @@ class TestExportData:
     def test_version_and_structure(self, db):
         user = _make_user(db)
         data = export_data(db, user.id)
-        assert data["version"] == 1
+        assert data["version"] == 2
         assert "exported_at" in data
         assert data["user"]["name"] == "Scout"
 
@@ -124,7 +124,7 @@ class TestToYaml:
         _make_entry(db, user.id, status="work_done")
         data = export_data(db, user.id)
         parsed = yaml.safe_load(to_yaml(data))
-        assert parsed["version"] == 1
+        assert parsed["version"] == 2
         assert parsed["progress"][0]["status"] == "work_done"
 
 
@@ -174,15 +174,21 @@ class TestPdfYamlEmbedding:
         yaml_str = to_yaml(data)
         pdf = embed_yaml_in_pdf(to_pdf(data), yaml_str)
         extracted = yaml.safe_load(extract_yaml_from_pdf(pdf))
-        assert extracted["version"] == 1
+        assert extracted["version"] == 2
         assert extracted["progress"][0]["status"] == "work_done"
 
 
 # ── import_progress ───────────────────────────────────────────────────────────
 
 class TestImportProgress:
-    def _data(self, entries):
-        return {"version": 1, "user": {"name": "Scout"}, "progress": entries}
+    def _data(self, entries, version=2):
+        return {"version": version, "user": {"name": "Scout"}, "progress": entries}
+
+    def test_rejects_future_version(self, db):
+        user = _make_user(db)
+        data = self._data([], version=99)
+        with pytest.raises(ValueError, match="99"):
+            import_progress(db, user.id, data)
 
     def test_creates_new_entries(self, db):
         user = _make_user(db)
@@ -424,7 +430,7 @@ class TestExportApi:
         assert r.status_code == 200
         assert "yaml" in r.headers["content-type"]
         data = yaml.safe_load(r.content)
-        assert data["version"] == 1
+        assert data["version"] == 2
 
     def test_pdf_export_returns_pdf(self, client, db):
         token = _full_register(client, db)
@@ -437,7 +443,7 @@ class TestExportApi:
         r = client.get("/api/users/me/export?format=pdf", headers=_auth(token))
         extracted = extract_yaml_from_pdf(r.content)
         assert extracted is not None
-        assert yaml.safe_load(extracted)["version"] == 1
+        assert yaml.safe_load(extracted)["version"] == 2
 
     def test_export_requires_auth(self, client, db):
         r = client.get("/api/users/me/export?format=yaml")
@@ -449,7 +455,7 @@ class TestImportApi:
         token = _full_register(client, db)
         user = db.query(User).filter_by(email="scout@example.com").first()
         yaml_str = to_yaml({
-            "version": 1, "user": {"name": "Scout"}, "progress": [{
+            "version": 2, "user": {"name": "Scout"}, "progress": [{
                 "badge_slug": "sport_spel", "level_index": 0, "step_index": 0,
                 "status": "work_done", "notes": None,
                 "signed_off_by": None, "signed_off_at": None,
@@ -466,7 +472,7 @@ class TestImportApi:
     def test_import_pdf_file(self, client, db):
         token = _full_register(client, db)
         yaml_str = to_yaml({
-            "version": 1, "user": {"name": "Scout"}, "progress": [{
+            "version": 2, "user": {"name": "Scout"}, "progress": [{
                 "badge_slug": "sport_spel", "level_index": 0, "step_index": 0,
                 "status": "in_progress", "notes": None,
                 "signed_off_by": None, "signed_off_at": None,

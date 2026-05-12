@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ badge.title }}{% if selected_niveaus | length == 1 %} — Niveau {{ selected_niveaus[0] + 1 }}{% endif %} — Insigne Systeem{% endblock %}
+{% block title %}{{ badge.title }}{% if selected_niveaus | length == 1 %} — {{ badge.niveau_label }} {{ selected_niveaus[0] + 1 }}{% endif %} — Insigne Systeem{% endblock %}
 
 {% block content %}
 <main style="max-width:1100px;">
@@ -12,19 +12,20 @@
         {% if selected_niveaus | length == 1 %}
         <div style="text-align:center;margin-bottom:0.75rem;">
             <img src="/images/{{ badge.slug }}.{{ selected_niveaus[0] + 1 }}.png"
-                 alt="Niveau {{ selected_niveaus[0] + 1 }}"
+                 alt="{{ badge.niveau_label }} {{ selected_niveaus[0] + 1 }}"
                  class="niveau-header-image" style="max-width:200px;max-height:200px;"
                  onerror="this.style.display='none'">
             {% if current_user %}
             {% set slug = badge.slug %}
             {% set niveau_index = selected_niveaus[0] %}
-            {% set n_eisen = badge.levels | length %}
+            {% set _ns = namespace(n=0) %}{% for _g in badge.levels %}{% if _g.steps[niveau_index].text %}{% set _ns.n = _ns.n + 1 %}{% endif %}{% endfor %}
+            {% set n_eisen = _ns.n %}
             {% set style = "justify-content:center;margin-top:0.5rem;" %}
             {% include "partials/niveau_checks.html" %}
             {% endif %}
         </div>
         {% endif %}
-        <h1>{{ badge.title }}{% if selected_niveaus | length == 1 %} — Niveau {{ selected_niveaus[0] + 1 }}{% endif %}</h1>
+        <h1>{{ badge.title }}{% if selected_niveaus | length == 1 %} — {{ badge.niveau_label }} {{ selected_niveaus[0] + 1 }}{% endif %}</h1>
         {% if badge.introduction %}
         <div class="badge-introduction">{{ badge.introduction | render_eis }}</div>
         {% endif %}
@@ -41,7 +42,7 @@
          x-init="if (window.innerWidth <= 640 && !new URLSearchParams(location.search).has('niveau')) {
              location.replace('/badges/{{ badge.slug }}?niveau={{ mobile_default_niveau }}');
          }">
-        <span class="mobile-niveau-label">Niveau:</span>
+        <span class="mobile-niveau-label">{{ badge.niveau_label }}:</span>
         {% for i in [0, 1, 2] %}
         <a href="/badges/{{ badge.slug }}?niveau={{ i + 1 }}"
            class="mobile-niveau-tab{% if selected_niveaus | length == 1 and selected_niveaus[0] == i %} mobile-niveau-tab--active{% endif %}">{{ i + 1 }}</a>
@@ -58,14 +59,15 @@
         {% for i in selected_niveaus %}
         <div class="niveau-col-header">
             <img src="/images/{{ badge.slug }}.{{ i + 1 }}.png"
-                 alt="Niveau {{ i + 1 }}"
+                 alt="{{ badge.niveau_label }} {{ i + 1 }}"
                  class="niveau-header-image"
                  onerror="this.style.display='none'">
-            <div class="niveau-col-title">Niveau {{ i + 1 }}</div>
+            <div class="niveau-col-title">{{ badge.niveau_label }} {{ i + 1 }}</div>
             {% if current_user %}
             {% set slug = badge.slug %}
             {% set niveau_index = i %}
-            {% set n_eisen = badge.levels | length %}
+            {% set _ns = namespace(n=0) %}{% for _g in badge.levels %}{% if _g.steps[niveau_index].text %}{% set _ns.n = _ns.n + 1 %}{% endif %}{% endfor %}
+            {% set n_eisen = _ns.n %}
             {% set style = None %}
             {% include "partials/niveau_checks.html" %}
             {% endif %}
@@ -86,12 +88,17 @@
 
         {# niveau cells (filtered by selected_niveaus) #}
         {% set slug = badge.slug %}
+        {% set niveau_label_kort = badge.niveau_label_kort %}
         {% for step in eis.steps if step.index in selected_niveaus %}
+        {% if step.text %}
         {% set step_index = step.index %}
         {% set step_text = step.text %}
         {% set entry = progress_map.get((level_index, step_index)) %}
         {% set error = "" %}
         {% include "partials/step_card.html" %}
+        {% else %}
+        <div></div>
+        {% endif %}
         {% endfor %}
 
         {% endfor %}

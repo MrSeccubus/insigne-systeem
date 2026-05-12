@@ -29,8 +29,9 @@ _UUID_RE = _re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
 router = APIRouter()
 
 
-def _mobile_default_niveau(progress_map: dict, n_eisen: int) -> int:
-    """Return the highest niveau (1-3) with any progress, falling back to 1."""
+def _mobile_default_niveau(progress_map: dict, badge: dict) -> int:
+    """Return the highest niveau/jaar (1-3) with any progress, falling back to 1."""
+    n_eisen = len(badge["levels"])
     for niveau_idx in reversed(range(3)):
         for eis_idx in range(n_eisen):
             entry = progress_map.get((eis_idx, niveau_idx))
@@ -46,6 +47,7 @@ def _partial(request: Request, name: str, **ctx):
 
 
 def _step_card(request, slug, level_index, level_name, step_index, step_text, entry, previous_mentors=None, error="", current_user=None, scout_signoff_options=None):
+    _badge = get_badge(_DATA_DIR, slug)
     response = _partial(
         request, "step_card.html",
         slug=slug,
@@ -58,6 +60,7 @@ def _step_card(request, slug, level_index, level_name, step_index, step_text, en
         error=error,
         current_user=current_user,
         scout_signoff_options=scout_signoff_options or [],
+        niveau_label_kort=_badge.get("niveau_label_kort", "N") if _badge else "N",
     )
     response.headers["HX-Trigger"] = "niveau-updated"
     return response
@@ -113,6 +116,7 @@ async def niveau_checks(request: Request, slug: str, niveau_index: int, db: Sess
         slug=slug,
         niveau_index=niveau_index,
         n_eisen=len(badge["levels"]),
+        is_jaarbadge=False,
         progress_map=progress_map,
         style=None,
     )
@@ -138,7 +142,6 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
         previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
         scout_signoff_options = _build_signoff_options(db, current_user)
 
-    n_eisen = len(badge["levels"])
     for i, level in enumerate(badge["levels"]):
         total = len(level["steps"])
         completed = sum(
@@ -148,7 +151,7 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
         )
         level_stats.append({"completed": completed, "total": total})
 
-    # Per-niveau: how many of the 5 eisen are completed at each niveau
+    n_eisen = len(badge["levels"])
     niveau_stats = [
         {
             "completed": sum(
@@ -173,7 +176,7 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
             "level_stats": level_stats,
             "niveau_stats": niveau_stats,
             "selected_niveaus": [niveau - 1] if niveau in (1, 2, 3) else [0, 1, 2],
-            "mobile_default_niveau": _mobile_default_niveau(progress_map, n_eisen),
+            "mobile_default_niveau": _mobile_default_niveau(progress_map, badge),
         },
     )
 
@@ -630,24 +633,33 @@ def _build_badge_catalogue(all_progress: dict) -> tuple[dict, list]:
     for badges in all_badges.values():
         for badge in badges:
             detail = get_badge(_DATA_DIR, badge["slug"])
-            n_eisen = len(detail["levels"])
+            niveau_label = detail.get("niveau_label", "Niveau")
+            niveau_label_kort = detail.get("niveau_label_kort", "N")
+            badge["niveau_label"] = niveau_label
+            slug_progress = all_progress.get(badge["slug"], {})
             badge["level_cards"] = [
                 {
                     "index": niveau_idx,
-                    "name": f"Niveau {niveau_idx + 1}",
+                    "name": f"{niveau_label} {niveau_idx + 1}",
+                    "short_name": f"{niveau_label_kort}{niveau_idx + 1}",
                     "image": f"/images/{badge['slug']}.{niveau_idx + 1}.png",
-                    "total": n_eisen,
+                    "total": sum(
+                        1 for group in detail["levels"]
+                        if group["steps"][niveau_idx]["text"].strip()
+                    ),
                     "completed": sum(
-                        1 for eis_idx in range(n_eisen)
-                        if all_progress.get(badge["slug"], {}).get((eis_idx, niveau_idx)) and
-                           all_progress[badge["slug"]][(eis_idx, niveau_idx)].status == "signed_off"
+                        1 for eis_idx, group in enumerate(detail["levels"])
+                        if group["steps"][niveau_idx]["text"].strip()
+                        and slug_progress.get((eis_idx, niveau_idx))
+                        and slug_progress[(eis_idx, niveau_idx)].status == "signed_off"
                     ),
                     "completed_at": max(
-                        (all_progress[badge["slug"]][(eis_idx, niveau_idx)].signed_off_at
-                         for eis_idx in range(n_eisen)
-                         if all_progress.get(badge["slug"], {}).get((eis_idx, niveau_idx)) and
-                            all_progress[badge["slug"]][(eis_idx, niveau_idx)].status == "signed_off" and
-                            all_progress[badge["slug"]][(eis_idx, niveau_idx)].signed_off_at),
+                        (slug_progress[(eis_idx, niveau_idx)].signed_off_at
+                         for eis_idx, group in enumerate(detail["levels"])
+                         if group["steps"][niveau_idx]["text"].strip()
+                         and slug_progress.get((eis_idx, niveau_idx))
+                         and slug_progress[(eis_idx, niveau_idx)].status == "signed_off"
+                         and slug_progress[(eis_idx, niveau_idx)].signed_off_at),
                         default=None,
                     ),
                 }
@@ -761,7 +773,7 @@ async def scout_badge_detail(
             "edit_speltak_id": edit_speltak_id,
             "niveau_stats": niveau_stats,
             "selected_niveaus": [niveau - 1] if niveau in (1, 2, 3) else [0, 1, 2],
-            "mobile_default_niveau": _mobile_default_niveau(progress_map, n_eisen),
+            "mobile_default_niveau": _mobile_default_niveau(progress_map, badge),
             "_post_url": f"/scouts/{scout_id}/set-progress",
         },
     )
@@ -791,6 +803,7 @@ async def scout_niveau_checks(
         slug=slug,
         niveau_index=niveau_index,
         n_eisen=len(badge["levels"]),
+        is_jaarbadge=False,
         progress_map=progress_map,
         style=None,
     )

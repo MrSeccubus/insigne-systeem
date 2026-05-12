@@ -72,24 +72,31 @@ async def index(request: Request, db: Session = Depends(get_db)):
     for badges in all_badges.values():
         for badge in badges:
             detail = get_badge(DATA_DIR, badge["slug"])
-            n_eisen = len(detail["levels"])  # always 5
+            niveau_label = detail.get("niveau_label", "Niveau")
+            niveau_label_kort = detail.get("niveau_label_kort", "N")
             badge["level_cards"] = [
                 {
                     "index": niveau_idx,
-                    "name": f"Niveau {niveau_idx + 1}",
+                    "name": f"{niveau_label} {niveau_idx + 1}",
+                    "short_name": f"{niveau_label_kort}{niveau_idx + 1}",
                     "image": f"/images/{badge['slug']}.{niveau_idx + 1}.png",
-                    "total": n_eisen,
+                    "total": sum(
+                        1 for group in detail["levels"]
+                        if group["steps"][niveau_idx]["text"].strip()
+                    ),
                     "completed": sum(
-                        1 for eis_idx in range(n_eisen)
-                        if all_progress.get(badge["slug"], {}).get((eis_idx, niveau_idx)) and
-                           all_progress[badge["slug"]][(eis_idx, niveau_idx)].status == "signed_off"
+                        1 for eis_idx, group in enumerate(detail["levels"])
+                        if group["steps"][niveau_idx]["text"].strip()
+                        and all_progress.get(badge["slug"], {}).get((eis_idx, niveau_idx))
+                        and all_progress[badge["slug"]][(eis_idx, niveau_idx)].status == "signed_off"
                     ),
                     "completed_at": max(
                         (all_progress[badge["slug"]][(eis_idx, niveau_idx)].signed_off_at
-                         for eis_idx in range(n_eisen)
-                         if all_progress.get(badge["slug"], {}).get((eis_idx, niveau_idx)) and
-                            all_progress[badge["slug"]][(eis_idx, niveau_idx)].status == "signed_off" and
-                            all_progress[badge["slug"]][(eis_idx, niveau_idx)].signed_off_at),
+                         for eis_idx, group in enumerate(detail["levels"])
+                         if group["steps"][niveau_idx]["text"].strip()
+                         and all_progress.get(badge["slug"], {}).get((eis_idx, niveau_idx))
+                         and all_progress[badge["slug"]][(eis_idx, niveau_idx)].status == "signed_off"
+                         and all_progress[badge["slug"]][(eis_idx, niveau_idx)].signed_off_at),
                         default=None,
                     ),
                 }

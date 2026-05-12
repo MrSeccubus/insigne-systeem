@@ -33,7 +33,7 @@
     </section>
     {% endif %}
 
-    {% set category_labels = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes"} %}
+    {% set category_labels = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "explorers": "Explorers"} %}
 
     {% for category, badges in all_badges.items() %}
     <h2 class="section-header">{{ category_labels.get(category, category ~ ' insignes') }}</h2>
@@ -76,7 +76,7 @@
             <div class="badge-mobile-honeycomb">
                 {% for card in badge.level_cards %}
                 <img src="{{ card.image }}"
-                     alt="Niveau {{ card.index + 1 }}"
+                     alt="{{ card.name }}"
                      class="badge-mobile-img badge-mobile-img--{{ card.index + 1 }}"
                      onerror="this.style.display='none'">
                 {% endfor %}
@@ -88,7 +88,7 @@
             {% set badge_slug = badge.slug %}
             {% set _post_url = "/scouts/" ~ scout.id ~ "/set-progress" %}
             <div class="badge-mobile-niveau">
-                <span class="badge-mobile-niveau-label">N{{ card.index + 1 }}</span>
+                <span class="badge-mobile-niveau-label">{{ card.short_name }}</span>
                 <div class="badge-mobile-dots">
                     {% for eis_idx in range(card.total) %}
                     {% set level_index = eis_idx %}

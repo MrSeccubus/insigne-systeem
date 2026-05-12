@@ -1,12 +1,15 @@
 """Tests for progress export/import service and API endpoints."""
 
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import patch
 
 import yaml
 import pytest
 
 from insigne.models import ProgressEntry, User
+
+_DATA_DIR = Path(__file__).parent.parent.parent / "api" / "data"
 from insigne.progress_export import (
     embed_yaml_in_pdf,
     export_data,
@@ -105,7 +108,7 @@ class TestExportData:
     def test_version_and_structure(self, db):
         user = _make_user(db)
         data = export_data(db, user.id)
-        assert data["version"] == 1
+        assert data["version"] == 2
         assert "exported_at" in data
         assert data["user"]["name"] == "Scout"
 
@@ -124,8 +127,14 @@ class TestToYaml:
         _make_entry(db, user.id, status="work_done")
         data = export_data(db, user.id)
         parsed = yaml.safe_load(to_yaml(data))
-        assert parsed["version"] == 1
+        assert parsed["version"] == 2
         assert parsed["progress"][0]["status"] == "work_done"
+
+
+def _pdf_text(pdf_bytes: bytes) -> str:
+    import fitz
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    return "".join(page.get_text() for page in doc)
 
 
 class TestToPdf:
@@ -142,6 +151,31 @@ class TestToPdf:
         data = export_data(db, user.id)
         pdf = to_pdf(data)
         assert len(pdf) > 1000
+
+    def test_pdf_contains_explorers_category_heading(self, db):
+        user = _make_user(db)
+        data = export_data(db, user.id)
+        pdf = to_pdf(data, data_dir=_DATA_DIR)
+        text = _pdf_text(pdf)
+        assert "Explorers" in text
+
+    def test_pdf_explorer_jaarbadge_uses_jaarbadge_label(self, db):
+        user = _make_user(db)
+        data = export_data(db, user.id)
+        pdf = to_pdf(data, data_dir=_DATA_DIR)
+        text = _pdf_text(pdf)
+        assert "Jaarbadge 1" in text
+        assert "Jaarbadge 2" in text
+        assert "Jaarbadge 3" in text
+
+    def test_pdf_regular_badge_uses_niveau_label(self, db):
+        user = _make_user(db)
+        data = export_data(db, user.id)
+        pdf = to_pdf(data, data_dir=_DATA_DIR)
+        text = _pdf_text(pdf)
+        assert "Niveau 1" in text
+        assert "Niveau 2" in text
+        assert "Niveau 3" in text
 
 
 # ── embed / extract ───────────────────────────────────────────────────────────
@@ -174,15 +208,31 @@ class TestPdfYamlEmbedding:
         yaml_str = to_yaml(data)
         pdf = embed_yaml_in_pdf(to_pdf(data), yaml_str)
         extracted = yaml.safe_load(extract_yaml_from_pdf(pdf))
-        assert extracted["version"] == 1
+        assert extracted["version"] == 2
         assert extracted["progress"][0]["status"] == "work_done"
 
 
 # ── import_progress ───────────────────────────────────────────────────────────
 
 class TestImportProgress:
-    def _data(self, entries):
-        return {"version": 1, "user": {"name": "Scout"}, "progress": entries}
+    def _data(self, entries, version=2):
+        return {"version": version, "user": {"name": "Scout"}, "progress": entries}
+
+    def test_rejects_future_version(self, db):
+        user = _make_user(db)
+        data = self._data([], version=99)
+        with pytest.raises(ValueError, match="99"):
+            import_progress(db, user.id, data)
+
+    def test_accepts_version_1_for_backwards_compat(self, db):
+        user = _make_user(db)
+        data = self._data([{
+            "badge_slug": "sport_spel", "level_index": 0, "step_index": 0,
+            "status": "in_progress", "notes": None,
+            "signed_off_by": None, "signed_off_at": None,
+        }], version=1)
+        count = import_progress(db, user.id, data)
+        assert count == 1
 
     def test_creates_new_entries(self, db):
         user = _make_user(db)
@@ -424,7 +474,7 @@ class TestExportApi:
         assert r.status_code == 200
         assert "yaml" in r.headers["content-type"]
         data = yaml.safe_load(r.content)
-        assert data["version"] == 1
+        assert data["version"] == 2
 
     def test_pdf_export_returns_pdf(self, client, db):
         token = _full_register(client, db)
@@ -437,7 +487,7 @@ class TestExportApi:
         r = client.get("/api/users/me/export?format=pdf", headers=_auth(token))
         extracted = extract_yaml_from_pdf(r.content)
         assert extracted is not None
-        assert yaml.safe_load(extracted)["version"] == 1
+        assert yaml.safe_load(extracted)["version"] == 2
 
     def test_export_requires_auth(self, client, db):
         r = client.get("/api/users/me/export?format=yaml")
@@ -449,7 +499,7 @@ class TestImportApi:
         token = _full_register(client, db)
         user = db.query(User).filter_by(email="scout@example.com").first()
         yaml_str = to_yaml({
-            "version": 1, "user": {"name": "Scout"}, "progress": [{
+            "version": 2, "user": {"name": "Scout"}, "progress": [{
                 "badge_slug": "sport_spel", "level_index": 0, "step_index": 0,
                 "status": "work_done", "notes": None,
                 "signed_off_by": None, "signed_off_at": None,
@@ -466,7 +516,7 @@ class TestImportApi:
     def test_import_pdf_file(self, client, db):
         token = _full_register(client, db)
         yaml_str = to_yaml({
-            "version": 1, "user": {"name": "Scout"}, "progress": [{
+            "version": 2, "user": {"name": "Scout"}, "progress": [{
                 "badge_slug": "sport_spel", "level_index": 0, "step_index": 0,
                 "status": "in_progress", "notes": None,
                 "signed_off_by": None, "signed_off_at": None,

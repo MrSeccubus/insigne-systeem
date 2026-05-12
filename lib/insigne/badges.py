@@ -56,7 +56,7 @@ def get_badge(data_dir: Path, slug: str) -> dict | None:
 
     step_groups = [
         {
-            "name": group["naam"],
+            "name": group.get("naam", ""),
             "steps": [_parse_step(i, step) for i, step in enumerate(group["eisen"])],
         }
         for group in raw.get("eisen", [])
@@ -66,6 +66,8 @@ def get_badge(data_dir: Path, slug: str) -> dict | None:
         "slug": slug,
         "title": raw["titel"],
         "category": category,
+        "niveau_label": raw.get("niveau_label", "Niveau"),
+        "niveau_label_kort": raw.get("niveau_label_kort", "N"),
         "images": _images(slug),
         "introduction": (raw.get("introductie") or "").strip(),
         "levels": step_groups,

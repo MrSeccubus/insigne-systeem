@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ badge.title }}{% if selected_niveaus | length == 1 %} — Niveau {{ selected_niveaus[0] + 1 }}{% endif %} — {{ scout.name or scout.email or '(onbekend)' }} — Insigne Systeem{% endblock %}
+{% block title %}{{ badge.title }}{% if selected_niveaus | length == 1 %} — {{ badge.niveau_label }} {{ selected_niveaus[0] + 1 }}{% endif %} — {{ scout.name or scout.email or '(onbekend)' }} — Insigne Systeem{% endblock %}
 
 {% block content %}
 <main style="max-width:1100px;">
@@ -14,7 +14,7 @@
         {% if selected_niveaus | length == 1 %}
         <div style="text-align:center;margin-bottom:0.75rem;">
             <img src="/images/{{ badge.slug }}.{{ selected_niveaus[0] + 1 }}.png"
-                 alt="Niveau {{ selected_niveaus[0] + 1 }}"
+                 alt="{{ badge.niveau_label }} {{ selected_niveaus[0] + 1 }}"
                  class="niveau-header-image" style="max-width:200px;max-height:200px;"
                  onerror="this.style.display='none'">
             {% set slug = badge.slug %}
@@ -25,7 +25,7 @@
             {% include "partials/scout_niveau_checks.html" %}
         </div>
         {% endif %}
-        <h1>{{ badge.title }}{% if selected_niveaus | length == 1 %} — Niveau {{ selected_niveaus[0] + 1 }}{% endif %}</h1>
+        <h1>{{ badge.title }}{% if selected_niveaus | length == 1 %} — {{ badge.niveau_label }} {{ selected_niveaus[0] + 1 }}{% endif %}</h1>
         {% if badge.introduction %}
         <div class="badge-introduction">{{ badge.introduction | render_eis }}</div>
         {% endif %}
@@ -42,7 +42,7 @@
          x-init="if (window.innerWidth <= 640 && !new URLSearchParams(location.search).has('niveau')) {
              location.replace('/scouts/{{ scout.id }}/badges/{{ badge.slug }}?niveau={{ mobile_default_niveau }}');
          }">
-        <span class="mobile-niveau-label">Niveau:</span>
+        <span class="mobile-niveau-label">{{ badge.niveau_label }}:</span>
         {% for i in [0, 1, 2] %}
         <a href="/scouts/{{ scout.id }}/badges/{{ badge.slug }}?niveau={{ i + 1 }}"
            class="mobile-niveau-tab{% if selected_niveaus | length == 1 and selected_niveaus[0] == i %} mobile-niveau-tab--active{% endif %}">{{ i + 1 }}</a>
@@ -58,10 +58,10 @@
         {% for i in selected_niveaus %}
         <div class="niveau-col-header">
             <img src="/images/{{ badge.slug }}.{{ i + 1 }}.png"
-                 alt="Niveau {{ i + 1 }}"
+                 alt="{{ badge.niveau_label }} {{ i + 1 }}"
                  class="niveau-header-image"
                  onerror="this.style.display='none'">
-            <div class="niveau-col-title">Niveau {{ i + 1 }}</div>
+            <div class="niveau-col-title">{{ badge.niveau_label }} {{ i + 1 }}</div>
             {% set slug = badge.slug %}
             {% set scout_id = scout.id %}
             {% set niveau_index = i %}
@@ -81,6 +81,7 @@
         </div>
 
         {% for step in eis.steps if step.index in selected_niveaus %}
+        {% if step.text %}
         {% set step_index = step.index %}
         {% set entry = progress_map.get((level_index, step_index)) %}
         {% set entry_status = entry.status if entry else "none" %}
@@ -89,11 +90,17 @@
         {% set can_edit_cell = can_edit and entry_status != "pending_signoff" %}
         {% set can_review_cell = can_edit and entry_status == "pending_signoff" %}
         <div class="step-card">
-            <div class="step-card-text">{{ step.text | render_eis }}</div>
+            <div class="step-header">
+                <span class="step-number">{{ badge.niveau_label_kort }}{{ step_index + 1 }}</span>
+                <div class="step-text">{{ step.text | render_eis }}</div>
+            </div>
             <div style="margin-top:0.5rem;display:flex;justify-content:flex-end;">
                 {% include "partials/leider_step_check.html" %}
             </div>
         </div>
+        {% else %}
+        <div></div>
+        {% endif %}
         {% endfor %}
 
         {% endfor %}

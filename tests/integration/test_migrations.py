@@ -7,10 +7,10 @@ import pytest
 from alembic import command
 from alembic.config import Config
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "api"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "api"))
 from migrate import main as run_migrate  # noqa: E402
 
-_ALEMBIC_INI = str(Path(__file__).parent.parent / "api" / "alembic.ini")
+_ALEMBIC_INI = str(Path(__file__).parent.parent.parent / "api" / "alembic.ini")
 
 EXPECTED_TABLES = {
     "users",

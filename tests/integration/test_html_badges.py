@@ -129,6 +129,29 @@ class TestBadgeDetailRendering:
         assert "<a" in r.text
 
 
+# ── Explorer Jaarbadge rendering ─────────────────────────────────────────────
+
+class TestExplorerJaarbadgeRendering:
+    def test_badge_page_returns_200(self, client, db):
+        r = client.get("/badges/explorer_jaarbadge")
+        assert r.status_code == 200
+
+    def test_niveau_label_jaarbadge_in_html(self, client, db):
+        r = client.get("/badges/explorer_jaarbadge")
+        assert "Jaarbadge" in r.text
+
+    def test_niveau_label_not_niveau_in_html(self, client, db):
+        r = client.get("/badges/explorer_jaarbadge")
+        # Column headers must say "Jaarbadge 1/2/3", not "Niveau 1/2/3"
+        assert "Niveau 1" not in r.text
+        assert "Niveau 2" not in r.text
+        assert "Niveau 3" not in r.text
+
+    def test_regular_badge_still_uses_niveau_label(self, client, db):
+        r = client.get("/badges/vredeslicht")
+        assert "Niveau" in r.text
+
+
 # ── log step ──────────────────────────────────────────────────────────────────
 
 class TestLogStep:

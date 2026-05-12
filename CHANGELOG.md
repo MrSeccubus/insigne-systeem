@@ -4,6 +4,34 @@ Alle noemenswaardige wijzigingen per release, in omgekeerde chronologische volgo
 
 ---
 
+## [v0.12.0] — 2026-05-12
+
+### Explorer Jaarbadge en verbeterde testinfrastructuur
+
+#### Nieuw
+
+- **Explorer Jaarbadge** — nieuw insignetype met drie jaren (J1, J2, J3) en acht eisgroepen.
+  - Eigen `niveau_label` ("Jaarbadge") en compacte `niveau_label_kort` ("J") voor mobiel.
+  - Lege eisen tellen niet mee: Jaarbadge 1 en 2 tonen 7 vakjes, Jaarbadge 3 telt 8.
+  - Insigneafbeeldingen met transparante achtergrond en dunne witte hexagonale rand.
+- **`niveau_label_kort`** — nieuw veld in badge-YAML voor het compacte label in stapkaarten en mobiele navigatie. Standaardwaarde `N`, Explorer-specifiek `J`.
+
+#### Verbeteringen
+
+- **Exportversie verhoogd naar v2** — export-YAML bevat nu `version: 2`. Importfunctie weigert bestanden van een hogere versie dan het systeem aankan; v1-bestanden blijven backwards compatible.
+- **Testinfrastructuur** — tests gesplitst in `tests/unit/` en `tests/integration/` met twee aparte CI-jobs (`unit-tests` en `integration-tests`), zodat elke job afzonderlijk vereist kan worden in branch protection.
+- **Branch protection** — `main` vereist nu dat beide CI-jobs slagen voor een merge.
+- **Pytest-waarschuwingen onderdrukt** — `pytest.ini` filtert DeprecationWarnings en ResourceWarnings van third-party bibliotheken (Starlette, PyMuPDF, SQLAlchemy).
+
+#### Tests
+
+- 7 nieuwe unit tests voor de Explorer Jaarbadge (categorie, niveau_label, eisgroepen, lege stappen).
+- 4 nieuwe integratietests voor rendering van de Explorer Jaarbadge in HTML.
+- 3 nieuwe PDF-tests (Explorers-kopregel, Jaarbadge-labels, Niveau-labels).
+- Tests voor versiebeveiliging: afwijzing van toekomstige versies en backwards compatibility met v1.
+
+---
+
 ## [v0.11.0] — 2026-05-07
 
 ### Beheerderspaneel met statistieken en voortgang exporteren/importeren

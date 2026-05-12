@@ -216,9 +216,12 @@ async def import_progress(
         data = yaml.safe_load(yaml_str)
     except yaml.YAMLError:
         raise HTTPException(status_code=400, detail="Invalid YAML.")
-    if not isinstance(data, dict) or data.get("version") != 1:
+    if not isinstance(data, dict) or "version" not in data:
         raise HTTPException(status_code=400, detail="Unrecognised export format.")
-    count = export_svc.import_progress(db, current_user.id, data)
+    try:
+        count = export_svc.import_progress(db, current_user.id, data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     return {"imported": count}
 
 

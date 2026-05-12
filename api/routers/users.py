@@ -472,10 +472,13 @@ async def import_progress_html(
             error = "Upload een .yml- of .pdf-bestand."
 
         if not error:
-            if not isinstance(data, dict) or data.get("version") != 1:
+            if not isinstance(data, dict) or "version" not in data:
                 error = "Onbekend exportformaat."
             else:
-                count = export_svc.import_progress(db, current_user.id, data)
+                try:
+                    count = export_svc.import_progress(db, current_user.id, data)
+                except ValueError as exc:
+                    error = str(exc)
     except Exception:
         error = "Het bestand kon niet worden verwerkt."
 

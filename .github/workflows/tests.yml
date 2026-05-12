@@ -2,10 +2,13 @@ name: Tests
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, releases]
+
+permissions:
+  contents: read
 
 jobs:
-  test:
+  unit-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,5 +22,22 @@ jobs:
           python -m venv venv
           venv/bin/pip install -r requirements.txt
 
-      - name: Run tests
-        run: venv/bin/pytest tests/ -q
+      - name: Run unit tests
+        run: venv/bin/pytest tests/unit/ -q
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m venv venv
+          venv/bin/pip install -r requirements.txt
+
+      - name: Run integration tests
+        run: venv/bin/pytest tests/integration/ -q

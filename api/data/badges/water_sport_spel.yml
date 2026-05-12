@@ -1,7 +1,7 @@
 slug: water_sport_spel
 titel: Insigne Water Sport & Spel
 introductie: |
-  Dit insigne maakt deel uit van het activiteitengebied Sport & Spel.
+  ***Dit insigne maakt deel uit van het activiteitengebied Sport & Spel.***
   Sport & Spel is een activiteitengebied met heel veel mogelijkheden om zelf of samen met anderen te
   doen. Met dit insigne maak je kennis met enkele sporten die je nog niet kent en leer je zelf een spel- of
   sportactiviteit te organiseren. Dit insigne is bedoeld om spelenderwijs kennis te maken met varen en het
@@ -19,9 +19,10 @@ eisen:
         Een spel kun je ook verwateren!
         a. Kies zelf een spel bedoeld voor op het land (of zoek er een op in de activiteitenbank van Scouting). Pas het spel aan zodat je het op of in het water kunt spelen.
         b. Speel het spel met minimaal twee subgroepen.
-      - |
-        Bij een zeilwedstrijd is het belangrijk goed overzicht te hebben over het parcours.
-        a. Maak een tekening van het wedstrijdparcours van een zeilwedstrijd voor lelievletten, valken of soortgelijke boten. Geef hier minimaal de windrichting, de vaarroute en boeien op aan. Houd hierbij rekening met veiligheidsregels in natuurgebieden en het niet verstoren van dieren.
+      - tekst: |
+          Bij een zeilwedstrijd is het belangrijk goed overzicht te hebben over het parcours.
+          a. Maak een tekening van het wedstrijdparcours van een zeilwedstrijd voor lelievletten, valken of soortgelijke boten. Geef hier minimaal de windrichting, de vaarroute en boeien op aan. Houd hierbij rekening met veiligheidsregels in natuurgebieden en het niet verstoren van dieren.
+        groen: true
   - naam: Regels
     eisen:
       - |
@@ -63,12 +64,14 @@ eisen:
         c. Organiseer een wedstrijd met minimaal vier boten, met jouw nieuwe reglement. Jij bent de wedstrijdleider en zorgt ook voor een jury die goed geïnstrueerd wordt.
   - naam: Gemengde technieken
     eisen:
-      - |
-        Een goede (water)scout beheerst verschillende technieken om zich op het water voort te bewegen.
-        a. Leg een route af met minimaal drie verschillende duurzame technieken: kanoën, zeilen, roeien, zwemmen. Hier mag geen motor bij gebruikt worden.
-      - |
-        Je kunt goed met een lelievlet overweg en beheerst verschillende technieken om de vlet voort te bewegen.
-        a. Neem deel aan een gemengde race met een lelievlet (dat is een race waarbij je verschillende technieken moet gebruiken). Gebruik daarbij minimaal drie verschillende duurzame technieken: bijvoorbeeld roeien, zeilen, wrikken of jagen. Hier mag geen motor bij gebruikt worden.
+      - tekst: |
+          Een goede (water)scout beheerst verschillende technieken om zich op het water voort te bewegen.
+          ==a. Leg een route af met minimaal drie verschillende duurzame technieken: kanoën, zeilen, roeien, zwemmen. Hier mag geen motor bij gebruikt worden.==
+        groen: true
+      - tekst: |
+          Je kunt goed met een lelievlet overweg en beheerst verschillende technieken om de vlet voort te bewegen.
+          ==a. Neem deel aan een gemengde race met een lelievlet (dat is een race waarbij je verschillende technieken moet gebruiken). Gebruik daarbij minimaal drie verschillende duurzame technieken: bijvoorbeeld roeien, zeilen, wrikken of jagen. Hier mag geen motor bij gebruikt worden.==
+        groen: true
       - |
         Je bent van alle markten thuis!
         a. Neem deel aan een race met minimaal drie soorten schepen, waaronder een kano en een lelievlet. Daarbij moeten minimaal twee vaartechnieken gebruikt worden. De race moet minimaal één uur duren.

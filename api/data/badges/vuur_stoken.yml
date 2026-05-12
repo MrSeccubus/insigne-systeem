@@ -1,7 +1,7 @@
 slug: vuur_stoken
 titel: Insigne Vuur stoken
 introductie: |
-  Dit insigne maakt deel uit van het activiteitengebied Uitdagende Scoutingtechnieken.
+  ***Dit insigne maakt deel uit van het activiteitengebied Uitdagende Scoutingtechnieken.***
   In dit activiteitengebied doe je activiteiten rondom een techniek, zoals hakken, stoken, kaart en kompas,
   routetechnieken, pionieren, zeilen en kamperen. Vuur stoken, één van de leukste dingen om te doen
   binnen Scouting, maar hoe doe je dat en belangrijker: hoe doe je dat veilig en verantwoord? Met dit
@@ -32,17 +32,19 @@ eisen:
         a. Loop buiten rond het Scoutinggebouw en kijk wat je aan droog sprokkelhout kunt vinden om vuur mee te maken. Let daarbij op dat het materiaal droog is.
         b. Leg uit waarom droog hout belangrijk is, en hoe je dat kunt zien of voelen.
         c. Je kent verschillende aanmaakmaterialen zoals aanmaakblokjes, eierdoos en berkenschors. Gebruik drie verschillende soorten aanmaakmiddelen om (eventueel met je leiding) een klein vuurtje mee te maken.
-      - |
-        Je hebt kennis van vaste brandstoffen en aanmaakmaterialen uit de natuur.
-        a. Je weet welke brandstoffen in vaste vorm er zijn die je veilig kunt gebruiken en hoe je ze kunt gebruiken.
-        b. Je weet ook welke brandstoffen in vaste vorm extra vervuilend zijn en juist niet moet gebruiken.
-        c. Je kent minimaal drie aanmaakmaterialen die je in de natuur kunt vinden en maakt zelf een aantal aanmaakblokjes van meerdere natuurlijke materialen.
-      - |
-        Kennis van brandbare (vloe)istoffen is belangrijk om mogelijkheden en risico's goed in te kunnen schatten.
-        a. Je kent minimaal drie verschillende soorten brandbare vloeistoffen en de gevaren ervan.
-        b. Beschrijf de brandwaarde en voordelen/nadelen van ten minste vijf veel in Nederland voorkomende houtsoorten.
-        c. Leg uit welke houtsoorten je het beste kunt gebruiken voor een schoner vuur (minder rook en schadelijke stoffen).
-        d. Maak zelf één van de twee aanmaakmaterialen: houtskool of charcloth (verkoold katoen).
+      - tekst: |
+          Je hebt kennis van vaste brandstoffen en aanmaakmaterialen uit de natuur.
+          a. Je weet welke brandstoffen in vaste vorm er zijn die je veilig kunt gebruiken en hoe je ze kunt gebruiken.
+          ==b. Je weet ook welke brandstoffen in vaste vorm extra vervuilend zijn en juist niet moet gebruiken.==
+          c. Je kent minimaal drie aanmaakmaterialen die je in de natuur kunt vinden en maakt zelf een aantal aanmaakblokjes van meerdere natuurlijke materialen.
+        groen: true
+      - tekst: |
+          Kennis van brandbare (vloe)istoffen is belangrijk om mogelijkheden en risico's goed in te kunnen schatten.
+          a. Je kent minimaal drie verschillende soorten brandbare vloeistoffen en de gevaren ervan.
+          b. Beschrijf de brandwaarde en voordelen/nadelen van ten minste vijf veel in Nederland voorkomende houtsoorten.
+          ==c. Leg uit welke houtsoorten je het beste kunt gebruiken voor een schoner vuur (minder rook en schadelijke stoffen).==
+          d. Maak zelf één van de twee aanmaakmaterialen: houtskool of charcloth (verkoold katoen).
+        groen: true
   - naam: Opbouw en soorten vuur
     eisen:
       - |
@@ -58,10 +60,11 @@ eisen:
         b. Bouw vervolgens minimaal drie vuren waarvan: minimaal één grondvuur en minimaal één vuur op werkhoogte.
   - naam: Speciale technieken
     eisen:
-      - |
-        Je kunt vuurtjes op verschillende manieren aansteken.
-        a. Steek een klein vuurtje aan met lange lucifers.
-        b. Maak een duurzaam kampvuur zonder hout, vuur of rook, in een vuurkorf met lichtjes en gekleurd papier.
+      - tekst: |
+          Je kunt vuurtjes op verschillende manieren aansteken.
+          a. Steek een klein vuurtje aan met lange lucifers.
+          ==b. Maak een duurzaam kampvuur zonder hout, vuur of rook, in een vuurkorf met lichtjes en gekleurd papier.==
+        groen: true
       - |
         Je kunt een vuur met weinig hulpmiddelen en ook zonder lucifers of aansteker aanmaken.
         a. Steek je startvuurtje aan met slechts één lucifer!
@@ -71,7 +74,11 @@ eisen:
         Als kampvuurspecialist ken je verschillende technieken om vuur te maken.
         a. Gebruik een spectaculaire manier om het kampvuur aan te steken, zoals op afstand met een accu of met een fakkel.
         b. Ontsteek een vuur met de vuurrol techniek.
-        c. Beheers twee van de volgende technieken: Lets vuur, Zweedse fakkel, kaarsvet fakkel, houtvergasser van blikken.
+        c. Beheers twee van de volgende technieken: 
+           - Lets vuur
+           - Zweedse fakkel
+           - kaarsvet fakkel
+           - houtvergasser van blikken.
   - naam: Vuur doven
     eisen:
       - |

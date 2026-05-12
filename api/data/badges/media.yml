@@ -1,7 +1,7 @@
 slug: media
 titel: Insigne Media
 introductie: |
-  Dit insigne maakt deel uit van het activiteitengebied Samenleving.
+  ***Dit insigne maakt deel uit van het activiteitengebied Samenleving.***
   In dit activiteitengebied doe je activiteiten die te maken hebben met je eigen omgeving, het cultureel erfgoed en de
   maatschappij (maatschappelijke participatie). Media zijn communicatiekanalen om informatie over te dragen en is
   onderdeel van de hele samenleving. Met dit insigne leer je meer over de verschillende media en hoe je hier mee
@@ -9,19 +9,22 @@ introductie: |
 eisen:
   - naam: Klassieke media
     eisen:
-      - |
-        Boeken en geschriften zijn oude vormen van media.
-        a. Zoek een oud artikel over natuur uit een Scoutingledenblad, lees dit voor aan je speltak en vertel waarom je voor dit artikel hebt gekozen.
-        b. Schrijf een stukje over wat natuur voor jou betekent en waarom het belangrijk is om goed voor de natuur te zorgen. Laat het lezen door je leiding en je speltak.
-      - |
-        Omdat veel mensen vroeger niet konden lezen werden er vaak afbeeldingen en symbolen gebruikt om een boodschap over te brengen.
-        a. Bedenk een boodschap over duurzaamheid die je aan je speltak wilt overbrengen.
-        b. Verwerk deze boodschap in een poster met afbeeldingen, kleuren of symbolen.
-        c. Hang de poster op in het clubhuis en vraag aan je speltak welke boodschap ze denken te zien.
-      - |
-        Kranten zijn ontstaan in de 17e eeuw in Europa.
-        a. Ontwerp een krant of nieuwsbrief over duurzaamheid. Schrijf stukjes, voeg foto's toe, maak een voorpagina en verwerk één artikel als persbericht.
-        b. Bied het persbericht aan bij lokale media of plaats het op de sociale media van je groep.
+      - tekst: |
+          Boeken en geschriften zijn oude vormen van media.
+          a. Zoek een oud artikel over natuur uit een Scoutingledenblad, lees dit voor aan je speltak en vertel waarom je voor dit artikel hebt gekozen.
+          b. Schrijf een stukje over wat natuur voor jou betekent en waarom het belangrijk is om goed voor de natuur te zorgen. Laat het lezen door je leiding en je speltak.
+        groen: true
+      - tekst: |
+          Omdat veel mensen vroeger niet konden lezen werden er vaak afbeeldingen en symbolen gebruikt om een boodschap over te brengen.
+          a. Bedenk een boodschap over duurzaamheid die je aan je speltak wilt overbrengen.
+          b. Verwerk deze boodschap in een poster met afbeeldingen, kleuren of symbolen.
+          c. Hang de poster op in het clubhuis en vraag aan je speltak welke boodschap ze denken te zien.
+        groen: true
+      - tekst: |
+          Kranten zijn ontstaan in de 17e eeuw in Europa.
+          a. Ontwerp een krant of nieuwsbrief over duurzaamheid. Schrijf stukjes, voeg foto's toe, maak een voorpagina en verwerk één artikel als persbericht.
+          b. Bied het persbericht aan bij lokale media of plaats het op de sociale media van je groep.
+        groen: true
   - naam: Auditieve media
     eisen:
       - |
@@ -67,10 +70,11 @@ eisen:
         c. Heeft je groep nog geen actief kanaal? Maak dan een plan op om dat op te starten.
   - naam: Mediawijsheid
     eisen:
-      - |
-        Op radio, televisie, internet en apps kom je veel reclame tegen.
-        a. Vertel aan je speltak welke reclame je heel leuk vindt, welke reclame je heel irritant vindt en wat het doel van reclame is. Geef ook voorbeelden van hoe je door reclame wordt beïnvloed.
-        b. Sluit de presentatie af met een zelfbedachte reclame waarin je een duurzaam product aanprijst. Gebruik daarbij beelden.
+      - tekst: |
+          Op radio, televisie, internet en apps kom je veel reclame tegen.
+          a. Vertel aan je speltak welke reclame je heel leuk vindt, welke reclame je heel irritant vindt en wat het doel van reclame is. Geef ook voorbeelden van hoe je door reclame wordt beïnvloed.
+          ==b. Sluit de presentatie af met een zelfbedachte reclame waarin je een duurzaam product aanprijst. Gebruik daarbij beelden.==
+        groen: true
       - |
         Sociale media brengen soms ook risico's met zich mee.
         a. Onderzoek risico's van sociale media zoals clickbait, nepnieuws, AI, online pesten en sexting.

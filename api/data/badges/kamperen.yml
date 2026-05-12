@@ -1,7 +1,7 @@
 slug: kamperen
 titel: Insigne Kamperen
 introductie: |
-  Dit insigne maakt deel uit van het activiteitengebied Uitdagende Scoutingtechnieken.
+  ***Dit insigne maakt deel uit van het activiteitengebied Uitdagende Scoutingtechnieken.***
   In dit activiteitengebied doe je activiteiten rondom een techniek, zoals hakken, stoken, kaart en kompas,
   routetechnieken, pionieren, zeilen en kamperen. Met dit insigne leer je hoe je op een goede en verantwoorde
   manier kunt kamperen en omgaat met kampeermaterialen.
@@ -30,39 +30,51 @@ eisen:
         a. Zoek een geschikte plek om een tent op te zetten, zodat je bij regen droog blijft.
         b. Zet samen met je ouders of je vaste subgroep een tent op en slaap er een nachtje in.
         c. Help mee de tent schoon en netjes op te bergen.
-      - |
-        Kamperen kun je op verschillende manieren, door te slapen in een tent, vlet of zelfgebouwd onderkomen.
-        a. Overnacht minimaal een week in een tent of op een vlet.
-        b. Zet zelf je eigen tent op. Bij een grotere tent doe je dit samen met je vaste subgroep.
-        c. Slaap minimaal twee nachten in een zelfgebouwd onderkomen, zoals een shelter of frietzaktent.
-        d. Zet met leiding een groeps- of vendeltent op.
-        e. Leg uit hoe je je tent onderhoudt, hoe je de tent laat luchten, wat je doet met slecht weer, en wat wel en niet mag.
-        f. Berg de tent op en leg uit waarom het belangrijk is voor duurzaam gebruik om de tent na afloop goed schoon te maken en te drogen.
-      - |
-        Een expeditie is een bijzondere vorm van kamperen, waarbij je rondtrekt op verschillende locaties.
-        a. Ga minimaal een week op expeditie of trekkerskamp.
-        b. Slaap minimaal vier nachten in een zelfgebouwd onderkomen.
-        c. Slaap minimaal twee nachten in de openlucht.
-        d. Laat zien hoe verschillende tenten worden opgezet, zoals lichtgewicht tenten, partytenten, tarpen en groepstenten.
-        e. Leg uit waar een tent aan moet voldoen om veilig in te koken.
-        f. Leg uit hoe je tenten duurzaam onderhoudt.
+
+        *(Tip: dit kan tijdens een weekend of kamp van je speltak in of rond een clubhuis, maar eventueel ook thuis of op een camping)*
+      - groen: true
+        tekst: |
+          Kamperen kun je op verschillende manieren, door te slapen in een tent, vlet of zelfgebouwd onderkomen.
+          a. Overnacht minimaal een week in een tent of op een vlet.
+          b. Zet zelf je eigen tent op. Bij een grotere tent doe je dit samen met je vaste subgroep.
+          c. Slaap minimaal twee nachten in een zelfgebouwd onderkomen, zoals een shelter of frietzaktent.
+          d. Zet met leiding een groeps- of vendeltent op.
+          ==e. Leg uit hoe je je tent onderhoudt, hoe je de tent laat luchten, wat je doet met slecht weer, en wat wel en niet mag.==
+          ==f. Berg de tent op en leg uit waarom het belangrijk is voor duurzaam gebruik om de tent na afloop goed schoon te maken en te drogen.==
+      - groen: true
+        tekst: |
+          Een expeditie is een bijzondere vorm van kamperen, waarbij je rondtrekt op verschillende locaties.
+          a. Ga minimaal een week op expeditie of trekkerskamp.
+          b. Slaap minimaal vier nachten in een zelfgebouwd onderkomen.
+          c. Slaap minimaal twee nachten in de openlucht.
+          d. Laat zien hoe verschillende tenten worden opgezet, zoals lichtgewicht tenten, partytenten, tarpen en groepstenten.
+          e. Leg uit waar een tent aan moet voldoen om veilig in te koken.
+          ==f. Leg uit hoe je tenten duurzaam onderhoudt.==
   - naam: Kampeerterreinen
     eisen:
-      - |
-        Een goede scout is zich bewust van de omgeving en gaat hier goed mee om.
-        a. Maak een plattegrond van het terrein waar je tent staat, inclusief gebouwen, wegen en voorzieningen.
-        b. Maak een lijst met wat volgens jou de belangrijkste kampregels zijn. Denk aan omgaan met elkaar, schoon houden, veiligheid en de natuur.
-      - |
-        Een goede indeling van het kampterrein is belangrijk voor veiligheid, voorzieningen en sfeer.
-        a. Maak een indelingsplattegrond van het kampterrein vóór opbouw.
-        b. Leg uit waarom je kiest voor bepaalde plekken, rekening houdend met watertappunten, tenten, keukens, speelplek en kampvuurplaats.
-        c. Leg uit waar je rekening mee houdt bij de HUDO, wasplek, gasflessen, bijlen, zagen en aanmeerplekken.
-        d. Maak een lijst van belangrijke kampregels voor goed en duurzaam gebruik van het kampeerterrein.
-      - |
-        Duurzaam kamperen is belangrijk om de natuur zo min mogelijk te belasten.
-        a. Bedenk maatregelen om het terrein zo min mogelijk te belasten (gras, bomen, dieren).
-        b. Maak een opzet voor een kampeertocht in het buitenland met wat je wil doen, hoe je je wil verplaatsen, waar je wil overnachten en welke voorzieningen je nodig hebt.
-        c. Zoek geschikte kampeerplekken die aan je voorwaarden voldoen.
+      - groen: true
+        tekst: |
+          Een goede scout is zich bewust van de omgeving en gaat hier goed mee om.
+          a. Maak een plattegrond van het terrein waar je tent staat, inclusief gebouwen, wegen en voorzieningen.
+          ==b. Maak een lijst met wat volgens jou de belangrijkste kampregels zijn. Denk hierbij aan:
+            - Omgaan met elkaar en elkaars spullen
+            - Schoon en net clubhuis of kampterrein
+            - Veiligheid
+            - De natuur op en buiten het kampterrein==
+      - groen: true
+        tekst: |
+          Een goede indeling van het kampterrein is belangrijk voor veiligheid, voorzieningen en sfeer.
+          a. Maak een indelingsplattegrond van het kampterrein vóór opbouw.
+          b. Leg uit waarom je kiest voor bepaalde plekken, rekening houdend met watertappunten, tenten, keukens, speelplek en kampvuurplaats.
+          c. Leg uit waar je rekening mee houdt bij de HUDO, wasplek, gasflessen, bijlen, zagen en aanmeerplekken.
+          ==d. Maak een lijst van belangrijke kampregels voor goed en duurzaam gebruik van het kampeerterrein.==
+          ==e. Denk aan geluidsoverlast, toegankelijkheid en natuurbehoud.==
+      - groen: true
+        tekst: |
+          ==Duurzaam kamperen is belangrijk om de natuur zo min mogelijk te belasten.==
+          ==a. Bedenk maatregelen om het terrein zo min mogelijk te belasten (gras, bomen, dieren).==
+          b. Maak een opzet voor een kampeertocht in het buitenland met wat je wil doen, hoe je je wil verplaatsen, waar je wil overnachten en welke voorzieningen je nodig hebt.
+          c. Zoek geschikte kampeerplekken die aan je voorwaarden voldoen.
   - naam: Kampkeukens
     eisen:
       - |
@@ -70,36 +82,44 @@ eisen:
         a. Voer tijdens kamp alle corveetaken minstens één keer uit.
         b. Help de kookstaf bij het (voor)bereiden van een warme maaltijd.
         c. Help minstens één keer met de afwas na een warme maaltijd.
-      - |
-        Op de meeste kampeerterreinen zijn geen kant-en-klare keukens, maar moet je die zelf bouwen.
-        a. Maak een veilige indeling voor een kampkeuken (géén keuken met een tweepoot), bouw deze met je vaste subgroep en laat het bouwwerk controleren door de leiding.
-        b. Leg uit wat er wel en niet in een natuurlijk afvoerputje mag, welk afval je moet scheiden en welk afwasmiddel je het best kunt gebruiken.
-        c. Laat zien dat je een kooktoestel veilig plaatst, aansluit, gebruikt, schoonmaakt en onderhoudt. Leg ook de verschillen uit tussen diverse kooktoestellen en brandstoffen.
-      - |
-        Als je gaat kamperen of op expeditie gaat, kun je op verschillende manieren je eten bereiden.
-        a. Laat zien hoe alle kooktoestellen van je groep moeten worden gebruikt.
-        b. Onderzoek welke verschillende kooktoestellen je tijdens een trekkerskamp of expeditie veilig kunt gebruiken. Denk aan een primus-, MSR- of benzinebrander, Esbit, barbecue, kelly kettle of dutch oven.
-        c. Vertel welk afval je tijdens primitief kamperen in de natuur mag achterlaten.
+      - tekst: |
+          Op de meeste kampeerterreinen zijn geen kant-en-klare keukens, maar moet je die zelf bouwen.
+          a. Maak een veilige indeling voor een kampkeuken (géén keuken met een tweepoot), bouw deze met je vaste subgroep en laat het bouwwerk controleren door de leiding. Zorg ten minste voor de volgende onderdelen:
+            - natuurlijk afvoerputje
+            - afvalverzamelpunt
+            - plaats voor het kooktoestel
+            - plaats voor de brandstof
+          ==b. Leg uit wat er wel en niet in een natuurlijk afvoerputje mag, welk afval je moet scheiden en welk afwasmiddel je het best kunt gebruiken.==
+          c. Laat zien dat je een kooktoestel veilig plaatst, aansluit, gebruikt, schoonmaakt en onderhoudt. Leg ook de verschillen uit tussen diverse kooktoestellen en brandstoffen.
+        groen: true
+      - tekst: |
+          Als je gaat kamperen of op expeditie gaat, kun je op verschillende manieren je eten bereiden.
+          a. Laat zien hoe alle kooktoestellen van je groep moeten worden gebruikt.
+          b. Onderzoek welke verschillende kooktoestellen je tijdens een trekkerskamp of expeditie veilig kunt gebruiken. Denk aan een primus-, MSR- of benzinebrander, Esbit, barbecue, kelly kettle of dutch oven.
+          ==c. Vertel welk afval je tijdens primitief kamperen in de natuur mag achterlaten.==
+        groen: true
   - naam: Hygiëne op kamp
     eisen:
-      - |
-        Om gezond te blijven is een goede hygiëne op kamp belangrijk.
-        a. Maak een lijstje hoe je jezelf schoon houdt en waarom dat belangrijk is.
-        b. Maak een corveeschema voor je speltak met de belangrijkste taken voor een goede hygiëne tijdens kamp en bespreek dat met de leiding.
-        c. Weet te vertellen waarom afval scheiden goed is.
-        d. Maak een tekening of (digitale) collage met welk afval je kunt scheiden op kamp.
+      - groen: true
+        tekst: |
+          Om gezond te blijven is een goede hygiëne op kamp belangrijk.
+          a. Maak een lijstje hoe je jezelf schoon houdt en waarom dat belangrijk is.
+          b. Maak een corveeschema voor je speltak met de belangrijkste taken voor een goede hygiëne tijdens kamp en bespreek dat met de leiding.
+          ==c. Weet te vertellen waarom afval scheiden goed is.==
+          ==d. Maak een tekening of (digitale) collage met welk afval je kunt scheiden op kamp.==
       - |
         Hygiëne op kamp heeft met allerlei verschillende dingen te maken.
         a. Leg uit waar en hoe je op kamp vers voedsel moet bewaren.
         b. Leg uit waar en hoe je op kamp afval moet bewaren en waarom je het moet scheiden.
         c. Leg uit wanneer en waarom je de tent laat luchten, het werkblad schoon moet maken en je handen moet wassen bij het bereiden van voedsel.
         d. Houd tijdens een (weekend)kamp de hygiëne in de gaten en geef dagelijks een kort verslag aan de leiding.
-      - |
-        Als je steeds op een andere locatie bent, vraagt hygiëne vaak extra aandacht.
-        a. Wees tijdens een expeditie Voedsel & Hygiëne-coördinator: koop voedsel in en zorg voor correcte bewaring en meenemen.
-        b. Zoek uit op welke natuurlijke manier, zonder kunstmatige hulpstoffen of koelkast, voedingsmiddelen langer bewaard kunnen blijven.
-        c. Leg uit hoe de verschillende technieken werken en probeer er minimaal één uit op een kamp of expeditie.
+      - groen: true
+        tekst: |
+          Als je steeds op een andere locatie bent, vraagt hygiëne vaak extra aandacht.
+          a. Wees tijdens een expeditie Voedsel & Hygiëne-coördinator: koop voedsel in en zorg voor correcte bewaring en meenemen.
+          ==b. Zoek uit op welke natuurlijke manier, zonder kunstmatige hulpstoffen of koelkast, voedingsmiddelen langer bewaard kunnen blijven.==
+          ==c. Leg uit hoe de verschillende technieken werken en probeer er minimaal één uit op een kamp of expeditie.==
 nawoord: |
   De opdrachten onder eis 2 kamperen en kampmaterialen zullen veel scouts tijdens kampen halen.
   In dat geval is het gewoon een kwestie van gezien door de leiding en afvinken.
-  Voor de vragen over het verduurzamen van je kamp is de activiteitenbank van Scouting een leuk hulpmiddel.
+  Voor de vragen over het verduurzamen van je kamp is de activiteitenbank van Scouting een leuk hulpmiddel. [https://activiteitenbank.scouting.nl/component/k2/item/12720-je-kamp-verduurzamen](https://activiteitenbank.scouting.nl/component/k2/item/12720-je-kamp-verduurzamen)

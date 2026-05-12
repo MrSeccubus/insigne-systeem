@@ -59,6 +59,99 @@ class TestBadgeDetail:
         assert r.status_code == 200
 
 
+# ── render_eis integration: introduction, afterword, and step text in HTML ───
+
+class TestBadgeDetailRendering:
+    """Verify that render_eis output actually appears in the served HTML."""
+
+    def test_introduction_text_in_html(self, client, db):
+        r = client.get("/badges/vredeslicht")
+        assert r.status_code == 200
+        # Text from the introductie field
+        assert "Vredeslicht" in r.text
+
+    def test_introduction_wrapped_in_badge_introduction_div(self, client, db):
+        r = client.get("/badges/vredeslicht")
+        assert 'class="badge-introduction"' in r.text
+
+    def test_afterword_text_in_html(self, client, db):
+        r = client.get("/badges/vredeslicht")
+        # nawoord contains "Informatiebronnen"
+        assert "Informatiebronnen" in r.text
+
+    def test_afterword_wrapped_in_badge_afterword_div(self, client, db):
+        r = client.get("/badges/vredeslicht")
+        assert 'class="badge-afterword"' in r.text
+
+    def test_afterword_markdown_link_rendered_as_anchor(self, client, db):
+        # vredeslicht nawoord has [https://Vredeslicht.nl](https://Vredeslicht.nl)
+        r = client.get("/badges/vredeslicht")
+        assert "<a" in r.text
+        assert "Vredeslicht.nl" in r.text
+
+    def test_afterword_link_opens_in_new_tab(self, client, db):
+        r = client.get("/badges/vredeslicht")
+        assert 'target="_blank"' in r.text
+
+    def test_green_step_renders_eis_groen_span(self, client, db):
+        # vredeslicht level 3 (Creatief en duurzaam) has groen: true steps
+        r = client.get("/badges/vredeslicht")
+        assert 'class="eis-groen"' in r.text
+
+    def test_inline_equals_markers_render_eis_groen_span(self, client, db):
+        # vredeslicht also uses ==...== inline markers inside green steps
+        r = client.get("/badges/vredeslicht")
+        assert 'eis-groen' in r.text
+
+    def test_step_text_no_p_tags_leaked(self, client, db):
+        # render_eis must strip <p> wrappers; they must not appear in step-text div
+        r = client.get("/badges/vredeslicht")
+        # The step-text div should not directly contain raw <p> tags from render_eis
+        # (layout <p> from the base template are fine, but render_eis strips its own)
+        import re
+        step_texts = re.findall(
+            r'<div class="step-text">(.*?)</div>', r.text, re.DOTALL
+        )
+        for block in step_texts:
+            assert "<p>" not in block, "render_eis leaked a <p> tag into step text"
+
+    def test_badge_with_afterword_kunstenaar_renders(self, client, db):
+        # kunstenaar has a nawoord about 'loose parts'
+        r = client.get("/badges/kunstenaar")
+        assert r.status_code == 200
+        assert "loose parts" in r.text.lower()
+
+    def test_badge_with_link_in_step_text_knopen(self, client, db):
+        # knopen has a [Scoutwiki](url) link in step text
+        r = client.get("/badges/knopen")
+        assert r.status_code == 200
+        assert "Scoutwiki" in r.text
+        assert "<a" in r.text
+
+
+# ── Explorer Jaarbadge rendering ─────────────────────────────────────────────
+
+class TestExplorerJaarbadgeRendering:
+    def test_badge_page_returns_200(self, client, db):
+        r = client.get("/badges/explorer_jaarbadge")
+        assert r.status_code == 200
+
+    def test_niveau_label_jaarbadge_in_html(self, client, db):
+        r = client.get("/badges/explorer_jaarbadge")
+        assert "Jaarbadge" in r.text
+
+    def test_niveau_label_not_niveau_in_html(self, client, db):
+        r = client.get("/badges/explorer_jaarbadge")
+        # Column headers must say "Jaarbadge 1/2/3", not "Niveau 1/2/3"
+        assert "Niveau 1" not in r.text
+        assert "Niveau 2" not in r.text
+        assert "Niveau 3" not in r.text
+
+    def test_regular_badge_still_uses_niveau_label(self, client, db):
+        r = client.get("/badges/vredeslicht")
+        assert "Niveau" in r.text
+
+
 # ── log step ──────────────────────────────────────────────────────────────────
 
 class TestLogStep:

@@ -741,7 +741,7 @@ async def scout_badge_detail(
 
     badge = get_badge(_DATA_DIR, slug)
     if badge is None:
-        return RedirectResponse(f"/scouts/{scout_id}", status_code=303)
+        return RedirectResponse(f"/scouts/{scout.id}", status_code=303)
 
     edit_speltak_id = groups_svc.get_edit_speltak_for_scout(db, current_user.id, scout_id)
     progress_map: dict[tuple[int, int], ProgressEntry] = {}

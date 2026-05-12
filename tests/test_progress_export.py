@@ -1,12 +1,15 @@
 """Tests for progress export/import service and API endpoints."""
 
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import patch
 
 import yaml
 import pytest
 
 from insigne.models import ProgressEntry, User
+
+_DATA_DIR = Path(__file__).parent.parent / "api" / "data"
 from insigne.progress_export import (
     embed_yaml_in_pdf,
     export_data,
@@ -128,6 +131,12 @@ class TestToYaml:
         assert parsed["progress"][0]["status"] == "work_done"
 
 
+def _pdf_text(pdf_bytes: bytes) -> str:
+    import fitz
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    return "".join(page.get_text() for page in doc)
+
+
 class TestToPdf:
     def test_returns_pdf_bytes(self, db):
         user = _make_user(db)
@@ -142,6 +151,31 @@ class TestToPdf:
         data = export_data(db, user.id)
         pdf = to_pdf(data)
         assert len(pdf) > 1000
+
+    def test_pdf_contains_explorers_category_heading(self, db):
+        user = _make_user(db)
+        data = export_data(db, user.id)
+        pdf = to_pdf(data, data_dir=_DATA_DIR)
+        text = _pdf_text(pdf)
+        assert "Explorers" in text
+
+    def test_pdf_explorer_jaarbadge_uses_jaarbadge_label(self, db):
+        user = _make_user(db)
+        data = export_data(db, user.id)
+        pdf = to_pdf(data, data_dir=_DATA_DIR)
+        text = _pdf_text(pdf)
+        assert "Jaarbadge 1" in text
+        assert "Jaarbadge 2" in text
+        assert "Jaarbadge 3" in text
+
+    def test_pdf_regular_badge_uses_niveau_label(self, db):
+        user = _make_user(db)
+        data = export_data(db, user.id)
+        pdf = to_pdf(data, data_dir=_DATA_DIR)
+        text = _pdf_text(pdf)
+        assert "Niveau 1" in text
+        assert "Niveau 2" in text
+        assert "Niveau 3" in text
 
 
 # ── embed / extract ───────────────────────────────────────────────────────────
@@ -189,6 +223,16 @@ class TestImportProgress:
         data = self._data([], version=99)
         with pytest.raises(ValueError, match="99"):
             import_progress(db, user.id, data)
+
+    def test_accepts_version_1_for_backwards_compat(self, db):
+        user = _make_user(db)
+        data = self._data([{
+            "badge_slug": "sport_spel", "level_index": 0, "step_index": 0,
+            "status": "in_progress", "notes": None,
+            "signed_off_by": None, "signed_off_at": None,
+        }], version=1)
+        count = import_progress(db, user.id, data)
+        assert count == 1
 
     def test_creates_new_entries(self, db):
         user = _make_user(db)

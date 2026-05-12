@@ -175,6 +175,40 @@ class TestGetBadge:
         ]
 
 
+# ── Explorer Jaarbadge specifics ─────────────────────────────────────────────
+
+class TestExplorerJaarbadge:
+    def test_present_in_explorers_category(self):
+        result = list_badges(DATA_DIR)
+        assert "explorers" in result
+        slugs = [b["slug"] for b in result["explorers"]]
+        assert "explorer_jaarbadge" in slugs
+
+    def test_category_is_explorers(self):
+        badge = get_badge(DATA_DIR, "explorer_jaarbadge")
+        assert badge["category"] == "explorers"
+
+    def test_niveau_label_is_jaarbadge(self):
+        badge = get_badge(DATA_DIR, "explorer_jaarbadge")
+        assert badge["niveau_label"] == "Jaarbadge"
+
+    def test_has_eight_eis_groups(self):
+        badge = get_badge(DATA_DIR, "explorer_jaarbadge")
+        assert len(badge["levels"]) == 8
+
+    def test_each_group_has_three_steps(self):
+        badge = get_badge(DATA_DIR, "explorer_jaarbadge")
+        for group in badge["levels"]:
+            assert len(group["steps"]) == 3
+
+    def test_last_eis_group_has_empty_steps_for_jaar_1_and_2(self):
+        badge = get_badge(DATA_DIR, "explorer_jaarbadge")
+        last = badge["levels"][-1]
+        assert last["steps"][0]["text"].strip() == ""
+        assert last["steps"][1]["text"].strip() == ""
+        assert last["steps"][2]["text"].strip() != ""
+
+
 # ── Badge structure validation (runs against real api/data/) ─────────────────
 
 @pytest.mark.parametrize("slug", _all_slugs(DATA_DIR))
@@ -230,6 +264,13 @@ class TestBadgeStructure:
             non_empty = [s for s in group["steps"] if s["text"].strip()]
             assert non_empty, (
                 f"{slug} / '{group['name']}': alle stappen zijn leeg"
+            )
+
+    def test_niveau_label_default_is_niveau(self, slug):
+        badge = get_badge(DATA_DIR, slug)
+        if badge["category"] != "explorers":
+            assert badge["niveau_label"] == "Niveau", (
+                f"{slug}: verwacht niveau_label 'Niveau', gevonden '{badge['niveau_label']}'"
             )
 
     def test_step_green_is_bool(self, slug):

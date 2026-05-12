@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 import insigne.models  # noqa: F401 — registers all ORM classes on Base.metadata
 from insigne import groups as groups_svc
 from insigne import progress as progress_svc
-from insigne.badges import get_badge, list_badges
+from insigne.badges import BadgeCatalogue
 from insigne.config import config
 from insigne.database import get_db
 from routers import api_admin, api_auth, api_badges, api_contact, api_groups, api_progress, api_users, api_version, html_admin, html_badges, html_contact, html_groups, users
@@ -21,6 +21,7 @@ BASE_DIR = Path(__file__).parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 DATA_DIR = Path(__file__).parent / "data"
 IMAGES_DIR = DATA_DIR / "images"
+_CATALOGUE = BadgeCatalogue(DATA_DIR)
 
 app = FastAPI()
 
@@ -49,7 +50,7 @@ app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 async def index(request: Request, db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)
 
-    all_badges = list_badges(DATA_DIR)
+    all_badges = _CATALOGUE.list()
     signoff_count = 0
     all_progress: dict[str, dict] = {}
 
@@ -71,7 +72,7 @@ async def index(request: Request, db: Session = Depends(get_db)):
     # Enrich each badge with 3 niveau cards (one per a/b/c sub-task level)
     for badges in all_badges.values():
         for badge in badges:
-            detail = get_badge(DATA_DIR, badge["slug"])
+            detail = _CATALOGUE.get(badge["slug"])
             niveau_label = detail.get("niveau_label", "Niveau")
             niveau_label_kort = detail.get("niveau_label_kort", "N")
             badge["level_cards"] = [

@@ -1,3 +1,4 @@
+import html
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, Query, Request
@@ -1285,9 +1286,12 @@ def speltak_toggle_favorite_badge(
     label = "Verwijder uit favorieten" if is_fav else "Voeg toe aan favorieten"
     star = "★" if is_fav else "☆"
     css_class = "btn-star-active" if is_fav else "btn-neutral"
+    safe_group_slug = html.escape(group_slug, quote=True)
+    safe_speltak_slug = html.escape(speltak_slug, quote=True)
+    safe_badge_slug = html.escape(badge_slug, quote=True)
     return HTMLResponse(
-        f'<button hx-post="/groups/{group_slug}/speltakken/{speltak_slug}/favorite-badge" '
-        f'hx-vals=\'{{"badge_slug":"{badge_slug}"}}\' hx-target="this" hx-swap="outerHTML" '
+        f'<button hx-post="/groups/{safe_group_slug}/speltakken/{safe_speltak_slug}/favorite-badge" '
+        f'hx-vals=\'{{"badge_slug":"{safe_badge_slug}"}}\' hx-target="this" hx-swap="outerHTML" '
         f'class="btn-sm {css_class}" style="font-size:1rem;padding:0 0.4rem;line-height:1.6;" '
         f'title="{label}">{star}</button>'
     )

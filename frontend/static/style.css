@@ -445,7 +445,7 @@ button:hover {
 
 .badge-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1.25rem;
     margin-bottom: 2rem;
 }
@@ -923,6 +923,7 @@ button:hover {
 
 .niveau-checks {
     display: flex;
+    flex-wrap: wrap;
     gap: 4px;
     justify-content: center;
     margin-top: 0.5rem;

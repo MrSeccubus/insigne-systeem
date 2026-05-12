@@ -633,12 +633,14 @@ def _build_badge_catalogue(all_progress: dict) -> tuple[dict, list]:
             detail = get_badge(_DATA_DIR, badge["slug"])
             n_eisen = len(detail["levels"])
             niveau_label = detail.get("niveau_label", "Niveau")
+            niveau_label_kort = detail.get("niveau_label_kort", "N")
             badge["niveau_label"] = niveau_label
             slug_progress = all_progress.get(badge["slug"], {})
             badge["level_cards"] = [
                 {
                     "index": niveau_idx,
                     "name": f"{niveau_label} {niveau_idx + 1}",
+                    "short_name": f"{niveau_label_kort}{niveau_idx + 1}",
                     "image": f"/images/{badge['slug']}.{niveau_idx + 1}.png",
                     "total": n_eisen,
                     "completed": sum(

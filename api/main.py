@@ -72,11 +72,14 @@ async def index(request: Request, db: Session = Depends(get_db)):
     for badges in all_badges.values():
         for badge in badges:
             detail = get_badge(DATA_DIR, badge["slug"])
-            n_eisen = len(detail["levels"])  # always 5
+            n_eisen = len(detail["levels"])
+            niveau_label = detail.get("niveau_label", "Niveau")
+            niveau_label_kort = detail.get("niveau_label_kort", "N")
             badge["level_cards"] = [
                 {
                     "index": niveau_idx,
-                    "name": f"Niveau {niveau_idx + 1}",
+                    "name": f"{niveau_label} {niveau_idx + 1}",
+                    "short_name": f"{niveau_label_kort}{niveau_idx + 1}",
                     "image": f"/images/{badge['slug']}.{niveau_idx + 1}.png",
                     "total": n_eisen,
                     "completed": sum(

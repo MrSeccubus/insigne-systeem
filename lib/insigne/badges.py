@@ -67,6 +67,7 @@ def get_badge(data_dir: Path, slug: str) -> dict | None:
         "title": raw["titel"],
         "category": category,
         "niveau_label": raw.get("niveau_label", "Niveau"),
+        "niveau_label_kort": raw.get("niveau_label_kort", "N"),
         "images": _images(slug),
         "introduction": (raw.get("introductie") or "").strip(),
         "levels": step_groups,

@@ -15,43 +15,35 @@ introductie: |
   vastgesteld die je gedaan moet hebben. Als je aan die eisen voldoet, krijg je aan het einde van
   het Scoutingjaar een jaarbadge.
 eisen:
-  - naam: "1."
-    eisen:
+  - eisen:
       - Installatie bij de explorers.
       - Je hebt jaarbadge 1 gehaald
       - Je hebt jaarbadge 2 gehaald
-  - naam: "2."
-    eisen:
+  - eisen:
       - Een insigne behalen in een activiteitengebied naar keuze.
       - Een insigne behalen in een ander activiteitengebied dan het jaar ervoor.
       - Een insigne behalen in een ander activiteitengebied dan voorgaande jaren.
-  - naam: "3."
-    eisen:
+  - eisen:
       - Organiseren van ten minste drie gewone opkomstprogramma's.
       - Gespreksleider zijn bij drie evaluaties.
       - Coördineren van de organisatie van een groot project, zoals een weekendkamp of een regioactiviteit.
-  - naam: "4."
-    eisen:
+  - eisen:
       - Actief deelnemen aan drie evaluaties.
       - Meehelpen met het organiseren van een grote activiteit zoals een groeps- of regioactiviteit.
       - Samen met andere explorers de verantwoordelijkheid nemen voor de organisatie van de expeditie.
-  - naam: "5."
-    eisen:
+  - eisen:
       - Deelnemen aan ten minste één weekendkamp.
       - Meehelpen met het organiseren van ten minste één weekendkamp.
       - Een functie in het afdelingsbestuur of een vergelijkbare functie vervullen.
-  - naam: "6."
-    eisen:
+  - eisen:
       - Meedoen aan een Scoutingactiviteit buiten je eigen groep, bijvoorbeeld samen met een andere Scoutinggroep of deelnemen aan een regioactiviteit.
       - Deelnemen aan een activiteit buiten je regio, zoals de HIT of de Nationale Jamboree.
       - Ten minste één keer als explorer naar het buitenland op expeditie zijn geweest.
-  - naam: "7."
-    eisen:
+  - eisen:
       - Deelnemen aan de expeditie.
       - Meehelpen aan de organisatie van de expeditie.
       - De kwaliteitstest voor explorers invullen en bespreken met je begeleiding of ten minste twee andere explorers.
-  - naam: "8."
-    eisen:
+  - eisen:
       - ""
       - ""
       - Twee keer een activiteit organiseren voor een bever- of welpenspeltak, bijvoorbeeld het uitzetten van een speurtocht.

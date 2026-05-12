@@ -56,7 +56,7 @@ def get_badge(data_dir: Path, slug: str) -> dict | None:
 
     step_groups = [
         {
-            "name": group["naam"],
+            "name": group.get("naam", ""),
             "steps": [_parse_step(i, step) for i, step in enumerate(group["eisen"])],
         }
         for group in raw.get("eisen", [])

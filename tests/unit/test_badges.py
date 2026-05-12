@@ -5,7 +5,7 @@ import yaml
 
 from insigne.badges import get_badge, list_badges
 
-DATA_DIR = Path(__file__).parent.parent / "api" / "data"
+DATA_DIR = Path(__file__).parent.parent.parent / "api" / "data"
 
 
 def _all_slugs(data_dir: Path) -> list[str]:

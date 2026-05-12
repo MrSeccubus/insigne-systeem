@@ -9,7 +9,7 @@ import pytest
 
 from insigne.models import ProgressEntry, User
 
-_DATA_DIR = Path(__file__).parent.parent / "api" / "data"
+_DATA_DIR = Path(__file__).parent.parent.parent / "api" / "data"
 from insigne.progress_export import (
     embed_yaml_in_pdf,
     export_data,

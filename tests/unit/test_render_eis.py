@@ -8,7 +8,7 @@ import pytest
 # Import _render_eis directly without triggering the full FastAPI app startup.
 # We add the api/ directory to sys.path so `from insigne.config import config`
 # resolves, then import only the rendering helper.
-_API_DIR = Path(__file__).parent.parent / "api"
+_API_DIR = Path(__file__).parent.parent.parent / "api"
 if str(_API_DIR) not in sys.path:
     sys.path.insert(0, str(_API_DIR))
 

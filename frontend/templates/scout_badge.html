@@ -90,7 +90,10 @@
         {% set can_edit_cell = can_edit and entry_status != "pending_signoff" %}
         {% set can_review_cell = can_edit and entry_status == "pending_signoff" %}
         <div class="step-card">
-            <div class="step-card-text">{{ step.text | render_eis }}</div>
+            <div class="step-header">
+                <span class="step-number">{{ badge.niveau_label_kort }}{{ step_index + 1 }}</span>
+                <div class="step-text">{{ step.text | render_eis }}</div>
+            </div>
             <div style="margin-top:0.5rem;display:flex;justify-content:flex-end;">
                 {% include "partials/leider_step_check.html" %}
             </div>

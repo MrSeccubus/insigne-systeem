@@ -9,14 +9,14 @@ from insigne import email as email_svc
 from insigne import groups as groups_svc
 from insigne import progress as progress_svc
 from insigne import users as users_svc
-from insigne.badges import get_badge, list_badges
+from insigne.badges import BadgeCatalogue
 from insigne.config import config
 from insigne.database import get_db
 from insigne.models import GroupMembership, ProgressEntry, Speltak, SpeltakMembership, User as UserModel
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
 
-_DATA_DIR = Path(__file__).parent.parent / "data"
+_CATALOGUE = BadgeCatalogue(Path(__file__).parent.parent / "data")
 
 import re as _re
 _UUID_RE = _re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', _re.I)
@@ -83,7 +83,7 @@ def accept_speltak_invite(speltak_id: str, request: Request, db: Session = Depen
         }
         badge_rows = []
         for slug in sorted({k[0] for k in scout_map}):
-            badge = get_badge(_DATA_DIR, slug)
+            badge = _CATALOGUE.get(slug)
             if not badge:
                 continue
             n_levels = len(badge["levels"])
@@ -1153,12 +1153,12 @@ def speltak_progress(
         only_favorites = bool(favorite_slugs)
     can_edit = not speltak.peer_signoff
 
-    all_badges_raw = list_badges(_DATA_DIR)
+    all_badges_raw = _CATALOGUE.list()
     all_badges = {}
     for category, summaries in all_badges_raw.items():
         badge_list = []
         for summary in summaries:
-            badge = get_badge(_DATA_DIR, summary["slug"])
+            badge = _CATALOGUE.get(summary["slug"])
             if badge:
                 badge["n_levels"] = len(badge["levels"])
                 badge_list.append(badge)
@@ -1206,7 +1206,7 @@ def speltak_set_scout_progress(
         if entry and status == "signed_off":
             scout = entry.user
             if scout.email:
-                badge = get_badge(_DATA_DIR, badge_slug)
+                badge = _CATALOGUE.get(badge_slug)
                 level = badge["levels"][level_index]
                 step_text = level["steps"][step_index]["text"]
                 mentor_name = user.name or user.email

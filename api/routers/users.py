@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from insigne import progress_export as export_svc
 from insigne import users as user_svc
+from insigne.badges import BadgeCatalogue
 from insigne.auth import create_access_token, decode_access_token
 from insigne.config import config
 from insigne.database import get_db
@@ -23,7 +24,7 @@ from insigne.models import User
 from templates import templates as _TEMPLATES
 
 _secure_cookies = config.base_url.startswith("https://")
-_DATA_DIR = Path(__file__).parent.parent / "data"
+_CATALOGUE = BadgeCatalogue(Path(__file__).parent.parent / "data")
 
 router = APIRouter()
 
@@ -427,7 +428,7 @@ def export_download(request: Request, format: str = "yaml", db: Session = Depend
     if format == "pdf":
         from datetime import datetime, timezone
         yaml_str = export_svc.to_yaml(data)
-        pdf_bytes = export_svc.to_pdf(data, data_dir=_DATA_DIR, base_url=config.base_url)
+        pdf_bytes = export_svc.to_pdf(data, catalogue=_CATALOGUE, base_url=config.base_url)
         content = export_svc.embed_yaml_in_pdf(pdf_bytes, yaml_str, base_url=config.base_url)
         date_tag = datetime.now(timezone.utc).strftime("%Y%m%d")
         filename = f"insignesysteem_export_{name}-{date_tag}.pdf"

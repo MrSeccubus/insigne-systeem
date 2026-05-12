@@ -4,12 +4,12 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from insigne import progress as progress_svc
-from insigne.badges import get_badge
+from insigne.badges import BadgeCatalogue
 from insigne.database import get_db
 from insigne.email import send_mentor_signoff_invite_email, send_mentor_signoff_request_email
 from insigne.models import ProgressEntry, SignoffRequest, User
 
-_DATA_DIR = Path(__file__).parent.parent / "data"
+_CATALOGUE = BadgeCatalogue(Path(__file__).parent.parent / "data")
 
 from deps import get_current_user
 from schemas import (
@@ -158,7 +158,7 @@ async def request_signoff(
         )
         raise HTTPException(status_code=409, detail=detail)
 
-    badge = get_badge(_DATA_DIR, entry.badge_slug)
+    badge = _CATALOGUE.get(entry.badge_slug)
     level = badge["levels"][entry.level_index]
     step_text = level["steps"][entry.step_index]["text"]
     scout_name = current_user.name or current_user.email.split("@")[0]
@@ -205,7 +205,7 @@ async def request_signoff_speltak(
         detail = "This step is already completed." if str(exc) == "already_signed_off" else "Entry is not in work_done status."
         raise HTTPException(status_code=409, detail=detail)
 
-    badge = get_badge(_DATA_DIR, entry.badge_slug)
+    badge = _CATALOGUE.get(entry.badge_slug)
     level = badge["levels"][entry.level_index]
     step_text = level["steps"][entry.step_index]["text"]
     scout_name = current_user.name or current_user.email.split("@")[0]
@@ -233,7 +233,7 @@ async def request_signoff_members(
         detail = "This step is already completed." if str(exc) == "already_signed_off" else "Entry is not in work_done status."
         raise HTTPException(status_code=409, detail=detail)
 
-    badge = get_badge(_DATA_DIR, entry.badge_slug)
+    badge = _CATALOGUE.get(entry.badge_slug)
     level = badge["levels"][entry.level_index]
     step_text = level["steps"][entry.step_index]["text"]
     scout_name = current_user.name or current_user.email.split("@")[0]

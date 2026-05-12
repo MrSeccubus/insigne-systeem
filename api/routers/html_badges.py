@@ -8,7 +8,7 @@ from insigne import groups as groups_svc
 from insigne import progress as progress_svc
 from datetime import datetime
 
-from insigne.badges import get_badge, list_badges
+from insigne.badges import BadgeCatalogue
 from insigne.database import get_db
 from insigne.email import (
     send_mentor_signoff_invite_email,
@@ -39,7 +39,7 @@ def _mobile_default_niveau(progress_map: dict, badge: dict) -> int:
                 return niveau_idx + 1
     return 1
 
-_DATA_DIR = Path(__file__).parent.parent / "data"
+_CATALOGUE = BadgeCatalogue(Path(__file__).parent.parent / "data")
 
 
 def _partial(request: Request, name: str, **ctx):
@@ -47,7 +47,7 @@ def _partial(request: Request, name: str, **ctx):
 
 
 def _step_card(request, slug, level_index, level_name, step_index, step_text, entry, previous_mentors=None, error="", current_user=None, scout_signoff_options=None):
-    _badge = get_badge(_DATA_DIR, slug)
+    _badge = _CATALOGUE.get(slug)
     response = _partial(
         request, "step_card.html",
         slug=slug,
@@ -103,7 +103,7 @@ async def niveau_checks(request: Request, slug: str, niveau_index: int, db: Sess
     current_user = _get_current_user(request, db)
     if not current_user:
         return HTMLResponse("<p>Niet ingelogd.</p>", status_code=401)
-    badge = get_badge(_DATA_DIR, slug)
+    badge = _CATALOGUE.get(slug)
     if badge is None:
         return HTMLResponse("")
 
@@ -127,7 +127,7 @@ async def niveau_checks(request: Request, slug: str, niveau_index: int, db: Sess
 @router.get("/badges/{slug}", response_class=HTMLResponse)
 async def badge_detail(request: Request, slug: str, niveau: int | None = Query(None), db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)
-    badge = get_badge(_DATA_DIR, slug)
+    badge = _CATALOGUE.get(slug)
     if badge is None:
         return RedirectResponse(url="/", status_code=303)
 
@@ -197,7 +197,7 @@ async def log_step(
     if current_user is None:
         return RedirectResponse(url="/login", status_code=303)
 
-    badge = get_badge(_DATA_DIR, slug)
+    badge = _CATALOGUE.get(slug)
     if (badge is None
             or not (0 <= level_index < len(badge["levels"]))
             or not (0 <= step_index < len(badge["levels"][level_index]["steps"]))):
@@ -256,7 +256,7 @@ async def request_signoff(
         entry.notes = notes.strip() or None
         db.commit()
 
-    badge = get_badge(_DATA_DIR, entry.badge_slug)
+    badge = _CATALOGUE.get(entry.badge_slug)
     level = badge["levels"][entry.level_index]
     step_text = level["steps"][entry.step_index]["text"]
     previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
@@ -312,7 +312,7 @@ async def cancel_signoff(
     if entry is None:
         return RedirectResponse(url="/", status_code=303)
 
-    badge = get_badge(_DATA_DIR, entry.badge_slug)
+    badge = _CATALOGUE.get(entry.badge_slug)
     level = badge["levels"][entry.level_index]
     step_text = level["steps"][entry.step_index]["text"]
     previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
@@ -345,7 +345,7 @@ async def delete_progress(
     if entry is None:
         return HTMLResponse("")
 
-    badge = get_badge(_DATA_DIR, entry.badge_slug)
+    badge = _CATALOGUE.get(entry.badge_slug)
     level = badge["levels"][entry.level_index]
     step_text = level["steps"][entry.step_index]["text"]
     slug, level_index, level_name, step_index = entry.badge_slug, entry.level_index, level["name"], entry.step_index
@@ -388,7 +388,7 @@ async def signoff_requests_page(request: Request, db: Session = Depends(get_db))
     enriched = []
     for sr in raw_requests:
         pe = sr.progress_entry
-        badge = get_badge(_DATA_DIR, pe.badge_slug)
+        badge = _CATALOGUE.get(pe.badge_slug)
         if badge is None:
             continue
         level = badge["levels"][pe.level_index]
@@ -432,7 +432,7 @@ async def confirm_signoff(
         error = ""
 
         scout = entry.user
-        badge = get_badge(_DATA_DIR, entry.badge_slug)
+        badge = _CATALOGUE.get(entry.badge_slug)
         level = badge["levels"][entry.level_index]
         step_text = level["steps"][entry.step_index]["text"]
         mentor_name = current_user.name or current_user.email
@@ -490,7 +490,7 @@ async def reject_signoff(
         entry = progress_svc.reject_signoff(db, current_user.id, entry_id, message.strip())
 
         scout = entry.user
-        badge = get_badge(_DATA_DIR, entry.badge_slug)
+        badge = _CATALOGUE.get(entry.badge_slug)
         level = badge["levels"][entry.level_index]
         step_text = level["steps"][entry.step_index]["text"]
         mentor_name = current_user.name or current_user.email
@@ -539,7 +539,7 @@ async def request_signoff_speltak(
         entry.notes = notes.strip() or None
         db.commit()
 
-    badge = get_badge(_DATA_DIR, entry.badge_slug)
+    badge = _CATALOGUE.get(entry.badge_slug)
     level = badge["levels"][entry.level_index]
     step_text = level["steps"][entry.step_index]["text"]
     previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
@@ -595,7 +595,7 @@ async def request_signoff_members(
         entry.notes = notes.strip() or None
         db.commit()
 
-    badge = get_badge(_DATA_DIR, entry.badge_slug)
+    badge = _CATALOGUE.get(entry.badge_slug)
     level = badge["levels"][entry.level_index]
     step_text = level["steps"][entry.step_index]["text"]
     previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
@@ -629,10 +629,10 @@ async def request_signoff_members(
 
 def _build_badge_catalogue(all_progress: dict) -> tuple[dict, list]:
     """Return (all_badges_enriched, signed_off_niveaus) for the given progress map."""
-    all_badges = list_badges(_DATA_DIR)
+    all_badges = _CATALOGUE.list()
     for badges in all_badges.values():
         for badge in badges:
-            detail = get_badge(_DATA_DIR, badge["slug"])
+            detail = _CATALOGUE.get(badge["slug"])
             niveau_label = detail.get("niveau_label", "Niveau")
             niveau_label_kort = detail.get("niveau_label_kort", "N")
             badge["niveau_label"] = niveau_label
@@ -739,7 +739,7 @@ async def scout_badge_detail(
         return scout_or_redirect
     scout = scout_or_redirect
 
-    badge = get_badge(_DATA_DIR, slug)
+    badge = _CATALOGUE.get(slug)
     if badge is None:
         return RedirectResponse(f"/scouts/{scout.id}", status_code=303)
 
@@ -789,7 +789,7 @@ async def scout_niveau_checks(
     if current_user is None:
         return scout_or_redirect
 
-    badge = get_badge(_DATA_DIR, slug)
+    badge = _CATALOGUE.get(slug)
     if badge is None:
         return HTMLResponse("")
 
@@ -825,7 +825,7 @@ async def scout_set_progress(
         return RedirectResponse("/login", status_code=303)
 
     edit_speltak_id = groups_svc.get_edit_speltak_for_scout(db, current_user.id, scout_id)
-    badge = get_badge(_DATA_DIR, badge_slug)
+    badge = _CATALOGUE.get(badge_slug)
     if edit_speltak_id is None or badge is None:
         return HTMLResponse("", status_code=403)
 

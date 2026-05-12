@@ -631,7 +631,6 @@ def _build_badge_catalogue(all_progress: dict) -> tuple[dict, list]:
     for badges in all_badges.values():
         for badge in badges:
             detail = get_badge(_DATA_DIR, badge["slug"])
-            n_eisen = len(detail["levels"])
             niveau_label = detail.get("niveau_label", "Niveau")
             niveau_label_kort = detail.get("niveau_label_kort", "N")
             badge["niveau_label"] = niveau_label
@@ -642,18 +641,23 @@ def _build_badge_catalogue(all_progress: dict) -> tuple[dict, list]:
                     "name": f"{niveau_label} {niveau_idx + 1}",
                     "short_name": f"{niveau_label_kort}{niveau_idx + 1}",
                     "image": f"/images/{badge['slug']}.{niveau_idx + 1}.png",
-                    "total": n_eisen,
+                    "total": sum(
+                        1 for group in detail["levels"]
+                        if group["steps"][niveau_idx]["text"].strip()
+                    ),
                     "completed": sum(
-                        1 for eis_idx in range(n_eisen)
-                        if slug_progress.get((eis_idx, niveau_idx)) and
-                           slug_progress[(eis_idx, niveau_idx)].status == "signed_off"
+                        1 for eis_idx, group in enumerate(detail["levels"])
+                        if group["steps"][niveau_idx]["text"].strip()
+                        and slug_progress.get((eis_idx, niveau_idx))
+                        and slug_progress[(eis_idx, niveau_idx)].status == "signed_off"
                     ),
                     "completed_at": max(
                         (slug_progress[(eis_idx, niveau_idx)].signed_off_at
-                         for eis_idx in range(n_eisen)
-                         if slug_progress.get((eis_idx, niveau_idx)) and
-                            slug_progress[(eis_idx, niveau_idx)].status == "signed_off" and
-                            slug_progress[(eis_idx, niveau_idx)].signed_off_at),
+                         for eis_idx, group in enumerate(detail["levels"])
+                         if group["steps"][niveau_idx]["text"].strip()
+                         and slug_progress.get((eis_idx, niveau_idx))
+                         and slug_progress[(eis_idx, niveau_idx)].status == "signed_off"
+                         and slug_progress[(eis_idx, niveau_idx)].signed_off_at),
                         default=None,
                     ),
                 }

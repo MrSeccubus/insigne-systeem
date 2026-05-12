@@ -161,7 +161,7 @@
         <p style="color:#555;margin-bottom:2rem;">Volg je voortgang voor Scouting insignes en vraag aftekening aan bij je (bege-)leiders.</p>
     {% endif %}
 
-    {% set category_labels = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes"} %}
+    {% set category_labels = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "jaarbadges": "Jaarbadges"} %}
 
     {% for category, badges in all_badges.items() %}
     <h2 class="section-header">{{ category_labels.get(category, category ~ ' insignes') }}</h2>

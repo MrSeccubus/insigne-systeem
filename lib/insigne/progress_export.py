@@ -209,7 +209,7 @@ def to_pdf(data: dict, data_dir: Path | None = None, base_url: str = "") -> byte
 
         badges_by_cat = list_badges(data_dir)
         for category, badge_list in badges_by_cat.items():
-            cat_label = "Gewone insignes" if category == "gewoon" else "Buitengewone insignes"
+            cat_label = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "jaarbadges": "Jaarbadges"}.get(category, category)
             cat_para = Paragraph(cat_label, cat_st)
 
             for badge_idx, badge_info in enumerate(badge_list):
@@ -221,14 +221,14 @@ def to_pdf(data: dict, data_dir: Path | None = None, base_url: str = "") -> byte
                 badge_title_para = Paragraph(badge_info["title"], badge_st)
 
                 # ── header row ────────────────────────────────────────────────
-                # [empty] | [img + "Niveau 1"] | [img + "Niveau 2"] | [img + "Niveau 3"]
+                niveau_label = badge_full.get("niveau_label", "Niveau")
                 header = [Paragraph("", hdr_dk_st)]
                 for step_i in range(3):
                     img = _badge_img(slug, step_i + 1)
                     cell: list = []
                     if img:
                         cell.append(img)
-                    cell.append(Paragraph(f"<b>Niveau {step_i + 1}</b>", hdr_dk_st))
+                    cell.append(Paragraph(f"<b>{niveau_label} {step_i + 1}</b>", hdr_dk_st))
                     header.append(cell)
 
                 tbl_data = [header]

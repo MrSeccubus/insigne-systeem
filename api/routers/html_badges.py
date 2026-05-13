@@ -698,7 +698,7 @@ def _require_scout_access(request: Request, scout_id: str, db: Session):
 
 
 @router.get("/scouts/{scout_id}", response_class=HTMLResponse)
-async def scout_progress_home(scout_id: str, request: Request, db: Session = Depends(get_db)):
+async def scout_progress_home(scout_id: str, request: Request, only_in_progress: int = Query(0), db: Session = Depends(get_db)):
     current_user, scout_or_redirect = _require_scout_access(request, scout_id, db)
     if current_user is None:
         return scout_or_redirect
@@ -721,6 +721,8 @@ async def scout_progress_home(scout_id: str, request: Request, db: Session = Dep
             "all_badges": all_badges,
             "all_progress": all_progress,
             "signed_off_niveaus": signed_off_niveaus,
+            "progress_slugs": set(all_progress.keys()),
+            "only_in_progress": bool(only_in_progress),
         },
     )
     response.headers["Cache-Control"] = "no-store"

@@ -8,7 +8,13 @@
         <a href="/">Home</a> › Voortgang van {{ scout.name or scout.email or '(onbekend)' }}
     </nav>
 
-    <h1>Voortgang van {{ scout.name or scout.email or '(onbekend)' }}</h1>
+    <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.5rem;">
+        <h1 style="margin:0;">Voortgang van {{ scout.name or scout.email or '(onbekend)' }}</h1>
+        <a href="?only_in_progress={% if only_in_progress %}0{% else %}1{% endif %}"
+           class="btn-sm {% if only_in_progress %}btn-star-active{% else %}btn-neutral{% endif %}"
+           style="text-decoration:none;font-size:1rem;padding:0 0.5rem;line-height:1.6;"
+           title="{% if only_in_progress %}Alle badges tonen{% else %}Alleen badges met voortgang tonen{% endif %}">{% include "partials/icon_running.html" %}</a>
+    </div>
 
     {% if not can_edit %}
     <div style="margin-bottom:1rem;padding:0.75rem 1rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:0.9rem;">
@@ -35,10 +41,14 @@
 
     {% set category_labels = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "explorers": "Explorers"} %}
 
+    {% set page_ns = namespace(any_visible=false) %}
     {% for category, badges in all_badges.items() %}
+    {% set visible_badges = badges | selectattr("slug", "in", progress_slugs) | list if only_in_progress else badges %}
+    {% if visible_badges %}{% set page_ns.any_visible = true %}{% endif %}
+    {% if visible_badges %}
     <h2 class="section-header">{{ category_labels.get(category, category ~ ' insignes') }}</h2>
 
-    {% for badge in badges %}
+    {% for badge in visible_badges %}
     <h3 class="badge-group-title">
         <a href="/scouts/{{ scout.id }}/badges/{{ badge.slug }}">{{ badge.title }}</a>
     </h3>
@@ -107,6 +117,11 @@
 
     {% endfor %}
 
+    {% endif %}
     {% endfor %}
+
+    {% if only_in_progress and not page_ns.any_visible %}
+    <p class="empty-state">Deze scout heeft nog geen voortgang op een badge.</p>
+    {% endif %}
 </main>
 {% endblock %}

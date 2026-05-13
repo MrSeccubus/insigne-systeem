@@ -164,17 +164,24 @@
     {% set category_labels = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "explorers": "Explorers"} %}
 
     {% if current_user %}
-    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;">
-        <a href="?only_favorites={% if only_favorites %}0{% else %}1{% endif %}"
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
+        <a href="?only_favorites={% if only_favorites %}0{% else %}1{% endif %}&only_in_progress={{ 1 if only_in_progress else 0 }}"
            class="btn-sm {% if only_favorites %}btn-star-active{% else %}btn-neutral{% endif %}"
            style="text-decoration:none;font-size:1rem;padding:0 0.5rem;line-height:1.6;"
            title="{% if only_favorites %}Alle badges tonen{% else %}Alleen favorieten tonen{% endif %}">{% if only_favorites %}★{% else %}☆{% endif %}</a>
-        <span style="font-size:0.85rem;color:#555;">{% if only_favorites %}Alleen favorieten{% else %}Alle badges{% endif %}</span>
+        <a href="?only_favorites={{ 1 if only_favorites else 0 }}&only_in_progress={% if only_in_progress %}0{% else %}1{% endif %}"
+           class="btn-sm {% if only_in_progress %}btn-star-active{% else %}btn-neutral{% endif %}"
+           style="text-decoration:none;font-size:1rem;padding:0 0.5rem;line-height:1.6;"
+           title="{% if only_in_progress %}Alle badges tonen{% else %}Alleen badges met voortgang tonen{% endif %}">{% include "partials/icon_running.html" %}</a>
     </div>
     {% endif %}
 
+    {% set page_ns = namespace(any_visible=false) %}
     {% for category, badges in all_badges.items() %}
-    {% set visible_badges = badges | selectattr("slug", "in", user_favorite_slugs) | list if only_favorites else badges %}
+    {% set visible_badges = badges %}
+    {% if only_favorites %}{% set visible_badges = visible_badges | selectattr("slug", "in", user_favorite_slugs) | list %}{% endif %}
+    {% if only_in_progress %}{% set visible_badges = visible_badges | selectattr("slug", "in", progress_slugs) | list %}{% endif %}
+    {% if visible_badges %}{% set page_ns.any_visible = true %}{% endif %}
     {% if visible_badges %}
     <h2 class="section-header">{{ category_labels.get(category, category ~ ' insignes') }}</h2>
 
@@ -257,8 +264,18 @@
     {% endif %}
     {% endfor %}
 
-    {% if only_favorites and not user_favorite_slugs %}
+    {% if not page_ns.any_visible and (only_favorites or only_in_progress) %}
+        {% if only_favorites and only_in_progress %}
+    <p class="empty-state">Geen favoriete badges met voortgang gevonden.</p>
+        {% elif only_favorites %}
+            {% if not user_favorite_slugs %}
     <p class="empty-state">Je hebt nog geen favorieten. Klik op ☆ bij een badge om hem toe te voegen.</p>
+            {% else %}
+    <p class="empty-state">Geen favoriete badges gevonden.</p>
+            {% endif %}
+        {% else %}
+    <p class="empty-state">Je hebt nog geen voortgang op een badge.</p>
+        {% endif %}
     {% endif %}
 
     {% if not current_user %}

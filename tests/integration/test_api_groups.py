@@ -980,3 +980,46 @@ class TestScoutProgressAPI:
             headers=_quick_auth(leider),
         )
         assert r.status_code == 403
+
+
+class TestUserFavoriteBadgesAPI:
+    def test_get_favorites_empty(self, client, db):
+        token = _full_register(client, db)
+        r = client.get("/api/users/me/favorite-badges", headers=_auth(token))
+        assert r.status_code == 200
+        assert r.json() == []
+
+    def test_toggle_on(self, client, db):
+        token = _full_register(client, db)
+        r = client.post("/api/users/me/favorite-badges/toggle",
+                        json={"badge_slug": "sport_spel"}, headers=_auth(token))
+        assert r.status_code == 200
+        assert r.json() == {"badge_slug": "sport_spel", "is_favorite": True}
+
+    def test_toggle_off(self, client, db):
+        token = _full_register(client, db)
+        client.post("/api/users/me/favorite-badges/toggle",
+                    json={"badge_slug": "sport_spel"}, headers=_auth(token))
+        r = client.post("/api/users/me/favorite-badges/toggle",
+                        json={"badge_slug": "sport_spel"}, headers=_auth(token))
+        assert r.json()["is_favorite"] is False
+
+    def test_list_sorted(self, client, db):
+        token = _full_register(client, db)
+        for slug in ("vredeslicht", "kamperen", "sport_spel"):
+            client.post("/api/users/me/favorite-badges/toggle",
+                        json={"badge_slug": slug}, headers=_auth(token))
+        r = client.get("/api/users/me/favorite-badges", headers=_auth(token))
+        assert r.json() == sorted(["vredeslicht", "kamperen", "sport_spel"])
+
+    def test_requires_auth(self, client, db):
+        r = client.get("/api/users/me/favorite-badges")
+        assert r.status_code == 401
+
+    def test_favorites_isolated_per_user(self, client, db):
+        token_a = _full_register(client, db, email="fa@x.com", name="A")
+        token_b = _full_register(client, db, email="fb@x.com", name="B")
+        client.post("/api/users/me/favorite-badges/toggle",
+                    json={"badge_slug": "sport_spel"}, headers=_auth(token_a))
+        r = client.get("/api/users/me/favorite-badges", headers=_auth(token_b))
+        assert r.json() == []

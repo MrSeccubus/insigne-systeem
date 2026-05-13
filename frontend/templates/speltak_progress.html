@@ -20,7 +20,7 @@
             <a href="?only_favorites={{ 1 if only_favorites else 0 }}&only_in_progress={% if only_in_progress %}0{% else %}1{% endif %}"
                class="btn-sm {% if only_in_progress %}btn-star-active{% else %}btn-neutral{% endif %}"
                style="text-decoration:none;font-size:1rem;padding:0 0.5rem;line-height:1.6;"
-               title="{% if only_in_progress %}Alle badges tonen{% else %}Alleen badges met voortgang tonen{% endif %}">🏃</a>
+               title="{% if only_in_progress %}Alle badges tonen{% else %}Alleen badges met voortgang tonen{% endif %}">{% include "partials/icon_running.html" %}</a>
         </div>
 
         {% if speltak.peer_signoff %}

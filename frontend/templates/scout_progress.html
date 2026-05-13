@@ -41,8 +41,10 @@
 
     {% set category_labels = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "explorers": "Explorers"} %}
 
+    {% set page_ns = namespace(any_visible=false) %}
     {% for category, badges in all_badges.items() %}
     {% set visible_badges = badges | selectattr("slug", "in", progress_slugs) | list if only_in_progress else badges %}
+    {% if visible_badges %}{% set page_ns.any_visible = true %}{% endif %}
     {% if visible_badges %}
     <h2 class="section-header">{{ category_labels.get(category, category ~ ' insignes') }}</h2>
 
@@ -118,7 +120,7 @@
     {% endif %}
     {% endfor %}
 
-    {% if only_in_progress and not progress_slugs %}
+    {% if only_in_progress and not page_ns.any_visible %}
     <p class="empty-state">Deze scout heeft nog geen voortgang op een badge.</p>
     {% endif %}
 </main>

@@ -48,13 +48,14 @@ app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request, only_favorites: int = 0, db: Session = Depends(get_db)):
+async def index(request: Request, only_favorites: int = 0, only_in_progress: int = 0, db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)
 
     all_badges = _CATALOGUE.list()
     signoff_count = 0
     all_progress: dict[str, dict] = {}
     user_favorite_slugs: set[str] = set()
+    progress_slugs: set[str] = set()
 
     group_invites: list = []
     speltak_invites: list = []
@@ -71,6 +72,7 @@ async def index(request: Request, only_favorites: int = 0, db: Session = Depends
         pending_request_count = groups_svc.count_pending_requests_for_leader(db, current_user.id)
         my_group_memberships, my_speltak_memberships = groups_svc.list_active_memberships_for_user(db, current_user.id)
         user_favorite_slugs = users_svc.get_user_favorite_slugs(db, current_user.id)
+        progress_slugs = set(all_progress.keys())
 
     # Enrich each badge with 3 niveau cards (one per a/b/c sub-task level)
     for badges in all_badges.values():
@@ -142,6 +144,8 @@ async def index(request: Request, only_favorites: int = 0, db: Session = Depends
             "signed_off_niveaus": signed_off_niveaus,
             "user_favorite_slugs": user_favorite_slugs,
             "only_favorites": bool(only_favorites and current_user),
+            "progress_slugs": progress_slugs,
+            "only_in_progress": bool(only_in_progress and current_user),
         },
     )
     response.headers["Cache-Control"] = "no-store"

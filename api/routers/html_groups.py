@@ -1119,6 +1119,7 @@ def speltak_progress(
     group_slug: str, speltak_slug: str,
     request: Request,
     only_favorites: bool | None = Query(None),
+    only_in_progress: int = Query(0),
     db: Session = Depends(get_db),
 ):
     user, redirect = _require_user(request, db)
@@ -1164,6 +1165,8 @@ def speltak_progress(
                 badge_list.append(badge)
         all_badges[category] = badge_list
 
+    progress_slugs = {key[0] for scout_progress in progress_by_scout.values() for key in scout_progress}
+
     return _page(request, "speltak_progress.html", db,
                  group=group, speltak=speltak,
                  members=memberships,
@@ -1172,6 +1175,8 @@ def speltak_progress(
                  all_badges=all_badges,
                  can_edit=can_edit,
                  only_favorites=only_favorites,
+                 progress_slugs=progress_slugs,
+                 only_in_progress=bool(only_in_progress),
                  leider_id=user.id)
 
 

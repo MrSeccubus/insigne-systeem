@@ -484,3 +484,36 @@ class TestRevertEmailChange:
         req = user_svc.request_email_change(db, user, "new@example.com")
         user_svc.revert_email_change(db, req.revert_token)
         assert user_svc.revert_email_change(db, req.revert_token) is None
+
+
+# ── user favorite badges ──────────────────────────────────────────────────────
+
+class TestUserFavoriteBadges:
+    def test_get_favorites_empty(self, db):
+        user = _register_and_activate(db)
+        assert user_svc.get_user_favorite_slugs(db, user.id) == set()
+
+    def test_toggle_on_adds_favorite(self, db):
+        user = _register_and_activate(db)
+        result = user_svc.toggle_user_favorite_badge(db, user.id, "sport_spel")
+        assert result is True
+        assert user_svc.get_user_favorite_slugs(db, user.id) == {"sport_spel"}
+
+    def test_toggle_off_removes_favorite(self, db):
+        user = _register_and_activate(db)
+        user_svc.toggle_user_favorite_badge(db, user.id, "sport_spel")
+        result = user_svc.toggle_user_favorite_badge(db, user.id, "sport_spel")
+        assert result is False
+        assert user_svc.get_user_favorite_slugs(db, user.id) == set()
+
+    def test_multiple_favorites(self, db):
+        user = _register_and_activate(db)
+        user_svc.toggle_user_favorite_badge(db, user.id, "sport_spel")
+        user_svc.toggle_user_favorite_badge(db, user.id, "vredeslicht")
+        assert user_svc.get_user_favorite_slugs(db, user.id) == {"sport_spel", "vredeslicht"}
+
+    def test_favorites_are_per_user(self, db):
+        user_a = _register_and_activate(db, email="a@example.com")
+        user_b = _register_and_activate(db, email="b@example.com")
+        user_svc.toggle_user_favorite_badge(db, user_a.id, "sport_spel")
+        assert user_svc.get_user_favorite_slugs(db, user_b.id) == set()

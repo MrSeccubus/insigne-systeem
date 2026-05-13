@@ -251,6 +251,15 @@ class GroupFavoriteBadge(Base):
     badge_slug: Mapped[str] = mapped_column(String(100), primary_key=True)
 
 
+class UserFavoriteBadge(Base):
+    __tablename__ = "user_favorite_badges"
+
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), primary_key=True
+    )
+    badge_slug: Mapped[str] = mapped_column(String(100), primary_key=True)
+
+
 class EmailChangeRequest(Base):
     __tablename__ = "email_change_requests"
 

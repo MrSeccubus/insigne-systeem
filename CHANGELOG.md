@@ -4,6 +4,23 @@ Alle noemenswaardige wijzigingen per release, in omgekeerde chronologische volgo
 
 ---
 
+## [v0.12.1] — 2026-05-12
+
+### Beveiligingsrelease — CodeQL-bevindingen opgelost
+
+#### Opgelost
+
+- **Path injection geëlimineerd** (`py/path-injection`, meldingen #28, #29, #75) — badge-YAML-bestanden worden nu eenmalig bij opstarten ingeladen via `BadgeCatalogue`. Er bereikt geen door de gebruiker aangeleverde waarde meer een `Path()`-aanroep tijdens een verzoek; de kwetsbaarheid is architectureel onmogelijk geworden.
+- **Open redirect via ruwe URL-parameters** (`py/url-redirection`, meldingen #2–#27) — alle `RedirectResponse`-aanroepen in `html_badges.py` en `html_groups.py` (26 locaties) gebruiken nu DB-gevalideerde waarden (`scout.id`, `group.slug`, `speltak.slug`) in plaats van ruwe URL-padparameters.
+- **XSS in ruwe HTMLResponse** (`py/reflective-xss`, melding #73) — gebruikersdata die in een `HTMLResponse`-string werd geïnterpoleerd, is nu omgeven door `html.escape()`.
+- **Padtraversal (defence-in-depth)** (`py/path-injection`, melding #28) — extra controle via `resolve()` en `is_relative_to()` toegevoegd als aanvullende maatregel naast de reeds bestaande slug-validatie (vervangen door `BadgeCatalogue`-architectuur).
+
+#### Beveiliging
+
+Alle 84 CodeQL-bevindingen zijn beoordeeld. Echte kwetsbaarheden zijn verholpen; valse positieven (redirects vanuit hardgecodeerde `_require_*`-helpers) zijn gedocumenteerd gedismisst.
+
+---
+
 ## [v0.12.0] — 2026-05-12
 
 ### Explorer Jaarbadge en verbeterde testinfrastructuur

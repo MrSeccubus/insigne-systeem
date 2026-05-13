@@ -485,3 +485,27 @@ async def import_progress_html(
 
     return _page(request, "export.html", db,
                  import_result={"error": error, "count": count} if error is None else {"error": error, "count": 0})
+
+
+@router.post("/favorites/toggle-badge", response_class=HTMLResponse)
+def toggle_favorite_badge(
+    request: Request,
+    badge_slug: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    import html as _html
+    current_user = _get_current_user(request, db)
+    if not current_user:
+        return HTMLResponse("", status_code=401)
+    is_fav = user_svc.toggle_user_favorite_badge(db, current_user.id, badge_slug)
+    label = "Verwijder uit favorieten" if is_fav else "Voeg toe aan favorieten"
+    star = "★" if is_fav else "☆"
+    css_class = "btn-star-active" if is_fav else "btn-neutral"
+    safe_slug = _html.escape(badge_slug, quote=True)
+    return HTMLResponse(
+        f'<button hx-post="/favorites/toggle-badge" '
+        f'hx-vals=\'{{"badge_slug":"{safe_slug}"}}\' hx-target="this" hx-swap="outerHTML" '
+        f'class="btn-sm {css_class}" style="font-size:1rem;padding:0 0.4rem;line-height:1.6;" '
+        f'title="{label}" onclick="event.stopPropagation()">'
+        f'{star}</button>'
+    )

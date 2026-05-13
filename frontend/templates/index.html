@@ -163,11 +163,38 @@
 
     {% set category_labels = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "explorers": "Explorers"} %}
 
+    {% if current_user %}
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;">
+        <a href="?only_favorites={% if only_favorites %}0{% else %}1{% endif %}"
+           class="btn-sm {% if only_favorites %}btn-star-active{% else %}btn-neutral{% endif %}"
+           style="text-decoration:none;font-size:1rem;padding:0 0.5rem;line-height:1.6;"
+           title="{% if only_favorites %}Alle badges tonen{% else %}Alleen favorieten tonen{% endif %}">{% if only_favorites %}★{% else %}☆{% endif %}</a>
+        <span style="font-size:0.85rem;color:#555;">{% if only_favorites %}Alleen favorieten{% else %}Alle badges{% endif %}</span>
+    </div>
+    {% endif %}
+
     {% for category, badges in all_badges.items() %}
+    {% set visible_badges = badges | selectattr("slug", "in", user_favorite_slugs) | list if only_favorites else badges %}
+    {% if visible_badges %}
     <h2 class="section-header">{{ category_labels.get(category, category ~ ' insignes') }}</h2>
 
-    {% for badge in badges %}
-    <h3 class="badge-group-title"><a href="/badges/{{ badge.slug }}">{{ badge.title }}</a></h3>
+    {% for badge in visible_badges %}
+    <h3 class="badge-group-title">
+        <a href="/badges/{{ badge.slug }}">{{ badge.title }}</a>
+        {% if current_user %}
+        <button
+            hx-post="/favorites/toggle-badge"
+            hx-vals='{"badge_slug":"{{ badge.slug }}"}'
+            hx-target="this"
+            hx-swap="outerHTML"
+            class="btn-sm {% if badge.slug in user_favorite_slugs %}btn-star-active{% else %}btn-neutral{% endif %}"
+            style="font-size:1rem;padding:0 0.4rem;line-height:1.6;vertical-align:middle;"
+            title="{% if badge.slug in user_favorite_slugs %}Verwijder uit favorieten{% else %}Voeg toe aan favorieten{% endif %}"
+            onclick="event.stopPropagation()">
+            {% if badge.slug in user_favorite_slugs %}★{% else %}☆{% endif %}
+        </button>
+        {% endif %}
+    </h3>
 
     {# ── Desktop: one card per niveau ── #}
     <div class="badge-grid">
@@ -227,7 +254,12 @@
 
     {% endfor %}
 
+    {% endif %}
     {% endfor %}
+
+    {% if only_favorites and not user_favorite_slugs %}
+    <p class="empty-state">Je hebt nog geen favorieten. Klik op ☆ bij een badge om hem toe te voegen.</p>
+    {% endif %}
 
     {% if not current_user %}
     <div style="margin-top:2rem;display:flex;gap:1rem;">

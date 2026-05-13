@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from .auth import hash_password, verify_password
-from .models import ConfirmationToken, EmailChangeRequest, GroupMembership, SpeltakMembership, User
+from .models import ConfirmationToken, EmailChangeRequest, GroupMembership, SpeltakMembership, User, UserFavoriteBadge
 
 _TOKEN_EXPIRE_HOURS = 1
 _EMAIL_CHANGE_CONFIRM_HOURS = 24
@@ -287,3 +287,21 @@ def pending_email_change(db: Session, user_id: str) -> "EmailChangeRequest | Non
         EmailChangeRequest.reverted_at.is_(None),
         EmailChangeRequest.expires_at > now,
     ).first()
+
+
+def get_user_favorite_slugs(db: Session, user_id: str) -> set[str]:
+    rows = db.query(UserFavoriteBadge).filter_by(user_id=user_id).all()
+    return {r.badge_slug for r in rows}
+
+
+def toggle_user_favorite_badge(db: Session, user_id: str, badge_slug: str) -> bool:
+    existing = db.query(UserFavoriteBadge).filter_by(
+        user_id=user_id, badge_slug=badge_slug
+    ).first()
+    if existing:
+        db.delete(existing)
+        db.commit()
+        return False
+    db.add(UserFavoriteBadge(user_id=user_id, badge_slug=badge_slug))
+    db.commit()
+    return True

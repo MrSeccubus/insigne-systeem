@@ -266,7 +266,7 @@ async def list_signoff_requests(
 # ── Per-scout progress (leider view) ─────────────────────────────────────────
 
 from insigne import groups as groups_svc
-from schemas import SetScoutProgressRequest, UserResponse
+from schemas import JaarinsigneLevelResponse, SetScoutProgressRequest, UserResponse
 
 
 @router.get("/scouts/{scout_id}/progress", response_model=list[ProgressEntryResponse])
@@ -314,3 +314,67 @@ async def api_scout_set_progress(
     except progress_svc.Conflict as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     return _entry_response(entry) if entry else None
+
+
+# ── Jaarinsigne level ─────────────────────────────────────────────────────────
+
+_VALID_SPELTAK_SLUGS = {"bevers", "welpen", "scouts", "explorers", "roverscouts", "plusscouts"}
+
+
+def _level_response(jl) -> JaarinsigneLevelResponse:
+    return JaarinsigneLevelResponse(
+        user_id=jl.user_id,
+        badge_slug=jl.badge_slug,
+        speltak_slug=jl.speltak_slug,
+        set_by_user_id=jl.set_by_user_id,
+    )
+
+
+@router.post("/badges/{slug}/set-level", response_model=JaarinsigneLevelResponse)
+async def api_set_own_jaarinsigne_level(
+    slug: str,
+    speltak_slug: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Set the jaarinsigne level (speltak variant) for the current user.
+
+    Only allowed when the user's primary speltak is peer_signoff or the user
+    is speltakleider of their primary speltak.
+    """
+    badge = _CATALOGUE.get(slug)
+    if badge is None or badge.get("type") != "jaarinsigne":
+        raise HTTPException(status_code=404, detail="Jaarinsigne badge not found.")
+    valid_slugs = {lvl["slug"] for lvl in badge["levels"]}
+    if speltak_slug not in valid_slugs:
+        raise HTTPException(status_code=422, detail="Invalid speltak_slug for this badge.")
+    if not groups_svc.can_user_set_own_jaarinsigne_level(db, current_user.id):
+        raise HTTPException(status_code=403, detail="Not allowed to set own jaarinsigne level.")
+    jl = progress_svc.set_jaarinsigne_level(db, current_user.id, slug, speltak_slug, current_user.id)
+    return _level_response(jl)
+
+
+@router.post("/scouts/{scout_id}/badges/{slug}/set-level", response_model=JaarinsigneLevelResponse)
+async def api_set_scout_jaarinsigne_level(
+    scout_id: str,
+    slug: str,
+    speltak_slug: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Set the jaarinsigne level (speltak variant) for a scout. Requires speltakleider edit rights."""
+    if scout_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Use /api/badges/{slug}/set-level for your own level.")
+    scout = db.get(User, scout_id)
+    if scout is None:
+        raise HTTPException(status_code=404, detail="Scout not found.")
+    if not groups_svc.get_edit_speltak_for_scout(db, current_user.id, scout_id):
+        raise HTTPException(status_code=403, detail="Not authorized to edit this scout's jaarinsigne level.")
+    badge = _CATALOGUE.get(slug)
+    if badge is None or badge.get("type") != "jaarinsigne":
+        raise HTTPException(status_code=404, detail="Jaarinsigne badge not found.")
+    valid_slugs = {lvl["slug"] for lvl in badge["levels"]}
+    if speltak_slug not in valid_slugs:
+        raise HTTPException(status_code=422, detail="Invalid speltak_slug for this badge.")
+    jl = progress_svc.set_jaarinsigne_level(db, scout_id, slug, speltak_slug, current_user.id)
+    return _level_response(jl)

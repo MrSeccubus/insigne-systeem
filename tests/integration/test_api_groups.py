@@ -281,6 +281,56 @@ class TestSpeltakken:
         assert r.status_code == 200
         assert r.json()["peer_signoff"] is True
 
+    def test_create_speltak_with_speltak_type(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        r = client.post(f"/api/groups/{g.id}/speltakken",
+                        json={"name": "Welpen", "slug": "welpen", "speltak_type": "welpen"},
+                        headers=_auth(token))
+        assert r.status_code == 201
+        assert r.json()["speltak_type"] == "welpen"
+
+    def test_create_speltak_speltak_type_defaults_to_null(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        r = client.post(f"/api/groups/{g.id}/speltakken",
+                        json={"name": "Welpen", "slug": "welpen"},
+                        headers=_auth(token))
+        assert r.status_code == 201
+        assert r.json()["speltak_type"] is None
+
+    def test_create_speltak_invalid_speltak_type_returns_422(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        r = client.post(f"/api/groups/{g.id}/speltakken",
+                        json={"name": "Welpen", "slug": "welpen", "speltak_type": "onbekend"},
+                        headers=_auth(token))
+        assert r.status_code == 422
+
+    def test_update_speltak_speltak_type(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        r = client.put(f"/api/groups/{g.id}/speltakken/{s.id}",
+                       json={"name": "S", "slug": "s", "speltak_type": "scouts"},
+                       headers=_auth(token))
+        assert r.status_code == 200
+        assert r.json()["speltak_type"] == "scouts"
+
+    def test_update_speltak_invalid_speltak_type_returns_422(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        r = client.put(f"/api/groups/{g.id}/speltakken/{s.id}",
+                       json={"name": "S", "slug": "s", "speltak_type": "onbekend"},
+                       headers=_auth(token))
+        assert r.status_code == 422
+
     def test_non_member_cannot_create_speltak(self, client, db):
         token = _full_register(client, db)
         g = svc.create_group(db, name="G", slug="g")

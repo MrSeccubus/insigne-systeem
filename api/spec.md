@@ -950,14 +950,18 @@ Requires groepsleider.
 **Request body:**
 
 ```json
-{ "name": "Welpen", "slug": "welpen", "peer_signoff": false }
+{ "name": "Welpen", "slug": "welpen", "peer_signoff": false, "speltak_type": "welpen" }
 ```
 
 `peer_signoff: true` marks the speltak as a volwassenen speltak where members may sign off each other's progress.
 
+`speltak_type` tags the speltak with its age group (`bevers` | `welpen` | `scouts` | `explorers` | `roverscouts` | `plusscouts`). Omit or set to `null` for unknown. Any other value returns `422`.
+
 **Response `201`:** `Speltak`
 
 **Response `409`:** Slug already in use within this group.
+
+**Response `422`:** Invalid `speltak_type` value.
 
 ---
 
@@ -965,9 +969,13 @@ Requires groepsleider.
 
 Requires groepsleider.
 
-**Request body:** `{ "name": "...", "slug": "...", "peer_signoff": false }`
+**Request body:** `{ "name": "...", "slug": "...", "peer_signoff": false, "speltak_type": "scouts" }`
+
+`speltak_type` follows the same rules as for creation. Omit or `null` to leave the type unset.
 
 **Response `200`:** Updated `Speltak`.
+
+**Response `422`:** Invalid `speltak_type` value.
 
 ---
 
@@ -1175,6 +1183,7 @@ Returns all pending membership requests for groups the authenticated user manage
 | `name` | string | Display name |
 | `slug` | string | URL-safe identifier (unique within group) |
 | `peer_signoff` | boolean | If true, members may sign off each other's progress |
+| `speltak_type` | string \| null | Age-group tag: `bevers` \| `welpen` \| `scouts` \| `explorers` \| `roverscouts` \| `plusscouts`, or `null` if unset |
 
 ### `GroupMembership`
 
@@ -1251,6 +1260,7 @@ These endpoints serve the HTMX frontend. Full pages are returned on direct navig
 |--------|------|-------------|
 | `GET` | `/badges/{slug}/niveau-checks/{niveau_index}` | Niveau progress check icons partial |
 | `POST` | `/badges/{slug}/log` | Log a step (auth required) — returns updated step card partial |
+| `POST` | `/badges/{slug}/set-level` | Set which jaarinsigne speltak variant the current user is working on (auth required). Only allowed for peer_signoff speltakken or own speltakleiders. Redirects back to badge detail. |
 | `POST` | `/progress/{id}/request-signoff` | Request sign-off via direct email (auth required) |
 | `POST` | `/progress/{id}/request-signoff-speltak` | Request sign-off from all speltakleiders of a speltak (auth required) |
 | `POST` | `/progress/{id}/request-signoff-members` | Request sign-off from selected peer members (auth required) |
@@ -1532,6 +1542,7 @@ Leiders can view and edit an individual scout's progress through a home-like scr
 | `GET` | `/scouts/{scout_id}/badges/{slug}` | Badge detail for the scout with leider step-check controls. Redirects to `/scouts/{scout_id}` for unknown badge. |
 | `GET` | `/scouts/{scout_id}/badges/{slug}/niveau-checks/{niveau_index}` | HTMX partial — niveau progress circles for the scout badge detail page. |
 | `POST` | `/scouts/{scout_id}/set-progress` | Set a single step's status for the scout. Returns updated `leider_step_check` partial. `403` if no edit rights. |
+| `POST` | `/scouts/{scout_id}/badges/{slug}/set-level` | Set which jaarinsigne speltak variant the scout is working on. Requires speltakleider edit rights. Redirects back to the badge detail page. |
 
 `POST /scouts/{scout_id}/set-progress` form fields:
 
@@ -1582,6 +1593,61 @@ Set a step's status for a scout. Requires speltakleider edit rights (not groepsl
 **Response `409`:** Conflict (e.g. entry is in `pending_signoff`).
 
 **Response `422`:** `message_required_when_downgrading` — downgrading from `signed_off` requires a non-empty message.
+
+---
+
+#### `POST /api/badges/{slug}/set-level` — Set own jaarinsigne level 🔒
+
+Sets which speltak variant of a jaarinsigne badge the authenticated user is working on.
+
+Only allowed when the user's primary speltak (highest-ranked active membership) is a `peer_signoff` speltak, or the user is `speltakleider` of their primary speltak.
+
+**Query parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `speltak_slug` | string | The speltak variant to work on (must be defined in the badge) |
+
+**Response `200`:** `JaarinsigneLevelResponse`
+
+**Response `403`:** User is not allowed to set their own jaarinsigne level.
+
+**Response `404`:** Badge not found or not of type `jaarinsigne`.
+
+**Response `422`:** `speltak_slug` is not defined for this badge.
+
+---
+
+#### `POST /api/scouts/{scout_id}/badges/{slug}/set-level` — Set scout jaarinsigne level 🔒
+
+Sets which speltak variant of a jaarinsigne badge a scout is working on. Requires speltakleider edit rights over the scout (same rules as `POST /api/scouts/{scout_id}/set-progress`).
+
+**Query parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `speltak_slug` | string | The speltak variant to assign to the scout |
+
+**Response `200`:** `JaarinsigneLevelResponse`
+
+**Response `400`:** `scout_id` is the caller's own ID.
+
+**Response `403`:** No edit rights over this scout.
+
+**Response `404`:** Scout or badge not found, or badge is not of type `jaarinsigne`.
+
+**Response `422`:** `speltak_slug` is not defined for this badge.
+
+---
+
+### `JaarinsigneLevelResponse`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `user_id` | UUID | The scout whose level is recorded |
+| `badge_slug` | string | The jaarinsigne badge slug |
+| `speltak_slug` | string | The speltak variant the scout is working on |
+| `set_by_user_id` | UUID | Who set the level (the scout themselves, or a leader) |
 
 ---
 

@@ -123,12 +123,14 @@ class CreateSpeltakRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     slug: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z0-9-]+$")
     peer_signoff: bool = False
+    speltak_type: str | None = None
 
 
 class UpdateSpeltakRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     slug: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z0-9-]+$")
     peer_signoff: bool = False
+    speltak_type: str | None = None
 
 
 class SpeltakResponse(BaseModel):
@@ -137,6 +139,14 @@ class SpeltakResponse(BaseModel):
     name: str
     slug: str
     peer_signoff: bool
+    speltak_type: str | None
+
+
+class JaarinsigneLevelResponse(BaseModel):
+    user_id: str
+    badge_slug: str
+    speltak_slug: str
+    set_by_user_id: str
 
 
 class GroupMembershipResponse(BaseModel):

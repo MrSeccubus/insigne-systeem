@@ -152,28 +152,28 @@ class BadgeCatalogue:
         """Return {'gewoon': [...], ...} ordered as in badges.yml."""
         return self._by_category
 
-    def resolve_jaarinsigne_level_index(self, badge: dict, speltak_slug: str | None) -> int:
+    def resolve_jaarinsigne_level_index(self, badge: dict, speltak_slug: str | None) -> int | None:
         """Return the level_index to use for this badge given a speltak_slug.
 
-        Falls back to scouts (index 2), then first defined level.
-        Plusscouts walks down to the highest available level below it.
+        When speltak_slug is None (unknown), falls back to scouts then first defined level.
+        When speltak_slug is known but not defined, walks down to the highest available
+        lower level.  Returns None if no appropriate level exists (badge not available).
         """
         defined_slugs = {lvl["slug"] for lvl in badge["levels"]}
-        slug = speltak_slug or "scouts"
 
-        if slug == "plusscouts" and "plusscouts" not in defined_slugs:
-            # Walk down from roverscouts
-            for candidate in reversed(_SPELTAK_ORDER[:-1]):  # exclude plusscouts
+        if speltak_slug is None:
+            if "scouts" in defined_slugs:
+                return _SPELTAK_ORDER.index("scouts")
+            return badge["levels"][0]["level_index"] if badge["levels"] else None
+
+        if speltak_slug in defined_slugs:
+            return _SPELTAK_ORDER.index(speltak_slug) if speltak_slug in _SPELTAK_ORDER else 0
+
+        # Walk down from the user's position to find the highest available lower level
+        if speltak_slug in _SPELTAK_ORDER:
+            user_pos = _SPELTAK_ORDER.index(speltak_slug)
+            for candidate in reversed(_SPELTAK_ORDER[:user_pos]):
                 if candidate in defined_slugs:
-                    slug = candidate
-                    break
+                    return _SPELTAK_ORDER.index(candidate)
 
-        if slug in defined_slugs:
-            return _SPELTAK_ORDER.index(slug) if slug in _SPELTAK_ORDER else 0
-
-        # Fallback: scouts
-        if "scouts" in defined_slugs:
-            return _SPELTAK_ORDER.index("scouts")
-
-        # Last resort: first defined level
-        return badge["levels"][0]["level_index"] if badge["levels"] else 0
+        return None  # badge not available for this speltak type

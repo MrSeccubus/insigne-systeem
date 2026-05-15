@@ -150,6 +150,10 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
         else:
             speltak_slug = None
         resolved_level_index = _CATALOGUE.resolve_jaarinsigne_level_index(badge, speltak_slug)
+        can_set_own_level = (
+            groups_svc.can_user_set_own_jaarinsigne_level(db, current_user.id)
+            if current_user else False
+        )
         # ?speltak= allows viewing other levels (read-only)
         if speltak:
             view_level = next((l for l in badge["levels"] if l["slug"] == speltak), None)
@@ -167,6 +171,7 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
                 "scout_signoff_options": scout_signoff_options,
                 "resolved_level_index": resolved_level_index,
                 "selected_level_index": selected_level_index,
+                "can_set_own_level": can_set_own_level,
                 "selected_niveaus": [],
                 "niveau_stats": [],
                 "level_stats": [],
@@ -893,7 +898,7 @@ async def badge_set_jaarinsigne_level(
         return RedirectResponse("/login", status_code=303)
     badge = _CATALOGUE.get(slug)
     valid_slugs = {l["slug"] for l in badge["levels"]} if badge and badge.get("type") == "jaarinsigne" else set()
-    if speltak_slug not in valid_slugs:
+    if speltak_slug not in valid_slugs or not groups_svc.can_user_set_own_jaarinsigne_level(db, current_user.id):
         return RedirectResponse(f"/badges/{slug}" if badge else "/", status_code=303)
     progress_svc.set_jaarinsigne_level(db, current_user.id, slug, speltak_slug, current_user.id)
     return RedirectResponse(f"/badges/{slug}", status_code=303)

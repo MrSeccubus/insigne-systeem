@@ -68,7 +68,7 @@
     <details{% if is_selected %} open{% endif %} class="jaarinsigne-speltak-details" style="margin-bottom:1rem;">
         <summary style="cursor:pointer;font-weight:600;padding:0.5rem 0;">
             {{ level.name }}{% if level.leeftijd %} <span style="font-size:0.8em;color:#888;">({{ level.leeftijd }})</span>{% endif %}{% if is_editable %} <span style="font-size:0.8em;color:#888;">— jouw niveau</span>{% endif %}
-            {% if current_user and not is_editable %}
+            {% if can_set_own_level and not is_editable %}
             <form method="post" action="/badges/{{ badge.slug }}/set-level" style="display:inline;margin-left:0.75rem;" onclick="event.stopPropagation()">
                 <input type="hidden" name="speltak_slug" value="{{ level.slug }}">
                 <button type="submit" class="btn-sm btn-neutral" style="font-weight:normal;">Stel als mijn niveau in</button>

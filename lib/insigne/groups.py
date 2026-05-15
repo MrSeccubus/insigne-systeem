@@ -200,6 +200,27 @@ def get_user_primary_speltak_type(db: Session, user_id: str) -> str | None:
     return max(types, key=lambda t: _SPELTAK_TYPE_ORDER.index(t))
 
 
+def can_user_set_own_jaarinsigne_level(db: Session, user_id: str) -> bool:
+    """Return True if the user may set their own jaarinsigne speltak level.
+
+    Allowed when the user's primary speltak is peer_signoff (adult self-managed)
+    OR when the user is a speltakleider in that primary speltak (own leader).
+    """
+    primary_type = get_user_primary_speltak_type(db, user_id)
+    if primary_type is None:
+        return False
+    memberships = (
+        db.query(SpeltakMembership)
+        .filter_by(user_id=user_id, approved=True, withdrawn=False)
+        .all()
+    )
+    for m in memberships:
+        if m.speltak and m.speltak.speltak_type == primary_type:
+            if m.speltak.peer_signoff or m.role == "speltakleider":
+                return True
+    return False
+
+
 def delete_speltak(db: Session, speltak: Speltak) -> None:
     db.delete(speltak)
     db.commit()

@@ -9,7 +9,18 @@
 {% set _vals_base = '"badge_slug":"' ~ badge_slug ~ '","level_index":' ~ level_index ~ ',"step_index":' ~ step_index %}
 {% if can_edit_cell %}
 <details id="leider-check-{{ scout_id }}-{{ badge_slug }}-{{ level_index }}-{{ step_index }}"
-         class="step-check-wrapper{% if entry_status == 'signed_off' %} step-check-wrapper--review{% endif %}">
+         class="step-check-wrapper{% if entry_status == 'signed_off' %} step-check-wrapper--review{% endif %}"
+         x-data
+         @toggle="if ($el.open) {
+             var dd = $el.querySelector('.step-check-dropdown');
+             if (dd && window.getComputedStyle(dd).position === 'fixed') {
+                 var r = $el.querySelector('summary').getBoundingClientRect();
+                 dd.style.top = (r.bottom + 2) + 'px';
+                 dd.style.left = r.left + 'px';
+                 var right = r.left + dd.offsetWidth;
+                 if (right > window.innerWidth - 8) dd.style.left = (window.innerWidth - dd.offsetWidth - 8) + 'px';
+             }
+         }">
     <summary class="step-check{% if entry_status and entry_status != 'none' %} step-check-{{ entry_status }}{% endif %}"
              title="{% if entry_status == 'signed_off' %}Afgetekend{% elif entry_status == 'work_done' %}Klaar{% elif entry_status == 'in_progress' %}Bezig{% else %}Niet gestart{% endif %}">
         {%- if entry_status == 'signed_off' -%}✓{%- endif -%}
@@ -85,7 +96,18 @@
 </details>
 {% elif can_review_cell %}
 <details id="leider-check-{{ scout_id }}-{{ badge_slug }}-{{ level_index }}-{{ step_index }}"
-         class="step-check-wrapper step-check-wrapper--review">
+         class="step-check-wrapper step-check-wrapper--review"
+         x-data
+         @toggle="if ($el.open) {
+             var dd = $el.querySelector('.step-check-dropdown');
+             if (dd && window.getComputedStyle(dd).position === 'fixed') {
+                 var r = $el.querySelector('summary').getBoundingClientRect();
+                 dd.style.top = (r.bottom + 2) + 'px';
+                 dd.style.left = r.left + 'px';
+                 var right = r.left + dd.offsetWidth;
+                 if (right > window.innerWidth - 8) dd.style.left = (window.innerWidth - dd.offsetWidth - 8) + 'px';
+             }
+         }">
     <summary class="step-check step-check-pending_signoff"
              title="Wacht op aftekenen — klik om af te tekenen of af te wijzen">?</summary>
     <div class="step-check-dropdown" x-data="{ rejecting: false }">

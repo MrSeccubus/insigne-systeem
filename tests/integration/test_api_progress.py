@@ -438,6 +438,20 @@ class TestSetScoutJaarinsigneLevel:
                         headers=_token_for(leider))
         assert r.status_code == 422
 
+    def test_nonexistent_scout_returns_404(self, client, db):
+        leider, _, _ = _jaarinsigne_speltak_setup(db, peer_signoff=False, speltak_type="scouts")
+        r = client.post("/api/scouts/00000000-0000-0000-0000-000000000000/badges/jaarinsigne_2025/set-level",
+                        params={"speltak_slug": "scouts"},
+                        headers=_token_for(leider))
+        assert r.status_code == 404
+
+    def test_non_jaarinsigne_badge_returns_404(self, client, db):
+        leider, scout, _ = _jaarinsigne_speltak_setup(db, peer_signoff=False, speltak_type="scouts")
+        r = client.post(f"/api/scouts/{scout.id}/badges/kamperen/set-level",
+                        params={"speltak_slug": "scouts"},
+                        headers=_token_for(leider))
+        assert r.status_code == 404
+
     def test_requires_auth(self, client, db):
         leider, scout, _ = _jaarinsigne_speltak_setup(db, peer_signoff=False, speltak_type="scouts")
         r = client.post(f"/api/scouts/{scout.id}/badges/jaarinsigne_2025/set-level",

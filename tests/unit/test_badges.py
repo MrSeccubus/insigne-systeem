@@ -484,3 +484,71 @@ class TestBadgeCatalogueErrors:
         assert cat.get("FOO") is None
         assert cat.get("foo bar") is None
         assert cat.get("") is None
+
+
+class TestResolveJaarinsigneLevelIndex:
+    """Unit tests for BadgeCatalogue.resolve_jaarinsigne_level_index edge cases."""
+
+    def _make_catalogue(self, tmp_path, speltak_slugs):
+        """Build a temp catalogue with a jaarinsigne badge defined for the given speltak slugs."""
+        (tmp_path / "badges").mkdir()
+        speltakken_lines = "speltakken:\n"
+        for s in ["bevers", "welpen", "scouts", "explorers", "roverscouts", "plusscouts"]:
+            speltakken_lines += f"  - slug: {s}\n    naam: {s.capitalize()}\n    leeftijd: x\n    kort: {s[0].upper()}\n"
+        (tmp_path / "speltakken.yml").write_text(speltakken_lines)
+
+        speltakken_block = ""
+        for s in speltak_slugs:
+            speltakken_block += f"  {s}:\n    - titel: Eis 1\n      tekst: Doe iets\n"
+
+        (tmp_path / "badges" / "jaar_test.yml").write_text(
+            f"slug: jaar_test\ntitel: Jaarbadge Test\ntype: jaarinsigne\nspeltakken:\n{speltakken_block}"
+        )
+        (tmp_path / "badges.yml").write_text(
+            "badges:\n  jaarinsignes:\n    label: Jaarinsignes\n    badges:\n      - jaar_test\n"
+        )
+        return BadgeCatalogue(tmp_path)
+
+    def test_none_slug_falls_back_to_scouts(self, tmp_path):
+        cat = self._make_catalogue(tmp_path, ["welpen", "scouts", "explorers"])
+        badge = cat.get("jaar_test")
+        assert cat.resolve_jaarinsigne_level_index(badge, None) == 2  # scouts index
+
+    def test_none_slug_no_scouts_returns_first_level(self, tmp_path):
+        # scouts not defined — should return first defined level's index
+        cat = self._make_catalogue(tmp_path, ["welpen", "explorers"])
+        badge = cat.get("jaar_test")
+        result = cat.resolve_jaarinsigne_level_index(badge, None)
+        assert result == badge["levels"][0]["level_index"]
+
+    def test_none_slug_no_levels_returns_none(self, tmp_path):
+        # badge with no speltak levels — build the dict directly to avoid YAML null issue
+        cat = self._make_catalogue(tmp_path, ["scouts"])
+        badge = cat.get("jaar_test")
+        empty_badge = dict(badge, levels=[])
+        assert cat.resolve_jaarinsigne_level_index(empty_badge, None) is None
+
+    def test_speltak_slug_falls_back_to_lower_level(self, tmp_path):
+        # explorers defined but not roverscouts — roverscouts should fall back to explorers
+        cat = self._make_catalogue(tmp_path, ["scouts", "explorers"])
+        badge = cat.get("jaar_test")
+        result = cat.resolve_jaarinsigne_level_index(badge, "roverscouts")
+        assert result == 3  # explorers index in _SPELTAK_ORDER
+
+    def test_plusscouts_falls_back_to_roverscouts(self, tmp_path):
+        cat = self._make_catalogue(tmp_path, ["scouts", "roverscouts"])
+        badge = cat.get("jaar_test")
+        result = cat.resolve_jaarinsigne_level_index(badge, "plusscouts")
+        assert result == 4  # roverscouts index
+
+    def test_speltak_slug_not_in_order_returns_none(self, tmp_path):
+        # completely unknown speltak slug
+        cat = self._make_catalogue(tmp_path, ["scouts"])
+        badge = cat.get("jaar_test")
+        assert cat.resolve_jaarinsigne_level_index(badge, "onbekend") is None
+
+    def test_bevers_no_lower_fallback_returns_none(self, tmp_path):
+        # bevers is the lowest level; if not defined, nothing to fall back to
+        cat = self._make_catalogue(tmp_path, ["scouts"])
+        badge = cat.get("jaar_test")
+        assert cat.resolve_jaarinsigne_level_index(badge, "bevers") is None

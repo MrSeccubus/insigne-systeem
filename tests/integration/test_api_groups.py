@@ -1073,3 +1073,56 @@ class TestUserFavoriteBadgesAPI:
                     json={"badge_slug": "sport_spel"}, headers=_auth(token_a))
         r = client.get("/api/users/me/favorite-badges", headers=_auth(token_b))
         assert r.json() == []
+
+
+# ── jaarinsigne_2026_min_punten on Speltak ────────────────────────────────────
+
+class TestSpeltakJaarinsigne2026MinPunten:
+    def _setup(self, client, db):
+        """Create a group and return (token, group_id)."""
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        return token, g.id
+
+    def test_create_bevers_speltak_with_min_punten(self, client, db):
+        token, gid = self._setup(client, db)
+        r = client.post(
+            f"/api/groups/{gid}/speltakken",
+            json={"name": "Bevers", "slug": "bevers", "speltak_type": "bevers",
+                  "jaarinsigne_2026_min_punten": 4},
+            headers=_auth(token),
+        )
+        assert r.status_code == 201
+        assert r.json()["jaarinsigne_2026_min_punten"] == 4
+
+    def test_jaarinsigne_min_punten_null_by_default(self, client, db):
+        token, gid = self._setup(client, db)
+        r = client.post(
+            f"/api/groups/{gid}/speltakken",
+            json={"name": "Bevers", "slug": "bevers", "speltak_type": "bevers"},
+            headers=_auth(token),
+        )
+        assert r.status_code == 201
+        assert r.json()["jaarinsigne_2026_min_punten"] is None
+
+    def test_jaarinsigne_min_punten_cleared_for_non_bevers(self, client, db):
+        """min_punten is only stored for bevers; non-bevers always gets None."""
+        token, gid = self._setup(client, db)
+        r = client.post(
+            f"/api/groups/{gid}/speltakken",
+            json={"name": "Welpen", "slug": "welpen", "speltak_type": "welpen",
+                  "jaarinsigne_2026_min_punten": 5},
+            headers=_auth(token),
+        )
+        assert r.status_code == 201
+        assert r.json()["jaarinsigne_2026_min_punten"] is None
+
+    def test_speltak_response_includes_jaarinsigne_field(self, client, db):
+        token, gid = self._setup(client, db)
+        r = client.post(
+            f"/api/groups/{gid}/speltakken",
+            json={"name": "Bevers", "slug": "bevers", "speltak_type": "bevers"},
+            headers=_auth(token),
+        )
+        assert "jaarinsigne_2026_min_punten" in r.json()

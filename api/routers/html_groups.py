@@ -687,6 +687,7 @@ def speltak_create(
     name: str = Form(...),
     peer_signoff: bool = Form(False),
     speltak_type: str = Form(""),
+    jaarinsigne_2026_min_punten: int | None = Form(None),
     db: Session = Depends(get_db),
 ):
     user, redirect = _require_user(request, db)
@@ -699,7 +700,8 @@ def speltak_create(
         return _page(request, "speltak_edit.html", db, group=group, speltak=None,
                      error="Kies een speltak type.", speltakken_meta=_CATALOGUE.speltakken_meta)
     slug = groups_svc.unique_speltak_slug(db, group.id, groups_svc.name_to_slug(name))
-    groups_svc.create_speltak(db, group_id=group.id, name=name, slug=slug, peer_signoff=peer_signoff, speltak_type=speltak_type)
+    min_punten = jaarinsigne_2026_min_punten if speltak_type == "bevers" else None
+    groups_svc.create_speltak(db, group_id=group.id, name=name, slug=slug, peer_signoff=peer_signoff, speltak_type=speltak_type, jaarinsigne_2026_min_punten=min_punten)
     return RedirectResponse(f"/groups/{group.slug}", status_code=303)
 
 
@@ -757,6 +759,7 @@ def speltak_edit(
     name: str = Form(...),
     peer_signoff: bool = Form(False),
     speltak_type: str = Form(""),
+    jaarinsigne_2026_min_punten: int | None = Form(None),
     db: Session = Depends(get_db),
 ):
     user, redirect = _require_user(request, db)
@@ -769,7 +772,8 @@ def speltak_edit(
     if speltak_type not in _VALID_SPELTAK_TYPES:
         return _page(request, "speltak_edit.html", db, group=group, speltak=speltak,
                      error="Kies een speltak type.", speltakken_meta=_CATALOGUE.speltakken_meta)
-    groups_svc.update_speltak(db, speltak, name=name, slug=speltak.slug, peer_signoff=peer_signoff, speltak_type=speltak_type)
+    min_punten = jaarinsigne_2026_min_punten if speltak_type == "bevers" else None
+    groups_svc.update_speltak(db, speltak, name=name, slug=speltak.slug, peer_signoff=peer_signoff, speltak_type=speltak_type, jaarinsigne_2026_min_punten=min_punten)
     return RedirectResponse(f"/groups/{group.slug}/speltakken/{speltak.slug}", status_code=303)
 
 

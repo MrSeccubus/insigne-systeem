@@ -151,8 +151,8 @@ def delete_group(db: Session, group: Group) -> None:
 
 # ── Speltak CRUD ───────────────────────────────────────────────────────────────
 
-def create_speltak(db: Session, *, group_id: str, name: str, slug: str, peer_signoff: bool = False, speltak_type: str | None = None) -> Speltak:
-    speltak = Speltak(group_id=group_id, name=name, slug=slug, peer_signoff=peer_signoff, speltak_type=speltak_type)
+def create_speltak(db: Session, *, group_id: str, name: str, slug: str, peer_signoff: bool = False, speltak_type: str | None = None, jaarinsigne_2026_min_punten: int | None = None) -> Speltak:
+    speltak = Speltak(group_id=group_id, name=name, slug=slug, peer_signoff=peer_signoff, speltak_type=speltak_type, jaarinsigne_2026_min_punten=jaarinsigne_2026_min_punten)
     db.add(speltak)
     db.commit()
     db.refresh(speltak)
@@ -167,11 +167,12 @@ def get_speltak_by_slug(db: Session, group_id: str, slug: str) -> Speltak | None
     return db.query(Speltak).filter_by(group_id=group_id, slug=slug).first()
 
 
-def update_speltak(db: Session, speltak: Speltak, *, name: str, slug: str, peer_signoff: bool = False, speltak_type: str | None = None) -> Speltak:
+def update_speltak(db: Session, speltak: Speltak, *, name: str, slug: str, peer_signoff: bool = False, speltak_type: str | None = None, jaarinsigne_2026_min_punten: int | None = None) -> Speltak:
     speltak.name = name
     speltak.slug = slug
     speltak.peer_signoff = peer_signoff
     speltak.speltak_type = speltak_type
+    speltak.jaarinsigne_2026_min_punten = jaarinsigne_2026_min_punten
     db.commit()
     db.refresh(speltak)
     return speltak

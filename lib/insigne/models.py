@@ -182,6 +182,7 @@ class Speltak(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     slug: Mapped[str] = mapped_column(String, nullable=False)
     speltak_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    jaarinsigne_2026_min_punten: Mapped[int | None] = mapped_column(Integer, nullable=True)
     peer_signoff: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 
@@ -292,6 +293,23 @@ class JaarinsigneLevel(Base):
 
     user: Mapped["User"] = relationship(foreign_keys=[user_id])
     set_by: Mapped["User"] = relationship(foreign_keys=[set_by_user_id])
+
+
+class Jaarinsigne2026Inclusion(Base):
+    __tablename__ = "jaarinsigne_2026_inclusions"
+    __table_args__ = (
+        UniqueConstraint("user_id", "badge_slug", "level_index", "step_index",
+                         name="uq_ji2026_inclusion"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    badge_slug: Mapped[str] = mapped_column(String, nullable=False)
+    level_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    step_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+
+    user: Mapped["User"] = relationship(foreign_keys=[user_id])
 
 
 class MembershipRequest(Base):

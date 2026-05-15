@@ -28,6 +28,7 @@ EXPECTED_TABLES = {
     "user_favorite_badges",
     "email_change_requests",
     "jaarinsigne_levels",
+    "jaarinsigne_2026_inclusions",
 }
 
 

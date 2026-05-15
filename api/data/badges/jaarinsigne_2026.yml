@@ -10,64 +10,120 @@ speltakken:
     - titel: "Insignepunten"
       tekst: |
         Behaal het door jullie leidingteam bepaalde minimum aantal insignepunten (advies: 2 à 3 eisen op niveau 1).
+      drempel:
+        type: leiding_bepaald
     - titel: "Groene lijn"
       tekst: |
         Waarvan minimaal één groene insigne-eis.
+      drempel:
+        type: groen
+        minimum: 1
   welpen:
     - titel: "Insignepunten"
       tekst: |
         Behaal minimaal **5 insignepunten**. Je kunt insigne-eisen uit verschillende niveaus kiezen, bijvoorbeeld vijf eisen op niveau 1 of drie op niveau 1 en één op niveau 2.
+      drempel:
+        type: punten
+        minimum: 5
     - titel: "Groene lijn"
       tekst: |
         Waarvan minimaal één groene insigne-eis.
+      drempel:
+        type: groen
+        minimum: 1
     - titel: "Spreiding"
       tekst: |
         Kies insigne-eisen van minimaal **2 verschillende insignes**.
+      drempel:
+        type: insignes
+        minimum: 2
   scouts:
     - titel: "Insignepunten"
       tekst: |
         Behaal minimaal **8 insignepunten**. Je kunt insigne-eisen uit verschillende niveaus kiezen.
+      drempel:
+        type: punten
+        minimum: 8
     - titel: "Groene lijn"
       tekst: |
         Waarvan minimaal één groene insigne-eis.
+      drempel:
+        type: groen
+        minimum: 1
     - titel: "Niveau 2"
       tekst: |
         Minimaal één insigne-eis op niveau 2 (oranje).
+      drempel:
+        type: niveau2
+        minimum: 1
     - titel: "Spreiding"
       tekst: |
         Kies insigne-eisen van minimaal **2 verschillende insignes**.
+      drempel:
+        type: insignes
+        minimum: 2
   explorers:
     - titel: "Insignepunten"
       tekst: |
         Behaal minimaal **10 insignepunten**. Je kunt insigne-eisen uit verschillende niveaus kiezen.
+      drempel:
+        type: punten
+        minimum: 10
     - titel: "Groene lijn"
       tekst: |
         Waarvan minimaal één groene insigne-eis.
+      drempel:
+        type: groen
+        minimum: 1
     - titel: "Niveau 2"
       tekst: |
         Minimaal één insigne-eis op niveau 2 (oranje).
+      drempel:
+        type: niveau2
+        minimum: 1
     - titel: "Niveau 3"
       tekst: |
         Minimaal één insigne-eis op niveau 3 (paars).
+      drempel:
+        type: niveau3
+        minimum: 1
     - titel: "Spreiding"
       tekst: |
         Kies insigne-eisen van minimaal **3 verschillende insignes**.
+      drempel:
+        type: insignes
+        minimum: 3
   roverscouts:
     - titel: "Insignepunten"
       tekst: |
         Behaal minimaal **12 insignepunten**. Je kunt insigne-eisen uit verschillende niveaus kiezen.
+      drempel:
+        type: punten
+        minimum: 12
     - titel: "Groene lijn"
       tekst: |
         Waarvan minimaal twee groene insigne-eisen.
+      drempel:
+        type: groen
+        minimum: 2
     - titel: "Niveau 2"
       tekst: |
         Minimaal twee insigne-eisen op niveau 2 (oranje).
+      drempel:
+        type: niveau2
+        minimum: 2
     - titel: "Niveau 3"
       tekst: |
         Minimaal één insigne-eis op niveau 3 (paars).
+      drempel:
+        type: niveau3
+        minimum: 1
     - titel: "Spreiding"
       tekst: |
         Kies insigne-eisen van minimaal **3 verschillende insignes**.
+      drempel:
+        type: insignes
+        minimum: 3
 nawoord: |
   **Tips:**
 

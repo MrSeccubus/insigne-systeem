@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from insigne import groups as groups_svc
+from insigne import jaarinsigne_2026 as jaarinsigne_2026_svc
 from insigne import progress as progress_svc
 from datetime import datetime
 
@@ -17,7 +18,7 @@ from insigne.email import (
     send_scout_rejected_email,
     send_scout_signed_off_email,
 )
-from insigne.models import ProgressEntry, User
+from insigne.models import ProgressEntry, SpeltakMembership, User
 
 import re as _re
 
@@ -921,6 +922,54 @@ async def scout_set_jaarinsigne_level(
         return RedirectResponse(f"/scouts/{scout_id}/badges/{slug}", status_code=303)
     progress_svc.set_jaarinsigne_level(db, scout_id, slug, speltak_slug, current_user.id)
     return RedirectResponse(f"/scouts/{scout_id}/badges/{slug}", status_code=303)
+
+
+@router.post("/badges/jaarinsigne_2026/toggle-inclusion", response_class=HTMLResponse)
+async def jaarinsigne_2026_toggle_inclusion(
+    request: Request,
+    badge_slug: str = Form(...),
+    level_index: int = Form(...),
+    step_index: int = Form(...),
+    db: Session = Depends(get_db),
+):
+    current_user = _get_current_user(request, db)
+    if current_user is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    # Validate badge_slug is in eligible categories
+    eligible_slugs = {b["slug"] for b in jaarinsigne_2026_svc.get_eligible_badges()}
+    if badge_slug not in eligible_slugs:
+        return RedirectResponse(url="/badges/jaarinsigne_2026", status_code=303)
+
+    # Validate the ProgressEntry exists with status signed_off
+    entry = db.query(ProgressEntry).filter_by(
+        user_id=current_user.id,
+        badge_slug=badge_slug,
+        level_index=level_index,
+        step_index=step_index,
+    ).first()
+    if entry is None or entry.status != "signed_off":
+        return RedirectResponse(url="/badges/jaarinsigne_2026", status_code=303)
+
+    jaarinsigne_2026_svc.toggle_inclusion(db, current_user.id, badge_slug, level_index, step_index)
+
+    # Get user's speltak_slug and speltak_min_punten
+    speltak_slug = groups_svc.get_user_primary_speltak_type(db, current_user.id)
+    speltak_min_punten = 3
+    if speltak_slug:
+        memberships = db.query(SpeltakMembership).filter_by(
+            user_id=current_user.id, approved=True, withdrawn=False
+        ).all()
+        for m in memberships:
+            if m.speltak and m.speltak.speltak_type == speltak_slug:
+                if m.speltak.jaarinsigne_2026_min_punten is not None:
+                    speltak_min_punten = m.speltak.jaarinsigne_2026_min_punten
+                break
+
+    if speltak_slug:
+        jaarinsigne_2026_svc.update_progress_entries(db, current_user.id, speltak_slug, speltak_min_punten)
+
+    return RedirectResponse(url="/badges/jaarinsigne_2026", status_code=303)
 
 
 @router.get("/scouts/{scout_id}/badges/{slug}/niveau-checks/{niveau_index}", response_class=HTMLResponse)

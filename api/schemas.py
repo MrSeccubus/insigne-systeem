@@ -124,6 +124,7 @@ class CreateSpeltakRequest(BaseModel):
     slug: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z0-9-]+$")
     peer_signoff: bool = False
     speltak_type: str | None = None
+    jaarinsigne_2026_min_punten: int | None = None
 
 
 class UpdateSpeltakRequest(BaseModel):
@@ -131,6 +132,7 @@ class UpdateSpeltakRequest(BaseModel):
     slug: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z0-9-]+$")
     peer_signoff: bool = False
     speltak_type: str | None = None
+    jaarinsigne_2026_min_punten: int | None = None
 
 
 class SpeltakResponse(BaseModel):
@@ -140,6 +142,7 @@ class SpeltakResponse(BaseModel):
     slug: str
     peer_signoff: bool
     speltak_type: str | None
+    jaarinsigne_2026_min_punten: int | None
 
 
 class JaarinsigneLevelResponse(BaseModel):

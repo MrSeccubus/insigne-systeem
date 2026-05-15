@@ -14,13 +14,15 @@ def _parse_jaarinsigne_step(i: int, step_raw) -> dict:
     if isinstance(step_raw, dict):
         titel = step_raw.get("titel", "").strip()
         tekst = step_raw.get("tekst", "").strip()
+        drempel = step_raw.get("drempel", None)
     else:
         # Legacy plain string: split heading from body
         text = (step_raw or "").strip()
         lines = text.split("\n", 1)
         titel = lines[0].lstrip("#").strip()
         tekst = lines[1].strip() if len(lines) > 1 else text
-    return {"index": i, "titel": titel, "text": tekst, "green": False}
+        drempel = None
+    return {"index": i, "titel": titel, "text": tekst, "green": False, "drempel": drempel}
 
 
 def _parse_step(i, step):

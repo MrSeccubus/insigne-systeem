@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -181,6 +181,7 @@ class Speltak(Base):
     group_id: Mapped[str] = mapped_column(String(36), ForeignKey("groups.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     slug: Mapped[str] = mapped_column(String, nullable=False)
+    speltak_type: Mapped[str | None] = mapped_column(String, nullable=True)
     peer_signoff: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 
@@ -276,6 +277,21 @@ class EmailChangeRequest(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 
     user: Mapped["User"] = relationship(back_populates="email_change_requests")
+
+
+class JaarinsigneLevel(Base):
+    __tablename__ = "jaarinsigne_levels"
+    __table_args__ = (UniqueConstraint("user_id", "badge_slug", name="uq_jaarinsigne_level_user_badge"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    badge_slug: Mapped[str] = mapped_column(String, nullable=False)
+    speltak_slug: Mapped[str] = mapped_column(String, nullable=False)
+    set_by_user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+
+    user: Mapped["User"] = relationship(foreign_keys=[user_id])
+    set_by: Mapped["User"] = relationship(foreign_keys=[set_by_user_id])
 
 
 class MembershipRequest(Base):

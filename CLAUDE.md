@@ -103,8 +103,9 @@ advanced when the user says to make a new release.
 When a new release is made:
 1. Tag the release commit (`git tag -a vX.Y.Z ...`)
 2. Fast-forward `releases` to that tag commit
-3. Create the GitHub release
-4. Update `CHANGELOG.md`
+3. Merge the tag into `main` (`git checkout main && git merge --no-ff vX.Y.Z`) so the tag is reachable from both `releases` and `main`
+4. Create the GitHub release
+5. Update `CHANGELOG.md`
 
 ## Keeping the JSON API in sync with the library
 

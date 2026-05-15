@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from .models import ProgressEntry, SignoffRejection, SignoffRequest, User
+from .models import JaarinsigneLevel, ProgressEntry, SignoffRejection, SignoffRequest, User
 
 
 class NotFound(Exception):
@@ -341,6 +341,34 @@ def request_signoff_from_members(
     db.commit()
     db.refresh(entry)
     return entry, invited
+
+
+def get_jaarinsigne_level(db: Session, user_id: str, badge_slug: str) -> JaarinsigneLevel | None:
+    return db.query(JaarinsigneLevel).filter_by(user_id=user_id, badge_slug=badge_slug).first()
+
+
+def set_jaarinsigne_level(
+    db: Session,
+    user_id: str,
+    badge_slug: str,
+    speltak_slug: str,
+    set_by_user_id: str,
+) -> JaarinsigneLevel:
+    existing = get_jaarinsigne_level(db, user_id, badge_slug)
+    if existing:
+        existing.speltak_slug = speltak_slug
+        existing.set_by_user_id = set_by_user_id
+        db.commit()
+        return existing
+    record = JaarinsigneLevel(
+        user_id=user_id,
+        badge_slug=badge_slug,
+        speltak_slug=speltak_slug,
+        set_by_user_id=set_by_user_id,
+    )
+    db.add(record)
+    db.commit()
+    return record
 
 
 def list_signoff_requests(db: Session, mentor_id: str) -> list[SignoffRequest]:

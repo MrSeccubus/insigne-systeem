@@ -74,10 +74,53 @@ async def index(request: Request, only_favorites: int = 0, only_in_progress: int
         user_favorite_slugs = users_svc.get_user_favorite_slugs(db, current_user.id)
         progress_slugs = set(all_progress.keys())
 
-    # Enrich each badge with 3 niveau cards (one per a/b/c sub-task level)
+    # Enrich each badge with level cards
     for badges in all_badges.values():
         for badge in badges:
             detail = _CATALOGUE.get(badge["slug"])
+            if detail.get("dedicated_api"):
+                badge["level_cards"] = []
+                badge["type"] = "dedicated_api"
+                continue
+            if detail.get("type") == "jaarinsigne":
+                badge["type"] = "jaarinsigne"
+                jl = progress_svc.get_jaarinsigne_level(db, current_user.id, badge["slug"]) if current_user else None
+                if jl:
+                    speltak_slug = jl.speltak_slug
+                elif current_user:
+                    speltak_slug = groups_svc.get_user_primary_speltak_type(db, current_user.id)
+                else:
+                    speltak_slug = None
+                resolved_level_index = _CATALOGUE.resolve_jaarinsigne_level_index(detail, speltak_slug)
+                level = next((l for l in detail["levels"] if l["level_index"] == resolved_level_index), None)
+                if level:
+                    slug_progress = all_progress.get(badge["slug"], {})
+                    n_steps = len(level["steps"])
+                    completed = sum(
+                        1 for step_idx in range(n_steps)
+                        if slug_progress.get((resolved_level_index, step_idx))
+                        and slug_progress[(resolved_level_index, step_idx)].status == "signed_off"
+                    )
+                    badge["level_cards"] = [{
+                        "index": resolved_level_index,
+                        "name": level["name"],
+                        "short_name": level["kort"],
+                        "image": f"/images/{badge['slug']}.png",
+                        "total": n_steps,
+                        "completed": completed,
+                        "completed_at": max(
+                            (slug_progress[(resolved_level_index, step_idx)].signed_off_at
+                             for step_idx in range(n_steps)
+                             if slug_progress.get((resolved_level_index, step_idx))
+                             and slug_progress[(resolved_level_index, step_idx)].status == "signed_off"
+                             and slug_progress[(resolved_level_index, step_idx)].signed_off_at),
+                            default=None,
+                        ),
+                    }]
+                else:
+                    badge["level_cards"] = []
+                continue
+            badge["type"] = "gewoon"
             niveau_label = detail.get("niveau_label", "Niveau")
             niveau_label_kort = detail.get("niveau_label_kort", "N")
             badge["level_cards"] = [
@@ -131,6 +174,7 @@ async def index(request: Request, only_favorites: int = 0, only_in_progress: int
         name="index.html",
         context={
             "current_user": current_user,
+            "category_labels": _CATALOGUE.category_labels,
             "all_badges": all_badges,
             "all_progress": all_progress,
             "signoff_count": signoff_count,

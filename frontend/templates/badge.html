@@ -9,7 +9,7 @@
     </nav>
 
     <header class="badge-header">
-        {% if selected_niveaus | length == 1 %}
+        {% if selected_niveaus | length == 1 and not badge.dedicated_api %}
         <div style="text-align:center;margin-bottom:0.75rem;">
             <img src="/images/{{ badge.slug }}.{{ selected_niveaus[0] + 1 }}.png"
                  alt="{{ badge.niveau_label }} {{ selected_niveaus[0] + 1 }}"
@@ -25,7 +25,7 @@
             {% endif %}
         </div>
         {% endif %}
-        <h1>{{ badge.title }}{% if selected_niveaus | length == 1 %} — {{ badge.niveau_label }} {{ selected_niveaus[0] + 1 }}{% endif %}</h1>
+        <h1>{{ badge.title }}{% if selected_niveaus | length == 1 and not badge.dedicated_api %} — {{ badge.niveau_label }} {{ selected_niveaus[0] + 1 }}{% endif %}</h1>
         {% if badge.introduction %}
         <div class="badge-introduction">{{ badge.introduction | render_eis }}</div>
         {% endif %}
@@ -36,6 +36,66 @@
         <a href="/login">Log in</a> of <a href="/register">maak een account aan</a> om je voortgang bij te houden.
     </div>
     {% endif %}
+
+    {% if badge.dedicated_api %}
+    <div class="notification-bar" style="margin-bottom:1.5rem;">
+        Voortgang voor dit insigne wordt bijgehouden via een eigen API.<br>
+        <code>GET /badges/dedicated/{{ badge.slug }}/progress/{user_id}</code>
+    </div>
+    {% elif badge.type == "jaarinsigne" %}
+
+    {# ── Speltak tab selector ── #}
+    <div class="mobile-niveau-selector">
+        <span class="mobile-niveau-label">Speltak:</span>
+        {% for level in badge.levels %}
+        <a href="/badges/{{ badge.slug }}?speltak={{ level.slug }}"
+           class="mobile-niveau-tab{% if level.level_index == selected_level_index %} mobile-niveau-tab--active{% endif %}">
+            {{ level.name }}{% if level.leeftijd %} <span class="muted" style="font-size:0.8em;">({{ level.leeftijd }})</span>{% endif %}
+        </a>
+        {% endfor %}
+    </div>
+
+    {# ── Steps for each speltak level ── #}
+    {% for level in badge.levels %}
+    {% set is_selected = level.level_index == selected_level_index %}
+    {% set is_editable = level.level_index == resolved_level_index %}
+    <details{% if is_selected %} open{% endif %} class="jaarinsigne-speltak-details" style="margin-bottom:1rem;">
+        <summary style="cursor:pointer;font-weight:600;padding:0.5rem 0;">
+            {{ level.name }}{% if level.leeftijd %} <span style="font-size:0.8em;color:#888;">({{ level.leeftijd }})</span>{% endif %}{% if is_editable %} <span style="font-size:0.8em;color:#888;">— jouw niveau</span>{% endif %}
+        </summary>
+        <div class="scroll-x">
+        <div class="badge-overview-grid badge-overview-grid--single"
+             style="grid-template-columns: 160px 1fr;">
+            {% for step in level.steps %}
+            {% set level_index = level.level_index %}
+            {% set level_name = level.name %}
+            {% set step_index = loop.index0 %}
+            {% set step_text = step.text %}
+            {% set entry = progress_map.get((level_index, step_index)) %}
+            {% set slug = badge.slug %}
+            {% set niveau_label_kort = "E" %}
+            <div class="eis-row-header">
+                <span class="eis-row-number">Eis {{ loop.index }}</span>
+                <span class="eis-row-name">{{ step.titel }}</span>
+            </div>
+            {% if is_editable %}
+            {% include "partials/step_card.html" %}
+            {% else %}
+            {% with current_user = None %}
+            {% include "partials/step_card.html" %}
+            {% endwith %}
+            {% endif %}
+            {% endfor %}
+        </div>
+        </div>
+    </details>
+    {% endfor %}
+
+    {% if badge.afterword %}
+    <div class="badge-afterword">{{ badge.afterword | render_eis }}</div>
+    {% endif %}
+
+    {% else %}
 
     <div class="mobile-niveau-selector"
          x-data
@@ -108,5 +168,7 @@
     {% if badge.afterword %}
     <div class="badge-afterword">{{ badge.afterword | render_eis }}</div>
     {% endif %}
+
+    {% endif %}{# end {% if badge.dedicated_api %} elif jaarinsigne else #}
 </main>
 {% endblock %}

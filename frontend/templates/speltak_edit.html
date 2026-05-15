@@ -6,7 +6,19 @@
 <main>
     <h1>{% if speltak %}Speltak bewerken{% else %}Nieuwe speltak{% endif %}</h1>
     <div style="max-width:480px;">
-        <form method="post" action="{% if speltak %}/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/edit{% else %}/groups/{{ group.slug }}/speltakken/new{% endif %}">
+        <form method="post" action="{% if speltak %}/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/edit{% else %}/groups/{{ group.slug }}/speltakken/new{% endif %}"
+              x-data="{
+                speltakType: '{{ (speltak.speltak_type if speltak and speltak.speltak_type else '') }}',
+                peerSignoff: {{ 'true' if speltak and speltak.peer_signoff else 'false' }},
+                get peerTypes() { return ['roverscouts', 'plusscouts']; },
+                onTypeChange() {
+                    if (this.peerTypes.includes(this.speltakType)) {
+                        this.peerSignoff = true;
+                    } else if (this.speltakType !== '') {
+                        this.peerSignoff = false;
+                    }
+                }
+              }">
             {% if error %}
                 <p class="form-error">{{ error }}</p>
             {% endif %}
@@ -16,10 +28,22 @@
                        value="{{ speltak.name if speltak else '' }}"
                        required maxlength="200" autofocus>
             </div>
+            <div class="field" style="margin-top:0.5rem;">
+                <label for="speltak_type">Speltak type</label>
+                <select id="speltak_type" name="speltak_type" required
+                        x-model="speltakType"
+                        @change="$el.setCustomValidity(''); onTypeChange()"
+                        @invalid="$el.setCustomValidity('Kies een speltak type.')">
+                    <option value="">— geen type ingesteld —</option>
+                    {% for st in speltakken_meta %}
+                    <option value="{{ st.slug }}">{{ st.naam }} ({{ st.leeftijd }})</option>
+                    {% endfor %}
+                </select>
+            </div>
             <div style="margin-top:0.5rem;margin-bottom:1.2rem;">
                 <label class="toggle-label">
                     <input type="checkbox" name="peer_signoff" value="true"
-                           {% if speltak and speltak.peer_signoff %}checked{% endif %}>
+                           x-model="peerSignoff">
                     Leden mogen voor elkaar aftekenen (volwassenen speltak)
                 </label>
             </div>

@@ -125,7 +125,7 @@ async def niveau_checks(request: Request, slug: str, niveau_index: int, db: Sess
 # ── Badge detail ──────────────────────────────────────────────────────────────
 
 @router.get("/badges/{slug}", response_class=HTMLResponse)
-async def badge_detail(request: Request, slug: str, niveau: int | None = Query(None), db: Session = Depends(get_db)):
+async def badge_detail(request: Request, slug: str, niveau: int | None = Query(None), speltak: str | None = Query(None), db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)
     badge = _CATALOGUE.get(slug)
     if badge is None:
@@ -134,7 +134,6 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
     progress_map: dict[tuple[int, int], ProgressEntry] = {}
     previous_mentors = []
     scout_signoff_options = []
-    level_stats = []
 
     if current_user:
         for entry in progress_svc.list_progress(db, current_user.id, badge_slug=slug):
@@ -142,6 +141,40 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
         previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
         scout_signoff_options = _build_signoff_options(db, current_user)
 
+    if badge.get("type") == "jaarinsigne":
+        jl = progress_svc.get_jaarinsigne_level(db, current_user.id, slug) if current_user else None
+        if jl:
+            speltak_slug = jl.speltak_slug
+        elif current_user:
+            speltak_slug = groups_svc.get_user_primary_speltak_type(db, current_user.id)
+        else:
+            speltak_slug = None
+        resolved_level_index = _CATALOGUE.resolve_jaarinsigne_level_index(badge, speltak_slug)
+        # ?speltak=scouts allows viewing other levels (read-only)
+        if speltak:
+            view_level = next((l for l in badge["levels"] if l["slug"] == speltak), None)
+            selected_level_index = view_level["level_index"] if view_level else resolved_level_index
+        else:
+            selected_level_index = resolved_level_index
+        return _TEMPLATES.TemplateResponse(
+            request=request,
+            name="badge.html",
+            context={
+                "current_user": current_user,
+                "badge": badge,
+                "progress_map": progress_map,
+                "previous_mentors": previous_mentors,
+                "scout_signoff_options": scout_signoff_options,
+                "resolved_level_index": resolved_level_index,
+                "selected_level_index": selected_level_index,
+                "selected_niveaus": [],
+                "niveau_stats": [],
+                "level_stats": [],
+                "mobile_default_niveau": 1,
+            },
+        )
+
+    level_stats = []
     for i, level in enumerate(badge["levels"]):
         total = len(level["steps"])
         completed = sum(
@@ -627,12 +660,46 @@ async def request_signoff_members(
 
 # ── Per-scout progress (leider view) ─────────────────────────────────────────
 
-def _build_badge_catalogue(all_progress: dict) -> tuple[dict, list]:
+def _build_badge_catalogue(all_progress: dict, db=None, scout_id: str | None = None) -> tuple[dict, list]:
     """Return (all_badges_enriched, signed_off_niveaus) for the given progress map."""
     all_badges = _CATALOGUE.list()
     for badges in all_badges.values():
         for badge in badges:
             detail = _CATALOGUE.get(badge["slug"])
+            badge["dedicated_api"] = detail.get("dedicated_api", False)
+            badge["type"] = detail.get("type", "gewoon")
+            if badge["dedicated_api"]:
+                badge["level_cards"] = []
+                continue
+            if detail.get("type") == "jaarinsigne":
+                jl = progress_svc.get_jaarinsigne_level(db, scout_id, badge["slug"]) if db and scout_id else None
+                if jl:
+                    speltak_slug = jl.speltak_slug
+                elif db and scout_id:
+                    speltak_slug = groups_svc.get_user_primary_speltak_type(db, scout_id)
+                else:
+                    speltak_slug = None
+                resolved_level_index = _CATALOGUE.resolve_jaarinsigne_level_index(detail, speltak_slug)
+                level = next((l for l in detail["levels"] if l["level_index"] == resolved_level_index), None)
+                if level:
+                    slug_progress = all_progress.get(badge["slug"], {})
+                    n_steps = len(level["steps"])
+                    badge["level_cards"] = [{
+                        "index": resolved_level_index,
+                        "name": level["name"],
+                        "short_name": level["kort"],
+                        "image": f"/images/{badge['slug']}.png",
+                        "total": n_steps,
+                        "completed": sum(
+                            1 for step_idx in range(n_steps)
+                            if slug_progress.get((resolved_level_index, step_idx))
+                            and slug_progress[(resolved_level_index, step_idx)].status == "signed_off"
+                        ),
+                        "completed_at": None,
+                    }]
+                else:
+                    badge["level_cards"] = []
+                continue
             niveau_label = detail.get("niveau_label", "Niveau")
             niveau_label_kort = detail.get("niveau_label_kort", "N")
             badge["niveau_label"] = niveau_label
@@ -709,7 +776,7 @@ async def scout_progress_home(scout_id: str, request: Request, only_in_progress:
     for entry in progress_svc.list_progress(db, scout_id):
         all_progress.setdefault(entry.badge_slug, {})[(entry.level_index, entry.step_index)] = entry
 
-    all_badges, signed_off_niveaus = _build_badge_catalogue(all_progress)
+    all_badges, signed_off_niveaus = _build_badge_catalogue(all_progress, db=db, scout_id=scout_id)
     response = _TEMPLATES.TemplateResponse(
         request=request,
         name="scout_progress.html",
@@ -723,6 +790,7 @@ async def scout_progress_home(scout_id: str, request: Request, only_in_progress:
             "signed_off_niveaus": signed_off_niveaus,
             "progress_slugs": set(all_progress.keys()),
             "only_in_progress": bool(only_in_progress),
+            "category_labels": _CATALOGUE.category_labels,
         },
     )
     response.headers["Cache-Control"] = "no-store"

@@ -39,8 +39,6 @@
     </section>
     {% endif %}
 
-    {% set category_labels = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "explorers": "Explorers"} %}
-
     {% set page_ns = namespace(any_visible=false) %}
     {% for category, badges in all_badges.items() %}
     {% set visible_badges = badges | selectattr("slug", "in", progress_slugs) | list if only_in_progress else badges %}
@@ -52,6 +50,18 @@
     <h3 class="badge-group-title">
         <a href="/scouts/{{ scout.id }}/badges/{{ badge.slug }}">{{ badge.title }}</a>
     </h3>
+
+    {% if badge.dedicated_api %}
+    <div style="padding:0.75rem 1rem;background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px;font-size:0.85rem;color:#555;margin-bottom:1rem;">
+        Voortgang via eigen API:<br>
+        <code>GET /badges/dedicated/{{ badge.slug }}/progress/{{ scout.id }}</code>
+    </div>
+    {% elif badge.type == "jaarinsigne" %}
+    <div style="padding:0.75rem 1rem;background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px;font-size:0.85rem;color:#555;margin-bottom:1rem;">
+        Jaarinsigne — bekijk voortgang op de badge detailpagina:<br>
+        <a href="/scouts/{{ scout.id }}/badges/{{ badge.slug }}">{{ badge.title }}</a>
+    </div>
+    {% else %}
 
     {# ── Desktop: one card per niveau ── #}
     <div class="badge-grid">
@@ -114,6 +124,8 @@
             {% endfor %}
         </div>
     </div>
+
+    {% endif %}{# end dedicated_api else #}
 
     {% endfor %}
 

@@ -42,7 +42,6 @@
         <p class="empty-state">Nog geen scouts in deze speltak.</p>
         {% endif %}
 
-        {% set category_labels = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "explorers": "Explorers"} %}
         {% set group_slug = group.slug %}
         {% set speltak_slug = speltak.slug %}
 
@@ -57,6 +56,22 @@
 
         {% for badge in visible_badges %}
         {% set badge_slug = badge.slug %}
+        {% if badge.dedicated_api %}
+        <div class="badge-progress-card" style="padding:0.75rem 1rem;">
+            <strong><a href="/badges/{{ badge.slug }}">{{ badge.title }}</a></strong>
+            <p style="margin:0.4rem 0 0;font-size:0.85rem;color:#555;">
+                Voortgang via eigen API — per scout:<br>
+                <code>GET /badges/dedicated/{{ badge.slug }}/progress/{scout_id}</code>
+            </p>
+        </div>
+        {% elif badge.type == "jaarinsigne" %}
+        <div class="badge-progress-card" style="padding:0.75rem 1rem;">
+            <strong><a href="/badges/{{ badge.slug }}">{{ badge.title }}</a></strong>
+            <p style="margin:0.4rem 0 0;font-size:0.85rem;color:#555;">
+                Jaarinsigne — bekijk voortgang per scout op de individuele voortgangspagina.
+            </p>
+        </div>
+        {% else %}
         <details class="badge-progress-card" open>
             <summary class="badge-progress-summary">
                 <span class="badge-progress-title">{{ badge.title }}</span>
@@ -141,6 +156,7 @@
             <p style="padding:0.75rem 1rem;font-size:0.85rem;color:#888;margin:0;">Geen scouts.</p>
             {% endif %}
         </details>
+        {% endif %}{# end dedicated_api else #}
         {% endfor %}
         {% endif %}
         {% endfor %}

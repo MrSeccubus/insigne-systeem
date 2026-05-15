@@ -9,6 +9,14 @@ DATA_DIR = Path(__file__).parent.parent.parent / "api" / "data"
 
 _CAT = BadgeCatalogue(DATA_DIR)
 
+_SPELTAKKEN_STUB = (
+    "speltakken:\n"
+    "  - slug: scouts\n"
+    "    naam: Scouts\n"
+    "    leeftijd: 11-15 jaar\n"
+    "    kort: Sc\n"
+)
+
 
 def _all_slugs(data_dir: Path) -> list[str]:
     return [p.stem for p in (data_dir / "badges").glob("*.yml")]
@@ -50,7 +58,10 @@ class TestList:
         result = _CAT.list()
         for category in result.values():
             for badge in category:
-                assert len(badge["images"]) == 3
+                if badge.get("type") == "jaarinsigne":
+                    assert len(badge["images"]) == 1
+                else:
+                    assert len(badge["images"]) == 3
 
     def test_image_urls_use_slug(self):
         result = _CAT.list()
@@ -228,16 +239,20 @@ class TestExplorerJaarbadge:
 class TestBadgeStructure:
     def test_has_at_least_one_eis(self, slug):
         badge = _CAT.get(slug)
+        if badge.get("dedicated_api"):
+            return
         assert len(badge["levels"]) >= 1, (
             f"{slug}: verwacht minimaal 1 eis, gevonden {len(badge['levels'])}"
         )
-        if badge["category"] not in ("explorers",):
+        if badge["category"] not in ("explorers", "jaarinsignes"):
             assert len(badge["levels"]) == 5, (
                 f"{slug}: verwacht 5 eisen voor gewone/buitengewone insignes, gevonden {len(badge['levels'])}"
             )
 
     def test_each_eis_has_three_niveaus(self, slug):
         badge = _CAT.get(slug)
+        if badge.get("type") == "jaarinsigne":
+            return
         for eis in badge["levels"]:
             assert len(eis["steps"]) == 3, (
                 f"{slug} / '{eis['name']}': verwacht 3 niveaus, gevonden {len(eis['steps'])}"
@@ -254,7 +269,10 @@ class TestBadgeStructure:
         assert "slug" in raw
         assert "titel" in raw
         assert "introductie" in raw
-        assert "eisen" in raw
+        if raw.get("type") == "jaarinsigne":
+            assert "speltakken" in raw
+        elif not raw.get("dedicated_api"):
+            assert "eisen" in raw
 
     def test_slug_matches_filename(self, slug):
         badge_path = DATA_DIR / "badges" / f"{slug}.yml"
@@ -272,6 +290,11 @@ class TestBadgeStructure:
 
     def test_step_text_non_empty(self, slug):
         badge = _CAT.get(slug)
+        if badge.get("type") == "jaarinsigne":
+            for level in badge["levels"]:
+                non_empty = [s for s in level["steps"] if s["text"].strip()]
+                assert non_empty, f"{slug} / '{level['name']}': alle stappen zijn leeg"
+            return
         for group in badge["levels"]:
             non_empty = [s for s in group["steps"] if s["text"].strip()]
             assert non_empty, (
@@ -280,6 +303,8 @@ class TestBadgeStructure:
 
     def test_niveau_label_default_is_niveau(self, slug):
         badge = _CAT.get(slug)
+        if badge.get("type") == "jaarinsigne":
+            return
         if badge["category"] != "explorers":
             assert badge["niveau_label"] == "Niveau", (
                 f"{slug}: verwacht niveau_label 'Niveau', gevonden '{badge['niveau_label']}'"
@@ -287,6 +312,8 @@ class TestBadgeStructure:
 
     def test_step_green_is_bool(self, slug):
         badge = _CAT.get(slug)
+        if badge.get("type") == "jaarinsigne":
+            return
         for group in badge["levels"]:
             for step in group["steps"]:
                 assert isinstance(step["green"], bool), (
@@ -296,6 +323,8 @@ class TestBadgeStructure:
     def test_groen_true_steps_contain_equals_markers(self, slug):
         badge_path = DATA_DIR / "badges" / f"{slug}.yml"
         raw = yaml.safe_load(badge_path.read_text())
+        if raw.get("dedicated_api") or raw.get("type") == "jaarinsigne":
+            return
         badge = _CAT.get(slug)
         for group_raw, group in zip(raw["eisen"], badge["levels"]):
             for step_raw, step in zip(group_raw["eisen"], group["steps"]):
@@ -309,6 +338,8 @@ class TestBadgeStructure:
     def test_eis_dicts_have_tekst_key(self, slug):
         badge_path = DATA_DIR / "badges" / f"{slug}.yml"
         raw = yaml.safe_load(badge_path.read_text())
+        if raw.get("dedicated_api") or raw.get("type") == "jaarinsigne":
+            return
         for group in raw["eisen"]:
             for step in group["eisen"]:
                 if isinstance(step, dict):
@@ -326,6 +357,7 @@ class TestParseStep:
         """Build a temp data dir with one badge containing the given step strings/dicts."""
         slug = "testbadge"
         (tmp_path / "badges").mkdir()
+        (tmp_path / "speltakken.yml").write_text(_SPELTAKKEN_STUB)
 
         lines = [
             "slug: testbadge\n",
@@ -346,7 +378,9 @@ class TestParseStep:
                     lines.append("        groen: true\n")
 
         (tmp_path / "badges" / f"{slug}.yml").write_text("".join(lines))
-        (tmp_path / "badges.yml").write_text(f"badges:\n  gewoon:\n    - {slug}\n")
+        (tmp_path / "badges.yml").write_text(
+            f"badges:\n  gewoon:\n    label: Gewone insignes\n    badges:\n      - {slug}\n"
+        )
 
         cat = BadgeCatalogue(tmp_path)
         return cat.get(slug)["levels"][0]["steps"]
@@ -386,43 +420,47 @@ class TestParseStep:
 # ── BadgeCatalogue construction errors ────────────────────────────────────────
 
 class TestBadgeCatalogueErrors:
-    def test_missing_index_raises(self, tmp_path):
+    def _setup_base(self, tmp_path):
         (tmp_path / "badges").mkdir()
+        (tmp_path / "speltakken.yml").write_text(_SPELTAKKEN_STUB)
+
+    def test_missing_index_raises(self, tmp_path):
+        self._setup_base(tmp_path)
         with pytest.raises(FileNotFoundError):
             BadgeCatalogue(tmp_path)
 
     def test_missing_badge_file_raises(self, tmp_path):
-        (tmp_path / "badges").mkdir()
-        (tmp_path / "badges.yml").write_text("badges:\n  gewoon:\n    - phantom\n")
+        self._setup_base(tmp_path)
+        (tmp_path / "badges.yml").write_text("badges:\n  gewoon:\n    label: X\n    badges:\n      - phantom\n")
         with pytest.raises(FileNotFoundError):
             BadgeCatalogue(tmp_path)
 
     def test_malformed_badge_yaml_raises(self, tmp_path):
-        (tmp_path / "badges").mkdir()
-        (tmp_path / "badges.yml").write_text("badges:\n  gewoon:\n    - broken\n")
+        self._setup_base(tmp_path)
+        (tmp_path / "badges.yml").write_text("badges:\n  gewoon:\n    label: X\n    badges:\n      - broken\n")
         (tmp_path / "badges" / "broken.yml").write_text(": [invalid yaml\n")
         with pytest.raises(yaml.YAMLError):
             BadgeCatalogue(tmp_path)
 
     def test_malformed_index_yaml_raises(self, tmp_path):
-        (tmp_path / "badges").mkdir()
+        self._setup_base(tmp_path)
         (tmp_path / "badges.yml").write_text(": [invalid yaml\n")
         with pytest.raises(yaml.YAMLError):
             BadgeCatalogue(tmp_path)
 
     def test_empty_index_returns_empty_dict(self, tmp_path):
-        (tmp_path / "badges").mkdir()
+        self._setup_base(tmp_path)
         (tmp_path / "badges.yml").write_text("badges: {}\n")
         assert BadgeCatalogue(tmp_path).list() == {}
 
     def test_unknown_slug_returns_none(self, tmp_path):
-        (tmp_path / "badges").mkdir()
+        self._setup_base(tmp_path)
         (tmp_path / "badges.yml").write_text("badges: {}\n")
         assert BadgeCatalogue(tmp_path).get("nope") is None
 
     def test_none_nawoord_becomes_empty_string(self, tmp_path):
-        (tmp_path / "badges").mkdir()
-        (tmp_path / "badges.yml").write_text("badges:\n  gewoon:\n    - no_afterword\n")
+        self._setup_base(tmp_path)
+        (tmp_path / "badges.yml").write_text("badges:\n  gewoon:\n    label: X\n    badges:\n      - no_afterword\n")
         (tmp_path / "badges" / "no_afterword.yml").write_text(
             "slug: no_afterword\ntitel: T\nintroductie: intro\neisen: []\n"
         )
@@ -430,8 +468,8 @@ class TestBadgeCatalogueErrors:
         assert badge["afterword"] == ""
 
     def test_explicit_null_nawoord_becomes_empty_string(self, tmp_path):
-        (tmp_path / "badges").mkdir()
-        (tmp_path / "badges.yml").write_text("badges:\n  gewoon:\n    - null_afterword\n")
+        self._setup_base(tmp_path)
+        (tmp_path / "badges.yml").write_text("badges:\n  gewoon:\n    label: X\n    badges:\n      - null_afterword\n")
         (tmp_path / "badges" / "null_afterword.yml").write_text(
             "slug: null_afterword\ntitel: T\nintroductie: intro\nnawoord:\neisen: []\n"
         )
@@ -439,7 +477,7 @@ class TestBadgeCatalogueErrors:
         assert badge["afterword"] == ""
 
     def test_invalid_slug_format_returns_none(self, tmp_path):
-        (tmp_path / "badges").mkdir()
+        self._setup_base(tmp_path)
         (tmp_path / "badges.yml").write_text("badges: {}\n")
         cat = BadgeCatalogue(tmp_path)
         assert cat.get("../escape") is None

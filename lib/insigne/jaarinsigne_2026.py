@@ -19,6 +19,25 @@ _JAARINSIGNE_SLUG = "jaarinsigne_2026"
 _ELIGIBLE_CATEGORIES = {"gewoon", "buitengewoon"}
 
 
+def _build_slug_order() -> dict[str, int]:
+    """Map slug → ordinal as listed in badges.yml (for stable card sort)."""
+    order: dict[str, int] = {}
+    for items in _CATALOGUE.list().values():
+        for badge in items:
+            order[badge["slug"]] = len(order)
+    return order
+
+
+_SLUG_ORDER = _build_slug_order()
+
+
+def _card_sort_key(item: dict) -> tuple[int, int, int]:
+    """Sort key: badges.yml order → niveau (step_index) → eis (level_index)."""
+    return (_SLUG_ORDER.get(item["badge_slug"], 1_000_000),
+            item["step_index"],
+            item["level_index"])
+
+
 # ── Eligible badges ────────────────────────────────────────────────────────────
 
 def get_eligible_badges() -> list[dict]:
@@ -282,6 +301,7 @@ def get_included_details(db: Session, user_id: str) -> list[dict]:
             "groen": bool(step.get("green", False)),
             "step_text": step.get("text", ""),
         })
+    result.sort(key=_card_sort_key)
     return result
 
 
@@ -331,7 +351,39 @@ def get_available_to_include(db: Session, user_id: str) -> list[dict]:
             "groen": bool(step.get("green", False)),
             "step_text": step.get("text", ""),
         })
+    result.sort(key=_card_sort_key)
     return result
+
+
+# ── Item aggregates (for the include/exclude editor columns) ──────────────────
+
+def summarize_items(items: list[dict]) -> dict:
+    """Aggregate counts over a list of inclusion-style dicts.
+
+    Each item must have ``step_index``, ``punten``, ``groen``, ``badge_slug``.
+    """
+    niveau_counts = [0, 0, 0]
+    for item in items:
+        idx = item["step_index"]
+        if 0 <= idx < 3:
+            niveau_counts[idx] += 1
+    return {
+        "total_punten": sum(item["punten"] for item in items),
+        "total_groen": sum(1 for item in items if item["groen"]),
+        "total_niveau1": niveau_counts[0],
+        "total_niveau2": niveau_counts[1],
+        "total_niveau3": niveau_counts[2],
+        "distinct_insignes": len({item["badge_slug"] for item in items}),
+    }
+
+
+def summarize_additional(available: list[dict], included: list[dict]) -> dict:
+    """Like summarize_items, but distinct_insignes counts only badges not already included."""
+    summary = summarize_items(available)
+    included_badges = {item["badge_slug"] for item in included}
+    available_badges = {item["badge_slug"] for item in available}
+    summary["distinct_insignes"] = len(available_badges - included_badges)
+    return summary
 
 
 # ── Score summary ─────────────────────────────────────────────────────────────

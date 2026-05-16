@@ -166,6 +166,8 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
         score_summary = None
         available_to_include = []
         included_details = []
+        included_summary = None
+        available_summary = None
         if slug == "jaarinsigne_2026" and current_user and speltak_slug:
             speltak_min_punten = 3
             for m in db.query(SpeltakMembership).filter_by(
@@ -180,6 +182,10 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
             )
             available_to_include = jaarinsigne_2026_svc.get_available_to_include(db, current_user.id)
             included_details = jaarinsigne_2026_svc.get_included_details(db, current_user.id)
+            included_summary = jaarinsigne_2026_svc.summarize_items(included_details)
+            available_summary = jaarinsigne_2026_svc.summarize_additional(
+                available_to_include, included_details
+            )
 
         return _TEMPLATES.TemplateResponse(
             request=request,
@@ -200,6 +206,8 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
                 "score_summary": score_summary,
                 "available_to_include": available_to_include,
                 "included_details": included_details,
+                "included_summary": included_summary,
+                "available_summary": available_summary,
             },
         )
 
@@ -977,7 +985,11 @@ async def jaarinsigne_2026_toggle_inclusion(
     jaarinsigne_2026_svc.toggle_inclusion(db, current_user.id, badge_slug, level_index, step_index)
 
     # Get user's speltak_slug and speltak_min_punten
-    speltak_slug = groups_svc.get_user_primary_speltak_type(db, current_user.id)
+    jl = progress_svc.get_jaarinsigne_level(db, current_user.id, "jaarinsigne_2026")
+    if jl:
+        speltak_slug = jl.speltak_slug
+    else:
+        speltak_slug = groups_svc.get_user_primary_speltak_type(db, current_user.id)
     speltak_min_punten = 3
     if speltak_slug:
         memberships = db.query(SpeltakMembership).filter_by(
@@ -991,6 +1003,46 @@ async def jaarinsigne_2026_toggle_inclusion(
 
     if speltak_slug:
         jaarinsigne_2026_svc.update_progress_entries(db, current_user.id, speltak_slug, speltak_min_punten)
+
+    # HTMX request → return the full body partial (step cards + editor) so the
+    # step-check indicators reflect the recomputed eis statuses.
+    if request.headers.get("HX-Request"):
+        badge = _CATALOGUE.get("jaarinsigne_2026")
+        level = next((lv for lv in badge["levels"] if lv["slug"] == speltak_slug), None) \
+            if (badge and speltak_slug) else None
+
+        progress_map: dict[tuple[int, int], ProgressEntry] = {}
+        for e in progress_svc.list_progress(db, current_user.id, badge_slug="jaarinsigne_2026"):
+            progress_map[(e.level_index, e.step_index)] = e
+        previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
+        scout_signoff_options = _build_signoff_options(db, current_user)
+
+        score_summary = jaarinsigne_2026_svc.get_score_summary(
+            db, current_user.id, speltak_slug, speltak_min_punten
+        ) if speltak_slug else None
+        available_to_include = jaarinsigne_2026_svc.get_available_to_include(db, current_user.id)
+        included_details = jaarinsigne_2026_svc.get_included_details(db, current_user.id)
+        included_summary = jaarinsigne_2026_svc.summarize_items(included_details)
+        available_summary = jaarinsigne_2026_svc.summarize_additional(
+            available_to_include, included_details
+        )
+        return _TEMPLATES.TemplateResponse(
+            request=request,
+            name="partials/jaarinsigne_2026_body.html",
+            context={
+                "current_user": current_user,
+                "badge": badge,
+                "level": level,
+                "progress_map": progress_map,
+                "previous_mentors": previous_mentors,
+                "scout_signoff_options": scout_signoff_options,
+                "score_summary": score_summary,
+                "available_to_include": available_to_include,
+                "included_details": included_details,
+                "included_summary": included_summary,
+                "available_summary": available_summary,
+            },
+        )
 
     return RedirectResponse(url="/badges/jaarinsigne_2026", status_code=303)
 

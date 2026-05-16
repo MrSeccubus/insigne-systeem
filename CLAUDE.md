@@ -90,6 +90,40 @@ Schema is managed by Alembic — `./serve_dev.sh` and `./run_prod.sh` run `alemb
 - `tests/` — pytest unit tests (library) and API tests (via TestClient)
 - `venv/` — Python 3.13 virtual environment (not committed)
 
+## Frontend stack
+
+The UI is a **server-rendered Jinja2 + HTMX + Alpine.js** hybrid — there is no
+SPA, no JS bundler, no build step. All three libraries are loaded from a CDN in
+`frontend/templates/base.html`.
+
+- **Jinja2** renders the page server-side from FastAPI route handlers
+  (`api/routers/html_*.py`). Use `TemplateResponse` and pass context as a dict.
+- **HTMX** (`htmx.org@2.0.4`) handles partial page updates without full reloads.
+  Default to HTMX swaps over `window.location` redirects whenever a form POST
+  would otherwise cause a scroll jump or full reload — typical pattern:
+  - Wrap the swappable region in `<div id="some-id">…</div>`
+  - Form uses `hx-post="…"` + `hx-target="#some-id"` + `hx-swap="outerHTML"`
+  - The endpoint checks `request.headers.get("HX-Request")` and returns a
+    `partials/*.html` fragment in that case; otherwise falls back to a redirect
+    (so non-JS clients still work).
+  - Partial templates must include their own wrapping div+id so subsequent
+    swaps still target the same element.
+- **Alpine.js** handles client-side state inside server-rendered HTML. Used for
+  step-card status transitions, dropdowns (`<details>` with `@toggle`), and
+  inline notes editing. Keep Alpine state scoped to a single element with
+  `x-data="..."`; avoid global stores.
+- **Font Awesome icons** are pasted inline as SVG `<path>` elements (no CDN, no
+  font file). See `frontend/templates/partials/icon_running.html` and
+  `icon_leaf.html` for the pattern: copy the path from Font Awesome Free 6.x,
+  preserve the license comment, and use `fill="currentColor"` so colour follows
+  CSS.
+- **No CSS framework** — all styles live in `frontend/static/style.css`. Use
+  the existing class system (`.btn-secondary`, `.btn-sm`, `.notification-bar`,
+  `.step-card`, etc.) before inventing new classes; mobile breakpoint is 700px.
+- **Partials live in `frontend/templates/partials/`** — extract anything used
+  by both a full page render and an HTMX swap into a partial so both paths
+  render identical HTML.
+
 ## API specification
 
 The full API spec lives at `api/spec.md`. **Keep it up to date** whenever you add, change, or remove endpoints — both the JSON API (`/api/…`) and the HTML layer.

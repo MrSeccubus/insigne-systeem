@@ -1,0 +1,122 @@
+<div id="jaarinsigne-2026-editor" class="jaarinsigne-editor" style="margin-top:1.5rem;">
+
+    <h3 style="margin:0 0 0.25rem;">Kies jouw insigne-eisen</h3>
+    <p style="color:#666;font-size:0.9em;margin:0 0 1rem;">Selecteer welke behaalde insigne-eisen je wilt meerekenen voor het jaarinsigne 2026. Klik op een knop om een eis te verplaatsen tussen de twee kolommen.</p>
+
+    <div class="jaarinsigne-editor-columns">
+
+        {# ── Column 1: Included ── #}
+        <div class="jaarinsigne-column">
+            <h4 class="jaarinsigne-column-title">Meegeteld ({{ included_details | length }})</h4>
+            {% with summary = included_summary, prefix = "" %}
+            {% include "partials/jaarinsigne_2026_stats.html" %}
+            {% endwith %}
+            <div class="jaarinsigne-cards">
+                {% if included_details %}
+                {% for item in included_details %}
+                <div class="jaarinsigne-card jaarinsigne-card--included">
+                    <div class="jaarinsigne-card-title">
+                        <span class="jaarinsigne-card-title-text">
+                            <strong>{{ item.badge_title }}</strong>
+                            <span class="jaarinsigne-sep">—</span>
+                            <span class="jaarinsigne-niveau-badge jaarinsigne-niveau-{{ item.step_index + 1 }}">Niveau&nbsp;{{ item.step_index + 1 }}</span>
+                            <span class="jaarinsigne-sep">—</span>
+                            <span class="jaarinsigne-eis-label">Eis&nbsp;{{ item.level_index + 1 }}</span>
+                            {% if item.groen %}
+                            <span class="jaarinsigne-leaf" title="Groene lijn">{% include "partials/icon_leaf.html" %}</span>
+                            {% endif %}
+                        </span>
+                        <span class="jaarinsigne-punten-badge">{{ item.punten }}&nbsp;pt</span>
+                    </div>
+                    {% if item.step_text %}
+                    <div class="jaarinsigne-card-text" x-data="{ expanded: false }">
+                        <div x-show="!expanded" class="jaarinsigne-card-text-compact">
+                            {{ item.step_text | render_eis_compact(item.groen) }}
+                        </div>
+                        <div x-show="expanded" x-cloak class="jaarinsigne-card-text-full">
+                            {{ item.step_text | render_eis }}
+                        </div>
+                        {% if item.step_text | eis_needs_expand %}
+                        <button type="button"
+                                class="jaarinsigne-card-toggle"
+                                @click="expanded = !expanded"
+                                x-text="expanded ? '↑ Inklappen' : '↓ Toon volledige eis'">↓ Toon volledige eis</button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <form hx-post="/badges/jaarinsigne_2026/toggle-inclusion"
+                          hx-target="#jaarinsigne-2026-body"
+                          hx-swap="outerHTML"
+                          class="jaarinsigne-card-action">
+                        <input type="hidden" name="badge_slug" value="{{ item.badge_slug }}">
+                        <input type="hidden" name="level_index" value="{{ item.level_index }}">
+                        <input type="hidden" name="step_index" value="{{ item.step_index }}">
+                        <button type="submit" class="btn-sm jaarinsigne-btn-remove" title="Verplaatsen naar beschikbaar">→ Verwijder</button>
+                    </form>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="jaarinsigne-empty">Nog geen eisen geselecteerd.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ── Column 2: Available ── #}
+        <div class="jaarinsigne-column">
+            <h4 class="jaarinsigne-column-title">Beschikbaar ({{ available_to_include | length }})</h4>
+            {% with summary = available_summary, prefix = "+" %}
+            {% include "partials/jaarinsigne_2026_stats.html" %}
+            {% endwith %}
+            <div class="jaarinsigne-cards">
+                {% if available_to_include %}
+                {% for item in available_to_include %}
+                <div class="jaarinsigne-card jaarinsigne-card--available">
+                    <div class="jaarinsigne-card-title">
+                        <span class="jaarinsigne-card-title-text">
+                            <strong>{{ item.badge_title }}</strong>
+                            <span class="jaarinsigne-sep">—</span>
+                            <span class="jaarinsigne-niveau-badge jaarinsigne-niveau-{{ item.step_index + 1 }}">Niveau&nbsp;{{ item.step_index + 1 }}</span>
+                            <span class="jaarinsigne-sep">—</span>
+                            <span class="jaarinsigne-eis-label">Eis&nbsp;{{ item.level_index + 1 }}</span>
+                            {% if item.groen %}
+                            <span class="jaarinsigne-leaf" title="Groene lijn">{% include "partials/icon_leaf.html" %}</span>
+                            {% endif %}
+                        </span>
+                        <span class="jaarinsigne-punten-badge">{{ item.punten }}&nbsp;pt</span>
+                    </div>
+                    {% if item.step_text %}
+                    <div class="jaarinsigne-card-text" x-data="{ expanded: false }">
+                        <div x-show="!expanded" class="jaarinsigne-card-text-compact">
+                            {{ item.step_text | render_eis_compact(item.groen) }}
+                        </div>
+                        <div x-show="expanded" x-cloak class="jaarinsigne-card-text-full">
+                            {{ item.step_text | render_eis }}
+                        </div>
+                        {% if item.step_text | eis_needs_expand %}
+                        <button type="button"
+                                class="jaarinsigne-card-toggle"
+                                @click="expanded = !expanded"
+                                x-text="expanded ? '↑ Inklappen' : '↓ Toon volledige eis'">↓ Toon volledige eis</button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <form hx-post="/badges/jaarinsigne_2026/toggle-inclusion"
+                          hx-target="#jaarinsigne-2026-body"
+                          hx-swap="outerHTML"
+                          class="jaarinsigne-card-action">
+                        <input type="hidden" name="badge_slug" value="{{ item.badge_slug }}">
+                        <input type="hidden" name="level_index" value="{{ item.level_index }}">
+                        <input type="hidden" name="step_index" value="{{ item.step_index }}">
+                        <button type="submit" class="btn-sm jaarinsigne-btn-add" title="Verplaatsen naar meegeteld">← Voeg toe</button>
+                    </form>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="jaarinsigne-empty">Geen behaalde eisen beschikbaar om toe te voegen.</p>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+</div>

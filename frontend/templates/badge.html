@@ -75,6 +75,10 @@
             </form>
             {% endif %}
         </summary>
+        {% if badge.slug == "jaarinsigne_2026" and is_editable and current_user and score_summary %}
+        {# ── Step cards + include/exclude editor wrapped as one HTMX swap target ── #}
+        {% include "partials/jaarinsigne_2026_body.html" %}
+        {% else %}
         <div class="scroll-x">
         <div class="badge-overview-grid badge-overview-grid--single"
              style="grid-template-columns: 160px 1fr;">
@@ -86,6 +90,7 @@
             {% set entry = progress_map.get((level_index, step_index)) %}
             {% set slug = badge.slug %}
             {% set niveau_label_kort = "E" %}
+            {% set computed_status = (badge.slug == "jaarinsigne_2026") %}
             <div class="eis-row-header">
                 <span class="eis-row-number">Eis {{ loop.index }}</span>
                 <span class="eis-row-name">{{ step.titel }}</span>
@@ -99,94 +104,6 @@
             {% endif %}
             {% endfor %}
         </div>
-        </div>
-
-        {# ── Include/exclude editor (jaarinsigne_2026 only, own level, logged in) ── #}
-        {% if badge.slug == "jaarinsigne_2026" and is_editable and current_user and score_summary %}
-        <div class="jaarinsigne-editor" style="margin-top:1.5rem;">
-
-            {# Score summary #}
-            <div class="jaarinsigne-score-summary" style="background:#f3f4f6;border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.5rem;">
-                <strong>Huidige score:</strong>
-                <span class="jaarinsigne-score-stat">{{ score_summary.score.total_punten }} punt{{ "en" if score_summary.score.total_punten != 1 else "" }}</span>
-                <span class="jaarinsigne-score-sep">·</span>
-                <span class="jaarinsigne-score-stat">{{ score_summary.score.total_groen }} groen</span>
-                {% if score_summary.score.total_niveau2 > 0 %}
-                <span class="jaarinsigne-score-sep">·</span>
-                <span class="jaarinsigne-score-stat">{{ score_summary.score.total_niveau2 }} niveau&nbsp;2</span>
-                {% endif %}
-                {% if score_summary.score.total_niveau3 > 0 %}
-                <span class="jaarinsigne-score-sep">·</span>
-                <span class="jaarinsigne-score-stat">{{ score_summary.score.total_niveau3 }} niveau&nbsp;3</span>
-                {% endif %}
-                {% if score_summary.score.distinct_insignes > 0 %}
-                <span class="jaarinsigne-score-sep">·</span>
-                <span class="jaarinsigne-score-stat">{{ score_summary.score.distinct_insignes }} insigne{{ "s" if score_summary.score.distinct_insignes != 1 else "" }}</span>
-                {% endif %}
-                {% if score_summary.available_punten > 0 %}
-                <div style="margin-top:0.4rem;font-size:0.85em;color:#555;">
-                    Nog <strong>{{ score_summary.available_punten }}</strong> punt{{ "en" if score_summary.available_punten != 1 else "" }} beschikbaar van behaalde eisen die je nog niet hebt meegeteld.
-                </div>
-                {% endif %}
-            </div>
-
-            <h3 style="margin:0 0 0.25rem;">Kies jouw insigne-eisen</h3>
-            <p style="color:#666;font-size:0.9em;margin:0 0 1rem;">Selecteer welke behaalde insigne-eisen je wilt meerekenen voor het jaarinsigne 2026.</p>
-
-            {# Currently included #}
-            {% if included_details %}
-            <h4 style="margin:0 0 0.5rem;font-size:1em;">Meegeteld ({{ included_details | length }})</h4>
-            <div class="jaarinsigne-inclusion-list" style="margin-bottom:1.25rem;">
-                {% for item in included_details %}
-                <div class="jaarinsigne-inclusion-item">
-                    <div class="jaarinsigne-inclusion-info">
-                        <span class="jaarinsigne-niveau-badge jaarinsigne-niveau-{{ item.step_index + 1 }}">N{{ item.step_index + 1 }}</span>
-                        {% if item.groen %}<span class="jaarinsigne-groen-dot" title="Groene lijn"></span>{% endif %}
-                        <span class="jaarinsigne-inclusion-title">{{ item.badge_title }}</span>
-                        <span class="jaarinsigne-punten-badge">{{ item.punten }}pt</span>
-                    </div>
-                    {% if item.step_text %}
-                    <div class="jaarinsigne-inclusion-text">{{ item.step_text | truncate(120) }}</div>
-                    {% endif %}
-                    <form method="post" action="/badges/jaarinsigne_2026/toggle-inclusion" style="margin-top:0.4rem;">
-                        <input type="hidden" name="badge_slug" value="{{ item.badge_slug }}">
-                        <input type="hidden" name="level_index" value="{{ item.level_index }}">
-                        <input type="hidden" name="step_index" value="{{ item.step_index }}">
-                        <button type="submit" class="btn-sm" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;">Verwijder</button>
-                    </form>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-
-            {# Available to add #}
-            {% if available_to_include %}
-            <h4 style="margin:0 0 0.5rem;font-size:1em;">Beschikbaar om toe te voegen</h4>
-            <div class="jaarinsigne-inclusion-list">
-                {% for item in available_to_include %}
-                <div class="jaarinsigne-inclusion-item">
-                    <div class="jaarinsigne-inclusion-info">
-                        <span class="jaarinsigne-niveau-badge jaarinsigne-niveau-{{ item.step_index + 1 }}">N{{ item.step_index + 1 }}</span>
-                        {% if item.groen %}<span class="jaarinsigne-groen-dot" title="Groene lijn"></span>{% endif %}
-                        <span class="jaarinsigne-inclusion-title">{{ item.badge_title }}</span>
-                        <span class="jaarinsigne-punten-badge">{{ item.punten }}pt</span>
-                    </div>
-                    {% if item.step_text %}
-                    <div class="jaarinsigne-inclusion-text">{{ item.step_text | truncate(120) }}</div>
-                    {% endif %}
-                    <form method="post" action="/badges/jaarinsigne_2026/toggle-inclusion" style="margin-top:0.4rem;">
-                        <input type="hidden" name="badge_slug" value="{{ item.badge_slug }}">
-                        <input type="hidden" name="level_index" value="{{ item.level_index }}">
-                        <input type="hidden" name="step_index" value="{{ item.step_index }}">
-                        <button type="submit" class="btn-sm" style="background:#dcfce7;color:#15803d;border:1px solid #86efac;">Voeg toe</button>
-                    </form>
-                </div>
-                {% endfor %}
-            </div>
-            {% elif not included_details %}
-            <p style="color:#888;font-size:0.9em;">Je hebt nog geen insigne-eisen behaald die je kunt meerekenen.</p>
-            {% endif %}
-
         </div>
         {% endif %}
 

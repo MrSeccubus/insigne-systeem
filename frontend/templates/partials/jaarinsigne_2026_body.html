@@ -1,0 +1,24 @@
+<div id="jaarinsigne-2026-body">
+    <div class="scroll-x">
+    <div class="badge-overview-grid badge-overview-grid--single"
+         style="grid-template-columns: 160px 1fr;">
+        {% for step in level.steps %}
+        {% set level_index = level.level_index %}
+        {% set level_name = level.name %}
+        {% set step_index = loop.index0 %}
+        {% set step_text = step.text %}
+        {% set entry = progress_map.get((level_index, step_index)) %}
+        {% set slug = badge.slug %}
+        {% set niveau_label_kort = "E" %}
+        {% set computed_status = True %}
+        <div class="eis-row-header">
+            <span class="eis-row-number">Eis {{ loop.index }}</span>
+            <span class="eis-row-name">{{ step.titel }}</span>
+        </div>
+        {% include "partials/step_card.html" %}
+        {% endfor %}
+    </div>
+    </div>
+
+    {% include "partials/jaarinsigne_2026_editor.html" %}
+</div>

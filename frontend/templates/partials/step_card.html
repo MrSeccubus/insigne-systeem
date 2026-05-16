@@ -166,9 +166,11 @@
                     :disabled="!entryId || saving">
                 Aftekenen...
             </button>
+            {% if not computed_status %}
             <button type="button" class="btn-cancel btn-sm" @click="save('in_progress')">
                 Ik ben toch niet klaar
             </button>
+            {% endif %}
         </div>
         <div x-show="signoffOpen" x-cloak class="inline-form">
             {# Notes FIRST #}
@@ -246,7 +248,7 @@
     <div class="step-state" x-show="status === 'in_progress'">
         <div x-show="notes && !editing" class="step-notes">
             <span x-text="notes"></span>
-            {% if current_user %}
+            {% if current_user and not computed_status %}
             <button type="button" class="btn-icon" @click="editing = true" title="Notitie bewerken">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -255,7 +257,7 @@
             </button>
             {% endif %}
         </div>
-        {% if current_user %}
+        {% if current_user and not computed_status %}
         <textarea x-show="editing" x-cloak x-model="notes"
                   placeholder="Notities (optioneel)"></textarea>
         <div class="step-actions">
@@ -276,7 +278,7 @@
 
     {# ── none / not started — Alpine-driven ── #}
     <div class="step-state" x-show="status === 'none' || status === ''">
-        {% if current_user %}
+        {% if current_user and not computed_status %}
         <div x-show="!showNotePrompt" class="step-actions">
             <button type="button" class="btn-secondary btn-sm"
                     @click="prompt('in_progress')">Ik ben bezig</button>

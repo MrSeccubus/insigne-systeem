@@ -271,6 +271,23 @@ class TestRejectSignoff:
         assert affected[0].status == "pending_signoff"
 
 
+# ── list_previous_mentors filters self ───────────────────────────────────────
+
+class TestListPreviousMentorsFiltersSelf:
+    def test_self_signoff_excluded(self, db):
+        u = _user(db, "scout@x.com", "Scout")
+        # Simulate a self-signoff sneaking into the data (e.g. import / migration).
+        e = ProgressEntry(
+            user_id=u.id, badge_slug="kamperen",
+            level_index=0, step_index=0, status="signed_off",
+            signed_off_by_id=u.id,
+        )
+        db.add(e)
+        db.commit()
+        mentors = progress_svc.list_previous_mentors(db, u.id)
+        assert all(m.id != u.id for m in mentors)
+
+
 # ── list_signoff_requests_grouped ────────────────────────────────────────────
 
 class TestListSignoffRequestsGrouped:

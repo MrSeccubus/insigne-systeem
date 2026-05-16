@@ -148,6 +148,23 @@ class TestToggleBlockedWhenPending:
         assert after == before
 
 
+class TestSelfSignoffSurfaceError:
+    def test_direct_self_signoff_returns_error_in_body(self, client, db):
+        scout = _user(db, "scout@x.com", "Scout")
+        _entry(db, scout.id, 1, 0, "work_done")
+        client.cookies.update(_auth(scout))
+        r = client.post(
+            "/badges/jaarinsigne_2026/request-signoff",
+            data={"mentor_email": "scout@x.com"},
+            headers={"HX-Request": "true"},
+        )
+        assert r.status_code == 200
+        assert "Je kunt jezelf niet uitnodigen" in r.text
+        # Entry must still be work_done (not flipped to pending_signoff)
+        e = db.query(ProgressEntry).filter_by(user_id=scout.id).first()
+        assert e.status == "work_done"
+
+
 class TestMentorConfirmRejectEndpoints:
     def test_confirm_signs_off_all(self, client, db):
         scout = _user(db, "scout@x.com", "Scout")

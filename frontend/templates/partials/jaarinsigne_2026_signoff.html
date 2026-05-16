@@ -24,7 +24,15 @@ Context:
     </form>
 </div>
 {% else %}
-<div class="jaarinsigne-signoff" x-data="{ open: false, signoffPath: '' }">
+<div class="jaarinsigne-signoff{% if signoff_state == 'ready' %} jaarinsigne-signoff--ready{% endif %}" x-data="{ open: {{ 'true' if signoff_error else 'false' }}, signoffPath: '' }">
+    {% if signoff_state == "ready" %}
+    <p class="jaarinsigne-signoff-ready-msg">
+        Je hebt aan alle eisen voldaan, je kunt nu laten aftekenen.
+    </p>
+    {% endif %}
+    {% if signoff_error %}
+    <p class="form-error" style="margin:0 0 0.5rem;">{{ signoff_error }}</p>
+    {% endif %}
     <div class="step-actions">
         <button type="button" class="btn-secondary btn-sm"
                 @click="open = !open"
@@ -98,6 +106,7 @@ Context:
         </datalist>
         {% endif %}
         <form x-show="signoffPath === 'direct'" x-cloak
+              class="jaarinsigne-signoff-direct-form"
               @submit.prevent="
                   const _m = JSON.parse(document.getElementById('ji26-prev-mentors')?.textContent || '{}');
                   const _d = $el.elements['mentor_display'].value;
@@ -108,7 +117,7 @@ Context:
             <button type="submit" class="btn-secondary btn-sm">Versturen</button>
         </form>
 
-        <button type="button" class="btn-secondary btn-sm" @click="open = false">Annuleren</button>
+        <button type="button" class="btn-cancel btn-sm" @click="open = false">Annuleren</button>
     </div>
 </div>
 {% endif %}

@@ -2546,6 +2546,35 @@ button:disabled, a[disabled] {
     font-weight: 600;
 }
 
+.jaarinsigne-signoff--ready {
+    background: #ecfdf5;
+    border-color: #86efac;
+}
+
+.jaarinsigne-signoff-ready-msg {
+    margin: 0 0 0.5rem;
+    color: #15803d;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Direct-mentor form: input grows, Versturen sits flush right, both lined up
+   with the btn-path buttons above. */
+.jaarinsigne-signoff-direct-form {
+    display: flex;
+    gap: 0.4rem;
+    align-items: stretch;
+}
+
+.jaarinsigne-signoff-direct-form input {
+    flex: 1;
+    min-width: 0;
+}
+
+.jaarinsigne-signoff-direct-form button {
+    flex-shrink: 0;
+}
+
 .jaarinsigne-signoff-status {
     margin: 0;
 }

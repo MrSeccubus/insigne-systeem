@@ -220,6 +220,7 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
                 "available_summary": available_summary,
                 "signoff_state": signoff_state,
                 "pending_mentors": pending_mentors,
+                "signoff_error": "",
             },
         )
 
@@ -1202,7 +1203,7 @@ def _jaarinsigne_2026_pending_mentors(
 
 
 def _build_jaarinsigne_2026_body_context(
-    db: Session, current_user: User
+    db: Session, current_user: User, signoff_error: str = "",
 ) -> dict:
     """Re-compute every piece of context the jaarinsigne_2026 body partial needs."""
     badge = _CATALOGUE.get("jaarinsigne_2026")
@@ -1244,16 +1245,33 @@ def _build_jaarinsigne_2026_body_context(
         "available_summary": available_summary,
         "signoff_state": signoff_state,
         "pending_mentors": pending_mentors,
+        "signoff_error": signoff_error,
     }
 
 
-def _jaarinsigne_2026_body_response(request: Request, db: Session, current_user: User):
+def _jaarinsigne_2026_body_response(
+    request: Request, db: Session, current_user: User, signoff_error: str = "",
+):
     """Render the jaarinsigne_2026 body partial with a fresh context."""
     return _TEMPLATES.TemplateResponse(
         request=request,
         name="partials/jaarinsigne_2026_body.html",
-        context=_build_jaarinsigne_2026_body_context(db, current_user),
+        context=_build_jaarinsigne_2026_body_context(db, current_user, signoff_error),
     )
+
+
+def _translate_signoff_exc(exc: Exception) -> str:
+    """Map a service-layer exception to a Dutch error string for the UI."""
+    msg = str(exc)
+    if msg == "self_signoff":
+        return "Je kunt jezelf niet uitnodigen om af te tekenen."
+    if msg == "no_entries":
+        return "Er zijn geen eisen die klaar staan voor aftekening."
+    if msg == "no_eligible_mentors":
+        return "Geen geschikte (bege-)leider gevonden om af te tekenen."
+    if msg == "already_signed_off":
+        return "Deze stap is al afgetekend."
+    return "Aanvraag aftekening mislukt."
 
 
 @router.post("/badges/jaarinsigne_2026/toggle-inclusion", response_class=HTMLResponse)
@@ -1367,16 +1385,17 @@ async def jaarinsigne_2026_request_signoff_speltak(
     step_text = _jaarinsigne_2026_step_text_summary(badge, level)
     scout_name = current_user.name or current_user.email.split("@")[0]
 
+    signoff_error = ""
     try:
         _, invited = progress_svc.request_jaarinsigne_2026_signoff_speltak(
             db, current_user.id, speltak_id
         )
         _send_jaarinsigne_2026_mentor_emails(background_tasks, invited, None, scout_name, step_text)
-    except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict):
-        pass
+    except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict) as exc:
+        signoff_error = _translate_signoff_exc(exc)
 
     if request.headers.get("HX-Request"):
-        return _jaarinsigne_2026_body_response(request, db, current_user)
+        return _jaarinsigne_2026_body_response(request, db, current_user, signoff_error)
     return RedirectResponse(url="/badges/jaarinsigne_2026", status_code=303)
 
 
@@ -1398,16 +1417,17 @@ async def jaarinsigne_2026_request_signoff_members(
     step_text = _jaarinsigne_2026_step_text_summary(badge, level)
     scout_name = current_user.name or current_user.email.split("@")[0]
 
+    signoff_error = ""
     try:
         _, invited = progress_svc.request_jaarinsigne_2026_signoff_members(
             db, current_user.id, mentor_ids
         )
         _send_jaarinsigne_2026_mentor_emails(background_tasks, invited, None, scout_name, step_text)
-    except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict):
-        pass
+    except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict) as exc:
+        signoff_error = _translate_signoff_exc(exc)
 
     if request.headers.get("HX-Request"):
-        return _jaarinsigne_2026_body_response(request, db, current_user)
+        return _jaarinsigne_2026_body_response(request, db, current_user, signoff_error)
     return RedirectResponse(url="/badges/jaarinsigne_2026", status_code=303)
 
 
@@ -1429,6 +1449,7 @@ async def jaarinsigne_2026_request_signoff_direct(
     step_text = _jaarinsigne_2026_step_text_summary(badge, level)
     scout_name = current_user.name or current_user.email.split("@")[0]
 
+    signoff_error = ""
     try:
         if _UUID_RE.match(mentor_email.strip()):
             _, invited = progress_svc.request_jaarinsigne_2026_signoff_members(
@@ -1444,11 +1465,11 @@ async def jaarinsigne_2026_request_signoff_direct(
             _send_jaarinsigne_2026_mentor_emails(
                 background_tasks, [mentor], mentor if created else None, scout_name, step_text
             )
-    except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict):
-        pass
+    except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict) as exc:
+        signoff_error = _translate_signoff_exc(exc)
 
     if request.headers.get("HX-Request"):
-        return _jaarinsigne_2026_body_response(request, db, current_user)
+        return _jaarinsigne_2026_body_response(request, db, current_user, signoff_error)
     return RedirectResponse(url="/badges/jaarinsigne_2026", status_code=303)
 
 

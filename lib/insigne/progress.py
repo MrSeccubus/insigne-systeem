@@ -660,11 +660,17 @@ def list_signoff_requests(db: Session, mentor_id: str) -> list[SignoffRequest]:
 
 
 def list_previous_mentors(db: Session, user_id: str) -> list[User]:
+    """Return distinct prior mentors for this scout, most-recent-first.
+
+    Defensively excludes the scout themselves — a self-signoff in the data
+    would otherwise leak into the autocomplete UI.
+    """
     entries = (
         db.query(ProgressEntry)
         .filter(
             ProgressEntry.user_id == user_id,
             ProgressEntry.signed_off_by_id.isnot(None),
+            ProgressEntry.signed_off_by_id != user_id,
         )
         .order_by(ProgressEntry.signed_off_at.desc())
         .all()

@@ -161,6 +161,26 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
             selected_level_index = view_level["level_index"] if view_level else resolved_level_index
         else:
             selected_level_index = resolved_level_index
+
+        # jaarinsigne_2026-specific include/exclude editor data
+        score_summary = None
+        available_to_include = []
+        included_details = []
+        if slug == "jaarinsigne_2026" and current_user and speltak_slug:
+            speltak_min_punten = 3
+            for m in db.query(SpeltakMembership).filter_by(
+                user_id=current_user.id, approved=True, withdrawn=False
+            ).all():
+                if m.speltak and m.speltak.speltak_type == speltak_slug:
+                    if m.speltak.jaarinsigne_2026_min_punten is not None:
+                        speltak_min_punten = m.speltak.jaarinsigne_2026_min_punten
+                    break
+            score_summary = jaarinsigne_2026_svc.get_score_summary(
+                db, current_user.id, speltak_slug, speltak_min_punten
+            )
+            available_to_include = jaarinsigne_2026_svc.get_available_to_include(db, current_user.id)
+            included_details = jaarinsigne_2026_svc.get_included_details(db, current_user.id)
+
         return _TEMPLATES.TemplateResponse(
             request=request,
             name="badge.html",
@@ -177,6 +197,9 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
                 "niveau_stats": [],
                 "level_stats": [],
                 "mobile_default_niveau": 1,
+                "score_summary": score_summary,
+                "available_to_include": available_to_include,
+                "included_details": included_details,
             },
         )
 

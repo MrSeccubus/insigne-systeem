@@ -257,6 +257,34 @@ def update_progress_entries(
     db.commit()
 
 
+# ── Included eisen with display details ──────────────────────────────────────
+
+def get_included_details(db: Session, user_id: str) -> list[dict]:
+    """Return currently included eisen with full display details."""
+    result = []
+    for inc in get_inclusions(db, user_id):
+        badge = _CATALOGUE.get(inc.badge_slug)
+        if badge is None:
+            continue
+        levels = badge.get("levels", [])
+        if inc.level_index >= len(levels):
+            continue
+        steps = levels[inc.level_index].get("steps", [])
+        if inc.step_index >= len(steps):
+            continue
+        step = steps[inc.step_index]
+        result.append({
+            "badge_slug": inc.badge_slug,
+            "badge_title": badge["title"],
+            "level_index": inc.level_index,
+            "step_index": inc.step_index,
+            "punten": inc.step_index + 1,
+            "groen": bool(step.get("green", False)),
+            "step_text": step.get("text", ""),
+        })
+    return result
+
+
 # ── Available to include ──────────────────────────────────────────────────────
 
 def get_available_to_include(db: Session, user_id: str) -> list[dict]:

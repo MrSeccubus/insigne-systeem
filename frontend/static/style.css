@@ -2290,3 +2290,85 @@ button:disabled, a[disabled] {
         grid-template-columns: 1fr;
     }
 }
+
+/* ── Jaarinsigne 2026 include/exclude editor ─────────────────────────────── */
+
+.jaarinsigne-score-summary {
+    line-height: 1.6;
+}
+
+.jaarinsigne-score-stat {
+    font-weight: 600;
+}
+
+.jaarinsigne-score-sep {
+    margin: 0 0.35em;
+    color: #9ca3af;
+}
+
+.jaarinsigne-inclusion-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.jaarinsigne-inclusion-item {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+}
+
+.jaarinsigne-inclusion-info {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.jaarinsigne-inclusion-title {
+    font-weight: 600;
+    font-size: 0.95em;
+    flex: 1;
+    min-width: 0;
+}
+
+.jaarinsigne-inclusion-text {
+    font-size: 0.85em;
+    color: #555;
+    margin-top: 0.2rem;
+    line-height: 1.4;
+}
+
+.jaarinsigne-niveau-badge {
+    display: inline-block;
+    font-size: 0.7em;
+    font-weight: 700;
+    padding: 0.1em 0.45em;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.jaarinsigne-niveau-1 { background: #fef9c3; color: #713f12; }
+.jaarinsigne-niveau-2 { background: #fed7aa; color: #7c2d12; }
+.jaarinsigne-niveau-3 { background: #e9d5ff; color: #581c87; }
+
+.jaarinsigne-punten-badge {
+    display: inline-block;
+    font-size: 0.75em;
+    font-weight: 700;
+    background: #f3f4f6;
+    color: #374151;
+    padding: 0.1em 0.5em;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.jaarinsigne-groen-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background: #00A651;
+    border-radius: 50%;
+    flex-shrink: 0;
+}

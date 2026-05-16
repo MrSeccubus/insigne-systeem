@@ -12,8 +12,12 @@ from datetime import datetime
 from insigne.badges import BadgeCatalogue
 from insigne.database import get_db
 from insigne.email import (
+    send_mentor_jaarinsigne_signoff_invite_email,
+    send_mentor_jaarinsigne_signoff_request_email,
     send_mentor_signoff_invite_email,
     send_mentor_signoff_request_email,
+    send_scout_jaarinsigne_rejected_email,
+    send_scout_jaarinsigne_signed_off_email,
     send_scout_niveau_completed_email,
     send_scout_rejected_email,
     send_scout_signed_off_email,
@@ -45,6 +49,94 @@ _CATALOGUE = BadgeCatalogue(Path(__file__).parent.parent / "data")
 
 def _partial(request: Request, name: str, **ctx):
     return _TEMPLATES.TemplateResponse(request=request, name=f"partials/{name}", context=ctx)
+
+
+# ── E-mail dispatch helpers ───────────────────────────────────────────────────
+# For jaarinsigne badges, level_index = speltak and step_index = eis. We use
+# dedicated jaarinsigne e-mail templates that use the correct labels.
+
+def _emit_request_email(
+    background_tasks: BackgroundTasks, *,
+    mentor_email: str, scout_name: str,
+    badge: dict, level: dict, entry: ProgressEntry, notes: str | None,
+    is_invite: bool = False,
+):
+    """Queue the appropriate sign-off-request e-mail for a single eis."""
+    if badge.get("type") == "jaarinsigne":
+        step = level["steps"][entry.step_index]
+        eisen = [{
+            "number": entry.step_index + 1,
+            "titel": step.get("titel", ""),
+            "text": step.get("text", ""),
+        }]
+        fn = (send_mentor_jaarinsigne_signoff_invite_email if is_invite
+              else send_mentor_jaarinsigne_signoff_request_email)
+        background_tasks.add_task(
+            fn, mentor_email, scout_name, badge["slug"], badge["title"],
+            level.get("name", ""), level.get("leeftijd", ""), eisen, notes,
+        )
+    else:
+        step_text = level["steps"][entry.step_index]["text"]
+        fn = (send_mentor_signoff_invite_email if is_invite
+              else send_mentor_signoff_request_email)
+        background_tasks.add_task(
+            fn, mentor_email, scout_name, badge["title"], entry.step_index + 1,
+            step_text, notes=notes,
+        )
+
+
+def _emit_signed_off_email(
+    background_tasks: BackgroundTasks, *,
+    scout_email: str, scout_name: str, mentor_name: str,
+    badge: dict, level: dict, entry: ProgressEntry, mentor_comment: str | None,
+):
+    if badge.get("type") == "jaarinsigne":
+        step = level["steps"][entry.step_index]
+        eisen = [{
+            "number": entry.step_index + 1,
+            "titel": step.get("titel", ""),
+        }]
+        background_tasks.add_task(
+            send_scout_jaarinsigne_signed_off_email,
+            scout_email, scout_name, badge["slug"], badge["title"],
+            level.get("name", ""), level.get("leeftijd", ""), eisen,
+            mentor_name, mentor_comment,
+        )
+    else:
+        step_text = level["steps"][entry.step_index]["text"]
+        background_tasks.add_task(
+            send_scout_signed_off_email,
+            scout_email, scout_name, badge["slug"], badge["title"],
+            entry.step_index + 1, level["name"], step_text,
+            mentor_name, mentor_comment=mentor_comment,
+        )
+
+
+def _emit_rejected_email(
+    background_tasks: BackgroundTasks, *,
+    scout_email: str, scout_name: str, mentor_name: str,
+    badge: dict, level: dict, entry: ProgressEntry, message: str,
+):
+    if badge.get("type") == "jaarinsigne":
+        step = level["steps"][entry.step_index]
+        eisen = [{
+            "number": entry.step_index + 1,
+            "titel": step.get("titel", ""),
+        }]
+        background_tasks.add_task(
+            send_scout_jaarinsigne_rejected_email,
+            scout_email, scout_name, badge["slug"], badge["title"],
+            level.get("name", ""), level.get("leeftijd", ""), eisen,
+            mentor_name, message,
+        )
+    else:
+        step_text = level["steps"][entry.step_index]["text"]
+        background_tasks.add_task(
+            send_scout_rejected_email,
+            scout_email, scout_name, badge["title"],
+            entry.step_index + 1, level["name"], step_text,
+            mentor_name, message,
+        )
 
 
 def _step_card(request, slug, level_index, level_name, step_index, step_text, entry, previous_mentors=None, error="", current_user=None, scout_signoff_options=None):
@@ -351,13 +443,17 @@ async def request_signoff(
         if _UUID_RE.match(mentor_email.strip()):
             entry, invited = progress_svc.request_signoff_from_members(db, current_user.id, entry_id, [mentor_email.strip()])
             for mentor in invited:
-                background_tasks.add_task(send_mentor_signoff_request_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
+                _emit_request_email(
+                    background_tasks, mentor_email=mentor.email, scout_name=scout_name,
+                    badge=badge, level=level, entry=entry, notes=entry.notes,
+                )
         else:
             entry, mentor, created = progress_svc.request_signoff(db, current_user.id, entry_id, mentor_email)
-            if created:
-                background_tasks.add_task(send_mentor_signoff_invite_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
-            else:
-                background_tasks.add_task(send_mentor_signoff_request_email, mentor.email, scout_name, badge["title"], entry.step_index + 1, step_text, notes=entry.notes)
+            _emit_request_email(
+                background_tasks, mentor_email=mentor.email, scout_name=scout_name,
+                badge=badge, level=level, entry=entry, notes=entry.notes,
+                is_invite=created,
+            )
     except progress_svc.Forbidden as exc:
         if str(exc) == "self_signoff":
             error = "Je kunt jezelf niet uitnodigen om af te tekenen."
@@ -480,34 +576,39 @@ async def signoff_requests_page(request: Request, db: Session = Depends(get_db))
             scout = item["scout"]
             requests = item["requests"]
             requests.sort(key=lambda sr: sr.created_at)
+            level_index = requests[0].progress_entry.level_index
+            if level_index >= len(badge["levels"]):
+                continue
+            speltak_level = badge["levels"][level_index]
+            _, scout_min_punten = _jaarinsigne_2026_resolve_level(db, scout.id)
+            scout_score = jaarinsigne_2026_svc.compute_score(db, scout.id)
             eisen = []
             for sr in requests:
                 pe = sr.progress_entry
-                if pe.level_index >= len(badge["levels"]):
+                if pe.step_index >= len(speltak_level["steps"]):
                     continue
-                level = badge["levels"][pe.level_index]
-                if pe.step_index >= len(level["steps"]):
-                    continue
-                step = level["steps"][pe.step_index]
+                step = speltak_level["steps"][pe.step_index]
                 eisen.append({
                     "entry_id": pe.id,
-                    "level_name": level["name"],
                     "step_titel": step.get("titel", ""),
                     "step_text": step.get("text", ""),
-                    "level_index": pe.level_index,
                     "step_index": pe.step_index,
+                    "score_line": _jaarinsigne_2026_drempel_score_line(
+                        step.get("drempel"), scout_score, scout_min_punten,
+                    ),
                 })
-            speltak_slug = None
-            if eisen and badge["levels"]:
-                lvl = badge["levels"][requests[0].progress_entry.level_index]
-                speltak_slug = lvl.get("slug")
+            eisen.sort(key=lambda e: e["step_index"])
+            included_details = jaarinsigne_2026_svc.get_included_details(db, scout.id)
             enriched.append({
                 "type": "jaarinsigne_2026_group",
                 "scout_id": scout.id,
                 "scout_name": scout.name or scout.email,
                 "badge_title": badge["title"],
-                "speltak_slug": speltak_slug,
+                "speltak_slug": speltak_level.get("slug"),
+                "speltak_name": speltak_level.get("name", ""),
+                "speltak_leeftijd": speltak_level.get("leeftijd", ""),
                 "eisen": eisen,
+                "included_details": included_details,
                 "requested_at": _fmt_date(requests[0].created_at),
             })
         else:
@@ -558,19 +659,14 @@ async def confirm_signoff(
         scout = entry.user
         badge = _CATALOGUE.get(entry.badge_slug)
         level = badge["levels"][entry.level_index]
-        step_text = level["steps"][entry.step_index]["text"]
         mentor_name = current_user.name or current_user.email
 
-        background_tasks.add_task(
-            send_scout_signed_off_email,
-            scout.email,
-            scout.name or scout.email,
-            entry.badge_slug,
-            badge["title"],
-            entry.step_index + 1,
-            level["name"],
-            step_text,
-            mentor_name,
+        _emit_signed_off_email(
+            background_tasks,
+            scout_email=scout.email,
+            scout_name=scout.name or scout.email,
+            mentor_name=mentor_name,
+            badge=badge, level=level, entry=entry,
             mentor_comment=entry.mentor_comment,
         )
 
@@ -616,19 +712,15 @@ async def reject_signoff(
         scout = entry.user
         badge = _CATALOGUE.get(entry.badge_slug)
         level = badge["levels"][entry.level_index]
-        step_text = level["steps"][entry.step_index]["text"]
         mentor_name = current_user.name or current_user.email
 
-        background_tasks.add_task(
-            send_scout_rejected_email,
-            scout.email,
-            scout.name or scout.email,
-            badge["title"],
-            entry.step_index + 1,
-            level["name"],
-            step_text,
-            mentor_name,
-            message.strip(),
+        _emit_rejected_email(
+            background_tasks,
+            scout_email=scout.email,
+            scout_name=scout.name or scout.email,
+            mentor_name=mentor_name,
+            badge=badge, level=level, entry=entry,
+            message=message.strip(),
         )
 
         return _partial(request, "signoff_request_item.html", entry_id=entry_id, confirmed=False, error="", rejected=True)
@@ -664,26 +756,21 @@ async def jaarinsigne_2026_confirm_signoff(
         confirmed = True
         scout = db.get(User, scout_id)
         if scout and scout.email and affected and badge is not None:
-            mentor_name = current_user.name or current_user.email
-            for entry in affected:
-                if entry.level_index >= len(badge["levels"]):
-                    continue
-                level = badge["levels"][entry.level_index]
-                if entry.step_index >= len(level["steps"]):
-                    continue
-                step_text = level["steps"][entry.step_index].get("text", "")
-                background_tasks.add_task(
-                    send_scout_signed_off_email,
-                    scout.email,
-                    scout.name or scout.email,
-                    entry.badge_slug,
-                    badge["title"],
-                    entry.step_index + 1,
-                    level["name"],
-                    step_text,
-                    mentor_name,
-                    mentor_comment=entry.mentor_comment,
-                )
+            level = badge["levels"][affected[0].level_index]
+            eisen = _jaarinsigne_eisen_for_entries(level, affected)
+            mentor_comment = next(
+                (e.mentor_comment for e in affected if e.mentor_comment), None,
+            )
+            background_tasks.add_task(
+                send_scout_jaarinsigne_signed_off_email,
+                scout.email,
+                scout.name or scout.email,
+                badge["slug"], badge["title"],
+                level.get("name", ""), level.get("leeftijd", ""),
+                eisen,
+                current_user.name or current_user.email,
+                mentor_comment,
+            )
     except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict) as exc:
         error = "Kon niet aftekenen." if not isinstance(exc, progress_svc.Conflict) else "Al afgetekend."
 
@@ -718,25 +805,18 @@ async def jaarinsigne_2026_reject_signoff(
         )
         scout = db.get(User, scout_id)
         if scout and scout.email and affected and badge is not None:
-            mentor_name = current_user.name or current_user.email
-            for entry in affected:
-                if entry.level_index >= len(badge["levels"]):
-                    continue
-                level = badge["levels"][entry.level_index]
-                if entry.step_index >= len(level["steps"]):
-                    continue
-                step_text = level["steps"][entry.step_index].get("text", "")
-                background_tasks.add_task(
-                    send_scout_rejected_email,
-                    scout.email,
-                    scout.name or scout.email,
-                    badge["title"],
-                    entry.step_index + 1,
-                    level["name"],
-                    step_text,
-                    mentor_name,
-                    message.strip(),
-                )
+            level = badge["levels"][affected[0].level_index]
+            eisen = _jaarinsigne_eisen_for_entries(level, affected)
+            background_tasks.add_task(
+                send_scout_jaarinsigne_rejected_email,
+                scout.email,
+                scout.name or scout.email,
+                badge["slug"], badge["title"],
+                level.get("name", ""), level.get("leeftijd", ""),
+                eisen,
+                current_user.name or current_user.email,
+                message.strip(),
+            )
         return _partial(
             request,
             "signoff_request_jaarinsigne_2026_item.html",
@@ -792,9 +872,9 @@ async def request_signoff_speltak(
         entry, invited = progress_svc.request_signoff_for_speltak(db, current_user.id, entry_id, speltak_id)
         scout_name = current_user.name or current_user.email.split("@")[0]
         for mentor in invited:
-            background_tasks.add_task(
-                send_mentor_signoff_request_email, mentor.email, scout_name,
-                badge["title"], entry.step_index + 1, step_text, notes=entry.notes,
+            _emit_request_email(
+                background_tasks, mentor_email=mentor.email, scout_name=scout_name,
+                badge=badge, level=level, entry=entry, notes=entry.notes,
             )
     except progress_svc.NotFound as exc:
         if str(exc) == "no_eligible_mentors":
@@ -848,9 +928,9 @@ async def request_signoff_members(
         entry, invited = progress_svc.request_signoff_from_members(db, current_user.id, entry_id, mentor_ids)
         scout_name = current_user.name or current_user.email.split("@")[0]
         for mentor in invited:
-            background_tasks.add_task(
-                send_mentor_signoff_request_email, mentor.email, scout_name,
-                badge["title"], entry.step_index + 1, step_text, notes=entry.notes,
+            _emit_request_email(
+                background_tasks, mentor_email=mentor.email, scout_name=scout_name,
+                badge=badge, level=level, entry=entry, notes=entry.notes,
             )
     except progress_svc.NotFound as exc:
         if str(exc) == "no_eligible_mentors":
@@ -1325,17 +1405,64 @@ async def jaarinsigne_2026_toggle_inclusion(
 # ── Batch sign-off endpoints for jaarinsigne_2026 ─────────────────────────────
 
 
-def _jaarinsigne_2026_step_text_summary(badge: dict, level: dict | None) -> str:
-    """Return a short multi-line summary of all eisen at this level for emails."""
-    if not level:
-        return badge.get("title", "Jaarinsigne 2026")
-    lines = []
-    for step in level["steps"]:
-        titel = (step.get("titel") or "").strip()
-        if not titel:
-            titel = f"Eis {step.get('index', 0) + 1}"
-        lines.append(f"- {titel}")
-    return "\n".join(lines)
+def _jaarinsigne_2026_drempel_score_line(
+    drempel: dict | None, score: dict, speltak_min_punten: int,
+) -> str:
+    """Return a Dutch sentence describing how the scout scored against this drempel.
+
+    Returns an empty string when the drempel is missing or unknown.
+    """
+    if not drempel:
+        return ""
+    t = drempel.get("type")
+    if t == "punten":
+        return f'{score["total_punten"]} punten behaald (minimaal {drempel["minimum"]})'
+    if t == "leiding_bepaald":
+        return (
+            f'{score["total_punten"]} punten behaald '
+            f'(minimaal {speltak_min_punten}, bepaald door leiding)'
+        )
+    if t == "groen":
+        return (
+            f'{score["total_groen"]} "groene" eisen behaald '
+            f'(minimaal {drempel["minimum"]})'
+        )
+    if t == "niveau2":
+        return (
+            f'{score["total_niveau2"]} eisen op niveau 2 behaald '
+            f'(minimaal {drempel["minimum"]})'
+        )
+    if t == "niveau3":
+        return (
+            f'{score["total_niveau3"]} eisen op niveau 3 behaald '
+            f'(minimaal {drempel["minimum"]})'
+        )
+    if t == "insignes":
+        return (
+            f'{score["distinct_insignes"]} verschillende insignes behaald '
+            f'(minimaal {drempel["minimum"]})'
+        )
+    return ""
+
+
+def _jaarinsigne_eisen_for_entries(level: dict, entries) -> list[dict]:
+    """Build the ``eisen`` list (number/titel/text) the jaarinsigne e-mail
+    templates expect, given a sequence of ProgressEntry rows at this level.
+
+    Entries are sorted by ``step_index`` so the e-mail reads 1, 2, 3.
+    """
+    out: list[dict] = []
+    sorted_entries = sorted(entries, key=lambda e: e.step_index)
+    for e in sorted_entries:
+        if e.step_index >= len(level["steps"]):
+            continue
+        step = level["steps"][e.step_index]
+        out.append({
+            "number": e.step_index + 1,
+            "titel": step.get("titel", ""),
+            "text": step.get("text", ""),
+        })
+    return out
 
 
 def _send_jaarinsigne_2026_mentor_emails(
@@ -1343,27 +1470,34 @@ def _send_jaarinsigne_2026_mentor_emails(
     invited: list,
     created_mentor: User | None,
     scout_name: str,
-    step_text: str,
+    badge: dict | None,
+    level: dict | None,
+    eisen: list,
 ):
-    """Send one e-mail per invited mentor.
+    """Send one batched e-mail per invited mentor.
 
-    Uses ``send_mentor_signoff_invite_email`` for the *one* mentor that was
-    freshly created by ``request_jaarinsigne_2026_signoff`` and the regular
-    request mail for everyone else. Reuses the per-eis e-mail signatures with
-    ``niveau_number=0`` to mean "the whole jaarinsigne".
+    Mentors freshly created via ``request_jaarinsigne_2026_signoff`` receive
+    the "invite" variant (CTA points at /register); existing users receive the
+    plain request variant (CTA points at /signoff-requests).
     """
+    if badge is None or level is None or not eisen:
+        return
+    speltak_name = level.get("name", "")
+    speltak_leeftijd = level.get("leeftijd", "")
     for mentor in invited:
         if not mentor.email:
             continue
         if created_mentor is not None and mentor.id == created_mentor.id:
             background_tasks.add_task(
-                send_mentor_signoff_invite_email,
-                mentor.email, scout_name, "Jaarinsigne 2026", 0, step_text, notes=None,
+                send_mentor_jaarinsigne_signoff_invite_email,
+                mentor.email, scout_name, badge["slug"], badge["title"],
+                speltak_name, speltak_leeftijd, eisen, None,
             )
         else:
             background_tasks.add_task(
-                send_mentor_signoff_request_email,
-                mentor.email, scout_name, "Jaarinsigne 2026", 0, step_text, notes=None,
+                send_mentor_jaarinsigne_signoff_request_email,
+                mentor.email, scout_name, badge["slug"], badge["title"],
+                speltak_name, speltak_leeftijd, eisen, None,
             )
 
 
@@ -1382,7 +1516,10 @@ async def jaarinsigne_2026_request_signoff_speltak(
     badge = _CATALOGUE.get("jaarinsigne_2026")
     level = next((lv for lv in badge["levels"] if lv["slug"] == speltak_slug), None) \
         if (badge and speltak_slug) else None
-    step_text = _jaarinsigne_2026_step_text_summary(badge, level)
+    eisen = [
+        {"number": i + 1, "titel": step.get("titel", ""), "text": step.get("text", "")}
+        for i, step in enumerate(level["steps"])
+    ] if level else []
     scout_name = current_user.name or current_user.email.split("@")[0]
 
     signoff_error = ""
@@ -1390,7 +1527,9 @@ async def jaarinsigne_2026_request_signoff_speltak(
         _, invited = progress_svc.request_jaarinsigne_2026_signoff_speltak(
             db, current_user.id, speltak_id
         )
-        _send_jaarinsigne_2026_mentor_emails(background_tasks, invited, None, scout_name, step_text)
+        _send_jaarinsigne_2026_mentor_emails(
+            background_tasks, invited, None, scout_name, badge, level, eisen,
+        )
     except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict) as exc:
         signoff_error = _translate_signoff_exc(exc)
 
@@ -1414,7 +1553,10 @@ async def jaarinsigne_2026_request_signoff_members(
     badge = _CATALOGUE.get("jaarinsigne_2026")
     level = next((lv for lv in badge["levels"] if lv["slug"] == speltak_slug), None) \
         if (badge and speltak_slug) else None
-    step_text = _jaarinsigne_2026_step_text_summary(badge, level)
+    eisen = [
+        {"number": i + 1, "titel": step.get("titel", ""), "text": step.get("text", "")}
+        for i, step in enumerate(level["steps"])
+    ] if level else []
     scout_name = current_user.name or current_user.email.split("@")[0]
 
     signoff_error = ""
@@ -1422,7 +1564,9 @@ async def jaarinsigne_2026_request_signoff_members(
         _, invited = progress_svc.request_jaarinsigne_2026_signoff_members(
             db, current_user.id, mentor_ids
         )
-        _send_jaarinsigne_2026_mentor_emails(background_tasks, invited, None, scout_name, step_text)
+        _send_jaarinsigne_2026_mentor_emails(
+            background_tasks, invited, None, scout_name, badge, level, eisen,
+        )
     except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict) as exc:
         signoff_error = _translate_signoff_exc(exc)
 
@@ -1446,7 +1590,10 @@ async def jaarinsigne_2026_request_signoff_direct(
     badge = _CATALOGUE.get("jaarinsigne_2026")
     level = next((lv for lv in badge["levels"] if lv["slug"] == speltak_slug), None) \
         if (badge and speltak_slug) else None
-    step_text = _jaarinsigne_2026_step_text_summary(badge, level)
+    eisen = [
+        {"number": i + 1, "titel": step.get("titel", ""), "text": step.get("text", "")}
+        for i, step in enumerate(level["steps"])
+    ] if level else []
     scout_name = current_user.name or current_user.email.split("@")[0]
 
     signoff_error = ""
@@ -1463,7 +1610,8 @@ async def jaarinsigne_2026_request_signoff_direct(
                 db, current_user.id, mentor_email
             )
             _send_jaarinsigne_2026_mentor_emails(
-                background_tasks, [mentor], mentor if created else None, scout_name, step_text
+                background_tasks, [mentor], mentor if created else None,
+                scout_name, badge, level, eisen,
             )
     except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict) as exc:
         signoff_error = _translate_signoff_exc(exc)

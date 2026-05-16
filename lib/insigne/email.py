@@ -117,6 +117,78 @@ def send_mentor_signoff_request_email(to: str, scout_name: str, badge_title: str
          signoff_url=signoff_url)
 
 
+def send_mentor_jaarinsigne_signoff_request_email(
+    to: str, scout_name: str, badge_slug: str, badge_title: str,
+    speltak_name: str, speltak_leeftijd: str, eisen: list, notes: str | None = None,
+) -> None:
+    signoff_url = f"{config.base_url}/signoff-requests"
+    send(to, "mentor_jaarinsigne_signoff_request",
+         email=to,
+         scout_name=scout_name,
+         badge_slug=badge_slug,
+         badge_title=badge_title,
+         speltak_name=speltak_name,
+         speltak_leeftijd=speltak_leeftijd,
+         eisen=eisen,
+         notes=notes,
+         signoff_url=signoff_url)
+
+
+def send_mentor_jaarinsigne_signoff_invite_email(
+    to: str, scout_name: str, badge_slug: str, badge_title: str,
+    speltak_name: str, speltak_leeftijd: str, eisen: list, notes: str | None = None,
+) -> None:
+    register_url = f"{config.base_url}/register"
+    send(to, "mentor_jaarinsigne_signoff_invite",
+         email=to,
+         scout_name=scout_name,
+         badge_slug=badge_slug,
+         badge_title=badge_title,
+         speltak_name=speltak_name,
+         speltak_leeftijd=speltak_leeftijd,
+         eisen=eisen,
+         notes=notes,
+         register_url=register_url)
+
+
+def send_scout_jaarinsigne_signed_off_email(
+    to: str, scout_name: str, badge_slug: str, badge_title: str,
+    speltak_name: str, speltak_leeftijd: str, eisen: list,
+    mentor_name: str, mentor_comment: str | None = None,
+) -> None:
+    badge_url = f"{config.base_url}/badges/{badge_slug}"
+    send(to, "scout_jaarinsigne_signed_off",
+         email=to,
+         scout_name=scout_name,
+         badge_slug=badge_slug,
+         badge_title=badge_title,
+         speltak_name=speltak_name,
+         speltak_leeftijd=speltak_leeftijd,
+         eisen=eisen,
+         mentor_name=mentor_name,
+         mentor_comment=mentor_comment,
+         badge_url=badge_url)
+
+
+def send_scout_jaarinsigne_rejected_email(
+    to: str, scout_name: str, badge_slug: str, badge_title: str,
+    speltak_name: str, speltak_leeftijd: str, eisen: list,
+    mentor_name: str, message: str,
+) -> None:
+    badge_url = f"{config.base_url}/badges/{badge_slug}"
+    send(to, "scout_jaarinsigne_rejected",
+         email=to,
+         scout_name=scout_name,
+         badge_slug=badge_slug,
+         badge_title=badge_title,
+         speltak_name=speltak_name,
+         speltak_leeftijd=speltak_leeftijd,
+         eisen=eisen,
+         mentor_name=mentor_name,
+         message=message,
+         badge_url=badge_url)
+
+
 def send_scout_signed_off_email(to: str, scout_name: str, badge_slug: str, badge_title: str, niveau_number: int, level_name: str, step_text: str, mentor_name: str, mentor_comment: str | None = None) -> None:
     badge_url = f"{config.base_url}/badges/{badge_slug}?niveau={niveau_number}"
     send(to, "scout_step_signed_off",

@@ -1,0 +1,1 @@
+Uitgenodigd om jaarinsigne af te tekenen: {{ badge_title }} — {{ speltak_name }}

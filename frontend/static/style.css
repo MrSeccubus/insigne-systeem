@@ -2606,7 +2606,13 @@ button:disabled, a[disabled] {
 }
 
 .signoff-jaarinsigne-eisen li {
-    margin: 0.15rem 0;
+    margin: 0.3rem 0;
+}
+
+.signoff-jaarinsigne-score-line {
+    font-size: 0.9em;
+    color: #4b5563;
+    margin-top: 0.1rem;
 }
 
 @media (max-width: 700px) {

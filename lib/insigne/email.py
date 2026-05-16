@@ -11,6 +11,7 @@ from jinja2 import ChoiceLoader, Environment, FileSystemLoader
 from markupsafe import Markup, escape
 
 from .config import config
+from .eis_render import render_eis_email
 
 _DEFAULT_TEMPLATES = Path(__file__).parent / "email_templates"
 
@@ -26,6 +27,7 @@ def _env() -> Environment:
     loaders.append(FileSystemLoader(str(_DEFAULT_TEMPLATES)))
     env = Environment(loader=ChoiceLoader(loaders), autoescape=True)
     env.filters["nl2br"] = _nl2br
+    env.filters["render_eis"] = render_eis_email
     return env
 
 

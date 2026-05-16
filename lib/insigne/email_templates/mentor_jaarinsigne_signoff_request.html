@@ -22,7 +22,7 @@
                 {% for eis in eisen %}
                 <li style="margin:0.2rem 0;">
                   <strong>Eis {{ eis.number }}</strong>{% if eis.titel %}: {{ eis.titel }}{% endif %}
-                  {% if eis.text %}<div style="font-size:0.9em;color:#555;margin-top:0.15rem;">{{ eis.text | nl2br }}</div>{% endif %}
+                  {% if eis.text %}<div style="font-size:0.9em;color:#555;margin-top:0.15rem;">{{ eis.text | render_eis }}</div>{% endif %}
                 </li>
                 {% endfor %}
               </ul>

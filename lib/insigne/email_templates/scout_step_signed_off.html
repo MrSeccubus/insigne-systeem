@@ -19,7 +19,7 @@
               <p style="margin:0 0 0.25rem;font-size:0.8rem;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Niveau</p>
               <p style="margin:0 0 1rem;font-weight:600;color:#1a1a1a;">Niveau {{ niveau_number }}</p>
               <p style="margin:0 0 0.25rem;font-size:0.8rem;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Opdracht/eis</p>
-              <p style="margin:0;color:#333;line-height:1.5;">{{ step_text | nl2br }}</p>
+              <p style="margin:0;color:#333;line-height:1.5;">{{ step_text | render_eis }}</p>
             </td></tr>
           </table>
           {% if mentor_comment %}

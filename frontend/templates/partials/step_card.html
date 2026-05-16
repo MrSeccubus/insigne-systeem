@@ -66,7 +66,7 @@
                 {{ sr.mentor.name or '(onbekend)' }}{% if not loop.last %}, {% endif %}
             {% endfor %}
         </p>
-        {% if current_user %}
+        {% if current_user and not computed_status %}
         <div class="step-actions">
             <button type="button" class="btn-secondary btn-sm"
                     hx-post="/progress/{{ entry.id }}/cancel-signoff"
@@ -159,18 +159,16 @@
         <div x-show="notes && !signoffOpen" class="step-notes">
             <span x-text="notes"></span>
         </div>
-        {% if current_user %}
+        {% if current_user and not computed_status %}
         <div class="step-actions">
             <button type="button" class="btn-secondary btn-sm"
                     @click="signoffOpen = !signoffOpen"
                     :disabled="!entryId || saving">
                 Aftekenen...
             </button>
-            {% if not computed_status %}
             <button type="button" class="btn-cancel btn-sm" @click="save('in_progress')">
                 Ik ben toch niet klaar
             </button>
-            {% endif %}
         </div>
         <div x-show="signoffOpen" x-cloak class="inline-form">
             {# Notes FIRST #}

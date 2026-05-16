@@ -1,7 +1,18 @@
-<div id="jaarinsigne-2026-editor" class="jaarinsigne-editor" style="margin-top:1.5rem;">
+{% set editor_locked = signoff_state in ("pending", "done") %}
+<div id="jaarinsigne-2026-editor" class="jaarinsigne-editor{% if editor_locked %} jaarinsigne-editor--locked{% endif %}" style="margin-top:1.5rem;">
 
     <h3 style="margin:0 0 0.25rem;">Kies jouw insigne-eisen</h3>
     <p style="color:#666;font-size:0.9em;margin:0 0 1rem;">Selecteer welke behaalde insigne-eisen je wilt meerekenen voor het jaarinsigne 2026. Klik op een knop om een eis te verplaatsen tussen de twee kolommen.</p>
+
+    {% if editor_locked %}
+    <p class="jaarinsigne-editor-locked-notice">
+        {% if signoff_state == "pending" %}
+        Je hebt een verzoek tot aftekening lopen. Trek het verzoek eerst in om je selectie aan te passen.
+        {% else %}
+        Het jaarinsigne 2026 is afgetekend.
+        {% endif %}
+    </p>
+    {% endif %}
 
     <div class="jaarinsigne-editor-columns">
 
@@ -51,7 +62,7 @@
                         <input type="hidden" name="badge_slug" value="{{ item.badge_slug }}">
                         <input type="hidden" name="level_index" value="{{ item.level_index }}">
                         <input type="hidden" name="step_index" value="{{ item.step_index }}">
-                        <button type="submit" class="btn-sm jaarinsigne-btn-remove" title="Verplaatsen naar beschikbaar">→ Verwijder</button>
+                        <button type="submit" class="btn-sm jaarinsigne-btn-remove" title="Verplaatsen naar beschikbaar"{% if editor_locked %} disabled{% endif %}>→ Verwijder</button>
                     </form>
                 </div>
                 {% endfor %}
@@ -107,7 +118,7 @@
                         <input type="hidden" name="badge_slug" value="{{ item.badge_slug }}">
                         <input type="hidden" name="level_index" value="{{ item.level_index }}">
                         <input type="hidden" name="step_index" value="{{ item.step_index }}">
-                        <button type="submit" class="btn-sm jaarinsigne-btn-add" title="Verplaatsen naar meegeteld">← Voeg toe</button>
+                        <button type="submit" class="btn-sm jaarinsigne-btn-add" title="Verplaatsen naar meegeteld"{% if editor_locked %} disabled{% endif %}>← Voeg toe</button>
                     </form>
                 </div>
                 {% endfor %}

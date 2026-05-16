@@ -1,0 +1,65 @@
+{% if confirmed is defined %}
+    {% if rejected is defined and rejected %}
+    <div class="signoff-card" x-data x-init="htmx.trigger(document.body, 'signoff-updated'); setTimeout(() => $el.remove(), 1500)">
+        <p class="signoff-confirmed">✓ Afwijzing verstuurd.</p>
+    </div>
+    {% elif confirmed %}
+    <div class="signoff-card" x-data x-init="htmx.trigger(document.body, 'signoff-updated'); setTimeout(() => $el.remove(), 1500)">
+        <p class="signoff-confirmed">✓ Jaarinsigne 2026 afgetekend!</p>
+    </div>
+    {% else %}
+    <div class="signoff-card">
+        <p class="form-error" style="font-size:0.85rem;margin:0;">{{ error }}</p>
+    </div>
+    {% endif %}
+{% else %}
+    <div id="request-jaarinsigne_2026-{{ req.scout_id }}" class="signoff-card"
+         x-data="{ action: null }">
+        <div class="signoff-card-header">
+            <span class="signoff-scout">{{ req.scout_name }}</span>
+        </div>
+        <p class="signoff-badge-info"><strong>{{ req.badge_title }}</strong></p>
+        <p class="signoff-requested-at">Aangevraagd op {{ req.requested_at }}</p>
+
+        <p style="font-size:0.9em;color:#555;margin:0.5rem 0 0.25rem;">Te ondertekenen eisen:</p>
+        <ul class="signoff-jaarinsigne-eisen">
+            {% for eis in req.eisen %}
+            <li>
+                <strong>Niveau {{ eis.step_index + 1 }} — Eis {{ eis.level_index + 1 }}</strong>
+                {% if eis.step_titel %}— {{ eis.step_titel }}{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+
+        <div class="step-actions" x-show="action === null">
+            <button type="button" class="btn-success btn-sm"
+                    @click="action = 'signoff'">Aftekenen</button>
+            <button type="button" class="btn-danger btn-sm"
+                    @click="action = 'reject'">Afwijzen</button>
+        </div>
+
+        <form x-show="action === 'signoff'" x-cloak
+              class="inline-form"
+              hx-post="/scouts/{{ req.scout_id }}/jaarinsigne_2026/confirm-signoff"
+              hx-target="#request-jaarinsigne_2026-{{ req.scout_id }}"
+              hx-swap="outerHTML">
+            <textarea name="comment" placeholder="Opmerking voor de scout (optioneel)"></textarea>
+            <div class="step-actions">
+                <button type="submit" class="btn-success btn-sm">Bevestigen</button>
+                <button type="button" class="btn-cancel btn-sm" @click="action = null">Annuleren</button>
+            </div>
+        </form>
+
+        <form x-show="action === 'reject'" x-cloak
+              class="inline-form"
+              hx-post="/scouts/{{ req.scout_id }}/jaarinsigne_2026/reject-signoff"
+              hx-target="#request-jaarinsigne_2026-{{ req.scout_id }}"
+              hx-swap="outerHTML">
+            <textarea name="message" placeholder="Geef aan wat de scout nog moet doen" required></textarea>
+            <div class="step-actions">
+                <button type="submit" class="btn-danger btn-sm">Versturen</button>
+                <button type="button" class="btn-cancel btn-sm" @click="action = null">Annuleren</button>
+            </div>
+        </form>
+    </div>
+{% endif %}

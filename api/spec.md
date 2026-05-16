@@ -1270,6 +1270,20 @@ These endpoints serve the HTMX frontend. Full pages are returned on direct navig
 | `POST` | `/progress/{id}/confirm-signoff` | Mentor confirms sign-off (auth required) |
 | `POST` | `/progress/{id}/reject-signoff` | Mentor rejects sign-off — removes only this mentor's request; reverts to `work_done` only if no requests remain (auth required) |
 
+#### Jaarinsigne 2026 (meta-insigne)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/badges/jaarinsigne_2026/toggle-inclusion` | Add or remove a signed-off eis from the meta-insigne score (auth required). Blocked while any eis is `pending_signoff`. |
+| `POST` | `/badges/jaarinsigne_2026/request-signoff-speltak` | Batch sign-off request — invites all leiders of a speltak for **every** work_done jaarinsigne_2026 eis (auth required) |
+| `POST` | `/badges/jaarinsigne_2026/request-signoff-members` | Batch sign-off request from selected peers (auth required) |
+| `POST` | `/badges/jaarinsigne_2026/request-signoff` | Batch sign-off request via direct e-mail / previous mentor (auth required) |
+| `POST` | `/badges/jaarinsigne_2026/cancel-signoff` | Revoke every pending jaarinsigne_2026 sign-off request and flip each entry back to `work_done` (auth required) |
+| `POST` | `/scouts/{scout_id}/jaarinsigne_2026/confirm-signoff` | Mentor confirms every jaarinsigne_2026 eis the scout invited them for; all entries → `signed_off` (auth required) |
+| `POST` | `/scouts/{scout_id}/jaarinsigne_2026/reject-signoff` | Mentor rejects this scout's jaarinsigne_2026 sign-off; entries revert to `work_done` when no other mentor is still pending (auth required) |
+
+The mentor inbox at `GET /signoff-requests` groups all jaarinsigne_2026 invites from the same scout into a single card.
+
 ### Groups HTML pages
 
 | Method | Path | Description |

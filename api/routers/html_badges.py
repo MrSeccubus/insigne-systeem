@@ -18,7 +18,7 @@ from insigne.email import (
     send_scout_rejected_email,
     send_scout_signed_off_email,
 )
-from insigne.models import ProgressEntry, SpeltakMembership, User
+from insigne.models import ProgressEntry, SignoffRequest, SpeltakMembership, User
 
 import re as _re
 
@@ -168,6 +168,8 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
         included_details = []
         included_summary = None
         available_summary = None
+        signoff_state = "not_ready"
+        pending_mentors: list[User] = []
         if slug == "jaarinsigne_2026" and current_user and speltak_slug:
             speltak_min_punten = 3
             for m in db.query(SpeltakMembership).filter_by(
@@ -186,6 +188,14 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
             available_summary = jaarinsigne_2026_svc.summarize_additional(
                 available_to_include, included_details
             )
+            user_level = next(
+                (lv for lv in badge["levels"] if lv["slug"] == speltak_slug), None
+            )
+            signoff_state = _jaarinsigne_2026_signoff_state(db, current_user.id, user_level)
+            if signoff_state == "pending":
+                pending_mentors = _jaarinsigne_2026_pending_mentors(
+                    db, current_user.id, user_level
+                )
 
         return _TEMPLATES.TemplateResponse(
             request=request,
@@ -208,6 +218,8 @@ async def badge_detail(request: Request, slug: str, niveau: int | None = Query(N
                 "included_details": included_details,
                 "included_summary": included_summary,
                 "available_summary": available_summary,
+                "signoff_state": signoff_state,
+                "pending_mentors": pending_mentors,
             },
         )
 
@@ -450,32 +462,73 @@ async def signoff_requests_page(request: Request, db: Session = Depends(get_db))
     if current_user is None:
         return RedirectResponse(url="/login", status_code=303)
 
-    raw_requests = progress_svc.list_signoff_requests(db, current_user.id)
+    items = progress_svc.list_signoff_requests_grouped(db, current_user.id)
 
     _nl_months = ["januari","februari","maart","april","mei","juni",
                   "juli","augustus","september","oktober","november","december"]
 
+    def _fmt_date(dt):
+        return f"{dt.day} {_nl_months[dt.month - 1]} {dt.year} om {dt.strftime('%H:%M')}"
+
     enriched = []
-    for sr in raw_requests:
-        pe = sr.progress_entry
-        badge = _CATALOGUE.get(pe.badge_slug)
-        if badge is None:
-            continue
-        level = badge["levels"][pe.level_index]
-        step = level["steps"][pe.step_index]
-        _dt = sr.created_at
-        requested_at = f"{_dt.day} {_nl_months[_dt.month - 1]} {_dt.year} om {_dt.strftime('%H:%M')}"
-        enriched.append({
-            "entry_id": pe.id,
-            "scout_name": pe.user.name or pe.user.email,
-            "badge_title": badge["title"],
-            "niveau_number": pe.step_index + 1,
-            "level_number": pe.level_index + 1,
-            "level_name": level["name"],
-            "step_text": step["text"],
-            "notes": pe.notes,
-            "requested_at": requested_at,
-        })
+    for item in items:
+        if isinstance(item, dict) and item.get("type") == "jaarinsigne_2026_group":
+            badge = _CATALOGUE.get("jaarinsigne_2026")
+            if badge is None:
+                continue
+            scout = item["scout"]
+            requests = item["requests"]
+            requests.sort(key=lambda sr: sr.created_at)
+            eisen = []
+            for sr in requests:
+                pe = sr.progress_entry
+                if pe.level_index >= len(badge["levels"]):
+                    continue
+                level = badge["levels"][pe.level_index]
+                if pe.step_index >= len(level["steps"]):
+                    continue
+                step = level["steps"][pe.step_index]
+                eisen.append({
+                    "entry_id": pe.id,
+                    "level_name": level["name"],
+                    "step_titel": step.get("titel", ""),
+                    "step_text": step.get("text", ""),
+                    "level_index": pe.level_index,
+                    "step_index": pe.step_index,
+                })
+            speltak_slug = None
+            if eisen and badge["levels"]:
+                lvl = badge["levels"][requests[0].progress_entry.level_index]
+                speltak_slug = lvl.get("slug")
+            enriched.append({
+                "type": "jaarinsigne_2026_group",
+                "scout_id": scout.id,
+                "scout_name": scout.name or scout.email,
+                "badge_title": badge["title"],
+                "speltak_slug": speltak_slug,
+                "eisen": eisen,
+                "requested_at": _fmt_date(requests[0].created_at),
+            })
+        else:
+            sr = item
+            pe = sr.progress_entry
+            badge = _CATALOGUE.get(pe.badge_slug)
+            if badge is None:
+                continue
+            level = badge["levels"][pe.level_index]
+            step = level["steps"][pe.step_index]
+            enriched.append({
+                "type": "single",
+                "entry_id": pe.id,
+                "scout_name": pe.user.name or pe.user.email,
+                "badge_title": badge["title"],
+                "niveau_number": pe.step_index + 1,
+                "level_number": pe.level_index + 1,
+                "level_name": level["name"],
+                "step_text": step["text"],
+                "notes": pe.notes,
+                "requested_at": _fmt_date(sr.created_at),
+            })
 
     return _TEMPLATES.TemplateResponse(
         request=request,
@@ -581,6 +634,124 @@ async def reject_signoff(
     except (progress_svc.NotFound, progress_svc.Forbidden) as exc:
         error = "Kon niet afwijzen."
         return _partial(request, "signoff_request_item.html", entry_id=entry_id, confirmed=False, error=error)
+
+
+# ── Batch confirm / reject for jaarinsigne_2026 ──────────────────────────────
+
+@router.post(
+    "/scouts/{scout_id}/jaarinsigne_2026/confirm-signoff",
+    response_class=HTMLResponse,
+)
+async def jaarinsigne_2026_confirm_signoff(
+    request: Request,
+    scout_id: str,
+    background_tasks: BackgroundTasks,
+    comment: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    current_user = _get_current_user(request, db)
+    if current_user is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    badge = _CATALOGUE.get("jaarinsigne_2026")
+    confirmed = False
+    error = ""
+    try:
+        affected = progress_svc.confirm_jaarinsigne_2026_signoff(
+            db, current_user.id, scout_id, comment=comment.strip() or None
+        )
+        confirmed = True
+        scout = db.get(User, scout_id)
+        if scout and scout.email and affected and badge is not None:
+            mentor_name = current_user.name or current_user.email
+            for entry in affected:
+                if entry.level_index >= len(badge["levels"]):
+                    continue
+                level = badge["levels"][entry.level_index]
+                if entry.step_index >= len(level["steps"]):
+                    continue
+                step_text = level["steps"][entry.step_index].get("text", "")
+                background_tasks.add_task(
+                    send_scout_signed_off_email,
+                    scout.email,
+                    scout.name or scout.email,
+                    entry.badge_slug,
+                    badge["title"],
+                    entry.step_index + 1,
+                    level["name"],
+                    step_text,
+                    mentor_name,
+                    mentor_comment=entry.mentor_comment,
+                )
+    except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict) as exc:
+        error = "Kon niet aftekenen." if not isinstance(exc, progress_svc.Conflict) else "Al afgetekend."
+
+    return _partial(
+        request,
+        "signoff_request_jaarinsigne_2026_item.html",
+        scout_id=scout_id,
+        confirmed=confirmed,
+        error=error,
+    )
+
+
+@router.post(
+    "/scouts/{scout_id}/jaarinsigne_2026/reject-signoff",
+    response_class=HTMLResponse,
+)
+async def jaarinsigne_2026_reject_signoff(
+    request: Request,
+    scout_id: str,
+    background_tasks: BackgroundTasks,
+    message: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    current_user = _get_current_user(request, db)
+    if current_user is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    badge = _CATALOGUE.get("jaarinsigne_2026")
+    try:
+        affected = progress_svc.reject_jaarinsigne_2026_signoff(
+            db, current_user.id, scout_id, message.strip()
+        )
+        scout = db.get(User, scout_id)
+        if scout and scout.email and affected and badge is not None:
+            mentor_name = current_user.name or current_user.email
+            for entry in affected:
+                if entry.level_index >= len(badge["levels"]):
+                    continue
+                level = badge["levels"][entry.level_index]
+                if entry.step_index >= len(level["steps"]):
+                    continue
+                step_text = level["steps"][entry.step_index].get("text", "")
+                background_tasks.add_task(
+                    send_scout_rejected_email,
+                    scout.email,
+                    scout.name or scout.email,
+                    badge["title"],
+                    entry.step_index + 1,
+                    level["name"],
+                    step_text,
+                    mentor_name,
+                    message.strip(),
+                )
+        return _partial(
+            request,
+            "signoff_request_jaarinsigne_2026_item.html",
+            scout_id=scout_id,
+            confirmed=False,
+            error="",
+            rejected=True,
+        )
+    except (progress_svc.NotFound, progress_svc.Forbidden):
+        return _partial(
+            request,
+            "signoff_request_jaarinsigne_2026_item.html",
+            scout_id=scout_id,
+            confirmed=False,
+            error="Kon niet afwijzen.",
+        )
 
 
 # ── Request sign-off via speltak leiders ──────────────────────────────────────
@@ -955,6 +1126,136 @@ async def scout_set_jaarinsigne_level(
     return RedirectResponse(f"/scouts/{scout_id}/badges/{slug}", status_code=303)
 
 
+def _jaarinsigne_2026_resolve_level(db: Session, user_id: str) -> tuple[str | None, int]:
+    """Return (speltak_slug, speltak_min_punten) for this scout's jaarinsigne_2026 level."""
+    jl = progress_svc.get_jaarinsigne_level(db, user_id, "jaarinsigne_2026")
+    if jl:
+        speltak_slug = jl.speltak_slug
+    else:
+        speltak_slug = groups_svc.get_user_primary_speltak_type(db, user_id)
+    speltak_min_punten = 3
+    if speltak_slug:
+        for m in db.query(SpeltakMembership).filter_by(
+            user_id=user_id, approved=True, withdrawn=False
+        ).all():
+            if m.speltak and m.speltak.speltak_type == speltak_slug:
+                if m.speltak.jaarinsigne_2026_min_punten is not None:
+                    speltak_min_punten = m.speltak.jaarinsigne_2026_min_punten
+                break
+    return speltak_slug, speltak_min_punten
+
+
+def _jaarinsigne_2026_signoff_state(
+    db: Session, user_id: str, level: dict | None
+) -> str:
+    """Return one of ``'not_ready'``, ``'ready'``, ``'pending'``, ``'done'``."""
+    if not level:
+        return "not_ready"
+    statuses: list[str] = []
+    for step in level["steps"]:
+        e = db.query(ProgressEntry).filter_by(
+            user_id=user_id,
+            badge_slug="jaarinsigne_2026",
+            level_index=level["level_index"],
+            step_index=step["index"],
+        ).first()
+        statuses.append(e.status if e else "none")
+    if statuses and all(s == "signed_off" for s in statuses):
+        return "done"
+    if any(s == "pending_signoff" for s in statuses):
+        return "pending"
+    if statuses and all(s in ("work_done", "signed_off") for s in statuses):
+        return "ready"
+    return "not_ready"
+
+
+def _jaarinsigne_2026_pending_mentors(
+    db: Session, user_id: str, level: dict | None
+) -> list[User]:
+    """Return the de-duplicated list of mentors currently invited to sign off any
+    jaarinsigne_2026 eis for this scout at the given level."""
+    if not level:
+        return []
+    seen: set[str] = set()
+    out: list[User] = []
+    entry_ids = []
+    for step in level["steps"]:
+        e = db.query(ProgressEntry).filter_by(
+            user_id=user_id,
+            badge_slug="jaarinsigne_2026",
+            level_index=level["level_index"],
+            step_index=step["index"],
+        ).first()
+        if e:
+            entry_ids.append(e.id)
+    if not entry_ids:
+        return []
+    for sr in db.query(SignoffRequest).filter(
+        SignoffRequest.progress_entry_id.in_(entry_ids)
+    ).all():
+        if sr.mentor_id and sr.mentor_id not in seen:
+            seen.add(sr.mentor_id)
+            mentor = db.get(User, sr.mentor_id)
+            if mentor is not None:
+                out.append(mentor)
+    return out
+
+
+def _build_jaarinsigne_2026_body_context(
+    db: Session, current_user: User
+) -> dict:
+    """Re-compute every piece of context the jaarinsigne_2026 body partial needs."""
+    badge = _CATALOGUE.get("jaarinsigne_2026")
+    speltak_slug, speltak_min_punten = _jaarinsigne_2026_resolve_level(db, current_user.id)
+    level = next((lv for lv in badge["levels"] if lv["slug"] == speltak_slug), None) \
+        if (badge and speltak_slug) else None
+
+    progress_map: dict[tuple[int, int], ProgressEntry] = {}
+    for e in progress_svc.list_progress(db, current_user.id, badge_slug="jaarinsigne_2026"):
+        progress_map[(e.level_index, e.step_index)] = e
+    previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
+    scout_signoff_options = _build_signoff_options(db, current_user)
+
+    score_summary = jaarinsigne_2026_svc.get_score_summary(
+        db, current_user.id, speltak_slug, speltak_min_punten
+    ) if speltak_slug else None
+    available_to_include = jaarinsigne_2026_svc.get_available_to_include(db, current_user.id)
+    included_details = jaarinsigne_2026_svc.get_included_details(db, current_user.id)
+    included_summary = jaarinsigne_2026_svc.summarize_items(included_details)
+    available_summary = jaarinsigne_2026_svc.summarize_additional(
+        available_to_include, included_details
+    )
+
+    signoff_state = _jaarinsigne_2026_signoff_state(db, current_user.id, level)
+    pending_mentors = _jaarinsigne_2026_pending_mentors(db, current_user.id, level) \
+        if signoff_state == "pending" else []
+
+    return {
+        "current_user": current_user,
+        "badge": badge,
+        "level": level,
+        "progress_map": progress_map,
+        "previous_mentors": previous_mentors,
+        "scout_signoff_options": scout_signoff_options,
+        "score_summary": score_summary,
+        "available_to_include": available_to_include,
+        "included_details": included_details,
+        "included_summary": included_summary,
+        "available_summary": available_summary,
+        "signoff_state": signoff_state,
+        "pending_mentors": pending_mentors,
+    }
+
+
+def _jaarinsigne_2026_body_response(request: Request, db: Session, current_user: User):
+    """Render the jaarinsigne_2026 body partial with a fresh context."""
+    return _TEMPLATES.TemplateResponse(
+        request=request,
+        name="partials/jaarinsigne_2026_body.html",
+        context=_build_jaarinsigne_2026_body_context(db, current_user),
+    )
+
+
 @router.post("/badges/jaarinsigne_2026/toggle-inclusion", response_class=HTMLResponse)
 async def jaarinsigne_2026_toggle_inclusion(
     request: Request,
@@ -982,68 +1283,188 @@ async def jaarinsigne_2026_toggle_inclusion(
     if entry is None or entry.status != "signed_off":
         return RedirectResponse(url="/badges/jaarinsigne_2026", status_code=303)
 
-    jaarinsigne_2026_svc.toggle_inclusion(db, current_user.id, badge_slug, level_index, step_index)
+    # Block editing while a signoff request is pending.
+    speltak_slug, speltak_min_punten = _jaarinsigne_2026_resolve_level(db, current_user.id)
+    badge = _CATALOGUE.get("jaarinsigne_2026")
+    level = next((lv for lv in badge["levels"] if lv["slug"] == speltak_slug), None) \
+        if (badge and speltak_slug) else None
+    if _jaarinsigne_2026_signoff_state(db, current_user.id, level) == "pending":
+        if request.headers.get("HX-Request"):
+            return _jaarinsigne_2026_body_response(request, db, current_user)
+        return RedirectResponse(url="/badges/jaarinsigne_2026", status_code=303)
 
-    # Get user's speltak_slug and speltak_min_punten
-    jl = progress_svc.get_jaarinsigne_level(db, current_user.id, "jaarinsigne_2026")
-    if jl:
-        speltak_slug = jl.speltak_slug
-    else:
-        speltak_slug = groups_svc.get_user_primary_speltak_type(db, current_user.id)
-    speltak_min_punten = 3
-    if speltak_slug:
-        memberships = db.query(SpeltakMembership).filter_by(
-            user_id=current_user.id, approved=True, withdrawn=False
-        ).all()
-        for m in memberships:
-            if m.speltak and m.speltak.speltak_type == speltak_slug:
-                if m.speltak.jaarinsigne_2026_min_punten is not None:
-                    speltak_min_punten = m.speltak.jaarinsigne_2026_min_punten
-                break
+    jaarinsigne_2026_svc.toggle_inclusion(db, current_user.id, badge_slug, level_index, step_index)
 
     if speltak_slug:
         jaarinsigne_2026_svc.update_progress_entries(db, current_user.id, speltak_slug, speltak_min_punten)
 
-    # HTMX request → return the full body partial (step cards + editor) so the
-    # step-check indicators reflect the recomputed eis statuses.
     if request.headers.get("HX-Request"):
-        badge = _CATALOGUE.get("jaarinsigne_2026")
-        level = next((lv for lv in badge["levels"] if lv["slug"] == speltak_slug), None) \
-            if (badge and speltak_slug) else None
+        return _jaarinsigne_2026_body_response(request, db, current_user)
 
-        progress_map: dict[tuple[int, int], ProgressEntry] = {}
-        for e in progress_svc.list_progress(db, current_user.id, badge_slug="jaarinsigne_2026"):
-            progress_map[(e.level_index, e.step_index)] = e
-        previous_mentors = progress_svc.list_previous_mentors(db, current_user.id)
-        scout_signoff_options = _build_signoff_options(db, current_user)
+    return RedirectResponse(url="/badges/jaarinsigne_2026", status_code=303)
 
-        score_summary = jaarinsigne_2026_svc.get_score_summary(
-            db, current_user.id, speltak_slug, speltak_min_punten
-        ) if speltak_slug else None
-        available_to_include = jaarinsigne_2026_svc.get_available_to_include(db, current_user.id)
-        included_details = jaarinsigne_2026_svc.get_included_details(db, current_user.id)
-        included_summary = jaarinsigne_2026_svc.summarize_items(included_details)
-        available_summary = jaarinsigne_2026_svc.summarize_additional(
-            available_to_include, included_details
+
+# ── Batch sign-off endpoints for jaarinsigne_2026 ─────────────────────────────
+
+
+def _jaarinsigne_2026_step_text_summary(badge: dict, level: dict | None) -> str:
+    """Return a short multi-line summary of all eisen at this level for emails."""
+    if not level:
+        return badge.get("title", "Jaarinsigne 2026")
+    lines = []
+    for step in level["steps"]:
+        titel = (step.get("titel") or "").strip()
+        if not titel:
+            titel = f"Eis {step.get('index', 0) + 1}"
+        lines.append(f"- {titel}")
+    return "\n".join(lines)
+
+
+def _send_jaarinsigne_2026_mentor_emails(
+    background_tasks: BackgroundTasks,
+    invited: list,
+    created_mentor: User | None,
+    scout_name: str,
+    step_text: str,
+):
+    """Send one e-mail per invited mentor.
+
+    Uses ``send_mentor_signoff_invite_email`` for the *one* mentor that was
+    freshly created by ``request_jaarinsigne_2026_signoff`` and the regular
+    request mail for everyone else. Reuses the per-eis e-mail signatures with
+    ``niveau_number=0`` to mean "the whole jaarinsigne".
+    """
+    for mentor in invited:
+        if not mentor.email:
+            continue
+        if created_mentor is not None and mentor.id == created_mentor.id:
+            background_tasks.add_task(
+                send_mentor_signoff_invite_email,
+                mentor.email, scout_name, "Jaarinsigne 2026", 0, step_text, notes=None,
+            )
+        else:
+            background_tasks.add_task(
+                send_mentor_signoff_request_email,
+                mentor.email, scout_name, "Jaarinsigne 2026", 0, step_text, notes=None,
+            )
+
+
+@router.post("/badges/jaarinsigne_2026/request-signoff-speltak", response_class=HTMLResponse)
+async def jaarinsigne_2026_request_signoff_speltak(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    speltak_id: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    current_user = _get_current_user(request, db)
+    if current_user is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    speltak_slug, _ = _jaarinsigne_2026_resolve_level(db, current_user.id)
+    badge = _CATALOGUE.get("jaarinsigne_2026")
+    level = next((lv for lv in badge["levels"] if lv["slug"] == speltak_slug), None) \
+        if (badge and speltak_slug) else None
+    step_text = _jaarinsigne_2026_step_text_summary(badge, level)
+    scout_name = current_user.name or current_user.email.split("@")[0]
+
+    try:
+        _, invited = progress_svc.request_jaarinsigne_2026_signoff_speltak(
+            db, current_user.id, speltak_id
         )
-        return _TEMPLATES.TemplateResponse(
-            request=request,
-            name="partials/jaarinsigne_2026_body.html",
-            context={
-                "current_user": current_user,
-                "badge": badge,
-                "level": level,
-                "progress_map": progress_map,
-                "previous_mentors": previous_mentors,
-                "scout_signoff_options": scout_signoff_options,
-                "score_summary": score_summary,
-                "available_to_include": available_to_include,
-                "included_details": included_details,
-                "included_summary": included_summary,
-                "available_summary": available_summary,
-            },
-        )
+        _send_jaarinsigne_2026_mentor_emails(background_tasks, invited, None, scout_name, step_text)
+    except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict):
+        pass
 
+    if request.headers.get("HX-Request"):
+        return _jaarinsigne_2026_body_response(request, db, current_user)
+    return RedirectResponse(url="/badges/jaarinsigne_2026", status_code=303)
+
+
+@router.post("/badges/jaarinsigne_2026/request-signoff-members", response_class=HTMLResponse)
+async def jaarinsigne_2026_request_signoff_members(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    mentor_ids: list[str] = Form(default=[]),
+    db: Session = Depends(get_db),
+):
+    current_user = _get_current_user(request, db)
+    if current_user is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    speltak_slug, _ = _jaarinsigne_2026_resolve_level(db, current_user.id)
+    badge = _CATALOGUE.get("jaarinsigne_2026")
+    level = next((lv for lv in badge["levels"] if lv["slug"] == speltak_slug), None) \
+        if (badge and speltak_slug) else None
+    step_text = _jaarinsigne_2026_step_text_summary(badge, level)
+    scout_name = current_user.name or current_user.email.split("@")[0]
+
+    try:
+        _, invited = progress_svc.request_jaarinsigne_2026_signoff_members(
+            db, current_user.id, mentor_ids
+        )
+        _send_jaarinsigne_2026_mentor_emails(background_tasks, invited, None, scout_name, step_text)
+    except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict):
+        pass
+
+    if request.headers.get("HX-Request"):
+        return _jaarinsigne_2026_body_response(request, db, current_user)
+    return RedirectResponse(url="/badges/jaarinsigne_2026", status_code=303)
+
+
+@router.post("/badges/jaarinsigne_2026/request-signoff", response_class=HTMLResponse)
+async def jaarinsigne_2026_request_signoff_direct(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    mentor_email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    current_user = _get_current_user(request, db)
+    if current_user is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    speltak_slug, _ = _jaarinsigne_2026_resolve_level(db, current_user.id)
+    badge = _CATALOGUE.get("jaarinsigne_2026")
+    level = next((lv for lv in badge["levels"] if lv["slug"] == speltak_slug), None) \
+        if (badge and speltak_slug) else None
+    step_text = _jaarinsigne_2026_step_text_summary(badge, level)
+    scout_name = current_user.name or current_user.email.split("@")[0]
+
+    try:
+        if _UUID_RE.match(mentor_email.strip()):
+            _, invited = progress_svc.request_jaarinsigne_2026_signoff_members(
+                db, current_user.id, [mentor_email.strip()]
+            )
+            _send_jaarinsigne_2026_mentor_emails(
+                background_tasks, invited, None, scout_name, step_text
+            )
+        else:
+            _, mentor, created = progress_svc.request_jaarinsigne_2026_signoff(
+                db, current_user.id, mentor_email
+            )
+            _send_jaarinsigne_2026_mentor_emails(
+                background_tasks, [mentor], mentor if created else None, scout_name, step_text
+            )
+    except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict):
+        pass
+
+    if request.headers.get("HX-Request"):
+        return _jaarinsigne_2026_body_response(request, db, current_user)
+    return RedirectResponse(url="/badges/jaarinsigne_2026", status_code=303)
+
+
+@router.post("/badges/jaarinsigne_2026/cancel-signoff", response_class=HTMLResponse)
+async def jaarinsigne_2026_cancel_signoff(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    current_user = _get_current_user(request, db)
+    if current_user is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    progress_svc.cancel_jaarinsigne_2026_signoff_requests(db, current_user.id)
+
+    if request.headers.get("HX-Request"):
+        return _jaarinsigne_2026_body_response(request, db, current_user)
     return RedirectResponse(url="/badges/jaarinsigne_2026", status_code=303)
 
 

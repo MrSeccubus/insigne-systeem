@@ -255,6 +255,11 @@ class TestRejectSignoff:
         assert db.query(SignoffRejection).count() == 2
         assert db.query(SignoffRequest).count() == 0
 
+    def test_self_signoff_forbidden(self, db):
+        scout = _user(db, "scout@x.com", "Scout")
+        with pytest.raises(progress_svc.Forbidden, match="self_signoff"):
+            progress_svc.reject_jaarinsigne_2026_signoff(db, scout.id, scout.id, "nope")
+
     def test_keeps_pending_when_other_mentor_still_invited(self, db):
         scout = _user(db, "scout@x.com", "Scout")
         m1 = _user(db, "m1@x.com", "M1")

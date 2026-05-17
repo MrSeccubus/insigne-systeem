@@ -544,6 +544,9 @@ def reject_jaarinsigne_2026_signoff(
     Adds a rejection row per entry; deletes this mentor's invite; reverts the
     entry to ``work_done`` only when no other mentor is still pending.
     """
+    if mentor_id == scout_id:
+        raise Forbidden("self_signoff")
+
     requests = (
         db.query(SignoffRequest)
         .join(ProgressEntry, SignoffRequest.progress_entry_id == ProgressEntry.id)

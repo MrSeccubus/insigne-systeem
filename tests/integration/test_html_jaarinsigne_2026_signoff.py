@@ -148,6 +148,29 @@ class TestToggleBlockedWhenPending:
         assert after == before
 
 
+class TestRequestSignoffDirectUUIDBranch:
+    """The direct-form autocomplete posts a UUID (not an e-mail) when the user
+    picks a previous mentor by name. Make sure that branch wires through
+    cleanly — a NameError here would commit signoff requests without sending
+    the e-mail."""
+
+    def test_uuid_branch_creates_pending_signoffs_and_returns_body(self, client, db):
+        scout = _user(db, "scout@x.com", "Scout")
+        mentor = _user(db, "mentor@x.com", "Mentor")
+        _entry(db, scout.id, 1, 0, "work_done")
+
+        client.cookies.update(_auth(scout))
+        r = client.post(
+            "/badges/jaarinsigne_2026/request-signoff",
+            data={"mentor_email": mentor.id},  # UUID, as the autocomplete sends
+            headers={"HX-Request": "true"},
+        )
+        assert r.status_code == 200
+        assert 'id="jaarinsigne-2026-body"' in r.text
+        e = db.query(ProgressEntry).filter_by(user_id=scout.id).first()
+        assert e.status == "pending_signoff"
+
+
 class TestSelfSignoffSurfaceError:
     def test_direct_self_signoff_returns_error_in_body(self, client, db):
         scout = _user(db, "scout@x.com", "Scout")

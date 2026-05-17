@@ -1603,7 +1603,7 @@ async def jaarinsigne_2026_request_signoff_direct(
                 db, current_user.id, [mentor_email.strip()]
             )
             _send_jaarinsigne_2026_mentor_emails(
-                background_tasks, invited, None, scout_name, step_text
+                background_tasks, invited, None, scout_name, badge, level, eisen,
             )
         else:
             _, mentor, created = progress_svc.request_jaarinsigne_2026_signoff(

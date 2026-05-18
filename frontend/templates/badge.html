@@ -9,7 +9,7 @@
     </nav>
 
     <header class="badge-header">
-        {% if selected_niveaus | length == 1 and not badge.dedicated_api %}
+        {% if selected_niveaus | length == 1 %}
         <div style="text-align:center;margin-bottom:0.75rem;">
             <img src="/images/{{ badge.slug }}.{{ selected_niveaus[0] + 1 }}.png"
                  alt="{{ badge.niveau_label }} {{ selected_niveaus[0] + 1 }}"
@@ -25,7 +25,7 @@
             {% endif %}
         </div>
         {% endif %}
-        <h1>{{ badge.title }}{% if selected_niveaus | length == 1 and not badge.dedicated_api %} — {{ badge.niveau_label }} {{ selected_niveaus[0] + 1 }}{% endif %}</h1>
+        <h1>{{ badge.title }}{% if selected_niveaus | length == 1 %} — {{ badge.niveau_label }} {{ selected_niveaus[0] + 1 }}{% endif %}</h1>
         {% if badge.introduction %}
         <div class="badge-introduction">{{ badge.introduction | render_eis }}</div>
         {% endif %}
@@ -37,12 +37,7 @@
     </div>
     {% endif %}
 
-    {% if badge.dedicated_api %}
-    <div class="notification-bar" style="margin-bottom:1.5rem;">
-        Voortgang voor dit insigne wordt bijgehouden via een eigen API.<br>
-        <code>GET /badges/dedicated/{{ badge.slug }}/progress/{user_id}</code>
-    </div>
-    {% elif badge.type == "jaarinsigne" %}
+    {% if badge.type == "jaarinsigne" %}
 
     {% if resolved_level_index is none %}
     <div class="notification-bar" style="margin-bottom:1.5rem;">
@@ -188,6 +183,6 @@
     <div class="badge-afterword">{{ badge.afterword | render_eis }}</div>
     {% endif %}
 
-    {% endif %}{# end {% if badge.dedicated_api %} elif jaarinsigne else #}
+    {% endif %}{# end {% if badge.type == "jaarinsigne" %} … {% else %} … #}
 </main>
 {% endblock %}

@@ -56,7 +56,6 @@ def _parse_full(slug: str, raw: dict, category: str | None) -> dict:
         "introduction": (raw.get("introductie") or "").strip(),
         "levels": step_groups,
         "afterword": (raw.get("nawoord") or "").strip(),
-        "dedicated_api": raw.get("dedicated_api", False),
     }
 
 
@@ -101,7 +100,6 @@ def _parse_jaarinsigne(slug: str, raw: dict, category: str | None, speltakken_me
         "introduction": (raw.get("introductie") or "").strip(),
         "levels": levels,
         "afterword": (raw.get("nawoord") or "").strip(),
-        "dedicated_api": False,
         "n_levels": len(levels),
         "speltakken": speltakken_meta,
     }
@@ -136,7 +134,6 @@ class BadgeCatalogue:
                     "images": [f"/images/{slug}.{i}.png" for i in (1, 2, 3)]
                              if badge_type != "jaarinsigne"
                              else [f"/images/{slug}.png"],
-                    "dedicated_api": raw.get("dedicated_api", False),
                 })
                 if badge_type == "jaarinsigne":
                     self._by_slug[slug] = _parse_jaarinsigne(slug, raw, category, self.speltakken_meta)

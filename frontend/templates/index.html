@@ -201,18 +201,7 @@
         {% endif %}
     </h3>
 
-    {% if badge.dedicated_api %}
-    {# ── Dedicated-API badge: single full-width card ── #}
-    <div class="badge-grid">
-        <a href="/badges/{{ badge.slug }}" class="badge-card">
-            <img src="/images/{{ badge.slug }}.png"
-                 alt="{{ badge.title }}"
-                 class="badge-card-image"
-                 onerror="this.style.display='none'">
-            <div class="progress-label">Bekijk →</div>
-        </a>
-    </div>
-    {% elif badge.type == "jaarinsigne" %}
+    {% if badge.type == "jaarinsigne" %}
     {# ── Jaarinsigne: one card for the resolved speltak level ── #}
     {% for card in badge.level_cards %}
     <div class="badge-grid">

@@ -78,10 +78,6 @@ async def index(request: Request, only_favorites: int = 0, only_in_progress: int
     for badges in all_badges.values():
         for badge in badges:
             detail = _CATALOGUE.get(badge["slug"])
-            if detail.get("dedicated_api"):
-                badge["level_cards"] = []
-                badge["type"] = "dedicated_api"
-                continue
             if detail.get("type") == "jaarinsigne":
                 badge["type"] = "jaarinsigne"
                 jl = progress_svc.get_jaarinsigne_level(db, current_user.id, badge["slug"]) if current_user else None

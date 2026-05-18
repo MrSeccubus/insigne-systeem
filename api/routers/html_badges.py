@@ -955,11 +955,7 @@ def _build_badge_catalogue(all_progress: dict, db=None, scout_id: str | None = N
     for badges in all_badges.values():
         for badge in badges:
             detail = _CATALOGUE.get(badge["slug"])
-            badge["dedicated_api"] = detail.get("dedicated_api", False)
             badge["type"] = detail.get("type", "gewoon")
-            if badge["dedicated_api"]:
-                badge["level_cards"] = []
-                continue
             if detail.get("type") == "jaarinsigne":
                 jl = progress_svc.get_jaarinsigne_level(db, scout_id, badge["slug"]) if db and scout_id else None
                 if jl:

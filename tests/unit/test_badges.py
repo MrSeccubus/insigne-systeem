@@ -239,8 +239,6 @@ class TestExplorerJaarbadge:
 class TestBadgeStructure:
     def test_has_at_least_one_eis(self, slug):
         badge = _CAT.get(slug)
-        if badge.get("dedicated_api"):
-            return
         assert len(badge["levels"]) >= 1, (
             f"{slug}: verwacht minimaal 1 eis, gevonden {len(badge['levels'])}"
         )
@@ -271,7 +269,7 @@ class TestBadgeStructure:
         assert "introductie" in raw
         if raw.get("type") == "jaarinsigne":
             assert "speltakken" in raw
-        elif not raw.get("dedicated_api"):
+        else:
             assert "eisen" in raw
 
     def test_slug_matches_filename(self, slug):
@@ -323,7 +321,7 @@ class TestBadgeStructure:
     def test_groen_true_steps_contain_equals_markers(self, slug):
         badge_path = DATA_DIR / "badges" / f"{slug}.yml"
         raw = yaml.safe_load(badge_path.read_text())
-        if raw.get("dedicated_api") or raw.get("type") == "jaarinsigne":
+        if raw.get("type") == "jaarinsigne":
             return
         badge = _CAT.get(slug)
         for group_raw, group in zip(raw["eisen"], badge["levels"]):
@@ -338,7 +336,7 @@ class TestBadgeStructure:
     def test_eis_dicts_have_tekst_key(self, slug):
         badge_path = DATA_DIR / "badges" / f"{slug}.yml"
         raw = yaml.safe_load(badge_path.read_text())
-        if raw.get("dedicated_api") or raw.get("type") == "jaarinsigne":
+        if raw.get("type") == "jaarinsigne":
             return
         for group in raw["eisen"]:
             for step in group["eisen"]:

@@ -114,7 +114,21 @@ async def index(request: Request, only_favorites: int = 0, only_in_progress: int
                         ),
                     }]
                 else:
-                    badge["level_cards"] = []
+                    # Jaarinsigne not available for this scout's speltak. Render
+                    # a placeholder card so the user can still navigate to the
+                    # detail page and see the "niet beschikbaar" notification
+                    # (and, if eligible, use the "stel als mijn niveau in"
+                    # buttons there).
+                    badge["level_cards"] = [{
+                        "index": -1,
+                        "name": "Niet beschikbaar voor jouw speltak",
+                        "short_name": "—",
+                        "image": f"/images/{badge['slug']}.png",
+                        "total": 0,
+                        "completed": 0,
+                        "completed_at": None,
+                        "unavailable": True,
+                    }]
                 continue
             badge["type"] = "gewoon"
             niveau_label = detail.get("niveau_label", "Niveau")

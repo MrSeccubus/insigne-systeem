@@ -983,7 +983,18 @@ def _build_badge_catalogue(all_progress: dict, db=None, scout_id: str | None = N
                         "completed_at": None,
                     }]
                 else:
-                    badge["level_cards"] = []
+                    # Render a placeholder card so the leader can navigate to
+                    # the scout's badge page and override the level if needed.
+                    badge["level_cards"] = [{
+                        "index": -1,
+                        "name": "Niet beschikbaar voor de speltak van deze scout",
+                        "short_name": "—",
+                        "image": f"/images/{badge['slug']}.png",
+                        "total": 0,
+                        "completed": 0,
+                        "completed_at": None,
+                        "unavailable": True,
+                    }]
                 continue
             niveau_label = detail.get("niveau_label", "Niveau")
             niveau_label_kort = detail.get("niveau_label_kort", "N")

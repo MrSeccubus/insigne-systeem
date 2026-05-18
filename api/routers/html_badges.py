@@ -1059,42 +1059,55 @@ def _build_badge_catalogue(all_progress: dict, db=None, scout_id: str | None = N
     return all_badges, signed_off_niveaus
 
 
-def _require_scout_access(request: Request, scout_id: str, db: Session):
-    """Return (current_user, scout) or (None, redirect) on auth/access failure.
+def _require_scout_access(
+    request: Request, scout_id: str, db: Session,
+) -> tuple[User | None, User | None]:
+    """Return ``(current_user, scout)``.
+
+    - ``(User, User)`` — caller may proceed.
+    - ``(None, None)`` — request is unauthenticated; caller should redirect to
+      ``"/login"``.
+    - ``(User, None)`` — authenticated but the access check failed (bad
+      ``scout_id`` format, self-access, missing scout, or no view permission);
+      caller should redirect to ``"/"``.
+
+    The helper never returns a :class:`RedirectResponse` itself — keeping the
+    response construction in the caller (with string-literal URLs) prevents
+    user-controlled ``scout_id`` data from flowing into the response body and
+    silences CodeQL's ``py/reflective-xss`` taint analysis.
 
     ``scout_id`` is validated against ``_UUID_RE`` up-front. UUIDs in this
     project are generated server-side via ``uuid4``, so a well-formed value
-    is the only legitimate input here — rejecting garbage early prevents any
-    user-controlled string from reaching downstream interpolation (CodeQL
-    `py/url-redirection` defence in depth).
+    is the only legitimate input here — rejecting garbage early avoids a
+    DB lookup with a tainted string (CodeQL ``py/url-redirection`` defence
+    in depth).
     """
-    if not _UUID_RE.match(scout_id):
-        return None, RedirectResponse("/", status_code=303)
     current_user = _get_current_user(request, db)
     if current_user is None:
-        return None, RedirectResponse("/login", status_code=303)
+        return None, None
+    if not _UUID_RE.match(scout_id):
+        return current_user, None
     if scout_id == current_user.id:
-        return None, RedirectResponse("/", status_code=303)
+        return current_user, None
     scout = db.get(User, scout_id)
     if scout is None or not groups_svc.can_view_scout_progress(current_user, db, scout_id):
-        return None, RedirectResponse("/", status_code=303)
+        return current_user, None
     return current_user, scout
 
 
 @router.get("/scouts/{scout_id}", response_class=HTMLResponse)
 async def scout_progress_home(scout_id: str, request: Request, only_in_progress: str | None = Query(None), db: Session = Depends(get_db)):
     only_in_progress = lenient_int(only_in_progress) or 0
-    current_user, scout_or_redirect = _require_scout_access(request, scout_id, db)
-    if current_user is None:
-        return scout_or_redirect
-    scout = scout_or_redirect
+    current_user, scout = _require_scout_access(request, scout_id, db)
+    if scout is None:
+        return RedirectResponse("/login" if current_user is None else "/", status_code=303)
 
-    edit_speltak_id = groups_svc.get_edit_speltak_for_scout(db, current_user.id, scout_id)
+    edit_speltak_id = groups_svc.get_edit_speltak_for_scout(db, current_user.id, scout.id)
     all_progress: dict[str, dict] = {}
-    for entry in progress_svc.list_progress(db, scout_id):
+    for entry in progress_svc.list_progress(db, scout.id):
         all_progress.setdefault(entry.badge_slug, {})[(entry.level_index, entry.step_index)] = entry
 
-    all_badges, signed_off_niveaus = _build_badge_catalogue(all_progress, db=db, scout_id=scout_id)
+    all_badges, signed_off_niveaus = _build_badge_catalogue(all_progress, db=db, scout_id=scout.id)
     response = _TEMPLATES.TemplateResponse(
         request=request,
         name="scout_progress.html",
@@ -1124,27 +1137,27 @@ async def scout_badge_detail(
     db: Session = Depends(get_db),
 ):
     niveau = lenient_int(niveau)
-    current_user, scout_or_redirect = _require_scout_access(request, scout_id, db)
-    if current_user is None:
-        return scout_or_redirect
-    scout = scout_or_redirect
+    current_user, scout = _require_scout_access(request, scout_id, db)
+    if scout is None:
+        return RedirectResponse("/login" if current_user is None else "/", status_code=303)
 
     badge = _CATALOGUE.get(slug)
     if badge is None:
         return RedirectResponse(f"/scouts/{scout.id}", status_code=303)
+    badge_slug = badge["slug"]
 
-    edit_speltak_id = groups_svc.get_edit_speltak_for_scout(db, current_user.id, scout_id)
+    edit_speltak_id = groups_svc.get_edit_speltak_for_scout(db, current_user.id, scout.id)
     can_edit = edit_speltak_id is not None
     progress_map: dict[tuple[int, int], ProgressEntry] = {}
-    for entry in progress_svc.list_progress(db, scout_id, badge_slug=slug):
+    for entry in progress_svc.list_progress(db, scout.id, badge_slug=badge_slug):
         progress_map[(entry.level_index, entry.step_index)] = entry
 
     if badge.get("type") == "jaarinsigne":
-        jl = progress_svc.get_jaarinsigne_level(db, scout_id, slug)
+        jl = progress_svc.get_jaarinsigne_level(db, scout.id, badge_slug)
         if jl:
             speltak_slug = jl.speltak_slug
         else:
-            speltak_slug = groups_svc.get_user_primary_speltak_type(db, scout_id)
+            speltak_slug = groups_svc.get_user_primary_speltak_type(db, scout.id)
         resolved_level_index = _CATALOGUE.resolve_jaarinsigne_level_index(badge, speltak_slug)
         if speltak:
             view_level = next((l for l in badge["levels"] if l["slug"] == speltak), None)
@@ -1166,7 +1179,7 @@ async def scout_badge_detail(
                 "selected_niveaus": [],
                 "niveau_stats": [],
                 "mobile_default_niveau": 1,
-                "_post_url": f"/scouts/{scout_id}/set-progress",
+                "_post_url": f"/scouts/{scout.id}/set-progress",
             },
         )
 
@@ -1196,7 +1209,7 @@ async def scout_badge_detail(
             "niveau_stats": niveau_stats,
             "selected_niveaus": [niveau - 1] if niveau in (1, 2, 3) else [0, 1, 2],
             "mobile_default_niveau": _mobile_default_niveau(progress_map, badge),
-            "_post_url": f"/scouts/{scout_id}/set-progress",
+            "_post_url": f"/scouts/{scout.id}/set-progress",
         },
     )
 
@@ -1227,10 +1240,9 @@ async def scout_set_jaarinsigne_level(
     speltak_slug: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    current_user, scout_or_redirect = _require_scout_access(request, scout_id, db)
-    if current_user is None:
-        return scout_or_redirect
-    scout = scout_or_redirect  # _require_scout_access returns the User on success
+    current_user, scout = _require_scout_access(request, scout_id, db)
+    if scout is None:
+        return RedirectResponse("/login" if current_user is None else "/", status_code=303)
     if not groups_svc.get_edit_speltak_for_scout(db, current_user.id, scout.id):
         return RedirectResponse(f"/scouts/{scout.id}", status_code=303)
     badge = _CATALOGUE.get(slug)
@@ -1668,22 +1680,23 @@ async def scout_niveau_checks(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    current_user, scout_or_redirect = _require_scout_access(request, scout_id, db)
-    if current_user is None:
-        return scout_or_redirect
+    current_user, scout = _require_scout_access(request, scout_id, db)
+    if scout is None:
+        return RedirectResponse("/login" if current_user is None else "/", status_code=303)
 
     badge = _CATALOGUE.get(slug)
     if badge is None:
         return HTMLResponse("")
+    badge_slug = badge["slug"]
 
     progress_map: dict[tuple[int, int], ProgressEntry] = {}
-    for entry in progress_svc.list_progress(db, scout_id, badge_slug=slug):
+    for entry in progress_svc.list_progress(db, scout.id, badge_slug=badge_slug):
         progress_map[(entry.level_index, entry.step_index)] = entry
 
     return _partial(
         request, "scout_niveau_checks.html",
-        scout_id=scout_id,
-        slug=slug,
+        scout_id=scout.id,
+        slug=badge_slug,
         niveau_index=niveau_index,
         n_eisen=len(badge["levels"]),
         is_jaarbadge=False,

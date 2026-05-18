@@ -134,12 +134,27 @@ The full API spec lives at `api/spec.md`. **Keep it up to date** whenever you ad
 The `releases` branch always points to the latest released version and is only
 advanced when the user says to make a new release.
 
+### `CHANGELOG.md` workflow
+
+The changelog is maintained **per pull request** under an `## [Unreleased]`
+header at the top of the file. Every feature / bugfix / breaking change PR
+adds its bullets there before merge — this avoids the "what did we do last
+month?" archaeology when it's time to cut a release.
+
+When a new release is made, the `[Unreleased]` section is **consolidated**
+into the new version's section (re-grouped, copy-edited, duplicates merged),
+the `[Unreleased]` header is reset to empty, and the release is tagged.
+
 When a new release is made:
-1. Tag the release commit (`git tag -a vX.Y.Z ...`)
-2. Fast-forward `releases` to that tag commit
-3. Merge the tag into `main` (`git checkout main && git merge --no-ff vX.Y.Z`) so the tag is reachable from both `releases` and `main`
-4. Create the GitHub release
-5. Update `CHANGELOG.md`
+1. Move `## [Unreleased]` content into a new `## [vX.Y.Z] — YYYY-MM-DD` section
+   (consolidate / copy-edit; keep the standard subsections `### Nieuw`,
+   `### Verbeteringen`, `### Opgelost`, `### Beveiliging`).
+2. Re-add an empty `## [Unreleased]` header at the top.
+3. Tag the release commit (`git tag -a vX.Y.Z ...`).
+4. Fast-forward `releases` to that tag commit.
+5. Merge the tag into `main` (`git checkout main && git merge --no-ff vX.Y.Z`)
+   so the tag is reachable from both `releases` and `main`.
+6. Create the GitHub release.
 
 ## Keeping the JSON API in sync with the library
 

@@ -26,6 +26,23 @@ def _make_token(db: Session, user_id: str, token_type: str) -> str:
     return value
 
 
+def get_or_create_pending_user(db: Session, email: str) -> User:
+    """Return the existing :class:`User` with this e-mail, or create one in
+    pending state.
+
+    Used by invite flows that need a stable ``user_id`` for the pending
+    membership but should **not** issue a 1-hour-valid confirmation token —
+    the invitee starts the registration flow themselves at their own pace.
+    """
+    email = email.strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        user = User(email=email)
+        db.add(user)
+        db.flush()
+    return user
+
+
 def start_registration(db: Session, email: str) -> tuple[str, str, User]:
     """Create or find a user and issue a confirmation token.
 

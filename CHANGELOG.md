@@ -2,6 +2,19 @@
 
 Alle noemenswaardige wijzigingen per release, in omgekeerde chronologische volgorde.
 
+PR's voegen hun wijzigingen toe onder `## [Unreleased]`. Bij een release wordt
+deze sectie geconsolideerd in een nieuwe `## [vX.Y.Z]` sectie en `[Unreleased]`
+weer leeg gemaakt.
+
+---
+
+## [Unreleased]
+
+### Verbeteringen
+
+- **Uitnodigingen** (sluit #92) — de uitnodigingsmail voor nieuwe groepsleiders en speltakleden bevat geen 1 uur geldige bevestigingscode meer; in plaats daarvan staat er een link naar `/register?email=<adres>` waar de uitnodigde de standaard registratieflow doorloopt op eigen tempo. De pending User-rij en lidmaatschappen worden bij uitnodiging aangemaakt (zodat de leider de openstaande uitnodiging blijft zien) zonder bijbehorende ConfirmationToken.
+- **Aanmeldverzoeken** (sluit #92) — bij openstaande aanmeldverzoeken voor een speltak ziet de speltakleider nu zowel de naam als het e-mailadres van de aanvrager, zodat onbekende namen makkelijker te herkennen zijn.
+
 ---
 
 ## [v0.12.1] — 2026-05-12

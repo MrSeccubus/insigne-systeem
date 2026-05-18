@@ -145,10 +145,10 @@ def send_scout_rejected_email(to: str, scout_name: str, badge_title: str, niveau
          badge_url=badge_url)
 
 
-def send_groepsleider_invite_email(to: str, naam: str, code: str, inviter_name: str, group_name: str) -> None:
-    confirm_url = f"{config.base_url}/register/confirm/{quote_plus(code)}"
+def send_groepsleider_invite_email(to: str, naam: str, inviter_name: str, group_name: str) -> None:
+    register_url = f"{config.base_url}/register?email={quote_plus(to)}"
     send(to, "groepsleider_invite",
-         email=to, naam=naam, code=code, confirm_url=confirm_url,
+         email=to, naam=naam, register_url=register_url,
          inviter_name=inviter_name, group_name=group_name)
 
 
@@ -163,12 +163,12 @@ def send_membership_invite_email(
 
 
 def send_speltak_invite_email(
-    to: str, naam: str, code: str, inviter_name: str,
+    to: str, naam: str, inviter_name: str,
     group_name: str, speltak_name: str, role: str,
 ) -> None:
-    confirm_url = f"{config.base_url}/register/confirm/{quote_plus(code)}"
+    register_url = f"{config.base_url}/register?email={quote_plus(to)}"
     send(to, "speltak_invite",
-         email=to, naam=naam, code=code, confirm_url=confirm_url,
+         email=to, naam=naam, register_url=register_url,
          inviter_name=inviter_name, group_name=group_name,
          speltak_name=speltak_name, role=role)
 

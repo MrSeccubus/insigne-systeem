@@ -22,6 +22,15 @@ def _all_slugs(data_dir: Path) -> list[str]:
     return [p.stem for p in (data_dir / "badges").glob("*.yml")]
 
 
+def _jaarinsigne_slugs(data_dir: Path) -> list[str]:
+    out = []
+    for p in (data_dir / "badges").glob("*.yml"):
+        raw = yaml.safe_load(p.read_text())
+        if raw.get("type") == "jaarinsigne":
+            out.append(p.stem)
+    return out
+
+
 # ── list (BadgeCatalogue.list) ────────────────────────────────────────────────
 
 class TestList:
@@ -250,6 +259,12 @@ class TestBadgeStructure:
     def test_each_eis_has_three_niveaus(self, slug):
         badge = _CAT.get(slug)
         if badge.get("type") == "jaarinsigne":
+            # For jaarinsignes "levels" are speltakken, not eisen — verify the
+            # badge covers at least the bevers / welpen / scouts span.
+            assert len(badge["levels"]) >= 3, (
+                f"{slug}: verwacht minimaal 3 speltakken voor jaarinsigne, "
+                f"gevonden {len(badge['levels'])}"
+            )
             return
         for eis in badge["levels"]:
             assert len(eis["steps"]) == 3, (
@@ -343,6 +358,108 @@ class TestBadgeStructure:
                 if isinstance(step, dict):
                     assert "tekst" in step, (
                         f"{slug} / '{group['naam']}': dict step missing 'tekst' key"
+                    )
+
+
+# ── Jaarinsigne-specific structure (runs against real api/data/) ─────────────
+
+_KNOWN_DREMPEL_TYPES = {
+    "punten", "groen", "niveau2", "niveau3", "insignes", "leiding_bepaald",
+}
+
+
+@pytest.mark.parametrize("slug", _jaarinsigne_slugs(DATA_DIR))
+class TestJaarinsigneStructure:
+    """Structural assertions that only apply to ``type: jaarinsigne`` badges.
+
+    These mirror the regular-badge assertions in :class:`TestBadgeStructure`
+    that early-return for jaarinsignes (different shape).
+    """
+
+    def test_each_level_has_speltak_metadata(self, slug):
+        badge = _CAT.get(slug)
+        for level in badge["levels"]:
+            assert level.get("slug"), f"{slug}: level missing speltak slug"
+            assert level.get("name"), (
+                f"{slug} / '{level['slug']}': speltak name is empty"
+            )
+            # leeftijd is optional but should be a string when present
+            assert isinstance(level.get("leeftijd", ""), str), (
+                f"{slug} / '{level['slug']}': leeftijd must be a string"
+            )
+            assert isinstance(level.get("level_index"), int), (
+                f"{slug} / '{level['slug']}': level_index must be int"
+            )
+
+    def test_each_step_has_required_fields(self, slug):
+        badge = _CAT.get(slug)
+        for level in badge["levels"]:
+            for step in level["steps"]:
+                assert isinstance(step.get("index"), int), (
+                    f"{slug} / '{level['slug']}': step missing int 'index'"
+                )
+                assert isinstance(step.get("titel", ""), str), (
+                    f"{slug} / '{level['slug']}' step {step['index']}: "
+                    "titel must be a string"
+                )
+                assert isinstance(step.get("text", ""), str), (
+                    f"{slug} / '{level['slug']}' step {step['index']}: "
+                    "text must be a string"
+                )
+                drempel = step.get("drempel")
+                assert drempel is None or isinstance(drempel, dict), (
+                    f"{slug} / '{level['slug']}' step {step['index']}: "
+                    f"drempel must be a dict or None, got {type(drempel).__name__}"
+                )
+
+    def test_each_speltak_eis_has_titel_and_tekst(self, slug):
+        """Raw-YAML shape: every speltak eis must be a dict with 'titel' + 'tekst'."""
+        raw = yaml.safe_load((DATA_DIR / "badges" / f"{slug}.yml").read_text())
+        speltakken = raw.get("speltakken") or {}
+        assert speltakken, f"{slug}: 'speltakken' is empty or missing"
+        for speltak_slug, eisen in speltakken.items():
+            assert isinstance(eisen, list) and eisen, (
+                f"{slug} / '{speltak_slug}': eisen must be a non-empty list"
+            )
+            for i, eis in enumerate(eisen):
+                assert isinstance(eis, dict), (
+                    f"{slug} / '{speltak_slug}' eis {i}: must be a dict"
+                )
+                assert "titel" in eis, (
+                    f"{slug} / '{speltak_slug}' eis {i}: missing 'titel'"
+                )
+                assert "tekst" in eis, (
+                    f"{slug} / '{speltak_slug}' eis {i}: missing 'tekst'"
+                )
+
+
+# ── jaarinsigne_2026 (drempels are a 2026-specific concept) ───────────────────
+
+class TestJaarinsigne2026Structure:
+    """Assertions specific to the jaarinsigne_2026 meta-insigne shape."""
+
+    def test_each_step_drempel_type_is_known(self):
+        badge = _CAT.get("jaarinsigne_2026")
+        assert badge is not None
+        for level in badge["levels"]:
+            for step in level["steps"]:
+                drempel = step.get("drempel")
+                assert drempel is not None, (
+                    f"jaarinsigne_2026 / '{level['slug']}' step "
+                    f"{step['index']}: drempel missing"
+                )
+                assert drempel.get("type") in _KNOWN_DREMPEL_TYPES, (
+                    f"jaarinsigne_2026 / '{level['slug']}' step "
+                    f"{step['index']}: unknown drempel type "
+                    f"{drempel.get('type')!r}"
+                )
+                # All drempels except leiding_bepaald require a numeric minimum
+                if drempel["type"] != "leiding_bepaald":
+                    minimum = drempel.get("minimum")
+                    assert isinstance(minimum, int) and minimum >= 1, (
+                        f"jaarinsigne_2026 / '{level['slug']}' step "
+                        f"{step['index']}: minimum must be a positive int "
+                        f"(got {minimum!r})"
                     )
 
 

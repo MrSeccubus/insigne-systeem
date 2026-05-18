@@ -1,0 +1,108 @@
+{% if confirmed is defined %}
+    {% if rejected is defined and rejected %}
+    <div class="signoff-card" x-data x-init="htmx.trigger(document.body, 'signoff-updated'); setTimeout(() => $el.remove(), 1500)">
+        <p class="signoff-confirmed">✓ Afwijzing verstuurd.</p>
+    </div>
+    {% elif confirmed %}
+    <div class="signoff-card" x-data x-init="htmx.trigger(document.body, 'signoff-updated'); setTimeout(() => $el.remove(), 1500)">
+        <p class="signoff-confirmed">✓ Jaarinsigne 2026 afgetekend!</p>
+    </div>
+    {% else %}
+    <div class="signoff-card">
+        <p class="form-error" style="font-size:0.85rem;margin:0;">{{ error }}</p>
+    </div>
+    {% endif %}
+{% else %}
+    <div id="request-jaarinsigne_2026-{{ req.scout_id }}" class="signoff-card"
+         x-data="{ action: null }">
+        <div class="signoff-card-header">
+            <span class="signoff-scout">{{ req.scout_name }}</span>
+        </div>
+        <p class="signoff-badge-info">
+            <strong>{{ req.badge_title }}{% if req.speltak_name %} — {{ req.speltak_name }}{% endif %}{% if req.speltak_leeftijd %} — {{ req.speltak_leeftijd }}{% endif %}</strong>
+        </p>
+        <p class="signoff-requested-at">Aangevraagd op {{ req.requested_at }}</p>
+
+        {% if req.included_details %}
+        <p style="font-size:0.9em;color:#555;margin:0.75rem 0 0.4rem;"><strong>Behaalde eisen:</strong></p>
+        <div class="jaarinsigne-cards">
+            {% for item in req.included_details %}
+            <div class="jaarinsigne-card jaarinsigne-card--included" x-data="{ expanded: false }">
+                <div class="jaarinsigne-card-title">
+                    <span class="jaarinsigne-card-title-text">
+                        <strong>{{ item.badge_title }}</strong>
+                        <span class="jaarinsigne-sep">—</span>
+                        <span class="jaarinsigne-niveau-badge jaarinsigne-niveau-{{ item.step_index + 1 }}">Niveau&nbsp;{{ item.step_index + 1 }}</span>
+                        <span class="jaarinsigne-sep">—</span>
+                        <span class="jaarinsigne-eis-label">Eis&nbsp;{{ item.level_index + 1 }}</span>
+                        {% if item.groen %}
+                        <span class="jaarinsigne-leaf" title="Groene lijn">{% include "partials/icon_leaf.html" %}</span>
+                        {% endif %}
+                    </span>
+                    <span class="jaarinsigne-punten-badge">{{ item.punten }}&nbsp;pt</span>
+                </div>
+                {% if item.step_text %}
+                <div class="jaarinsigne-card-text">
+                    <div x-show="!expanded" class="jaarinsigne-card-text-compact">
+                        {{ item.step_text | render_eis_compact(item.groen) }}
+                    </div>
+                    <div x-show="expanded" x-cloak class="jaarinsigne-card-text-full">
+                        {{ item.step_text | render_eis }}
+                    </div>
+                    {% if item.step_text | eis_needs_expand %}
+                    <button type="button"
+                            class="jaarinsigne-card-toggle"
+                            @click="expanded = !expanded"
+                            x-text="expanded ? '↑ Inklappen' : '↓ Toon volledige eis'">↓ Toon volledige eis</button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <p style="font-size:0.9em;color:#555;margin:0.75rem 0 0.25rem;"><strong>Te ondertekenen eisen:</strong></p>
+        <ul class="signoff-jaarinsigne-eisen">
+            {% for eis in req.eisen %}
+            <li>
+                <strong>Eis {{ eis.step_index + 1 }}</strong>{% if eis.step_titel %}: {{ eis.step_titel }}{% endif %}
+                {% if eis.score_line %}
+                <div class="signoff-jaarinsigne-score-line">{{ eis.score_line }}</div>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+
+        <div class="step-actions" x-show="action === null">
+            <button type="button" class="btn-success btn-sm"
+                    @click="action = 'signoff'">Aftekenen</button>
+            <button type="button" class="btn-danger btn-sm"
+                    @click="action = 'reject'">Afwijzen</button>
+        </div>
+
+        <form x-show="action === 'signoff'" x-cloak
+              class="inline-form"
+              hx-post="/scouts/{{ req.scout_id }}/jaarinsigne_2026/confirm-signoff"
+              hx-target="#request-jaarinsigne_2026-{{ req.scout_id }}"
+              hx-swap="outerHTML">
+            <textarea name="comment" placeholder="Opmerking voor de scout (optioneel)"></textarea>
+            <div class="step-actions">
+                <button type="submit" class="btn-success btn-sm">Bevestigen</button>
+                <button type="button" class="btn-cancel btn-sm" @click="action = null">Annuleren</button>
+            </div>
+        </form>
+
+        <form x-show="action === 'reject'" x-cloak
+              class="inline-form"
+              hx-post="/scouts/{{ req.scout_id }}/jaarinsigne_2026/reject-signoff"
+              hx-target="#request-jaarinsigne_2026-{{ req.scout_id }}"
+              hx-swap="outerHTML">
+            <textarea name="message" placeholder="Geef aan wat de scout nog moet doen" required></textarea>
+            <div class="step-actions">
+                <button type="submit" class="btn-danger btn-sm">Versturen</button>
+                <button type="button" class="btn-cancel btn-sm" @click="action = null">Annuleren</button>
+            </div>
+        </form>
+    </div>
+{% endif %}

@@ -1,0 +1,25 @@
+speltakken:
+  - slug: bevers
+    naam: Bevers
+    leeftijd: 5-7 jaar
+    kort: Be
+  - slug: welpen
+    naam: Welpen
+    leeftijd: 7-11 jaar
+    kort: We
+  - slug: scouts
+    naam: Scouts
+    leeftijd: 11-15 jaar
+    kort: Sc
+  - slug: explorers
+    naam: Explorers
+    leeftijd: 15-18 jaar
+    kort: Ex
+  - slug: roverscouts
+    naam: Roverscouts
+    leeftijd: 18-21 jaar
+    kort: Ro
+  - slug: plusscouts
+    naam: Plusscouts
+    leeftijd: 18+ jaar
+    kort: Pl

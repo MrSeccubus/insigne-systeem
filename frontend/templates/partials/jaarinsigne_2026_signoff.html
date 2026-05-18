@@ -1,0 +1,123 @@
+{# Global Aftekenen panel for jaarinsigne_2026.
+
+Context:
+- current_user (User)
+- signoff_state: "not_ready" | "ready" | "pending" | "done"
+- pending_mentors (list[User]) — only when state == "pending"
+- scout_signoff_options, previous_mentors — for the mentor picker (reused from step_card)
+#}
+{% if signoff_state == "done" %}
+<div class="jaarinsigne-signoff jaarinsigne-signoff--done">
+    <p style="margin:0;">✓ Jaarinsigne 2026 afgetekend.</p>
+</div>
+{% elif signoff_state == "pending" %}
+<div class="jaarinsigne-signoff jaarinsigne-signoff--pending">
+    <p class="jaarinsigne-signoff-status">
+        Wacht op aftekening van:
+        {% for m in pending_mentors %}<strong>{{ m.name or m.email or '(onbekend)' }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}
+    </p>
+    <form hx-post="/badges/jaarinsigne_2026/cancel-signoff"
+          hx-target="#jaarinsigne-2026-body"
+          hx-swap="outerHTML"
+          style="margin-top:0.5rem;">
+        <button type="submit" class="btn-secondary btn-sm">Verzoek intrekken</button>
+    </form>
+</div>
+{% else %}
+<div class="jaarinsigne-signoff{% if signoff_state == 'ready' %} jaarinsigne-signoff--ready{% endif %}" x-data="{ open: {{ 'true' if signoff_error else 'false' }}, signoffPath: '' }">
+    {% if signoff_state == "ready" %}
+    <p class="jaarinsigne-signoff-ready-msg">
+        Je hebt aan alle eisen voldaan, je kunt nu laten aftekenen.
+    </p>
+    {% endif %}
+    {% if signoff_error %}
+    <p class="form-error" style="margin:0 0 0.5rem;">{{ signoff_error }}</p>
+    {% endif %}
+    <div class="step-actions">
+        <button type="button" class="btn-secondary btn-sm"
+                @click="open = !open"
+                :disabled="{{ 'false' if signoff_state == 'ready' else 'true' }}">
+            Aftekenen...
+        </button>
+        {% if signoff_state != "ready" %}
+        <span style="font-size:0.85em;color:#6b7280;margin-left:0.4rem;">
+            Eerst moet je aan alle eisen voldoen.
+        </span>
+        {% endif %}
+    </div>
+
+    <div x-show="open" x-cloak class="inline-form" style="margin-top:0.5rem;">
+        {# Leiding buttons #}
+        {% for opt in scout_signoff_options if opt.type == "speltak_leiders" %}
+        <form hx-post="/badges/jaarinsigne_2026/request-signoff-speltak"
+              hx-target="#jaarinsigne-2026-body"
+              hx-swap="outerHTML">
+            <input type="hidden" name="speltak_id" value="{{ opt.speltak_id }}">
+            <button type="submit" class="btn-path">
+                {{ opt.label_prefix }} <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong>
+            </button>
+        </form>
+        {% endfor %}
+
+        {# Peer buttons #}
+        {% for opt in scout_signoff_options if opt.type == "speltak_members" %}
+        <button type="button"
+                :class="signoffPath === '{{ opt.speltak_id }}_speltak_members' ? 'btn-path btn-path-active' : 'btn-path'"
+                @click="signoffPath = '{{ opt.speltak_id }}_speltak_members'">
+            {{ opt.label_prefix }} <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong> {{ opt.label_suffix }}
+        </button>
+        {% endfor %}
+
+        {# Direct button #}
+        <button type="button"
+                :class="signoffPath === 'direct' ? 'btn-path btn-path-active' : 'btn-path'"
+                @click="signoffPath = 'direct'">
+            Vraag direct aan iemand om af te tekenen
+        </button>
+
+        {# Peer member forms #}
+        {% for opt in scout_signoff_options if opt.type == "speltak_members" %}
+        <form x-show="signoffPath === '{{ opt.speltak_id }}_speltak_members'" x-cloak
+              hx-post="/badges/jaarinsigne_2026/request-signoff-members"
+              hx-target="#jaarinsigne-2026-body"
+              hx-swap="outerHTML">
+            <p class="signoff-member-prompt">Wie van de <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong> wil je laten aftekenen?</p>
+            <div class="signoff-member-list">
+                {% for member in opt.members %}
+                <label class="signoff-member-label">
+                    <input type="checkbox" name="mentor_ids" value="{{ member.id }}">
+                    {{ member.name or '(onbekend)' }}
+                </label>
+                {% endfor %}
+            </div>
+            <button type="submit" class="btn-secondary btn-sm">Versturen</button>
+        </form>
+        {% endfor %}
+
+        {# Direct e-mail form, with previous-mentors autocomplete #}
+        {% if previous_mentors %}
+        <script id="ji26-prev-mentors" type="application/json">
+        { {% for mentor in previous_mentors %}{{ (mentor.name or '(onbekend)') | tojson }}: {{ mentor.id | tojson }}{% if not loop.last %},{% endif %}{% endfor %} }
+        </script>
+        <datalist id="ji26-prev-mentors-list">
+            {% for mentor in previous_mentors %}
+            <option value="{{ mentor.name or '(onbekend)' }}">
+            {% endfor %}
+        </datalist>
+        {% endif %}
+        <form x-show="signoffPath === 'direct'" x-cloak
+              class="jaarinsigne-signoff-direct-form"
+              @submit.prevent="
+                  const _m = JSON.parse(document.getElementById('ji26-prev-mentors')?.textContent || '{}');
+                  const _d = $el.elements['mentor_display'].value;
+                  htmx.ajax('POST', '/badges/jaarinsigne_2026/request-signoff', { target: '#jaarinsigne-2026-body', swap: 'outerHTML', values: { mentor_email: _m[_d] ?? _d } })">
+            <input type="text" name="mentor_display"
+                   placeholder="naam of e-mail van (bege-)leider" required
+                   {% if previous_mentors %}list="ji26-prev-mentors-list"{% endif %}>
+            <button type="submit" class="btn-secondary btn-sm">Versturen</button>
+        </form>
+
+        <button type="button" class="btn-cancel btn-sm" @click="open = false">Annuleren</button>
+    </div>
+</div>
+{% endif %}

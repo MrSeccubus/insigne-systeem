@@ -561,6 +561,16 @@ class TestScoutProgressHome:
         r = client.get(f"/scouts/{stranger.id}", follow_redirects=False)
         assert r.status_code == 303
 
+    def test_redirects_to_home_for_malformed_scout_id(self, client, db):
+        """`_require_scout_access` validates scout_id against the UUID regex
+        before any DB / interpolation step (CodeQL py/url-redirection defence
+        in depth — finding #81)."""
+        user = _active_user(db)
+        _set_auth(client, user)
+        r = client.get("/scouts/not-a-uuid", follow_redirects=False)
+        assert r.status_code == 303
+        assert r.headers["location"] == "/"
+
     def test_returns_200_for_speltakleider(self, client, db):
         leider, scout, g, s = _make_speltak_with_leider_and_scout(db)
         _set_auth(client, leider)

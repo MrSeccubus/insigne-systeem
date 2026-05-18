@@ -315,3 +315,73 @@ class AdminDashboardStats(BaseModel):
     speltakken_over_time: list[dict]
     signoff_over_time: list[dict]
     badges_over_time: list[dict]
+
+
+# ── Jaarinsigne 2026 (meta-insigne) ──────────────────────────────────────────
+
+class Jaarinsigne2026InclusionResponse(BaseModel):
+    badge_slug: str
+    badge_title: str
+    level_index: int
+    step_index: int
+    punten: int
+    groen: bool
+    step_text: str
+
+
+class Jaarinsigne2026InclusionRefResponse(BaseModel):
+    badge_slug: str
+    level_index: int
+    step_index: int
+    punten: int
+    groen: bool
+
+
+class Jaarinsigne2026ScoreDetailResponse(BaseModel):
+    total_punten: int
+    total_groen: int
+    total_niveau2: int
+    total_niveau3: int
+    distinct_insignes: int
+    inclusions: list[Jaarinsigne2026InclusionRefResponse]
+
+
+class Jaarinsigne2026ScoreSummaryResponse(BaseModel):
+    speltak_slug: str | None
+    speltak_min_punten: int
+    score: Jaarinsigne2026ScoreDetailResponse
+    eis_statuses: dict[int, str | None]
+    available_punten: int
+
+
+class Jaarinsigne2026ToggleInclusionRequest(BaseModel):
+    badge_slug: str = Field(..., pattern=r"^[a-z0-9_-]+$")
+    level_index: int = Field(..., ge=0)
+    step_index: int = Field(..., ge=0)
+
+
+class Jaarinsigne2026ToggleInclusionResponse(BaseModel):
+    badge_slug: str
+    level_index: int
+    step_index: int
+    included: bool  # True if newly added, False if removed
+
+
+class Jaarinsigne2026RequestSignoffSpeltakRequest(BaseModel):
+    speltak_id: str
+
+
+class Jaarinsigne2026RequestSignoffMembersRequest(BaseModel):
+    mentor_ids: list[str]
+
+
+class Jaarinsigne2026RequestSignoffRequest(BaseModel):
+    mentor_email: EmailStr
+
+
+class Jaarinsigne2026ConfirmSignoffRequest(BaseModel):
+    comment: str | None = Field(None, max_length=10_000)
+
+
+class Jaarinsigne2026RejectSignoffRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=10_000)

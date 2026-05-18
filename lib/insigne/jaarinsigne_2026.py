@@ -12,7 +12,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from insigne.badges import BadgeCatalogue
-from insigne.models import Jaarinsigne2026Inclusion, ProgressEntry
+from insigne.models import Jaarinsigne2026Inclusion, ProgressEntry, SpeltakMembership
 
 _CATALOGUE = BadgeCatalogue(Path(__file__).parent.parent.parent / "api" / "data")
 _JAARINSIGNE_SLUG = "jaarinsigne_2026"
@@ -432,3 +432,37 @@ def get_score_summary(
         "eis_statuses": eis_statuses,
         "available_punten": available_punten,
     }
+
+
+# ── Resolve user's speltak level + bevers min_punten ──────────────────────────
+
+def resolve_user_level(db: Session, user_id: str) -> tuple[str | None, int]:
+    """Return ``(speltak_slug, speltak_min_punten)`` for this user's jaarinsigne_2026 level.
+
+    Looks at the user's stored :class:`JaarinsigneLevel` first (manual override
+    or leider-set), falling back to ``get_user_primary_speltak_type`` derived
+    from speltak memberships.
+
+    ``speltak_min_punten`` is the bevers-specific "leiding_bepaald" threshold
+    pulled from the user's :class:`Speltak` row (defaults to 3 if absent or the
+    user isn't a member of a matching speltak).
+    """
+    from insigne import groups as groups_svc
+    from insigne import progress as progress_svc
+
+    jl = progress_svc.get_jaarinsigne_level(db, user_id, _JAARINSIGNE_SLUG)
+    if jl:
+        speltak_slug = jl.speltak_slug
+    else:
+        speltak_slug = groups_svc.get_user_primary_speltak_type(db, user_id)
+
+    speltak_min_punten = 3
+    if speltak_slug:
+        for m in db.query(SpeltakMembership).filter_by(
+            user_id=user_id, approved=True, withdrawn=False
+        ).all():
+            if m.speltak and m.speltak.speltak_type == speltak_slug:
+                if m.speltak.jaarinsigne_2026_min_punten is not None:
+                    speltak_min_punten = m.speltak.jaarinsigne_2026_min_punten
+                break
+    return speltak_slug, speltak_min_punten

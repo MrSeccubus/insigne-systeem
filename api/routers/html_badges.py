@@ -1203,23 +1203,7 @@ async def scout_set_jaarinsigne_level(
     return RedirectResponse(f"/scouts/{scout_id}/badges/{slug}", status_code=303)
 
 
-def _jaarinsigne_2026_resolve_level(db: Session, user_id: str) -> tuple[str | None, int]:
-    """Return (speltak_slug, speltak_min_punten) for this scout's jaarinsigne_2026 level."""
-    jl = progress_svc.get_jaarinsigne_level(db, user_id, "jaarinsigne_2026")
-    if jl:
-        speltak_slug = jl.speltak_slug
-    else:
-        speltak_slug = groups_svc.get_user_primary_speltak_type(db, user_id)
-    speltak_min_punten = 3
-    if speltak_slug:
-        for m in db.query(SpeltakMembership).filter_by(
-            user_id=user_id, approved=True, withdrawn=False
-        ).all():
-            if m.speltak and m.speltak.speltak_type == speltak_slug:
-                if m.speltak.jaarinsigne_2026_min_punten is not None:
-                    speltak_min_punten = m.speltak.jaarinsigne_2026_min_punten
-                break
-    return speltak_slug, speltak_min_punten
+_jaarinsigne_2026_resolve_level = jaarinsigne_2026_svc.resolve_user_level
 
 
 def _jaarinsigne_2026_signoff_state(

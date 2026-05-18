@@ -653,6 +653,178 @@ Returns a deduplicated list of mentors who have signed off at least one step for
 
 ---
 
+### Jaarinsigne 2026 (meta-insigne)
+
+The jaarinsigne 2026 progress is **derived**: scouts pick which signed-off
+eisen of regular (`gewoon` / `buitengewoon`) badges they want to count
+toward the meta-insigne, the service maps those onto the per-speltak drempels,
+and the resulting eis statuses are set programmatically. Sign-off happens
+in one batch across all eisen of the scout's speltak level rather than per
+individual eis. These endpoints expose that flow over JSON.
+
+The badge-level state is summarised by an implicit `signoff_state`:
+- `not_ready` — at least one drempel-eis is still `none` or `in_progress`.
+- `ready` — all drempel-eisen are `work_done`; the scout can request sign-off.
+- `pending` — at least one is `pending_signoff`; the editor is locked.
+- `done` — all drempel-eisen are `signed_off`.
+
+#### `GET /api/users/me/jaarinsigne_2026/score` — Score summary 🔒
+
+Returns the scout's aggregate score against their resolved speltak drempels.
+
+**Response `200`:**
+```json
+{
+  "speltak_slug": "welpen",
+  "speltak_min_punten": 3,
+  "score": {
+    "total_punten": 8,
+    "total_groen": 2,
+    "total_niveau2": 1,
+    "total_niveau3": 0,
+    "distinct_insignes": 4,
+    "inclusions": [
+      {"badge_slug": "kamperen", "level_index": 0, "step_index": 0, "punten": 1, "groen": false}
+    ]
+  },
+  "eis_statuses": {"0": "work_done", "1": "work_done", "2": "in_progress"},
+  "available_punten": 3
+}
+```
+
+**Response `404`:** Scout has no resolved speltak level.
+
+---
+
+#### `GET /api/users/me/jaarinsigne_2026/inclusions` — Current inclusions 🔒
+
+Returns the scout's selected jaarinsigne_2026 inclusions, sorted by
+`badges.yml` order → niveau → eis number.
+
+**Response `200`:** Array of `Jaarinsigne2026Inclusion` items (badge_slug,
+badge_title, level_index, step_index, punten, groen, step_text).
+
+---
+
+#### `GET /api/users/me/jaarinsigne_2026/inclusions/available` — Eligible signed-off eisen not yet included 🔒
+
+Same shape as `/inclusions`, but contains only eisen the scout could still add.
+
+**Response `200`:** Array of `Jaarinsigne2026Inclusion`.
+
+---
+
+#### `POST /api/users/me/jaarinsigne_2026/inclusions/toggle` — Flip an inclusion 🔒
+
+**Request:**
+```json
+{"badge_slug": "kamperen", "level_index": 0, "step_index": 0}
+```
+
+**Response `200`:**
+```json
+{"badge_slug": "kamperen", "level_index": 0, "step_index": 0, "included": true}
+```
+
+`included` is `true` if the row was added, `false` if it was removed.
+After a successful toggle the service re-computes every jaarinsigne_2026
+eis status against the new score.
+
+**Response `409`:** Eis is not `signed_off`, or the scout has a pending
+sign-off request (`Cannot edit inclusions while a sign-off request is
+pending. Revoke first.`).
+
+**Response `422`:** `badge_slug` is not in `gewoon` / `buitengewoon`.
+
+---
+
+#### `POST /api/users/me/jaarinsigne_2026/signoff/speltak` — Batch sign-off from all leiders of a speltak 🔒
+
+**Request:**
+```json
+{"speltak_id": "<uuid>"}
+```
+
+**Response `202`:** Array of `ProgressEntry` rows, now `pending_signoff`.
+
+**Response `404`:** No eligible mentors for that speltak.
+
+**Response `409`:** No eisen are ready for sign-off.
+
+---
+
+#### `POST /api/users/me/jaarinsigne_2026/signoff/members` — Batch sign-off from selected peer members 🔒
+
+**Request:**
+```json
+{"mentor_ids": ["<uuid>", "<uuid>"]}
+```
+
+**Response `202`:** Array of `ProgressEntry`. Filters the scout's own id from the list.
+
+**Response `404`:** No eligible mentors.
+
+---
+
+#### `POST /api/users/me/jaarinsigne_2026/signoff` — Batch sign-off via direct e-mail 🔒
+
+Creates a `User` row for the e-mail if absent (invite flow).
+
+**Request:**
+```json
+{"mentor_email": "leider@example.com"}
+```
+
+**Response `202`:** Array of `ProgressEntry`.
+
+**Response `403`:** Scout used their own e-mail address (`self_signoff`).
+
+---
+
+#### `DELETE /api/users/me/jaarinsigne_2026/signoff` — Revoke a pending batch sign-off 🔒
+
+Deletes every open `SignoffRequest` for the scout's jaarinsigne_2026 eisen
+and flips the affected entries back from `pending_signoff` to `work_done`.
+Idempotent — returns `200` with `[]` if nothing was pending.
+
+**Response `200`:** Array of `ProgressEntry` that were affected.
+
+---
+
+#### `POST /api/scouts/{scout_id}/jaarinsigne_2026/confirm-signoff` — Mentor confirms 🔒
+
+Confirms every jaarinsigne_2026 eis the scout invited the authenticated
+mentor for. Optional `comment` is stored on each entry.
+
+**Request:**
+```json
+{"comment": "Goed gedaan"}
+```
+
+**Response `200`:** Array of `ProgressEntry`, all now `signed_off`.
+
+**Response `403`:** Authenticated user is not an invited mentor, or tried
+to sign off their own jaarinsigne (`self_signoff`).
+
+---
+
+#### `POST /api/scouts/{scout_id}/jaarinsigne_2026/reject-signoff` — Mentor rejects 🔒
+
+Rejects the scout's jaarinsigne_2026 sign-off. Adds a `SignoffRejection`
+row per eis; reverts each entry to `work_done` only when no other mentor
+is still pending.
+
+**Request:**
+```json
+{"message": "Probeer de groene lijn nog eens."}
+```
+
+**Response `200`:** Array of `ProgressEntry`.
+
+**Response `403`:** Not invited, or self-reject.
+
+---
+
 ## Badge Response Shapes
 
 ### `Badge` (list item)

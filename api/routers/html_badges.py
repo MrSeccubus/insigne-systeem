@@ -1211,11 +1211,14 @@ async def badge_set_jaarinsigne_level(
     if not current_user:
         return RedirectResponse("/login", status_code=303)
     badge = _CATALOGUE.get(slug)
-    valid_slugs = {l["slug"] for l in badge["levels"]} if badge and badge.get("type") == "jaarinsigne" else set()
+    if not badge:
+        return RedirectResponse("/", status_code=303)
+    badge_slug = badge["slug"]
+    valid_slugs = {l["slug"] for l in badge["levels"]} if badge.get("type") == "jaarinsigne" else set()
     if speltak_slug not in valid_slugs or not groups_svc.can_user_set_own_jaarinsigne_level(db, current_user.id):
-        return RedirectResponse(f"/badges/{slug}" if badge else "/", status_code=303)
-    progress_svc.set_jaarinsigne_level(db, current_user.id, slug, speltak_slug, current_user.id)
-    return RedirectResponse(f"/badges/{slug}", status_code=303)
+        return RedirectResponse(f"/badges/{badge_slug}", status_code=303)
+    progress_svc.set_jaarinsigne_level(db, current_user.id, badge_slug, speltak_slug, current_user.id)
+    return RedirectResponse(f"/badges/{badge_slug}", status_code=303)
 
 
 @router.post("/scouts/{scout_id}/badges/{slug}/set-level", response_class=HTMLResponse)
@@ -1227,14 +1230,18 @@ async def scout_set_jaarinsigne_level(
     current_user, scout_or_redirect = _require_scout_access(request, scout_id, db)
     if current_user is None:
         return scout_or_redirect
-    if not groups_svc.get_edit_speltak_for_scout(db, current_user.id, scout_id):
-        return RedirectResponse(f"/scouts/{scout_id}", status_code=303)
+    scout = scout_or_redirect  # _require_scout_access returns the User on success
+    if not groups_svc.get_edit_speltak_for_scout(db, current_user.id, scout.id):
+        return RedirectResponse(f"/scouts/{scout.id}", status_code=303)
     badge = _CATALOGUE.get(slug)
-    valid_slugs = {l["slug"] for l in badge["levels"]} if badge and badge.get("type") == "jaarinsigne" else set()
+    if not badge:
+        return RedirectResponse(f"/scouts/{scout.id}", status_code=303)
+    badge_slug = badge["slug"]
+    valid_slugs = {l["slug"] for l in badge["levels"]} if badge.get("type") == "jaarinsigne" else set()
     if speltak_slug not in valid_slugs:
-        return RedirectResponse(f"/scouts/{scout_id}/badges/{slug}", status_code=303)
-    progress_svc.set_jaarinsigne_level(db, scout_id, slug, speltak_slug, current_user.id)
-    return RedirectResponse(f"/scouts/{scout_id}/badges/{slug}", status_code=303)
+        return RedirectResponse(f"/scouts/{scout.id}/badges/{badge_slug}", status_code=303)
+    progress_svc.set_jaarinsigne_level(db, scout.id, badge_slug, speltak_slug, current_user.id)
+    return RedirectResponse(f"/scouts/{scout.id}/badges/{badge_slug}", status_code=303)
 
 
 _jaarinsigne_2026_resolve_level = jaarinsigne_2026_svc.resolve_user_level

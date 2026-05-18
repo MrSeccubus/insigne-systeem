@@ -2,6 +2,18 @@
 
 Alle noemenswaardige wijzigingen per release, in omgekeerde chronologische volgorde.
 
+PR's voegen hun wijzigingen toe onder `## [Unreleased]`. Bij een release wordt
+deze sectie geconsolideerd in een nieuwe `## [vX.Y.Z]` sectie en `[Unreleased]`
+weer leeg gemaakt.
+
+---
+
+## [Unreleased]
+
+### Beveiliging
+
+- **Validatie van mentor-e-mailadressen bij aftekenverzoeken** (sluit #98) — de directe-aftekenflow (`POST /progress/{id}/request-signoff`) maakte tot nu toe een `User`-rij aan voor elke niet-lege invoer in het mentor-veld, ook voor onzin zoals `"not-an-email"`. De service controleert nu het formaat met dezelfde `email-validator` als Pydantic's `EmailStr`, weigert ongeldige adressen met `Conflict("invalid_email")`, en het HTML-formulier toont de melding *"Geef een geldig e-mailadres op."* inline. De JSON-API endpoint geeft `422` bij ongeldige invoer. Voorkomt vervuiling van de `users`-tabel via een formulierveld.
+
 ---
 
 ## [v0.12.1] — 2026-05-12

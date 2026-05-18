@@ -1,6 +1,7 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 
+from email_validator import EmailNotValidError, validate_email
 from sqlalchemy.orm import Session
 
 from .auth import hash_password, verify_password
@@ -13,6 +14,23 @@ _EMAIL_CHANGE_REVERT_DAYS = 7
 
 def _local_part(email: str) -> str:
     return email.split("@")[0]
+
+
+def is_valid_email(email: str) -> bool:
+    """Return True for an RFC-5322-shaped e-mail address.
+
+    Uses the same ``email-validator`` library Pydantic's ``EmailStr`` relies
+    on, so service-level validation matches what the JSON API enforces at the
+    schema layer. ``check_deliverability=False`` keeps this purely syntactic —
+    no DNS lookups, no network I/O.
+    """
+    if not email:
+        return False
+    try:
+        validate_email(email, check_deliverability=False)
+        return True
+    except EmailNotValidError:
+        return False
 
 
 def _make_token(db: Session, user_id: str, token_type: str) -> str:

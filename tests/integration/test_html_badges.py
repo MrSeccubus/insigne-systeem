@@ -247,6 +247,22 @@ class TestRequestSignoff:
         db.refresh(e)
         assert e.status == "pending_signoff"
 
+    def test_invalid_email_returns_inline_error_no_user_created(self, client, db):
+        """Issue #98 — typing a non-email in the mentor field surfaces an
+        inline error and does not pollute the User table."""
+        scout = _active_user(db)
+        _set_auth(client, scout)
+        e = _entry(db, scout, status="work_done")
+        users_before = db.query(User).count()
+        with patch("insigne.email.send"):
+            r = client.post(f"/progress/{e.id}/request-signoff",
+                            data={"mentor_email": "not-an-email", "notes": ""})
+        assert r.status_code == 200
+        assert "geldig e-mailadres" in r.text.lower()
+        assert db.query(User).count() == users_before
+        db.refresh(e)
+        assert e.status == "work_done"  # unchanged — no signoff request made
+
     def test_duplicate_mentor_returns_error_text(self, client, db):
         scout = _active_user(db)
         mentor = _active_user(db, "mentor@example.com", "Leider")

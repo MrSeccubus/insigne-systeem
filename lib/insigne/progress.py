@@ -154,7 +154,7 @@ def request_signoff(
 
     Only allowed when the entry status is 'work_done' or already 'pending_signoff'.
     Raises NotFound, Conflict("not_work_done"), Conflict("already_invited"),
-    Conflict("already_signed_off").
+    Conflict("already_signed_off"), Conflict("invalid_email").
     """
     entry = db.query(ProgressEntry).filter(
         ProgressEntry.id == entry_id,
@@ -167,7 +167,11 @@ def request_signoff(
     if entry.status not in ("work_done", "pending_signoff"):
         raise Conflict("not_work_done")
 
+    from .users import is_valid_email
+
     mentor_email = mentor_email.strip().lower()
+    if not is_valid_email(mentor_email):
+        raise Conflict("invalid_email")
 
     scout = db.get(User, scout_id)
     if scout and scout.email and scout.email.lower() == mentor_email:

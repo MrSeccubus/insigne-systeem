@@ -67,6 +67,29 @@ class TestJWT:
 
 # ── start_registration ────────────────────────────────────────────────────────
 
+class TestIsValidEmail:
+    @pytest.mark.parametrize("addr", [
+        "jan@example.com",
+        "frank+test@breedijk.net",
+        "user.name@sub.domain.example",
+    ])
+    def test_accepts_valid(self, addr):
+        assert user_svc.is_valid_email(addr) is True
+
+    @pytest.mark.parametrize("addr", [
+        "",
+        "   ",
+        "not-an-email",
+        "jan@",
+        "@example.com",
+        "jan@@example.com",
+        "jan@example",       # missing TLD
+        "jan example@x.com",
+    ])
+    def test_rejects_invalid(self, addr):
+        assert user_svc.is_valid_email(addr) is False
+
+
 class TestStartRegistration:
     def test_creates_pending_user(self, db):
         user_svc.start_registration(db, "jan@example.com")

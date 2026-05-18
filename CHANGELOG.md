@@ -41,6 +41,7 @@ weer leeg gemaakt.
 
 ### Opgelost
 
+- **Numerieke query-parameters met aangehangen leestekens** (sluit #93) — URL's die uit tekst tussen haakjes worden gekopieerd (zoals `(https://…?niveau=1)`) bevatten soms de afsluitende `)`. De HTML-routes voor `niveau` en `only_in_progress` accepteren nu een leidende numerieke waarde en strippen aangehangen niet-numerieke tekens, zodat zulke URL's gewoon de juiste pagina openen in plaats van een 422-foutmelding te tonen.
 - **Step-check dropdown positionering** (#96, sluit #95) — drie aparte bugs in de leider-aftekendropdown:
   - **Verkeerde positie na HTMX-swap**: de `<details>`-summary kreeg een Alpine.js `@toggle`-handler die `getBoundingClientRect()` leest en `top`/`left` op de dropdown zet wanneer deze `position: fixed` is. Mobile-layout (`position: absolute`) blijft onaangetast.
   - **Meerdere dropdowns tegelijk open**: globale `click`-handler op `document` sluit alle andere open `.step-check-wrapper`-elementen wanneer een wrapper wordt aangeklikt; klikken buiten elke wrapper sluit alles.

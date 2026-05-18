@@ -161,8 +161,6 @@
         <p style="color:#555;margin-bottom:2rem;">Volg je voortgang voor Scouting insignes en vraag aftekening aan bij je (bege-)leiders.</p>
     {% endif %}
 
-    {% set category_labels = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "explorers": "Explorers"} %}
-
     {% if current_user %}
     <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
         <a href="?only_favorites={% if only_favorites %}0{% else %}1{% endif %}&only_in_progress={{ 1 if only_in_progress else 0 }}"
@@ -185,6 +183,102 @@
     {% if visible_badges %}
     <h2 class="section-header">{{ category_labels.get(category, category ~ ' insignes') }}</h2>
 
+    {% if category == "jaarinsignes" %}
+    {# ── Flat jaarinsigne layout: one card per insigne+level, all in one grid ── #}
+    {# Desktop #}
+    <div class="badge-grid">
+        {% for badge in visible_badges %}
+        {% for card in badge.level_cards %}
+        <div class="badge-card-wrapper">
+            <a href="/badges/{{ badge.slug }}" class="badge-card">
+                <img src="{{ card.image }}"
+                     alt="{{ badge.title }}"
+                     class="badge-card-image"
+                     onerror="this.style.display='none'">
+                <h3 class="badge-card-insigne-title">{{ badge.title }}</h3>
+                <p class="badge-card-level">{{ card.name }}</p>
+                {% if current_user %}
+                    {% set pm = all_progress.get(badge.slug, {}) %}
+                    <div class="niveau-checks" style="justify-content:center;margin-top:0.4rem;">
+                        {% for step_idx in range(card.total) %}
+                        {% set s = pm.get((card.index, step_idx)) %}
+                        {% set st = s.status if s else "none" %}
+                        <span class="step-check step-check-{{ st }}">
+                            {%- if st == "signed_off" -%}✓{%- elif st == "pending_signoff" -%}?{%- endif -%}
+                        </span>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="progress-label">Bekijk de eisen →</div>
+                {% endif %}
+            </a>
+            {% if current_user %}
+            <button
+                hx-post="/favorites/toggle-badge"
+                hx-vals='{"badge_slug":"{{ badge.slug }}"}'
+                hx-target="this"
+                hx-swap="outerHTML"
+                class="badge-card-star btn-sm {% if badge.slug in user_favorite_slugs %}btn-star-active{% else %}btn-neutral{% endif %}"
+                title="{% if badge.slug in user_favorite_slugs %}Verwijder uit favorieten{% else %}Voeg toe aan favorieten{% endif %}"
+                onclick="event.stopPropagation()">
+                {% if badge.slug in user_favorite_slugs %}★{% else %}☆{% endif %}
+            </button>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% endfor %}
+    </div>
+
+    {# Mobile #}
+    {% for badge in visible_badges %}
+    {% for card in badge.level_cards %}
+    <div class="badge-mobile-card-wrapper">
+        <a href="/badges/{{ badge.slug }}" class="badge-mobile-card">
+            <div class="badge-mobile-honeycomb">
+                <img src="{{ card.image }}"
+                     alt="{{ card.name }}"
+                     class="badge-mobile-img badge-mobile-img--1"
+                     onerror="this.style.display='none'">
+            </div>
+            <div class="badge-mobile-progress">
+                <div class="badge-mobile-title">{{ badge.title }}</div>
+                {% set pm = all_progress.get(badge.slug, {}) %}
+                <div class="badge-mobile-niveau">
+                    <span class="badge-mobile-niveau-label">{{ card.short_name }}</span>
+                    <div class="badge-mobile-dots">
+                        {% if current_user %}
+                            {% for step_idx in range(card.total) %}
+                            {% set s = pm.get((card.index, step_idx)) %}
+                            {% set st = s.status if s else "none" %}
+                            <span class="step-check step-check-{{ st }}">
+                                {%- if st == "signed_off" -%}✓{%- elif st == "pending_signoff" -%}?{%- endif -%}
+                            </span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="badge-mobile-dots-hint">Bekijk eisen →</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </a>
+        {% if current_user %}
+        <button
+            hx-post="/favorites/toggle-badge"
+            hx-vals='{"badge_slug":"{{ badge.slug }}"}'
+            hx-target="this"
+            hx-swap="outerHTML"
+            class="badge-card-star btn-sm {% if badge.slug in user_favorite_slugs %}btn-star-active{% else %}btn-neutral{% endif %}"
+            title="{% if badge.slug in user_favorite_slugs %}Verwijder uit favorieten{% else %}Voeg toe aan favorieten{% endif %}"
+            onclick="event.stopPropagation()">
+            {% if badge.slug in user_favorite_slugs %}★{% else %}☆{% endif %}
+        </button>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% endfor %}
+
+    {% else %}
+    {# ── Regular layout: per-insigne header + grid of niveau cards ── #}
     {% for badge in visible_badges %}
     <h3 class="badge-group-title">
         <a href="/badges/{{ badge.slug }}">{{ badge.title }}</a>
@@ -203,6 +297,62 @@
         {% endif %}
     </h3>
 
+    {% if badge.type == "jaarinsigne" %}
+    {# Should not reach here when category=="jaarinsignes" — defensive fallback #}
+    {% for card in badge.level_cards %}
+    <div class="badge-grid">
+        <a href="/badges/{{ badge.slug }}" class="badge-card">
+            <img src="{{ card.image }}"
+                 alt="{{ badge.title }}"
+                 class="badge-card-image"
+                 onerror="this.style.display='none'">
+            <h3 class="badge-card-level">{{ card.name }}</h3>
+            {% if current_user %}
+                {% set pm = all_progress.get(badge.slug, {}) %}
+                <div class="niveau-checks" style="justify-content:center;margin-top:0.4rem;">
+                    {% for step_idx in range(card.total) %}
+                    {% set s = pm.get((card.index, step_idx)) %}
+                    {% set st = s.status if s else "none" %}
+                    <span class="step-check step-check-{{ st }}">
+                        {%- if st == "signed_off" -%}✓{%- elif st == "pending_signoff" -%}?{%- endif -%}
+                    </span>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="progress-label">Bekijk de eisen →</div>
+            {% endif %}
+        </a>
+    </div>
+    {# ── Mobile ── #}
+    <a href="/badges/{{ badge.slug }}" class="badge-mobile-card">
+        <div class="badge-mobile-honeycomb">
+            <img src="{{ card.image }}"
+                 alt="{{ card.name }}"
+                 class="badge-mobile-img badge-mobile-img--1"
+                 onerror="this.style.display='none'">
+        </div>
+        <div class="badge-mobile-progress">
+            {% set pm = all_progress.get(badge.slug, {}) %}
+            <div class="badge-mobile-niveau">
+                <span class="badge-mobile-niveau-label">{{ card.short_name }}</span>
+                <div class="badge-mobile-dots">
+                    {% if current_user %}
+                        {% for step_idx in range(card.total) %}
+                        {% set s = pm.get((card.index, step_idx)) %}
+                        {% set st = s.status if s else "none" %}
+                        <span class="step-check step-check-{{ st }}">
+                            {%- if st == "signed_off" -%}✓{%- elif st == "pending_signoff" -%}?{%- endif -%}
+                        </span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="badge-mobile-dots-hint">Bekijk eisen →</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+    {% else %}
     {# ── Desktop: one card per niveau ── #}
     <div class="badge-grid">
         {% for card in badge.level_cards %}
@@ -258,8 +408,10 @@
             {% endfor %}
         </div>
     </a>
+    {% endif %}
 
     {% endfor %}
+    {% endif %}{# end if category == "jaarinsignes" / else #}
 
     {% endif %}
     {% endfor %}

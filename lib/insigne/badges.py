@@ -5,6 +5,25 @@ import yaml
 
 _SLUG_RE = re.compile(r"^[a-z0-9_-]+$")
 
+# Plusscouts fall back to the highest defined level below them
+_SPELTAK_ORDER = ["bevers", "welpen", "scouts", "explorers", "roverscouts", "plusscouts"]
+
+
+def _parse_jaarinsigne_step(i: int, step_raw) -> dict:
+    """Parse one jaarinsigne eis, which has a titel and tekst field."""
+    if isinstance(step_raw, dict):
+        titel = step_raw.get("titel", "").strip()
+        tekst = step_raw.get("tekst", "").strip()
+        drempel = step_raw.get("drempel", None)
+    else:
+        # Legacy plain string: split heading from body
+        text = (step_raw or "").strip()
+        lines = text.split("\n", 1)
+        titel = lines[0].lstrip("#").strip()
+        tekst = lines[1].strip() if len(lines) > 1 else text
+        drempel = None
+    return {"index": i, "titel": titel, "text": tekst, "green": False, "drempel": drempel}
+
 
 def _parse_step(i, step):
     if isinstance(step, dict):
@@ -30,12 +49,59 @@ def _parse_full(slug: str, raw: dict, category: str | None) -> dict:
         "slug": slug,
         "title": raw["titel"],
         "category": category,
+        "type": raw.get("type", "gewoon"),
         "niveau_label": raw.get("niveau_label", "Niveau"),
         "niveau_label_kort": raw.get("niveau_label_kort", "N"),
         "images": [f"/images/{slug}.{i}.png" for i in (1, 2, 3)],
         "introduction": (raw.get("introductie") or "").strip(),
         "levels": step_groups,
         "afterword": (raw.get("nawoord") or "").strip(),
+    }
+
+
+def _parse_jaarinsigne(slug: str, raw: dict, category: str | None, speltakken_meta: list[dict]) -> dict:
+    """Parse a jaarinsigne badge.
+
+    level_index = speltak position in _SPELTAK_ORDER (0=bevers … 4=roverscouts, 5=plusscouts)
+    step_index  = eis index within that speltak's requirements
+    """
+    speltakken_data = raw.get("speltakken", {})
+
+    # Build levels list: one entry per speltak slug that appears in speltakken_meta
+    levels = []
+    for meta in speltakken_meta:
+        speltak_slug = meta["slug"]
+        if speltak_slug == "plusscouts":
+            # Plusscouts resolves at runtime; include if explicitly defined
+            eisen_raw = speltakken_data.get(speltak_slug)
+        else:
+            eisen_raw = speltakken_data.get(speltak_slug)
+
+        if eisen_raw is None:
+            continue
+
+        steps = [_parse_jaarinsigne_step(i, eis) for i, eis in enumerate(eisen_raw)]
+        level_index = _SPELTAK_ORDER.index(speltak_slug) if speltak_slug in _SPELTAK_ORDER else len(levels)
+        levels.append({
+            "slug": speltak_slug,
+            "name": meta["naam"],
+            "kort": meta["kort"],
+            "leeftijd": meta.get("leeftijd", ""),
+            "level_index": level_index,
+            "steps": steps,
+        })
+
+    return {
+        "slug": slug,
+        "title": raw["titel"],
+        "category": category,
+        "type": "jaarinsigne",
+        "images": [f"/images/{slug}.png"],
+        "introduction": (raw.get("introductie") or "").strip(),
+        "levels": levels,
+        "afterword": (raw.get("nawoord") or "").strip(),
+        "n_levels": len(levels),
+        "speltakken": speltakken_meta,
     }
 
 
@@ -49,18 +115,30 @@ class BadgeCatalogue:
         self._load()
 
     def _load(self):
+        speltakken_raw = yaml.safe_load((self.data_dir / "speltakken.yml").read_text())
+        self.speltakken_meta: list[dict] = speltakken_raw["speltakken"]
+
         index = yaml.safe_load((self.data_dir / "badges.yml").read_text())
-        for category, slugs in index["badges"].items():
+        self.category_labels: dict[str, str] = {}
+        for category, cat_data in index["badges"].items():
+            self.category_labels[category] = cat_data["label"]
             items = []
-            for slug in slugs:
+            for slug in cat_data["badges"]:
                 raw = yaml.safe_load((self.data_dir / "badges" / f"{slug}.yml").read_text())
+                badge_type = raw.get("type", "gewoon")
                 items.append({
                     "slug": slug,
                     "title": raw["titel"],
                     "category": category,
-                    "images": [f"/images/{slug}.{i}.png" for i in (1, 2, 3)],
+                    "type": badge_type,
+                    "images": [f"/images/{slug}.{i}.png" for i in (1, 2, 3)]
+                             if badge_type != "jaarinsigne"
+                             else [f"/images/{slug}.png"],
                 })
-                self._by_slug[slug] = _parse_full(slug, raw, category)
+                if badge_type == "jaarinsigne":
+                    self._by_slug[slug] = _parse_jaarinsigne(slug, raw, category, self.speltakken_meta)
+                else:
+                    self._by_slug[slug] = _parse_full(slug, raw, category)
             self._by_category[category] = items
 
     def get(self, slug: str) -> dict | None:
@@ -72,3 +150,29 @@ class BadgeCatalogue:
     def list(self) -> dict:
         """Return {'gewoon': [...], ...} ordered as in badges.yml."""
         return self._by_category
+
+    def resolve_jaarinsigne_level_index(self, badge: dict, speltak_slug: str | None) -> int | None:
+        """Return the level_index to use for this badge given a speltak_slug.
+
+        When speltak_slug is None (unknown), falls back to scouts then first defined level.
+        When speltak_slug is known but not defined, walks down to the highest available
+        lower level.  Returns None if no appropriate level exists (badge not available).
+        """
+        defined_slugs = {lvl["slug"] for lvl in badge["levels"]}
+
+        if speltak_slug is None:
+            if "scouts" in defined_slugs:
+                return _SPELTAK_ORDER.index("scouts")
+            return badge["levels"][0]["level_index"] if badge["levels"] else None
+
+        if speltak_slug in defined_slugs:
+            return _SPELTAK_ORDER.index(speltak_slug) if speltak_slug in _SPELTAK_ORDER else 0
+
+        # Walk down from the user's position to find the highest available lower level
+        if speltak_slug in _SPELTAK_ORDER:
+            user_pos = _SPELTAK_ORDER.index(speltak_slug)
+            for candidate in reversed(_SPELTAK_ORDER[:user_pos]):
+                if candidate in defined_slugs:
+                    return _SPELTAK_ORDER.index(candidate)
+
+        return None  # badge not available for this speltak type

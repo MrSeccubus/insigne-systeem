@@ -1,0 +1,1 @@
+Aftekenverzoek: {{ badge_title }} — {{ speltak_name }}

@@ -32,6 +32,8 @@ from schemas import (
     PendingEmailChangeResponse,
     RegisterRequest,
     SetupTokenResponse,
+    ToggleFavoriteBadgeRequest,
+    ToggleFavoriteBadgeResponse,
     TokenResponse,
     UpdateUserRequest,
     UserGroupMembershipResponse,
@@ -280,3 +282,21 @@ def cancel_my_request(
 ):
     groups_svc.cancel_membership_request(db, request_id=req_id, user_id=current_user.id)
     return Response(status_code=204)
+
+
+@router.get("/me/favorite-badges", response_model=list[str])
+def get_favorite_badges(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return sorted(user_svc.get_user_favorite_slugs(db, current_user.id))
+
+
+@router.post("/me/favorite-badges/toggle", response_model=ToggleFavoriteBadgeResponse)
+def toggle_favorite_badge(
+    body: ToggleFavoriteBadgeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    is_fav = user_svc.toggle_user_favorite_badge(db, current_user.id, body.badge_slug)
+    return ToggleFavoriteBadgeResponse(badge_slug=body.badge_slug, is_favorite=is_fav)

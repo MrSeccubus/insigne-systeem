@@ -1,27 +1,38 @@
 badges:
   gewoon:
-    - internationaal
-    - identiteit
-    - sport_spel
-    - water_sport_spel
-    - veilig_gezond
-    - koken
-    - kunstenaar
-    - op_het_podium
-    - samenleving
-    - media
-    - natuur_buitenleven
-    - navigeren
-    - houtbewerken
-    - vuur_stoken
-    - kamperen
-    - knopen
-    - pionieren
-    - bemanningslid
-    - varen_op_spierkracht
-    - creatief_varen
+    label: Gewone insignes
+    badges:
+      - internationaal
+      - identiteit
+      - sport_spel
+      - water_sport_spel
+      - veilig_gezond
+      - koken
+      - kunstenaar
+      - op_het_podium
+      - samenleving
+      - media
+      - natuur_buitenleven
+      - navigeren
+      - houtbewerken
+      - vuur_stoken
+      - kamperen
+      - knopen
+      - pionieren
+      - bemanningslid
+      - varen_op_spierkracht
+      - creatief_varen
   buitengewoon:
-    - vredeslicht
-    - lucht
+    label: Buitengewone insignes
+    badges:
+      - vredeslicht
+      - lucht
   explorers:
-    - explorer_jaarbadge
+    label: Explorers
+    badges:
+      - explorer_jaarbadge
+  jaarinsignes:
+    label: Jaarinsignes
+    badges:
+      - jaarinsigne_2026
+      - jaarinsigne_2025

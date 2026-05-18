@@ -67,6 +67,57 @@ class TestJWT:
 
 # ── start_registration ────────────────────────────────────────────────────────
 
+class TestIsValidEmail:
+    @pytest.mark.parametrize("addr", [
+        "jan@example.com",
+        "frank+test@breedijk.net",
+        "user.name@sub.domain.example",
+    ])
+    def test_accepts_valid(self, addr):
+        assert user_svc.is_valid_email(addr) is True
+
+    @pytest.mark.parametrize("addr", [
+        "",
+        "   ",
+        "not-an-email",
+        "jan@",
+        "@example.com",
+        "jan@@example.com",
+        "jan@example",       # missing TLD
+        "jan example@x.com",
+    ])
+    def test_rejects_invalid(self, addr):
+        assert user_svc.is_valid_email(addr) is False
+
+
+class TestGetOrCreatePendingUser:
+    def test_creates_pending_user_without_token(self, db):
+        from insigne.models import ConfirmationToken
+        user = user_svc.get_or_create_pending_user(db, "invitee@example.com")
+        assert user is not None
+        assert user.email == "invitee@example.com"
+        assert user.status == "pending"
+        # Critically: no ConfirmationToken should have been generated.
+        assert db.query(ConfirmationToken).filter_by(user_id=user.id).count() == 0
+
+    def test_returns_existing_user_unchanged(self, db):
+        u1 = user_svc.get_or_create_pending_user(db, "x@example.com")
+        u2 = user_svc.get_or_create_pending_user(db, "x@example.com")
+        assert u1.id == u2.id
+
+    def test_normalises_email(self, db):
+        u = user_svc.get_or_create_pending_user(db, "  X@Example.COM  ")
+        assert u.email == "x@example.com"
+
+    def test_raises_invalid_email_for_garbage_input(self, db):
+        """An inviter typing junk in the invite form must not leave a bogus
+        pending User row behind (issue #98 / #106)."""
+        users_before = db.query(User).count()
+        with pytest.raises(ValueError, match="invalid_email"):
+            user_svc.get_or_create_pending_user(db, "not-an-email")
+        assert db.query(User).count() == users_before
+
+
 class TestStartRegistration:
     def test_creates_pending_user(self, db):
         user_svc.start_registration(db, "jan@example.com")
@@ -484,3 +535,36 @@ class TestRevertEmailChange:
         req = user_svc.request_email_change(db, user, "new@example.com")
         user_svc.revert_email_change(db, req.revert_token)
         assert user_svc.revert_email_change(db, req.revert_token) is None
+
+
+# ── user favorite badges ──────────────────────────────────────────────────────
+
+class TestUserFavoriteBadges:
+    def test_get_favorites_empty(self, db):
+        user = _register_and_activate(db)
+        assert user_svc.get_user_favorite_slugs(db, user.id) == set()
+
+    def test_toggle_on_adds_favorite(self, db):
+        user = _register_and_activate(db)
+        result = user_svc.toggle_user_favorite_badge(db, user.id, "sport_spel")
+        assert result is True
+        assert user_svc.get_user_favorite_slugs(db, user.id) == {"sport_spel"}
+
+    def test_toggle_off_removes_favorite(self, db):
+        user = _register_and_activate(db)
+        user_svc.toggle_user_favorite_badge(db, user.id, "sport_spel")
+        result = user_svc.toggle_user_favorite_badge(db, user.id, "sport_spel")
+        assert result is False
+        assert user_svc.get_user_favorite_slugs(db, user.id) == set()
+
+    def test_multiple_favorites(self, db):
+        user = _register_and_activate(db)
+        user_svc.toggle_user_favorite_badge(db, user.id, "sport_spel")
+        user_svc.toggle_user_favorite_badge(db, user.id, "vredeslicht")
+        assert user_svc.get_user_favorite_slugs(db, user.id) == {"sport_spel", "vredeslicht"}
+
+    def test_favorites_are_per_user(self, db):
+        user_a = _register_and_activate(db, email="a@example.com")
+        user_b = _register_and_activate(db, email="b@example.com")
+        user_svc.toggle_user_favorite_badge(db, user_a.id, "sport_spel")
+        assert user_svc.get_user_favorite_slugs(db, user_b.id) == set()

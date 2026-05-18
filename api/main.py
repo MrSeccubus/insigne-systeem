@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 import insigne.models  # noqa: F401 — registers all ORM classes on Base.metadata
 from insigne import groups as groups_svc
 from insigne import progress as progress_svc
+from insigne import users as users_svc
 from insigne.badges import BadgeCatalogue
 from insigne.config import config
 from insigne.database import get_db
@@ -47,12 +48,14 @@ app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request, db: Session = Depends(get_db)):
+async def index(request: Request, only_favorites: int = 0, only_in_progress: int = 0, db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)
 
     all_badges = _CATALOGUE.list()
     signoff_count = 0
     all_progress: dict[str, dict] = {}
+    user_favorite_slugs: set[str] = set()
+    progress_slugs: set[str] = set()
 
     group_invites: list = []
     speltak_invites: list = []
@@ -68,11 +71,66 @@ async def index(request: Request, db: Session = Depends(get_db)):
         my_requests = groups_svc.list_my_membership_requests(db, current_user.id)
         pending_request_count = groups_svc.count_pending_requests_for_leader(db, current_user.id)
         my_group_memberships, my_speltak_memberships = groups_svc.list_active_memberships_for_user(db, current_user.id)
+        user_favorite_slugs = users_svc.get_user_favorite_slugs(db, current_user.id)
+        progress_slugs = set(all_progress.keys())
 
-    # Enrich each badge with 3 niveau cards (one per a/b/c sub-task level)
+    # Enrich each badge with level cards
     for badges in all_badges.values():
         for badge in badges:
             detail = _CATALOGUE.get(badge["slug"])
+            if detail.get("type") == "jaarinsigne":
+                badge["type"] = "jaarinsigne"
+                jl = progress_svc.get_jaarinsigne_level(db, current_user.id, badge["slug"]) if current_user else None
+                if jl:
+                    speltak_slug = jl.speltak_slug
+                elif current_user:
+                    speltak_slug = groups_svc.get_user_primary_speltak_type(db, current_user.id)
+                else:
+                    speltak_slug = None
+                resolved_level_index = _CATALOGUE.resolve_jaarinsigne_level_index(detail, speltak_slug)
+                level = next((l for l in detail["levels"] if l["level_index"] == resolved_level_index), None)
+                if level:
+                    slug_progress = all_progress.get(badge["slug"], {})
+                    n_steps = len(level["steps"])
+                    completed = sum(
+                        1 for step_idx in range(n_steps)
+                        if slug_progress.get((resolved_level_index, step_idx))
+                        and slug_progress[(resolved_level_index, step_idx)].status == "signed_off"
+                    )
+                    badge["level_cards"] = [{
+                        "index": resolved_level_index,
+                        "name": level["name"],
+                        "short_name": level["kort"],
+                        "image": f"/images/{badge['slug']}.png",
+                        "total": n_steps,
+                        "completed": completed,
+                        "completed_at": max(
+                            (slug_progress[(resolved_level_index, step_idx)].signed_off_at
+                             for step_idx in range(n_steps)
+                             if slug_progress.get((resolved_level_index, step_idx))
+                             and slug_progress[(resolved_level_index, step_idx)].status == "signed_off"
+                             and slug_progress[(resolved_level_index, step_idx)].signed_off_at),
+                            default=None,
+                        ),
+                    }]
+                else:
+                    # Jaarinsigne not available for this scout's speltak. Render
+                    # a placeholder card so the user can still navigate to the
+                    # detail page and see the "niet beschikbaar" notification
+                    # (and, if eligible, use the "stel als mijn niveau in"
+                    # buttons there).
+                    badge["level_cards"] = [{
+                        "index": -1,
+                        "name": "Niet beschikbaar voor jouw speltak",
+                        "short_name": "—",
+                        "image": f"/images/{badge['slug']}.png",
+                        "total": 0,
+                        "completed": 0,
+                        "completed_at": None,
+                        "unavailable": True,
+                    }]
+                continue
+            badge["type"] = "gewoon"
             niveau_label = detail.get("niveau_label", "Niveau")
             niveau_label_kort = detail.get("niveau_label_kort", "N")
             badge["level_cards"] = [
@@ -126,6 +184,7 @@ async def index(request: Request, db: Session = Depends(get_db)):
         name="index.html",
         context={
             "current_user": current_user,
+            "category_labels": _CATALOGUE.category_labels,
             "all_badges": all_badges,
             "all_progress": all_progress,
             "signoff_count": signoff_count,
@@ -137,6 +196,10 @@ async def index(request: Request, db: Session = Depends(get_db)):
             "my_speltak_memberships": my_speltak_memberships,
             "allow_invite_leader": current_user and (config.allow_any_user_to_create_groups or current_user.is_admin),
             "signed_off_niveaus": signed_off_niveaus,
+            "user_favorite_slugs": user_favorite_slugs,
+            "only_favorites": bool(only_favorites and current_user),
+            "progress_slugs": progress_slugs,
+            "only_in_progress": bool(only_in_progress and current_user),
         },
     )
     response.headers["Cache-Control"] = "no-store"

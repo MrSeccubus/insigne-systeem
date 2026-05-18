@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 import jwt
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -52,8 +52,14 @@ def _get_current_user(request: Request, db: Session) -> User | None:
 # --- Registration ---
 
 @router.get("/register", response_class=HTMLResponse)
-async def register_page(request: Request, db: Session = Depends(get_db)):
-    return _page(request, "register.html", db)
+async def register_page(
+    request: Request,
+    email: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Step 1 of registration. ``?email=`` pre-fills the e-mail field so
+    invitation e-mails can deep-link new users without expiring tokens."""
+    return _page(request, "register.html", db, prefill_email=(email or ""))
 
 
 @router.get("/register/confirm", response_class=HTMLResponse)
@@ -485,3 +491,27 @@ async def import_progress_html(
 
     return _page(request, "export.html", db,
                  import_result={"error": error, "count": count} if error is None else {"error": error, "count": 0})
+
+
+@router.post("/favorites/toggle-badge", response_class=HTMLResponse)
+def toggle_favorite_badge(
+    request: Request,
+    badge_slug: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    import html as _html
+    current_user = _get_current_user(request, db)
+    if not current_user:
+        return HTMLResponse("", status_code=401)
+    is_fav = user_svc.toggle_user_favorite_badge(db, current_user.id, badge_slug)
+    label = "Verwijder uit favorieten" if is_fav else "Voeg toe aan favorieten"
+    star = "★" if is_fav else "☆"
+    css_class = "btn-star-active" if is_fav else "btn-neutral"
+    safe_slug = _html.escape(badge_slug, quote=True)
+    return HTMLResponse(
+        f'<button hx-post="/favorites/toggle-badge" '
+        f'hx-vals=\'{{"badge_slug":"{safe_slug}"}}\' hx-target="this" hx-swap="outerHTML" '
+        f'class="btn-sm {css_class}" style="font-size:1rem;padding:0 0.4rem;line-height:1.6;" '
+        f'title="{label}" onclick="event.stopPropagation()">'
+        f'{star}</button>'
+    )

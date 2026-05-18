@@ -1,10 +1,11 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 
+from email_validator import EmailNotValidError, validate_email
 from sqlalchemy.orm import Session
 
 from .auth import hash_password, verify_password
-from .models import ConfirmationToken, EmailChangeRequest, GroupMembership, SpeltakMembership, User
+from .models import ConfirmationToken, EmailChangeRequest, GroupMembership, SpeltakMembership, User, UserFavoriteBadge
 
 _TOKEN_EXPIRE_HOURS = 1
 _EMAIL_CHANGE_CONFIRM_HOURS = 24
@@ -13,6 +14,23 @@ _EMAIL_CHANGE_REVERT_DAYS = 7
 
 def _local_part(email: str) -> str:
     return email.split("@")[0]
+
+
+def is_valid_email(email: str) -> bool:
+    """Return True for an RFC-5322-shaped e-mail address.
+
+    Uses the same ``email-validator`` library Pydantic's ``EmailStr`` relies
+    on, so service-level validation matches what the JSON API enforces at the
+    schema layer. ``check_deliverability=False`` keeps this purely syntactic —
+    no DNS lookups, no network I/O.
+    """
+    if not email:
+        return False
+    try:
+        validate_email(email, check_deliverability=False)
+        return True
+    except EmailNotValidError:
+        return False
 
 
 def _make_token(db: Session, user_id: str, token_type: str) -> str:
@@ -24,6 +42,29 @@ def _make_token(db: Session, user_id: str, token_type: str) -> str:
         expires_at=datetime.now(timezone.utc) + timedelta(hours=_TOKEN_EXPIRE_HOURS),
     ))
     return value
+
+
+def get_or_create_pending_user(db: Session, email: str) -> User:
+    """Return the existing :class:`User` with this e-mail, or create one in
+    pending state.
+
+    Used by invite flows that need a stable ``user_id`` for the pending
+    membership but should **not** issue a 1-hour-valid confirmation token —
+    the invitee starts the registration flow themselves at their own pace.
+
+    Raises ``ValueError("invalid_email")`` for syntactically invalid input,
+    so an inviter typing junk in the form does not pollute the ``users``
+    table with a bogus pending row.
+    """
+    email = email.strip().lower()
+    if not is_valid_email(email):
+        raise ValueError("invalid_email")
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        user = User(email=email)
+        db.add(user)
+        db.flush()
+    return user
 
 
 def start_registration(db: Session, email: str) -> tuple[str, str, User]:
@@ -287,3 +328,21 @@ def pending_email_change(db: Session, user_id: str) -> "EmailChangeRequest | Non
         EmailChangeRequest.reverted_at.is_(None),
         EmailChangeRequest.expires_at > now,
     ).first()
+
+
+def get_user_favorite_slugs(db: Session, user_id: str) -> set[str]:
+    rows = db.query(UserFavoriteBadge).filter_by(user_id=user_id).all()
+    return {r.badge_slug for r in rows}
+
+
+def toggle_user_favorite_badge(db: Session, user_id: str, badge_slug: str) -> bool:
+    existing = db.query(UserFavoriteBadge).filter_by(
+        user_id=user_id, badge_slug=badge_slug
+    ).first()
+    if existing:
+        db.delete(existing)
+        db.commit()
+        return False
+    db.add(UserFavoriteBadge(user_id=user_id, badge_slug=badge_slug))
+    db.commit()
+    return True

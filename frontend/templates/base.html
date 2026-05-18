@@ -96,6 +96,17 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
     <script>window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });</script>
+    <script>
+    document.addEventListener('click', (e) => {
+        const wrapper = e.target.closest('.step-check-wrapper');
+        document.querySelectorAll('.step-check-wrapper[open]').forEach(el => {
+            if (el !== wrapper) el.removeAttribute('open');
+        });
+    });
+    document.addEventListener('scroll', () => {
+        document.querySelectorAll('.step-check-wrapper[open]').forEach(el => el.removeAttribute('open'));
+    }, { passive: true, capture: true });
+    </script>
 </head>
 <body{% if dev %} class="dev"{% endif %}>
     {% if dev %}<div class="dev-banner">Development</div>{% endif %}

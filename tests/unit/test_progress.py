@@ -295,6 +295,19 @@ class TestRequestSignoff:
         with pytest.raises(progress_svc.NotFound):
             progress_svc.request_signoff(db, scout.id, e.id, "mentor@example.com")
 
+    def test_raises_invalid_email_for_garbage_input(self, db):
+        """A scout pasting non-email text into the mentor field must not leave
+        a User row behind (issue #98)."""
+        from insigne.models import User
+        scout = _active_user(db)
+        e = _entry(db, scout)
+        e.status = "work_done"
+        db.commit()
+        users_before = db.query(User).count()
+        with pytest.raises(progress_svc.Conflict, match="invalid_email"):
+            progress_svc.request_signoff(db, scout.id, e.id, "not-an-email")
+        assert db.query(User).count() == users_before
+
 
 # ── confirm_signoff ───────────────────────────────────────────────────────────
 

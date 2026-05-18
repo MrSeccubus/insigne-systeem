@@ -11,6 +11,7 @@ from jinja2 import ChoiceLoader, Environment, FileSystemLoader
 from markupsafe import Markup, escape
 
 from .config import config
+from .eis_render import render_eis_email
 
 _DEFAULT_TEMPLATES = Path(__file__).parent / "email_templates"
 
@@ -26,6 +27,7 @@ def _env() -> Environment:
     loaders.append(FileSystemLoader(str(_DEFAULT_TEMPLATES)))
     env = Environment(loader=ChoiceLoader(loaders), autoescape=True)
     env.filters["nl2br"] = _nl2br
+    env.filters["render_eis"] = render_eis_email
     return env
 
 
@@ -94,7 +96,7 @@ def send_welcome_email(to: str, naam: str) -> None:
 
 
 def send_mentor_signoff_invite_email(to: str, scout_name: str, badge_title: str, niveau_number: int, step_text: str, notes: str | None = None) -> None:
-    register_url = f"{config.base_url}/register"
+    register_url = f"{config.base_url}/register?email={quote_plus(to)}"
     send(to, "mentor_signoff_invite",
          email=to,
          scout_name=scout_name,
@@ -115,6 +117,78 @@ def send_mentor_signoff_request_email(to: str, scout_name: str, badge_title: str
          step_text=step_text,
          notes=notes,
          signoff_url=signoff_url)
+
+
+def send_mentor_jaarinsigne_signoff_request_email(
+    to: str, scout_name: str, badge_slug: str, badge_title: str,
+    speltak_name: str, speltak_leeftijd: str, eisen: list, notes: str | None = None,
+) -> None:
+    signoff_url = f"{config.base_url}/signoff-requests"
+    send(to, "mentor_jaarinsigne_signoff_request",
+         email=to,
+         scout_name=scout_name,
+         badge_slug=badge_slug,
+         badge_title=badge_title,
+         speltak_name=speltak_name,
+         speltak_leeftijd=speltak_leeftijd,
+         eisen=eisen,
+         notes=notes,
+         signoff_url=signoff_url)
+
+
+def send_mentor_jaarinsigne_signoff_invite_email(
+    to: str, scout_name: str, badge_slug: str, badge_title: str,
+    speltak_name: str, speltak_leeftijd: str, eisen: list, notes: str | None = None,
+) -> None:
+    register_url = f"{config.base_url}/register?email={quote_plus(to)}"
+    send(to, "mentor_jaarinsigne_signoff_invite",
+         email=to,
+         scout_name=scout_name,
+         badge_slug=badge_slug,
+         badge_title=badge_title,
+         speltak_name=speltak_name,
+         speltak_leeftijd=speltak_leeftijd,
+         eisen=eisen,
+         notes=notes,
+         register_url=register_url)
+
+
+def send_scout_jaarinsigne_signed_off_email(
+    to: str, scout_name: str, badge_slug: str, badge_title: str,
+    speltak_name: str, speltak_leeftijd: str, eisen: list,
+    mentor_name: str, mentor_comment: str | None = None,
+) -> None:
+    badge_url = f"{config.base_url}/badges/{badge_slug}"
+    send(to, "scout_jaarinsigne_signed_off",
+         email=to,
+         scout_name=scout_name,
+         badge_slug=badge_slug,
+         badge_title=badge_title,
+         speltak_name=speltak_name,
+         speltak_leeftijd=speltak_leeftijd,
+         eisen=eisen,
+         mentor_name=mentor_name,
+         mentor_comment=mentor_comment,
+         badge_url=badge_url)
+
+
+def send_scout_jaarinsigne_rejected_email(
+    to: str, scout_name: str, badge_slug: str, badge_title: str,
+    speltak_name: str, speltak_leeftijd: str, eisen: list,
+    mentor_name: str, message: str,
+) -> None:
+    badge_url = f"{config.base_url}/badges/{badge_slug}"
+    send(to, "scout_jaarinsigne_rejected",
+         email=to,
+         scout_name=scout_name,
+         badge_slug=badge_slug,
+         badge_title=badge_title,
+         speltak_name=speltak_name,
+         speltak_leeftijd=speltak_leeftijd,
+         eisen=eisen,
+         mentor_name=mentor_name,
+         message=message,
+         badge_url=badge_url)
 
 
 def send_scout_signed_off_email(to: str, scout_name: str, badge_slug: str, badge_title: str, niveau_number: int, level_name: str, step_text: str, mentor_name: str, mentor_comment: str | None = None) -> None:
@@ -145,10 +219,10 @@ def send_scout_rejected_email(to: str, scout_name: str, badge_title: str, niveau
          badge_url=badge_url)
 
 
-def send_groepsleider_invite_email(to: str, naam: str, code: str, inviter_name: str, group_name: str) -> None:
-    confirm_url = f"{config.base_url}/register/confirm/{quote_plus(code)}"
+def send_groepsleider_invite_email(to: str, naam: str, inviter_name: str, group_name: str) -> None:
+    register_url = f"{config.base_url}/register?email={quote_plus(to)}"
     send(to, "groepsleider_invite",
-         email=to, naam=naam, code=code, confirm_url=confirm_url,
+         email=to, naam=naam, register_url=register_url,
          inviter_name=inviter_name, group_name=group_name)
 
 
@@ -163,12 +237,12 @@ def send_membership_invite_email(
 
 
 def send_speltak_invite_email(
-    to: str, naam: str, code: str, inviter_name: str,
+    to: str, naam: str, inviter_name: str,
     group_name: str, speltak_name: str, role: str,
 ) -> None:
-    confirm_url = f"{config.base_url}/register/confirm/{quote_plus(code)}"
+    register_url = f"{config.base_url}/register?email={quote_plus(to)}"
     send(to, "speltak_invite",
-         email=to, naam=naam, code=code, confirm_url=confirm_url,
+         email=to, naam=naam, register_url=register_url,
          inviter_name=inviter_name, group_name=group_name,
          speltak_name=speltak_name, role=role)
 

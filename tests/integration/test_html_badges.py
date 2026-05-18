@@ -58,6 +58,18 @@ class TestBadgeDetail:
         r = client.get(f"/badges/{_BADGE}?niveau=1")
         assert r.status_code == 200
 
+    def test_niveau_with_trailing_paren_still_renders(self, client, db):
+        """Bug #93: URLs copied from inside (parentheses) sometimes include
+        the trailing ')'. The page should still render rather than 422.
+        """
+        r = client.get(f"/badges/{_BADGE}?niveau=1)")
+        assert r.status_code == 200
+
+    def test_niveau_with_garbage_falls_back_to_no_filter(self, client, db):
+        # Non-numeric leading char → niveau is treated as None, page still loads
+        r = client.get(f"/badges/{_BADGE}?niveau=abc")
+        assert r.status_code == 200
+
 
 # ── render_eis integration: introduction, afterword, and step text in HTML ───
 
@@ -246,6 +258,22 @@ class TestRequestSignoff:
         assert r.status_code == 200
         db.refresh(e)
         assert e.status == "pending_signoff"
+
+    def test_invalid_email_returns_inline_error_no_user_created(self, client, db):
+        """Issue #98 — typing a non-email in the mentor field surfaces an
+        inline error and does not pollute the User table."""
+        scout = _active_user(db)
+        _set_auth(client, scout)
+        e = _entry(db, scout, status="work_done")
+        users_before = db.query(User).count()
+        with patch("insigne.email.send"):
+            r = client.post(f"/progress/{e.id}/request-signoff",
+                            data={"mentor_email": "not-an-email", "notes": ""})
+        assert r.status_code == 200
+        assert "geldig e-mailadres" in r.text.lower()
+        assert db.query(User).count() == users_before
+        db.refresh(e)
+        assert e.status == "work_done"  # unchanged — no signoff request made
 
     def test_duplicate_mentor_returns_error_text(self, client, db):
         scout = _active_user(db)
@@ -560,6 +588,16 @@ class TestScoutProgressHome:
         _set_auth(client, user)
         r = client.get(f"/scouts/{stranger.id}", follow_redirects=False)
         assert r.status_code == 303
+
+    def test_redirects_to_home_for_malformed_scout_id(self, client, db):
+        """`_require_scout_access` validates scout_id against the UUID regex
+        before any DB / interpolation step (CodeQL py/url-redirection defence
+        in depth — finding #81)."""
+        user = _active_user(db)
+        _set_auth(client, user)
+        r = client.get("/scouts/not-a-uuid", follow_redirects=False)
+        assert r.status_code == 303
+        assert r.headers["location"] == "/"
 
     def test_returns_200_for_speltakleider(self, client, db):
         leider, scout, g, s = _make_speltak_with_leider_and_scout(db)

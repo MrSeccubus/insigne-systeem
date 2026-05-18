@@ -12,16 +12,10 @@
             <strong>{{ inviter_name }}</strong> heeft jouw e-mailadres toegevoegd als <strong>{{ role }}</strong> bij speltak <strong>{{ speltak_name }}</strong> van groep <strong>{{ group_name }}</strong> in het Insigne Systeem.
           </p>
           <p style="margin:0 0 1.5rem;color:#333;line-height:1.6;">
-            Maak een account aan via de onderstaande knop om toegang te krijgen. Gebruik de code hieronder om je e-mailadres te bevestigen.
+            Klik op de knop hieronder om een account aan te maken. Je e-mailadres staat al ingevuld; je ontvangt daarna een bevestigingscode per e-mail om je registratie af te ronden.
           </p>
-          <div style="text-align:center;margin:1.5rem 0;">
-            <span style="display:inline-block;font-size:2rem;font-weight:700;letter-spacing:0.15em;
-                         background:#f5f5f5;border:1px solid #ddd;border-radius:6px;
-                         padding:0.75rem 1.5rem;color:#1a1a1a;">{{ code }}</span>
-          </div>
-          <p style="margin:0 0 1.5rem;color:#555;font-size:0.9rem;text-align:center;">De code is één uur geldig.</p>
           <div style="text-align:center;margin:0 0 1.5rem;">
-            <a href="{{ confirm_url }}"
+            <a href="{{ register_url }}"
                style="display:inline-block;background:#00A651;color:#fff;text-decoration:none;
                       font-weight:600;padding:0.75rem 2rem;border-radius:4px;font-size:1rem;">
               Account aanmaken
@@ -29,7 +23,7 @@
           </div>
           <p style="margin:0 0 1.5rem;color:#555;font-size:0.85rem;text-align:center;">
             Of open deze link in je browser:<br>
-            <a href="{{ confirm_url }}" style="color:#00A651;">{{ confirm_url }}</a>
+            <a href="{{ register_url }}" style="color:#00A651;">{{ register_url }}</a>
           </p>
           <p style="margin:0;color:#888;font-size:0.85rem;">
             Verwacht je deze uitnodiging niet? Dan kun je deze e-mail negeren.

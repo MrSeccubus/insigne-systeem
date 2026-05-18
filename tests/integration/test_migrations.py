@@ -25,7 +25,10 @@ EXPECTED_TABLES = {
     "membership_requests",
     "speltak_favorite_badges",
     "group_favorite_badges",
+    "user_favorite_badges",
     "email_change_requests",
+    "jaarinsigne_levels",
+    "jaarinsigne_2026_inclusions",
 }
 
 

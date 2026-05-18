@@ -575,6 +575,8 @@ Sends a sign-off request to every speltakleider of the given speltak. Suitable f
 
 **Response `202`:** Sign-off requests sent.
 
+**Response `403`:** Scout is not an active member of that speltak.
+
 **Response `404`:** Progress entry not found, or no eligible leiders found (`no_eligible_mentors`).
 
 **Response `409`:** Entry is already `signed_off`, or not in `work_done`/`pending_signoff` status.
@@ -583,7 +585,7 @@ Sends a sign-off request to every speltakleider of the given speltak. Suitable f
 
 #### `POST /api/progress/{id}/signoff-members` — Request sign-off from selected members 🔒
 
-Sends sign-off requests to the selected member(s). Suitable for peer-signoff speltakken.
+Sends sign-off requests to the selected member(s). Suitable for peer-signoff speltakken. Silently drops any `mentor_id` that does not share an active speltak with the scout.
 
 **Request body:**
 
@@ -595,7 +597,7 @@ Sends sign-off requests to the selected member(s). Suitable for peer-signoff spe
 
 **Response `202`:** Sign-off requests sent.
 
-**Response `404`:** Progress entry not found, or all selected users were ineligible (`no_eligible_mentors`).
+**Response `404`:** Progress entry not found, or all selected users were ineligible after filtering (`no_eligible_mentors`).
 
 **Response `409`:** Entry is already `signed_off`, or not in `work_done`/`pending_signoff` status.
 
@@ -650,6 +652,180 @@ Returns a deduplicated list of mentors who have signed off at least one step for
   { "user_id": "m1m2m3m4-...", "name": "Leider Piet" }
 ]
 ```
+
+---
+
+### Jaarinsigne 2026 (meta-insigne)
+
+The jaarinsigne 2026 progress is **derived**: scouts pick which signed-off
+eisen of regular (`gewoon` / `buitengewoon`) badges they want to count
+toward the meta-insigne, the service maps those onto the per-speltak drempels,
+and the resulting eis statuses are set programmatically. Sign-off happens
+in one batch across all eisen of the scout's speltak level rather than per
+individual eis. These endpoints expose that flow over JSON.
+
+The badge-level state is summarised by an implicit `signoff_state`:
+- `not_ready` — at least one drempel-eis is still `none` or `in_progress`.
+- `ready` — all drempel-eisen are `work_done`; the scout can request sign-off.
+- `pending` — at least one is `pending_signoff`; the editor is locked.
+- `done` — all drempel-eisen are `signed_off`.
+
+#### `GET /api/users/me/jaarinsigne_2026/score` — Score summary 🔒
+
+Returns the scout's aggregate score against their resolved speltak drempels.
+
+**Response `200`:**
+```json
+{
+  "speltak_slug": "welpen",
+  "speltak_min_punten": 3,
+  "score": {
+    "total_punten": 8,
+    "total_groen": 2,
+    "total_niveau2": 1,
+    "total_niveau3": 0,
+    "distinct_insignes": 4,
+    "inclusions": [
+      {"badge_slug": "kamperen", "level_index": 0, "step_index": 0, "punten": 1, "groen": false}
+    ]
+  },
+  "eis_statuses": {"0": "work_done", "1": "work_done", "2": "in_progress"},
+  "available_punten": 3
+}
+```
+
+**Response `404`:** Scout has no resolved speltak level.
+
+---
+
+#### `GET /api/users/me/jaarinsigne_2026/inclusions` — Current inclusions 🔒
+
+Returns the scout's selected jaarinsigne_2026 inclusions, sorted by
+`badges.yml` order → niveau → eis number.
+
+**Response `200`:** Array of `Jaarinsigne2026Inclusion` items (badge_slug,
+badge_title, level_index, step_index, punten, groen, step_text).
+
+---
+
+#### `GET /api/users/me/jaarinsigne_2026/inclusions/available` — Eligible signed-off eisen not yet included 🔒
+
+Same shape as `/inclusions`, but contains only eisen the scout could still add.
+
+**Response `200`:** Array of `Jaarinsigne2026Inclusion`.
+
+---
+
+#### `POST /api/users/me/jaarinsigne_2026/inclusions/toggle` — Flip an inclusion 🔒
+
+**Request:**
+```json
+{"badge_slug": "kamperen", "level_index": 0, "step_index": 0}
+```
+
+**Response `200`:**
+```json
+{"badge_slug": "kamperen", "level_index": 0, "step_index": 0, "included": true}
+```
+
+`included` is `true` if the row was added, `false` if it was removed.
+After a successful toggle the service re-computes every jaarinsigne_2026
+eis status against the new score.
+
+**Response `409`:** Eis is not `signed_off`, or the scout has a pending
+sign-off request (`Cannot edit inclusions while a sign-off request is
+pending. Revoke first.`).
+
+**Response `422`:** `badge_slug` is not in `gewoon` / `buitengewoon`.
+
+---
+
+#### `POST /api/users/me/jaarinsigne_2026/signoff/speltak` — Batch sign-off from all leiders of a speltak 🔒
+
+**Request:**
+```json
+{"speltak_id": "<uuid>"}
+```
+
+**Response `202`:** Array of `ProgressEntry` rows, now `pending_signoff`.
+
+**Response `403`:** Scout is not an active member of that speltak.
+
+**Response `404`:** No eligible mentors for that speltak.
+
+**Response `409`:** No eisen are ready for sign-off.
+
+---
+
+#### `POST /api/users/me/jaarinsigne_2026/signoff/members` — Batch sign-off from selected peer members 🔒
+
+**Request:**
+```json
+{"mentor_ids": ["<uuid>", "<uuid>"]}
+```
+
+**Response `202`:** Array of `ProgressEntry`. Filters the scout's own id from the list, and silently drops any `mentor_id` that does not share an active speltak with the scout.
+
+**Response `404`:** No eligible mentors after filtering.
+
+---
+
+#### `POST /api/users/me/jaarinsigne_2026/signoff` — Batch sign-off via direct e-mail 🔒
+
+Creates a `User` row for the e-mail if absent (invite flow).
+
+**Request:**
+```json
+{"mentor_email": "leider@example.com"}
+```
+
+**Response `202`:** Array of `ProgressEntry`.
+
+**Response `403`:** Scout used their own e-mail address (`self_signoff`).
+
+---
+
+#### `DELETE /api/users/me/jaarinsigne_2026/signoff` — Revoke a pending batch sign-off 🔒
+
+Deletes every open `SignoffRequest` for the scout's jaarinsigne_2026 eisen
+and flips the affected entries back from `pending_signoff` to `work_done`.
+Idempotent — returns `200` with `[]` if nothing was pending.
+
+**Response `200`:** Array of `ProgressEntry` that were affected.
+
+---
+
+#### `POST /api/scouts/{scout_id}/jaarinsigne_2026/confirm-signoff` — Mentor confirms 🔒
+
+Confirms every jaarinsigne_2026 eis the scout invited the authenticated
+mentor for. Optional `comment` is stored on each entry.
+
+**Request:**
+```json
+{"comment": "Goed gedaan"}
+```
+
+**Response `200`:** Array of `ProgressEntry`, all now `signed_off`.
+
+**Response `403`:** Authenticated user is not an invited mentor, or tried
+to sign off their own jaarinsigne (`self_signoff`).
+
+---
+
+#### `POST /api/scouts/{scout_id}/jaarinsigne_2026/reject-signoff` — Mentor rejects 🔒
+
+Rejects the scout's jaarinsigne_2026 sign-off. Adds a `SignoffRejection`
+row per eis; reverts each entry to `work_done` only when no other mentor
+is still pending.
+
+**Request:**
+```json
+{"message": "Probeer de groene lijn nog eens."}
+```
+
+**Response `200`:** Array of `ProgressEntry`.
+
+**Response `403`:** Not invited, or self-reject.
 
 ---
 
@@ -950,14 +1126,18 @@ Requires groepsleider.
 **Request body:**
 
 ```json
-{ "name": "Welpen", "slug": "welpen", "peer_signoff": false }
+{ "name": "Welpen", "slug": "welpen", "peer_signoff": false, "speltak_type": "welpen" }
 ```
 
 `peer_signoff: true` marks the speltak as a volwassenen speltak where members may sign off each other's progress.
 
+`speltak_type` tags the speltak with its age group (`bevers` | `welpen` | `scouts` | `explorers` | `roverscouts` | `plusscouts`). Omit or set to `null` for unknown. Any other value returns `422`.
+
 **Response `201`:** `Speltak`
 
 **Response `409`:** Slug already in use within this group.
+
+**Response `422`:** Invalid `speltak_type` value.
 
 ---
 
@@ -965,9 +1145,13 @@ Requires groepsleider.
 
 Requires groepsleider.
 
-**Request body:** `{ "name": "...", "slug": "...", "peer_signoff": false }`
+**Request body:** `{ "name": "...", "slug": "...", "peer_signoff": false, "speltak_type": "scouts" }`
+
+`speltak_type` follows the same rules as for creation. Omit or `null` to leave the type unset.
 
 **Response `200`:** Updated `Speltak`.
+
+**Response `422`:** Invalid `speltak_type` value.
 
 ---
 
@@ -1175,6 +1359,7 @@ Returns all pending membership requests for groups the authenticated user manage
 | `name` | string | Display name |
 | `slug` | string | URL-safe identifier (unique within group) |
 | `peer_signoff` | boolean | If true, members may sign off each other's progress |
+| `speltak_type` | string \| null | Age-group tag: `bevers` \| `welpen` \| `scouts` \| `explorers` \| `roverscouts` \| `plusscouts`, or `null` if unset |
 
 ### `GroupMembership`
 
@@ -1251,6 +1436,7 @@ These endpoints serve the HTMX frontend. Full pages are returned on direct navig
 |--------|------|-------------|
 | `GET` | `/badges/{slug}/niveau-checks/{niveau_index}` | Niveau progress check icons partial |
 | `POST` | `/badges/{slug}/log` | Log a step (auth required) — returns updated step card partial |
+| `POST` | `/badges/{slug}/set-level` | Set which jaarinsigne speltak variant the current user is working on (auth required). Only allowed for peer_signoff speltakken or own speltakleiders. Redirects back to badge detail. |
 | `POST` | `/progress/{id}/request-signoff` | Request sign-off via direct email (auth required) |
 | `POST` | `/progress/{id}/request-signoff-speltak` | Request sign-off from all speltakleiders of a speltak (auth required) |
 | `POST` | `/progress/{id}/request-signoff-members` | Request sign-off from selected peer members (auth required) |
@@ -1259,6 +1445,20 @@ These endpoints serve the HTMX frontend. Full pages are returned on direct navig
 | `GET` | `/signoff-requests/count` | Pending sign-off count badge for nav (auth required) |
 | `POST` | `/progress/{id}/confirm-signoff` | Mentor confirms sign-off (auth required) |
 | `POST` | `/progress/{id}/reject-signoff` | Mentor rejects sign-off — removes only this mentor's request; reverts to `work_done` only if no requests remain (auth required) |
+
+#### Jaarinsigne 2026 (meta-insigne)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/badges/jaarinsigne_2026/toggle-inclusion` | Add or remove a signed-off eis from the meta-insigne score (auth required). Blocked while any eis is `pending_signoff`. |
+| `POST` | `/badges/jaarinsigne_2026/request-signoff-speltak` | Batch sign-off request — invites all leiders of a speltak for **every** work_done jaarinsigne_2026 eis (auth required) |
+| `POST` | `/badges/jaarinsigne_2026/request-signoff-members` | Batch sign-off request from selected peers (auth required) |
+| `POST` | `/badges/jaarinsigne_2026/request-signoff` | Batch sign-off request via direct e-mail / previous mentor (auth required) |
+| `POST` | `/badges/jaarinsigne_2026/cancel-signoff` | Revoke every pending jaarinsigne_2026 sign-off request and flip each entry back to `work_done` (auth required) |
+| `POST` | `/scouts/{scout_id}/jaarinsigne_2026/confirm-signoff` | Mentor confirms every jaarinsigne_2026 eis the scout invited them for; all entries → `signed_off` (auth required) |
+| `POST` | `/scouts/{scout_id}/jaarinsigne_2026/reject-signoff` | Mentor rejects this scout's jaarinsigne_2026 sign-off; entries revert to `work_done` when no other mentor is still pending (auth required) |
+
+The mentor inbox at `GET /signoff-requests` groups all jaarinsigne_2026 invites from the same scout into a single card.
 
 ### Groups HTML pages
 
@@ -1532,6 +1732,7 @@ Leiders can view and edit an individual scout's progress through a home-like scr
 | `GET` | `/scouts/{scout_id}/badges/{slug}` | Badge detail for the scout with leider step-check controls. Redirects to `/scouts/{scout_id}` for unknown badge. |
 | `GET` | `/scouts/{scout_id}/badges/{slug}/niveau-checks/{niveau_index}` | HTMX partial — niveau progress circles for the scout badge detail page. |
 | `POST` | `/scouts/{scout_id}/set-progress` | Set a single step's status for the scout. Returns updated `leider_step_check` partial. `403` if no edit rights. |
+| `POST` | `/scouts/{scout_id}/badges/{slug}/set-level` | Set which jaarinsigne speltak variant the scout is working on. Requires speltakleider edit rights. Redirects back to the badge detail page. |
 
 `POST /scouts/{scout_id}/set-progress` form fields:
 
@@ -1582,6 +1783,61 @@ Set a step's status for a scout. Requires speltakleider edit rights (not groepsl
 **Response `409`:** Conflict (e.g. entry is in `pending_signoff`).
 
 **Response `422`:** `message_required_when_downgrading` — downgrading from `signed_off` requires a non-empty message.
+
+---
+
+#### `POST /api/badges/{slug}/set-level` — Set own jaarinsigne level 🔒
+
+Sets which speltak variant of a jaarinsigne badge the authenticated user is working on.
+
+Only allowed when the user's primary speltak (highest-ranked active membership) is a `peer_signoff` speltak, or the user is `speltakleider` of their primary speltak.
+
+**Query parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `speltak_slug` | string | The speltak variant to work on (must be defined in the badge) |
+
+**Response `200`:** `JaarinsigneLevelResponse`
+
+**Response `403`:** User is not allowed to set their own jaarinsigne level.
+
+**Response `404`:** Badge not found or not of type `jaarinsigne`.
+
+**Response `422`:** `speltak_slug` is not defined for this badge.
+
+---
+
+#### `POST /api/scouts/{scout_id}/badges/{slug}/set-level` — Set scout jaarinsigne level 🔒
+
+Sets which speltak variant of a jaarinsigne badge a scout is working on. Requires speltakleider edit rights over the scout (same rules as `POST /api/scouts/{scout_id}/set-progress`).
+
+**Query parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `speltak_slug` | string | The speltak variant to assign to the scout |
+
+**Response `200`:** `JaarinsigneLevelResponse`
+
+**Response `400`:** `scout_id` is the caller's own ID.
+
+**Response `403`:** No edit rights over this scout.
+
+**Response `404`:** Scout or badge not found, or badge is not of type `jaarinsigne`.
+
+**Response `422`:** `speltak_slug` is not defined for this badge.
+
+---
+
+### `JaarinsigneLevelResponse`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `user_id` | UUID | The scout whose level is recorded |
+| `badge_slug` | string | The jaarinsigne badge slug |
+| `speltak_slug` | string | The speltak variant the scout is working on |
+| `set_by_user_id` | UUID | Who set the level (the scout themselves, or a leader) |
 
 ---
 

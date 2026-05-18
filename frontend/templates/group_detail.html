@@ -32,8 +32,12 @@
         {% if group.speltakken %}
             <ul class="item-list">
                 {% for speltak in group.speltakken %}
+                {% set st = speltakken_meta | selectattr('slug', 'equalto', speltak.speltak_type) | first | default(None) %}
                 <li class="item-list-row">
-                    <a href="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}">{{ speltak.name }}</a>
+                    <span>
+                        <a href="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}">{{ speltak.name }}</a>
+                        {% if st %}<span class="muted" style="font-size:0.85rem;">{{ st.naam }} ({{ st.leeftijd }})</span>{% else %}<span class="muted" style="font-size:0.85rem;">Onbekend type</span>{% endif %}
+                    </span>
                     <span class="muted" style="font-size:0.85rem;">{{ speltak_member_counts[speltak.id] }} {% if speltak_member_counts[speltak.id] == 1 %}lid{% else %}leden{% endif %}</span>
                 </li>
                 {% endfor %}

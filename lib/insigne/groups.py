@@ -54,6 +54,51 @@ def is_user_in_group(db: Session, user_id: str, group_id: str) -> bool:
     return False
 
 
+def is_active_member_of_speltak(db: Session, user_id: str, speltak_id: str) -> bool:
+    """Return True if the user has an active (approved, non-withdrawn)
+    SpeltakMembership row for this speltak.
+
+    Used as an authorization check before accepting a scout's choice of
+    ``speltak_id`` in sign-off-request flows — without it, a scout could
+    direct sign-off e-mails to leiders of a speltak they have no
+    relationship with.
+    """
+    return db.query(SpeltakMembership).filter_by(
+        user_id=user_id, speltak_id=speltak_id, approved=True, withdrawn=False,
+    ).first() is not None
+
+
+def filter_mentor_ids_sharing_speltak(
+    db: Session, scout_id: str, mentor_ids: list[str],
+) -> list[str]:
+    """Return the subset of ``mentor_ids`` whose users share an active speltak
+    membership with ``scout_id``.
+
+    Used as an authorization check before accepting a scout's choice of
+    ``mentor_ids`` in peer sign-off flows — limits the blast radius to people
+    who already see the scout in a speltak roster.
+    """
+    if not mentor_ids:
+        return []
+    scout_speltak_ids = [
+        m.speltak_id for m in db.query(SpeltakMembership)
+        .filter_by(user_id=scout_id, approved=True, withdrawn=False)
+        .all()
+    ]
+    if not scout_speltak_ids:
+        return []
+    eligible_rows = (
+        db.query(SpeltakMembership.user_id)
+        .filter(SpeltakMembership.user_id.in_(mentor_ids))
+        .filter(SpeltakMembership.speltak_id.in_(scout_speltak_ids))
+        .filter_by(approved=True, withdrawn=False)
+        .distinct()
+        .all()
+    )
+    eligible_set = {row[0] for row in eligible_rows}
+    return [mid for mid in mentor_ids if mid in eligible_set]
+
+
 def can_manage_group(user: User, db: Session, group_id: str) -> bool:
     if user.is_admin:
         return True
@@ -151,8 +196,8 @@ def delete_group(db: Session, group: Group) -> None:
 
 # ── Speltak CRUD ───────────────────────────────────────────────────────────────
 
-def create_speltak(db: Session, *, group_id: str, name: str, slug: str, peer_signoff: bool = False) -> Speltak:
-    speltak = Speltak(group_id=group_id, name=name, slug=slug, peer_signoff=peer_signoff)
+def create_speltak(db: Session, *, group_id: str, name: str, slug: str, peer_signoff: bool = False, speltak_type: str | None = None, jaarinsigne_2026_min_punten: int | None = None) -> Speltak:
+    speltak = Speltak(group_id=group_id, name=name, slug=slug, peer_signoff=peer_signoff, speltak_type=speltak_type, jaarinsigne_2026_min_punten=jaarinsigne_2026_min_punten)
     db.add(speltak)
     db.commit()
     db.refresh(speltak)
@@ -167,13 +212,59 @@ def get_speltak_by_slug(db: Session, group_id: str, slug: str) -> Speltak | None
     return db.query(Speltak).filter_by(group_id=group_id, slug=slug).first()
 
 
-def update_speltak(db: Session, speltak: Speltak, *, name: str, slug: str, peer_signoff: bool = False) -> Speltak:
+def update_speltak(db: Session, speltak: Speltak, *, name: str, slug: str, peer_signoff: bool = False, speltak_type: str | None = None, jaarinsigne_2026_min_punten: int | None = None) -> Speltak:
     speltak.name = name
     speltak.slug = slug
     speltak.peer_signoff = peer_signoff
+    speltak.speltak_type = speltak_type
+    speltak.jaarinsigne_2026_min_punten = jaarinsigne_2026_min_punten
     db.commit()
     db.refresh(speltak)
     return speltak
+
+
+_SPELTAK_TYPE_ORDER = ["bevers", "welpen", "scouts", "explorers", "roverscouts", "plusscouts"]
+
+
+def get_user_primary_speltak_type(db: Session, user_id: str) -> str | None:
+    """Return the highest speltak_type slug for a user's active speltak memberships.
+
+    Returns None if the user has no active memberships with a known speltak_type.
+    """
+    memberships = (
+        db.query(SpeltakMembership)
+        .filter_by(user_id=user_id, approved=True, withdrawn=False)
+        .all()
+    )
+    types = [
+        m.speltak.speltak_type
+        for m in memberships
+        if m.speltak and m.speltak.speltak_type in _SPELTAK_TYPE_ORDER
+    ]
+    if not types:
+        return None
+    return max(types, key=lambda t: _SPELTAK_TYPE_ORDER.index(t))
+
+
+def can_user_set_own_jaarinsigne_level(db: Session, user_id: str) -> bool:
+    """Return True if the user may set their own jaarinsigne speltak level.
+
+    Allowed when the user's primary speltak is peer_signoff (adult self-managed)
+    OR when the user is a speltakleider in that primary speltak (own leader).
+    """
+    primary_type = get_user_primary_speltak_type(db, user_id)
+    if primary_type is None:
+        return False
+    memberships = (
+        db.query(SpeltakMembership)
+        .filter_by(user_id=user_id, approved=True, withdrawn=False)
+        .all()
+    )
+    for m in memberships:
+        if m.speltak and m.speltak.speltak_type == primary_type:
+            if m.speltak.peer_signoff or m.role == "speltakleider":
+                return True
+    return False
 
 
 def delete_speltak(db: Session, speltak: Speltak) -> None:

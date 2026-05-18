@@ -281,6 +281,56 @@ class TestSpeltakken:
         assert r.status_code == 200
         assert r.json()["peer_signoff"] is True
 
+    def test_create_speltak_with_speltak_type(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        r = client.post(f"/api/groups/{g.id}/speltakken",
+                        json={"name": "Welpen", "slug": "welpen", "speltak_type": "welpen"},
+                        headers=_auth(token))
+        assert r.status_code == 201
+        assert r.json()["speltak_type"] == "welpen"
+
+    def test_create_speltak_speltak_type_defaults_to_null(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        r = client.post(f"/api/groups/{g.id}/speltakken",
+                        json={"name": "Welpen", "slug": "welpen"},
+                        headers=_auth(token))
+        assert r.status_code == 201
+        assert r.json()["speltak_type"] is None
+
+    def test_create_speltak_invalid_speltak_type_returns_422(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        r = client.post(f"/api/groups/{g.id}/speltakken",
+                        json={"name": "Welpen", "slug": "welpen", "speltak_type": "onbekend"},
+                        headers=_auth(token))
+        assert r.status_code == 422
+
+    def test_update_speltak_speltak_type(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        r = client.put(f"/api/groups/{g.id}/speltakken/{s.id}",
+                       json={"name": "S", "slug": "s", "speltak_type": "scouts"},
+                       headers=_auth(token))
+        assert r.status_code == 200
+        assert r.json()["speltak_type"] == "scouts"
+
+    def test_update_speltak_invalid_speltak_type_returns_422(self, client, db):
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        r = client.put(f"/api/groups/{g.id}/speltakken/{s.id}",
+                       json={"name": "S", "slug": "s", "speltak_type": "onbekend"},
+                       headers=_auth(token))
+        assert r.status_code == 422
+
     def test_non_member_cannot_create_speltak(self, client, db):
         token = _full_register(client, db)
         g = svc.create_group(db, name="G", slug="g")
@@ -980,3 +1030,99 @@ class TestScoutProgressAPI:
             headers=_quick_auth(leider),
         )
         assert r.status_code == 403
+
+
+class TestUserFavoriteBadgesAPI:
+    def test_get_favorites_empty(self, client, db):
+        token = _full_register(client, db)
+        r = client.get("/api/users/me/favorite-badges", headers=_auth(token))
+        assert r.status_code == 200
+        assert r.json() == []
+
+    def test_toggle_on(self, client, db):
+        token = _full_register(client, db)
+        r = client.post("/api/users/me/favorite-badges/toggle",
+                        json={"badge_slug": "sport_spel"}, headers=_auth(token))
+        assert r.status_code == 200
+        assert r.json() == {"badge_slug": "sport_spel", "is_favorite": True}
+
+    def test_toggle_off(self, client, db):
+        token = _full_register(client, db)
+        client.post("/api/users/me/favorite-badges/toggle",
+                    json={"badge_slug": "sport_spel"}, headers=_auth(token))
+        r = client.post("/api/users/me/favorite-badges/toggle",
+                        json={"badge_slug": "sport_spel"}, headers=_auth(token))
+        assert r.json()["is_favorite"] is False
+
+    def test_list_sorted(self, client, db):
+        token = _full_register(client, db)
+        for slug in ("vredeslicht", "kamperen", "sport_spel"):
+            client.post("/api/users/me/favorite-badges/toggle",
+                        json={"badge_slug": slug}, headers=_auth(token))
+        r = client.get("/api/users/me/favorite-badges", headers=_auth(token))
+        assert r.json() == sorted(["vredeslicht", "kamperen", "sport_spel"])
+
+    def test_requires_auth(self, client, db):
+        r = client.get("/api/users/me/favorite-badges")
+        assert r.status_code == 401
+
+    def test_favorites_isolated_per_user(self, client, db):
+        token_a = _full_register(client, db, email="fa@x.com", name="A")
+        token_b = _full_register(client, db, email="fb@x.com", name="B")
+        client.post("/api/users/me/favorite-badges/toggle",
+                    json={"badge_slug": "sport_spel"}, headers=_auth(token_a))
+        r = client.get("/api/users/me/favorite-badges", headers=_auth(token_b))
+        assert r.json() == []
+
+
+# ── jaarinsigne_2026_min_punten on Speltak ────────────────────────────────────
+
+class TestSpeltakJaarinsigne2026MinPunten:
+    def _setup(self, client, db):
+        """Create a group and return (token, group_id)."""
+        token = _full_register(client, db)
+        user = db.query(User).filter_by(email="user@example.com").first()
+        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
+        return token, g.id
+
+    def test_create_bevers_speltak_with_min_punten(self, client, db):
+        token, gid = self._setup(client, db)
+        r = client.post(
+            f"/api/groups/{gid}/speltakken",
+            json={"name": "Bevers", "slug": "bevers", "speltak_type": "bevers",
+                  "jaarinsigne_2026_min_punten": 4},
+            headers=_auth(token),
+        )
+        assert r.status_code == 201
+        assert r.json()["jaarinsigne_2026_min_punten"] == 4
+
+    def test_jaarinsigne_min_punten_null_by_default(self, client, db):
+        token, gid = self._setup(client, db)
+        r = client.post(
+            f"/api/groups/{gid}/speltakken",
+            json={"name": "Bevers", "slug": "bevers", "speltak_type": "bevers"},
+            headers=_auth(token),
+        )
+        assert r.status_code == 201
+        assert r.json()["jaarinsigne_2026_min_punten"] is None
+
+    def test_jaarinsigne_min_punten_cleared_for_non_bevers(self, client, db):
+        """min_punten is only stored for bevers; non-bevers always gets None."""
+        token, gid = self._setup(client, db)
+        r = client.post(
+            f"/api/groups/{gid}/speltakken",
+            json={"name": "Welpen", "slug": "welpen", "speltak_type": "welpen",
+                  "jaarinsigne_2026_min_punten": 5},
+            headers=_auth(token),
+        )
+        assert r.status_code == 201
+        assert r.json()["jaarinsigne_2026_min_punten"] is None
+
+    def test_speltak_response_includes_jaarinsigne_field(self, client, db):
+        token, gid = self._setup(client, db)
+        r = client.post(
+            f"/api/groups/{gid}/speltakken",
+            json={"name": "Bevers", "slug": "bevers", "speltak_type": "bevers"},
+            headers=_auth(token),
+        )
+        assert "jaarinsigne_2026_min_punten" in r.json()

@@ -13,6 +13,7 @@ from insigne.badges import BadgeCatalogue
 from insigne.config import config
 from insigne.database import get_db
 from insigne.models import GroupMembership, ProgressEntry, Speltak, SpeltakMembership, User as UserModel
+from routers._query import lenient_int
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
 
@@ -457,6 +458,7 @@ def _group_detail_ctx(db: Session, group, user):
         speltak_member_counts=speltak_member_counts,
         members_without_speltak=members_without_speltak,
         member_email_suggestions=member_email_suggestions,
+        speltakken_meta=_CATALOGUE.speltakken_meta,
     )
 
 
@@ -588,6 +590,11 @@ def group_invite_member(
     group = groups_svc.get_group_by_slug(db, slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse("/groups", status_code=303)
+    if not users_svc.is_valid_email(email.strip().lower()):
+        return _page(request, "group_detail.html", db,
+                     **_group_detail_ctx(db, group, user),
+                     error="Geef een geldig e-mailadres op.",
+                     invite_email=email)
     from insigne.models import User as UserModel
     invitee = db.query(UserModel).filter_by(email=email.strip().lower()).first()
 
@@ -610,8 +617,10 @@ def group_invite_member(
             description=f"groepsleider van groep {group.name}",
         )
     else:
-        # New or pending user — registration flow, auto-approved on activation
-        code, _token_type, invitee = users_svc.start_registration(db, email)
+        # New or pending user — they start the registration flow themselves
+        # via the /register?email=… link in the invite e-mail (no 1-hour
+        # confirmation-token countdown at invite time).
+        invitee = users_svc.get_or_create_pending_user(db, email)
         m = db.query(GroupMembership).filter_by(user_id=invitee.id, group_id=group.id).first()
         if m:
             m.role = "groepsleider"
@@ -625,7 +634,6 @@ def group_invite_member(
         email_svc.send_groepsleider_invite_email(
             to=email,
             naam=invitee.name or email.split("@")[0],
-            code=code,
             inviter_name=user.name or user.email,
             group_name=group.name,
         )
@@ -672,7 +680,11 @@ def speltak_new_form(group_slug: str, request: Request, db: Session = Depends(ge
     group = groups_svc.get_group_by_slug(db, group_slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
-    return _page(request, "speltak_edit.html", db, group=group, speltak=None, error=None)
+    return _page(request, "speltak_edit.html", db, group=group, speltak=None, error=None,
+                 speltakken_meta=_CATALOGUE.speltakken_meta)
+
+
+_VALID_SPELTAK_TYPES = {"bevers", "welpen", "scouts", "explorers", "roverscouts", "plusscouts"}
 
 
 @router.post("/groups/{group_slug}/speltakken/new", response_class=HTMLResponse)
@@ -681,6 +693,8 @@ def speltak_create(
     request: Request,
     name: str = Form(...),
     peer_signoff: bool = Form(False),
+    speltak_type: str = Form(""),
+    jaarinsigne_2026_min_punten: int | None = Form(None),
     db: Session = Depends(get_db),
 ):
     user, redirect = _require_user(request, db)
@@ -689,8 +703,12 @@ def speltak_create(
     group = groups_svc.get_group_by_slug(db, group_slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
+    if speltak_type not in _VALID_SPELTAK_TYPES:
+        return _page(request, "speltak_edit.html", db, group=group, speltak=None,
+                     error="Kies een speltak type.", speltakken_meta=_CATALOGUE.speltakken_meta)
     slug = groups_svc.unique_speltak_slug(db, group.id, groups_svc.name_to_slug(name))
-    groups_svc.create_speltak(db, group_id=group.id, name=name, slug=slug, peer_signoff=peer_signoff)
+    min_punten = jaarinsigne_2026_min_punten if speltak_type == "bevers" else None
+    groups_svc.create_speltak(db, group_id=group.id, name=name, slug=slug, peer_signoff=peer_signoff, speltak_type=speltak_type, jaarinsigne_2026_min_punten=min_punten)
     return RedirectResponse(f"/groups/{group.slug}", status_code=303)
 
 
@@ -721,7 +739,8 @@ def speltak_detail(
                  group=group, speltak=speltak, members=members,
                  pending_members=pending_members,
                  can_manage=can_manage, other_speltakken=other_speltakken,
-                 suggested_users=suggested_users)
+                 suggested_users=suggested_users,
+                 speltakken_meta=_CATALOGUE.speltakken_meta)
 
 
 @router.get("/groups/{group_slug}/speltakken/{speltak_slug}/edit", response_class=HTMLResponse)
@@ -735,7 +754,8 @@ def speltak_edit_form(
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
-    return _page(request, "speltak_edit.html", db, group=group, speltak=speltak, error=None)
+    return _page(request, "speltak_edit.html", db, group=group, speltak=speltak, error=None,
+                 speltakken_meta=_CATALOGUE.speltakken_meta)
 
 
 @router.post("/groups/{group_slug}/speltakken/{speltak_slug}/edit", response_class=HTMLResponse)
@@ -745,6 +765,8 @@ def speltak_edit(
     request: Request,
     name: str = Form(...),
     peer_signoff: bool = Form(False),
+    speltak_type: str = Form(""),
+    jaarinsigne_2026_min_punten: int | None = Form(None),
     db: Session = Depends(get_db),
 ):
     user, redirect = _require_user(request, db)
@@ -754,7 +776,11 @@ def speltak_edit(
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
-    groups_svc.update_speltak(db, speltak, name=name, slug=speltak.slug, peer_signoff=peer_signoff)
+    if speltak_type not in _VALID_SPELTAK_TYPES:
+        return _page(request, "speltak_edit.html", db, group=group, speltak=speltak,
+                     error="Kies een speltak type.", speltakken_meta=_CATALOGUE.speltakken_meta)
+    min_punten = jaarinsigne_2026_min_punten if speltak_type == "bevers" else None
+    groups_svc.update_speltak(db, speltak, name=name, slug=speltak.slug, peer_signoff=peer_signoff, speltak_type=speltak_type, jaarinsigne_2026_min_punten=min_punten)
     return RedirectResponse(f"/groups/{group.slug}/speltakken/{speltak.slug}", status_code=303)
 
 
@@ -813,6 +839,18 @@ def speltak_invite_member(
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
         return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
+    if not users_svc.is_valid_email(email.strip().lower()):
+        members = groups_svc.list_speltak_members(db, speltak.id)
+        pending_members = groups_svc.list_pending_speltak_members(db, speltak.id)
+        other_speltakken = [s for s in group.speltakken if s.id != speltak.id]
+        suggested_users = groups_svc.list_group_users_not_in_speltak(db, group.id, speltak.id)
+        return _page(request, "speltak_detail.html", db,
+                     group=group, speltak=speltak, members=members,
+                     pending_members=pending_members,
+                     can_manage=True, other_speltakken=other_speltakken,
+                     suggested_users=suggested_users,
+                     error="Geef een geldig e-mailadres op.",
+                     invite_email=email)
     from insigne.models import User as UserModel
     invitee = db.query(UserModel).filter_by(email=email.strip().lower()).first()
 
@@ -835,8 +873,10 @@ def speltak_invite_member(
             description=f"{role} bij speltak {speltak.name} van groep {group.name}",
         )
     else:
-        # New or pending user — registration flow with pending membership
-        code, _token_type, invitee = users_svc.start_registration(db, email)
+        # New or pending user — they start the registration flow themselves
+        # via the /register?email=… link in the invite e-mail (no 1-hour
+        # confirmation-token countdown at invite time).
+        invitee = users_svc.get_or_create_pending_user(db, email)
         m = db.query(SpeltakMembership).filter_by(user_id=invitee.id, speltak_id=speltak.id).first()
         if m:
             m.role = role
@@ -850,7 +890,6 @@ def speltak_invite_member(
         email_svc.send_speltak_invite_email(
             to=email,
             naam=invitee.name or email.split("@")[0],
-            code=code,
             inviter_name=user.name or user.email,
             group_name=group.name,
             speltak_name=speltak.name,
@@ -1119,8 +1158,10 @@ def speltak_progress(
     group_slug: str, speltak_slug: str,
     request: Request,
     only_favorites: bool | None = Query(None),
+    only_in_progress: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
+    only_in_progress = lenient_int(only_in_progress) or 0
     user, redirect = _require_user(request, db)
     if redirect:
         return redirect
@@ -1164,6 +1205,8 @@ def speltak_progress(
                 badge_list.append(badge)
         all_badges[category] = badge_list
 
+    progress_slugs = {key[0] for scout_progress in progress_by_scout.values() for key in scout_progress}
+
     return _page(request, "speltak_progress.html", db,
                  group=group, speltak=speltak,
                  members=memberships,
@@ -1172,7 +1215,10 @@ def speltak_progress(
                  all_badges=all_badges,
                  can_edit=can_edit,
                  only_favorites=only_favorites,
-                 leider_id=user.id)
+                 progress_slugs=progress_slugs,
+                 only_in_progress=bool(only_in_progress),
+                 leider_id=user.id,
+                 category_labels=_CATALOGUE.category_labels)
 
 
 @router.post("/groups/{group_slug}/speltakken/{speltak_slug}/scouts/{scout_id}/progress/set",

@@ -71,6 +71,21 @@ class TestRegister:
         r = client.post("/register", data={"email": "new@example.com"})
         assert r.status_code == 200
 
+    def test_get_register_prefills_email_from_query_param(self, client, db):
+        """Invite e-mails deep-link to /register?email=… so the address is
+        pre-filled and the user only has to click 'Doorgaan' to get a fresh
+        confirmation code — no 1-hour countdown on the invite link itself.
+        """
+        r = client.get("/register?email=invitee@example.com")
+        assert r.status_code == 200
+        assert 'value="invitee@example.com"' in r.text
+
+    def test_get_register_no_email_query_renders_empty_field(self, client, db):
+        r = client.get("/register")
+        assert r.status_code == 200
+        # Either no value attribute, or value="" — never a stale pre-fill.
+        assert 'value="some@example.com"' not in r.text
+
     def test_confirm_with_valid_code_returns_step3(self, client, db):
         user_svc.start_registration(db, "new@example.com")
         user = db.query(User).filter_by(email="new@example.com").first()

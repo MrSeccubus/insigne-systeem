@@ -10,8 +10,11 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
-### Nieuw
-
+- **Persoonlijke favoriete insignes** (#90) — naast de bestaande speltak- en groepsfavorieten kun je nu ook per gebruiker insignes "sterren" via de homepagina. De ster-knop verschijnt alleen op de homepage (`/`) — nooit op een leider-overzicht. Een ★/☆-toggle bovenaan filtert de homepage op je eigen favorieten. Voorkeur blijft bewaard onafhankelijk van speltak- of groepslidmaatschap.
+  - Nieuw `UserFavoriteBadge` model + Alembic-migratie.
+  - Nieuwe service-functies `get_user_favorite_slugs` / `toggle_user_favorite_badge`.
+  - JSON-endpoint `GET /api/users/me/favorite-badges` en `POST /api/users/me/favorite-badges/{slug}/toggle`.
+- **Voortgangsfilter "lopende insignes"** (#91) — 🏃 (Font Awesome person-running SVG) toggle-knop op de homepage, scout-voortgangspagina (`/scouts/{id}`) en speltak-voortgangspagina toont alleen insignes waar al voortgang op is. De nieuwe filter combineert met de bestaande ★-favorietenfilter; de query-parameters `only_favorites` en `only_in_progress` worden onafhankelijk van elkaar bewaard bij toggle.
 - **Jaarinsigne-ondersteuning** (sluit #73) — algemeen mechanisme voor jaarinsignes (één badge met aparte eisen per speltak), inclusief twee concrete jaarinsignes:
   - **Jaarinsigne 2025 — Wijs met drinkwater**: standaardflow per eis, gebruikt het bestaande step-card-pad.
   - **Jaarinsigne 2026 — Nieuwe Insignes**: meta-insigne waarbij voortgang wordt afgeleid van afgetekende eisen van *gewone* en *buitengewone* insignes. Scouts selecteren in een tweekoloms-editor welke eisen meetellen; het systeem berekent de eis-statussen tegen de drempels (`punten`, `groen`, `niveau2`, `niveau3`, `insignes`, `leiding_bepaald`) en zet ze programmatisch.
@@ -25,6 +28,12 @@ weer leeg gemaakt.
 
 ### Verbeteringen
 
+- **Loop-icoon vervangt emoji** (#91) — de eerder gebruikte 🏃-emoji is vervangen door een inline Font Awesome SVG, voor consistentere rendering op alle platforms en mailclients.
+- **Lege-staat berichten voor filtercombinaties** (#91) — bij actieve filters maar geen resultaten was er voorheen een lege pagina; nu staat er per combinatie een duidelijke melding:
+  - ★ alleen, geen favorieten ingesteld → uitleg en uitnodiging om favorieten toe te voegen.
+  - ★ alleen, favorieten bestaan maar geen match in deze categorie/speltak.
+  - 🏃 alleen, geen lopende voortgang.
+  - 🏃 + ★ samen, geen overlap.
 - **`render_eis` gedeeld** — markdown-naar-inline-HTML-routine verplaatst naar `lib/insigne/eis_render.py` met een `render_eis_email` variant die `==…==` als inline groen rendert (mailclients negeren `<style>`-blokken). Reguliere insigne-e-mails pikken dezelfde fix op.
 - **Step-check tickboxes** in de jaarinsigne-2026-editor synchroniseren live mee met de inclusies via een HTMX-bodyswap.
 - **Compacte eis-rendering** in de editor cards — markdown wordt gestript behalve `==…==` groene accenten; te lange teksten krijgen een "Toon volledige eis"-toggle die de volledige markdown laat zien.
@@ -32,6 +41,10 @@ weer leeg gemaakt.
 
 ### Opgelost
 
+- **Step-check dropdown positionering** (#96, sluit #95) — drie aparte bugs in de leider-aftekendropdown:
+  - **Verkeerde positie na HTMX-swap**: de `<details>`-summary kreeg een Alpine.js `@toggle`-handler die `getBoundingClientRect()` leest en `top`/`left` op de dropdown zet wanneer deze `position: fixed` is. Mobile-layout (`position: absolute`) blijft onaangetast.
+  - **Meerdere dropdowns tegelijk open**: globale `click`-handler op `document` sluit alle andere open `.step-check-wrapper`-elementen wanneer een wrapper wordt aangeklikt; klikken buiten elke wrapper sluit alles.
+  - **Dropdown blijft zichtbaar bij scrollen**: globale `scroll`-handler (met `capture: true`) sluit alle open dropdowns zodra de pagina scrollt — voorkomt dat de dropdown midden op het scherm "zweeft" wanneer de trigger is weggescrolld.
 - **Self in autocomplete** — `list_previous_mentors` filtert defensief de scout zelf weg, zodat een per ongeluk ontstane "self-signoff"-rij niet meer in de mentor-suggesties opduikt.
 - **UUID-tak van direct-aftekenen** stuurde een verouderde signatuur naar de jaarinsigne-2026 batch-mail-helper en gooide een `NameError` **nadat** de SignoffRequest-rijen al gecommit waren — fix + regressietest toegevoegd.
 - **Zelf-verwerping** op `reject_jaarinsigne_2026_signoff` heeft nu net als `confirm_*` een expliciete `mentor_id != scout_id`-controle (was alleen impliciet via een data-invariant).
@@ -40,13 +53,11 @@ weer leeg gemaakt.
 ### Beveiliging
 
 - **Self-signoff foutmelding** in de directe-aftekenen flow — een scout die zijn eigen e-mail invult krijgt nu een inline foutmelding in plaats van een stilte zonder bevestiging.
-- **Step-check dropdown** in mentor-cell positionering (al gemerged via #96).
 - Security-champion review uitgevoerd; geen High/Medium bevindingen. Drie pre-existing observaties op tracking-issues gezet (#97 scope mentor/speltak-input, #98 e-mailvalidatie, #99 CSRF-houding).
 
 ### Onderhoud
 
 - Frontend-stack documentatie (Jinja2 + HTMX + Alpine.js + inline Font Awesome SVG) toegevoegd aan `CLAUDE.md`.
-- `CHANGELOG.md` workflow gewijzigd: voortaan per PR onder `[Unreleased]` bijwerken, consolideren bij release.
 - Jaarinsigne-specifieke structuurtests (`TestJaarinsigneStructure`, `TestJaarinsigne2026Structure`) toegevoegd om gaten te dichten waar de generieke `TestBadgeStructure` jaarinsignes oversloeg.
 - Totaal aantal tests: 1210 (was 1099 voor deze PR).
 

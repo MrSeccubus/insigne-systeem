@@ -157,6 +157,7 @@ class TestRequestSignoffDirectUUIDBranch:
     def test_uuid_branch_creates_pending_signoffs_and_returns_body(self, client, db):
         scout = _user(db, "scout@x.com", "Scout")
         mentor = _user(db, "mentor@x.com", "Mentor")
+        _speltak_with_leider(db, mentor, scout)  # shared speltak (issue #97)
         _entry(db, scout.id, 1, 0, "work_done")
 
         client.cookies.update(_auth(scout))

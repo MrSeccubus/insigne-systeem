@@ -221,6 +221,8 @@ async def request_signoff_speltak(
     except progress_svc.NotFound as exc:
         detail = "No eligible mentors found." if str(exc) == "no_eligible_mentors" else "Progress entry not found."
         raise HTTPException(status_code=404, detail=detail)
+    except progress_svc.Forbidden:
+        raise HTTPException(status_code=403, detail="You are not a member of that speltak.")
     except progress_svc.Conflict as exc:
         detail = "This step is already completed." if str(exc) == "already_signed_off" else "Entry is not in work_done status."
         raise HTTPException(status_code=409, detail=detail)

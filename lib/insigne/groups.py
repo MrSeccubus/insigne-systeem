@@ -54,6 +54,51 @@ def is_user_in_group(db: Session, user_id: str, group_id: str) -> bool:
     return False
 
 
+def is_active_member_of_speltak(db: Session, user_id: str, speltak_id: str) -> bool:
+    """Return True if the user has an active (approved, non-withdrawn)
+    SpeltakMembership row for this speltak.
+
+    Used as an authorization check before accepting a scout's choice of
+    ``speltak_id`` in sign-off-request flows — without it, a scout could
+    direct sign-off e-mails to leiders of a speltak they have no
+    relationship with.
+    """
+    return db.query(SpeltakMembership).filter_by(
+        user_id=user_id, speltak_id=speltak_id, approved=True, withdrawn=False,
+    ).first() is not None
+
+
+def filter_mentor_ids_sharing_speltak(
+    db: Session, scout_id: str, mentor_ids: list[str],
+) -> list[str]:
+    """Return the subset of ``mentor_ids`` whose users share an active speltak
+    membership with ``scout_id``.
+
+    Used as an authorization check before accepting a scout's choice of
+    ``mentor_ids`` in peer sign-off flows — limits the blast radius to people
+    who already see the scout in a speltak roster.
+    """
+    if not mentor_ids:
+        return []
+    scout_speltak_ids = [
+        m.speltak_id for m in db.query(SpeltakMembership)
+        .filter_by(user_id=scout_id, approved=True, withdrawn=False)
+        .all()
+    ]
+    if not scout_speltak_ids:
+        return []
+    eligible_rows = (
+        db.query(SpeltakMembership.user_id)
+        .filter(SpeltakMembership.user_id.in_(mentor_ids))
+        .filter(SpeltakMembership.speltak_id.in_(scout_speltak_ids))
+        .filter_by(approved=True, withdrawn=False)
+        .distinct()
+        .all()
+    )
+    eligible_set = {row[0] for row in eligible_rows}
+    return [mid for mid in mentor_ids if mid in eligible_set]
+
+
 def can_manage_group(user: User, db: Session, group_id: str) -> bool:
     if user.is_admin:
         return True

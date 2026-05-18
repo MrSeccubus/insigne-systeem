@@ -267,7 +267,8 @@ def request_signoff_for_speltak(
     """Request sign-off from all speltakleiders of a non-peer speltak.
 
     Raises NotFound("entry_not_found"), Conflict("already_signed_off"),
-    Conflict("not_work_done"), NotFound("no_eligible_mentors").
+    Conflict("not_work_done"), Forbidden("not_member"),
+    NotFound("no_eligible_mentors").
     """
     from insigne import groups as groups_svc
 
@@ -281,6 +282,9 @@ def request_signoff_for_speltak(
         raise Conflict("already_signed_off")
     if entry.status not in ("work_done", "pending_signoff"):
         raise Conflict("not_work_done")
+
+    if not groups_svc.is_active_member_of_speltak(db, scout_id, speltak_id):
+        raise Forbidden("not_member")
 
     leiders = [u for u in groups_svc.list_speltakleiders_for_speltak(db, speltak_id) if u.id != scout_id]
     if not leiders:
@@ -310,6 +314,8 @@ def request_signoff_from_members(
     Raises NotFound("entry_not_found"), Conflict("already_signed_off"),
     Conflict("not_work_done"), NotFound("no_eligible_mentors").
     """
+    from insigne import groups as groups_svc
+
     entry = db.query(ProgressEntry).filter(
         ProgressEntry.id == entry_id,
         ProgressEntry.user_id == scout_id,
@@ -322,6 +328,7 @@ def request_signoff_from_members(
         raise Conflict("not_work_done")
 
     eligible_ids = [mid for mid in mentor_ids if mid != scout_id]
+    eligible_ids = groups_svc.filter_mentor_ids_sharing_speltak(db, scout_id, eligible_ids)
     if not eligible_ids:
         raise NotFound("no_eligible_mentors")
 
@@ -394,12 +401,19 @@ def _add_signoff_requests(
 def request_jaarinsigne_2026_signoff_speltak(
     db: Session, scout_id: str, speltak_id: str
 ) -> tuple[list[ProgressEntry], list[User]]:
-    """Request sign-off from all leiders of a speltak for every work_done jaarinsigne_2026 eis."""
+    """Request sign-off from all leiders of a speltak for every work_done jaarinsigne_2026 eis.
+
+    Raises NotFound("no_entries"), Forbidden("not_member"),
+    NotFound("no_eligible_mentors").
+    """
     from insigne import groups as groups_svc
 
     entries = _jaarinsigne_2026_eligible_entries(db, scout_id)
     if not entries:
         raise NotFound("no_entries")
+
+    if not groups_svc.is_active_member_of_speltak(db, scout_id, speltak_id):
+        raise Forbidden("not_member")
 
     leiders = [
         u for u in groups_svc.list_speltakleiders_for_speltak(db, speltak_id)
@@ -419,11 +433,14 @@ def request_jaarinsigne_2026_signoff_members(
     db: Session, scout_id: str, mentor_ids: list[str]
 ) -> tuple[list[ProgressEntry], list[User]]:
     """Peer batch sign-off request for jaarinsigne_2026."""
+    from insigne import groups as groups_svc
+
     entries = _jaarinsigne_2026_eligible_entries(db, scout_id)
     if not entries:
         raise NotFound("no_entries")
 
     eligible_ids = [mid for mid in mentor_ids if mid != scout_id]
+    eligible_ids = groups_svc.filter_mentor_ids_sharing_speltak(db, scout_id, eligible_ids)
     if not eligible_ids:
         raise NotFound("no_eligible_mentors")
 

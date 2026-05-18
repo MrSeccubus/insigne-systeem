@@ -207,6 +207,7 @@ class TestRequestSignoff:
     def test_members_path_creates_pending_requests(self, client, db):
         scout = _user(db, "scout@x.com")
         peer = _user(db, "peer@x.com")
+        _speltak_with_leider(db, peer, scout)  # shared speltak (issue #97)
         _entry(db, scout.id, 1, 0, "work_done")
         r = client.post(
             "/api/users/me/jaarinsigne_2026/signoff/members",

@@ -107,6 +107,28 @@ class TestRequestSignoffSpeltak:
         progress_svc.request_jaarinsigne_2026_signoff_speltak(db, scout.id, speltak.id)
         assert db.query(SignoffRequest).count() == 1
 
+    def test_rejects_speltak_scout_is_not_member_of(self, db):
+        """A scout cannot direct sign-off e-mails to leiders of a speltak
+        they're not actually in (issue #97)."""
+        scout = _user(db, "scout@x.com", "Scout")
+        leider = _user(db, "leider@x.com", "Leider")
+        _speltak_with_leider(db, leider, scout)
+        # Set up a *second*, unrelated speltak in a different group.
+        other_leider = _user(db, "other-leider@x.com", "Other")
+        other_g = groups_svc.create_group(db, name="Other", slug="other", created_by_id=other_leider.id)
+        other_s = groups_svc.create_speltak(db, group_id=other_g.id, name="Welpen", slug="welpen",
+                                            speltak_type="welpen")
+        db.add(GroupMembership(user_id=other_leider.id, group_id=other_g.id,
+                               role="groepsleider", approved=True))
+        db.add(SpeltakMembership(user_id=other_leider.id, speltak_id=other_s.id,
+                                 role="speltakleider", approved=True))
+        db.commit()
+        _entry(db, scout.id, 1, 0, "work_done")
+        with pytest.raises(progress_svc.Forbidden, match="not_member"):
+            progress_svc.request_jaarinsigne_2026_signoff_speltak(
+                db, scout.id, other_s.id,
+            )
+
 
 # ── request_jaarinsigne_2026_signoff_members ─────────────────────────────────
 
@@ -115,6 +137,15 @@ class TestRequestSignoffMembers:
         scout = _user(db, "scout@x.com", "Scout")
         peer1 = _user(db, "peer1@x.com", "Peer1")
         peer2 = _user(db, "peer2@x.com", "Peer2")
+        # All three must share a speltak for the peer-signoff invitation
+        # to be allowed (issue #97).
+        g = groups_svc.create_group(db, name="G", slug="g", created_by_id=scout.id)
+        s = groups_svc.create_speltak(db, group_id=g.id, name="Roverscouts", slug="rovers",
+                                      speltak_type="roverscouts", peer_signoff=True)
+        for u in (scout, peer1, peer2):
+            db.add(GroupMembership(user_id=u.id, group_id=g.id, role="member", approved=True))
+            db.add(SpeltakMembership(user_id=u.id, speltak_id=s.id, role="scout", approved=True))
+        db.commit()
         _entry(db, scout.id, 1, 0, "work_done")
         _entry(db, scout.id, 1, 1, "work_done")
 
@@ -131,6 +162,19 @@ class TestRequestSignoffMembers:
         with pytest.raises(progress_svc.NotFound, match="no_eligible_mentors"):
             progress_svc.request_jaarinsigne_2026_signoff_members(
                 db, scout.id, [scout.id],
+            )
+
+    def test_filters_mentor_outside_scout_speltak(self, db):
+        """A scout cannot direct sign-off e-mails to people outside their
+        speltakken (issue #97)."""
+        scout = _user(db, "scout@x.com", "Scout")
+        leider = _user(db, "leider@x.com", "Leider")
+        _speltak_with_leider(db, leider, scout)  # scout + leider share a speltak
+        stranger = _user(db, "stranger@x.com", "Stranger")  # no shared speltak
+        _entry(db, scout.id, 1, 0, "work_done")
+        with pytest.raises(progress_svc.NotFound, match="no_eligible_mentors"):
+            progress_svc.request_jaarinsigne_2026_signoff_members(
+                db, scout.id, [stranger.id],
             )
 
     def test_raises_when_no_entries(self, db):
@@ -273,6 +317,13 @@ class TestRejectSignoff:
         scout = _user(db, "scout@x.com", "Scout")
         m1 = _user(db, "m1@x.com", "M1")
         m2 = _user(db, "m2@x.com", "M2")
+        g = groups_svc.create_group(db, name="G", slug="g", created_by_id=scout.id)
+        s = groups_svc.create_speltak(db, group_id=g.id, name="R", slug="r",
+                                      speltak_type="roverscouts", peer_signoff=True)
+        for u in (scout, m1, m2):
+            db.add(GroupMembership(user_id=u.id, group_id=g.id, role="member", approved=True))
+            db.add(SpeltakMembership(user_id=u.id, speltak_id=s.id, role="scout", approved=True))
+        db.commit()
         _entry(db, scout.id, 1, 0, "work_done")
         progress_svc.request_jaarinsigne_2026_signoff_members(
             db, scout.id, [m1.id, m2.id],
@@ -309,6 +360,15 @@ class TestListSignoffRequestsGrouped:
         scout_a = _user(db, "a@x.com", "A")
         scout_b = _user(db, "b@x.com", "B")
         mentor = _user(db, "mentor@x.com", "Mentor")
+        # Mentor must share a speltak with both scouts (issue #97).
+        _speltak_with_leider(db, mentor, scout_a)
+        # scout_b joins the same speltak so the mentor reaches them too.
+        sm_a = db.query(SpeltakMembership).filter_by(user_id=scout_a.id).first()
+        db.add(GroupMembership(user_id=scout_b.id, group_id=sm_a.speltak.group_id,
+                               role="member", approved=True))
+        db.add(SpeltakMembership(user_id=scout_b.id, speltak_id=sm_a.speltak_id,
+                                 role="scout", approved=True))
+        db.commit()
         _entry(db, scout_a.id, 1, 0, "work_done")
         _entry(db, scout_a.id, 1, 1, "work_done")
         _entry(db, scout_b.id, 1, 0, "work_done")
@@ -330,6 +390,7 @@ class TestListSignoffRequestsGrouped:
     def test_keeps_regular_badges_as_individual_items(self, db):
         scout = _user(db, "scout@x.com", "Scout")
         mentor = _user(db, "mentor@x.com", "Mentor")
+        _speltak_with_leider(db, mentor, scout)  # shared speltak (issue #97)
         # Regular badge entry
         regular = ProgressEntry(
             user_id=scout.id, badge_slug="kamperen",

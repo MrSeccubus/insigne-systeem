@@ -575,6 +575,8 @@ Sends a sign-off request to every speltakleider of the given speltak. Suitable f
 
 **Response `202`:** Sign-off requests sent.
 
+**Response `403`:** Scout is not an active member of that speltak.
+
 **Response `404`:** Progress entry not found, or no eligible leiders found (`no_eligible_mentors`).
 
 **Response `409`:** Entry is already `signed_off`, or not in `work_done`/`pending_signoff` status.
@@ -583,7 +585,7 @@ Sends a sign-off request to every speltakleider of the given speltak. Suitable f
 
 #### `POST /api/progress/{id}/signoff-members` — Request sign-off from selected members 🔒
 
-Sends sign-off requests to the selected member(s). Suitable for peer-signoff speltakken.
+Sends sign-off requests to the selected member(s). Suitable for peer-signoff speltakken. Silently drops any `mentor_id` that does not share an active speltak with the scout.
 
 **Request body:**
 
@@ -595,7 +597,7 @@ Sends sign-off requests to the selected member(s). Suitable for peer-signoff spe
 
 **Response `202`:** Sign-off requests sent.
 
-**Response `404`:** Progress entry not found, or all selected users were ineligible (`no_eligible_mentors`).
+**Response `404`:** Progress entry not found, or all selected users were ineligible after filtering (`no_eligible_mentors`).
 
 **Response `409`:** Entry is already `signed_off`, or not in `work_done`/`pending_signoff` status.
 
@@ -747,6 +749,8 @@ pending. Revoke first.`).
 
 **Response `202`:** Array of `ProgressEntry` rows, now `pending_signoff`.
 
+**Response `403`:** Scout is not an active member of that speltak.
+
 **Response `404`:** No eligible mentors for that speltak.
 
 **Response `409`:** No eisen are ready for sign-off.
@@ -760,9 +764,9 @@ pending. Revoke first.`).
 {"mentor_ids": ["<uuid>", "<uuid>"]}
 ```
 
-**Response `202`:** Array of `ProgressEntry`. Filters the scout's own id from the list.
+**Response `202`:** Array of `ProgressEntry`. Filters the scout's own id from the list, and silently drops any `mentor_id` that does not share an active speltak with the scout.
 
-**Response `404`:** No eligible mentors.
+**Response `404`:** No eligible mentors after filtering.
 
 ---
 

@@ -334,3 +334,35 @@ def test_request_signoff_from_members_excludes_self(db):
 
     with pytest.raises(svc.NotFound, match="no_eligible_mentors"):
         svc.request_signoff_from_members(db, scout.id, e.id, [scout.id])
+
+
+def test_request_signoff_for_speltak_rejects_non_member(db):
+    """A scout cannot direct sign-off e-mails to leiders of a speltak
+    they're not in (issue #97)."""
+    g, s = _group_and_speltak(db)
+    scout = _scout(db, s.id, g.id, email="scout@x.com")
+    # An unrelated speltak the scout is *not* in.
+    other_g = groups_svc.create_group(db, name="Other", slug="other")
+    other_s = groups_svc.create_speltak(db, group_id=other_g.id, name="O", slug="o")
+    other_leider = _user(db, email="otherleider@x.com")
+    db.add(GroupMembership(user_id=other_leider.id, group_id=other_g.id,
+                           role="member", approved=True))
+    db.add(SpeltakMembership(user_id=other_leider.id, speltak_id=other_s.id,
+                             role="speltakleider", approved=True))
+    db.commit()
+    e = _entry(db, scout.id, status="work_done")
+
+    with pytest.raises(svc.Forbidden, match="not_member"):
+        svc.request_signoff_for_speltak(db, scout.id, e.id, other_s.id)
+
+
+def test_request_signoff_from_members_filters_outside_speltak(db):
+    """A scout cannot direct sign-off e-mails to people outside their speltakken
+    (issue #97). Filtered to NotFound so no info about the mentor leaks."""
+    g, s = _group_and_speltak(db)
+    scout = _scout(db, s.id, g.id, email="scout@x.com")
+    stranger = _user(db, email="stranger@x.com", name="Stranger")
+    e = _entry(db, scout.id, status="work_done")
+
+    with pytest.raises(svc.NotFound, match="no_eligible_mentors"):
+        svc.request_signoff_from_members(db, scout.id, e.id, [stranger.id])

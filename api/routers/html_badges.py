@@ -891,6 +891,8 @@ async def request_signoff_speltak(
             error = "Er zijn geen leiders gevonden die kunnen aftekenen."
         else:
             return RedirectResponse(url="/", status_code=303)
+    except progress_svc.Forbidden:
+        error = "Je bent geen lid van die speltak."
     except progress_svc.Conflict as exc:
         if str(exc) == "already_signed_off":
             error = "Deze stap is al afgetekend."
@@ -1365,6 +1367,8 @@ def _translate_signoff_exc(exc: Exception) -> str:
         return "Deze stap is al afgetekend."
     if msg == "invalid_email":
         return "Geef een geldig e-mailadres op."
+    if msg == "not_member":
+        return "Je bent geen lid van die speltak."
     return "Aanvraag aftekening mislukt."
 
 

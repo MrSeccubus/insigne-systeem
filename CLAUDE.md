@@ -128,6 +128,41 @@ SPA, no JS bundler, no build step. All three libraries are loaded from a CDN in
 
 The full API spec lives at `api/spec.md`. **Keep it up to date** whenever you add, change, or remove endpoints — both the JSON API (`/api/…`) and the HTML layer.
 
+## Security conventions
+
+### Redirects must use server-derived values, not raw URL parameters
+
+When building a `RedirectResponse` URL, **never interpolate a function-argument
+variable that came from a URL path parameter, query string, or form field**.
+Always re-derive the value from a server-side lookup:
+
+- `slug` (URL path param) → use `badge["slug"]` after `_CATALOGUE.get(slug)`.
+- `scout_id` / `group_id` / `speltak_id` → use the looked-up ORM row's
+  attribute (`scout.id`, `group.slug`, `speltak.slug`).
+- For the failure path where the lookup returned `None`, redirect to a
+  **constant** URL (`"/"`, `"/badges"`, `"/groups"`), never the raw input.
+
+CodeQL's `py/url-redirection` taint analysis flags any function-parameter
+string in a `RedirectResponse` regardless of upstream UUID / slug validation.
+It treats ORM attribute reads and catalogue dict reads as untainted. This
+convention is therefore enforceable by CodeQL: introducing a new redirect
+that interpolates a raw parameter will surface as an open finding.
+
+```python
+# WRONG — slug is a URL path parameter, CodeQL flags this
+return RedirectResponse(f"/badges/{slug}", status_code=303)
+
+# RIGHT — badge["slug"] comes from the catalogue dict
+badge = _CATALOGUE.get(slug)
+if not badge:
+    return RedirectResponse("/", status_code=303)
+return RedirectResponse(f"/badges/{badge['slug']}", status_code=303)
+```
+
+This sweep was applied across `html_badges.py` and `html_groups.py` in
+v0.12.1 (26 sites) and again on the jaarinsigne `set-level` handlers in
+v1.0.0 (CodeQL #82). Keep it that way.
+
 ## Releases and the `releases` branch
 
 **Never push to the `releases` branch unless explicitly instructed by the user.**

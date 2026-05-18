@@ -163,6 +163,47 @@ This sweep was applied across `html_badges.py` and `html_groups.py` in
 v0.12.1 (26 sites) and again on the jaarinsigne `set-level` handlers in
 v1.0.0 (CodeQL #82). Keep it that way.
 
+### Auth/access helpers must not return `RedirectResponse`
+
+Closely related to the rule above: a helper that takes a tainted parameter
+(URL path id, query string, form field) and returns a `RedirectResponse`
+will trip CodeQL's `py/reflective-xss` checker, because CodeQL can't prove
+that every redirect path inside the helper uses a constant URL — and the
+return value carries that doubt out to the caller. Even if every redirect
+*is* in fact constant, the union return type makes the data flow opaque.
+
+**Convention**: auth/access helpers return *data* (`User`, `None`, sentinels),
+never response objects. The route handler constructs `RedirectResponse(...)`
+itself from string literals, picking the target based on the helper's
+return value.
+
+```python
+# WRONG — CodeQL flags `return scout_or_redirect`
+def _require_scout_access(request, scout_id, db):
+    if not _UUID_RE.match(scout_id):
+        return None, RedirectResponse("/", status_code=303)
+    ...
+    return current_user, scout
+
+# RIGHT — helper returns data only; caller builds the response
+def _require_scout_access(request, scout_id, db) -> tuple[User | None, User | None]:
+    current_user = _get_current_user(request, db)
+    if current_user is None:
+        return None, None            # caller → "/login"
+    if not _UUID_RE.match(scout_id):
+        return current_user, None    # caller → "/"
+    ...
+    return current_user, scout
+
+# Caller
+current_user, scout = _require_scout_access(request, scout_id, db)
+if scout is None:
+    return RedirectResponse("/login" if current_user is None else "/", status_code=303)
+```
+
+Applied to `_require_scout_access` in v1.0.0 (CodeQL #87). Apply the same
+shape to any future auth helper.
+
 ## Releases and the `releases` branch
 
 **Never push to the `releases` branch unless explicitly instructed by the user.**

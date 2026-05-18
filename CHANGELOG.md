@@ -2,6 +2,18 @@
 
 Alle noemenswaardige wijzigingen per release, in omgekeerde chronologische volgorde.
 
+PR's voegen hun wijzigingen toe onder `## [Unreleased]`. Bij een release wordt
+deze sectie geconsolideerd in een nieuwe `## [vX.Y.Z]` sectie en `[Unreleased]`
+weer leeg gemaakt.
+
+---
+
+## [Unreleased]
+
+### Opgelost
+
+- **Numerieke query-parameters met aangehangen leestekens** (sluit #93) — URL's die uit tekst tussen haakjes worden gekopieerd (zoals `(https://…?niveau=1)`) bevatten soms de afsluitende `)`. De HTML-routes voor `niveau` en `only_in_progress` accepteren nu een leidende numerieke waarde en strippen aangehangen niet-numerieke tekens, zodat zulke URL's gewoon de juiste pagina openen in plaats van een 422-foutmelding te tonen.
+
 ---
 
 ## [v0.12.1] — 2026-05-12

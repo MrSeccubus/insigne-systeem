@@ -21,6 +21,7 @@ from insigne.models import ProgressEntry, User
 
 import re as _re
 
+from routers._query import lenient_int
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
 
@@ -125,7 +126,8 @@ async def niveau_checks(request: Request, slug: str, niveau_index: int, db: Sess
 # ── Badge detail ──────────────────────────────────────────────────────────────
 
 @router.get("/badges/{slug}", response_class=HTMLResponse)
-async def badge_detail(request: Request, slug: str, niveau: int | None = Query(None), db: Session = Depends(get_db)):
+async def badge_detail(request: Request, slug: str, niveau: str | None = Query(None), db: Session = Depends(get_db)):
+    niveau = lenient_int(niveau)
     current_user = _get_current_user(request, db)
     badge = _CATALOGUE.get(slug)
     if badge is None:
@@ -698,7 +700,8 @@ def _require_scout_access(request: Request, scout_id: str, db: Session):
 
 
 @router.get("/scouts/{scout_id}", response_class=HTMLResponse)
-async def scout_progress_home(scout_id: str, request: Request, only_in_progress: int = Query(0), db: Session = Depends(get_db)):
+async def scout_progress_home(scout_id: str, request: Request, only_in_progress: str | None = Query(None), db: Session = Depends(get_db)):
+    only_in_progress = lenient_int(only_in_progress) or 0
     current_user, scout_or_redirect = _require_scout_access(request, scout_id, db)
     if current_user is None:
         return scout_or_redirect
@@ -733,9 +736,10 @@ async def scout_progress_home(scout_id: str, request: Request, only_in_progress:
 async def scout_badge_detail(
     scout_id: str, slug: str,
     request: Request,
-    niveau: int | None = Query(None),
+    niveau: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
+    niveau = lenient_int(niveau)
     current_user, scout_or_redirect = _require_scout_access(request, scout_id, db)
     if current_user is None:
         return scout_or_redirect

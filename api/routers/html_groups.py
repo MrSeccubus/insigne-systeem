@@ -13,6 +13,7 @@ from insigne.badges import BadgeCatalogue
 from insigne.config import config
 from insigne.database import get_db
 from insigne.models import GroupMembership, ProgressEntry, Speltak, SpeltakMembership, User as UserModel
+from routers._query import lenient_int
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
 
@@ -1119,9 +1120,10 @@ def speltak_progress(
     group_slug: str, speltak_slug: str,
     request: Request,
     only_favorites: bool | None = Query(None),
-    only_in_progress: int = Query(0),
+    only_in_progress: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
+    only_in_progress = lenient_int(only_in_progress) or 0
     user, redirect = _require_user(request, db)
     if redirect:
         return redirect

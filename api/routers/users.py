@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 import jwt
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -52,8 +52,14 @@ def _get_current_user(request: Request, db: Session) -> User | None:
 # --- Registration ---
 
 @router.get("/register", response_class=HTMLResponse)
-async def register_page(request: Request, db: Session = Depends(get_db)):
-    return _page(request, "register.html", db)
+async def register_page(
+    request: Request,
+    email: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Step 1 of registration. ``?email=`` pre-fills the e-mail field so
+    invitation e-mails can deep-link new users without expiring tokens."""
+    return _page(request, "register.html", db, prefill_email=(email or ""))
 
 
 @router.get("/register/confirm", response_class=HTMLResponse)

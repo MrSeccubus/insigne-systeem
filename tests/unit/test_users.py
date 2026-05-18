@@ -67,6 +67,26 @@ class TestJWT:
 
 # ── start_registration ────────────────────────────────────────────────────────
 
+class TestGetOrCreatePendingUser:
+    def test_creates_pending_user_without_token(self, db):
+        from insigne.models import ConfirmationToken
+        user = user_svc.get_or_create_pending_user(db, "invitee@example.com")
+        assert user is not None
+        assert user.email == "invitee@example.com"
+        assert user.status == "pending"
+        # Critically: no ConfirmationToken should have been generated.
+        assert db.query(ConfirmationToken).filter_by(user_id=user.id).count() == 0
+
+    def test_returns_existing_user_unchanged(self, db):
+        u1 = user_svc.get_or_create_pending_user(db, "x@example.com")
+        u2 = user_svc.get_or_create_pending_user(db, "x@example.com")
+        assert u1.id == u2.id
+
+    def test_normalises_email(self, db):
+        u = user_svc.get_or_create_pending_user(db, "  X@Example.COM  ")
+        assert u.email == "x@example.com"
+
+
 class TestStartRegistration:
     def test_creates_pending_user(self, db):
         user_svc.start_registration(db, "jan@example.com")

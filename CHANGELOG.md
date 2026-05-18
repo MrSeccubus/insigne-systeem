@@ -38,6 +38,8 @@ weer leeg gemaakt.
 - **Step-check tickboxes** in de jaarinsigne-2026-editor synchroniseren live mee met de inclusies via een HTMX-bodyswap.
 - **Compacte eis-rendering** in de editor cards — markdown wordt gestript behalve `==…==` groene accenten; te lange teksten krijgen een "Toon volledige eis"-toggle die de volledige markdown laat zien.
 - **Sortering** in beide editorkolommen volgt `badges.yml`-volgorde → niveau → eisnummer.
+- **Uitnodigingen** (sluit #92) — de uitnodigingsmail voor nieuwe groepsleiders en speltakleden bevat geen 1 uur geldige bevestigingscode meer; in plaats daarvan staat er een link naar `/register?email=<adres>` waar de uitnodigde de standaard registratieflow doorloopt op eigen tempo. De pending User-rij en lidmaatschappen worden bij uitnodiging aangemaakt (zodat de leider de openstaande uitnodiging blijft zien) zonder bijbehorende ConfirmationToken. Ook de mentor-uitnodigingsmails voor zowel reguliere step-signoffs als jaarinsigne-2026 batch-signoffs gebruiken nu dezelfde `/register?email=<adres>` link, zodat het ingevulde adres meteen voorgevuld in het registratieformulier staat.
+- **Aanmeldverzoeken** (sluit #92) — bij openstaande aanmeldverzoeken voor een speltak ziet de speltakleider nu zowel de naam als het e-mailadres van de aanvrager, zodat onbekende namen makkelijker te herkennen zijn.
 
 ### Opgelost
 

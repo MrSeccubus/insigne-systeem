@@ -8,7 +8,10 @@
     <ul class="item-list">
         {% for req in s.requests %}
         <li class="item-list-row">
-            <span>{{ req.user.name or '(onbekend)' }}</span>
+            <span>
+                {{ req.user.name or '(naam onbekend)' }}
+                {% if req.user.email %}<span style="color:#888;font-size:0.9em;">&lt;{{ req.user.email }}&gt;</span>{% endif %}
+            </span>
             <span class="row-actions" x-data="{ busy: false }">
                 <form method="post" action="/requests/{{ req.id }}/approve" style="display:contents;" @submit="busy = true">
                     <button type="submit" class="btn-success btn-sm" :disabled="busy">Goedkeuren</button>

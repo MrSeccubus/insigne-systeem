@@ -612,8 +612,10 @@ def group_invite_member(
             description=f"groepsleider van groep {group.name}",
         )
     else:
-        # New or pending user — registration flow, auto-approved on activation
-        code, _token_type, invitee = users_svc.start_registration(db, email)
+        # New or pending user — they start the registration flow themselves
+        # via the /register?email=… link in the invite e-mail (no 1-hour
+        # confirmation-token countdown at invite time).
+        invitee = users_svc.get_or_create_pending_user(db, email)
         m = db.query(GroupMembership).filter_by(user_id=invitee.id, group_id=group.id).first()
         if m:
             m.role = "groepsleider"
@@ -627,7 +629,6 @@ def group_invite_member(
         email_svc.send_groepsleider_invite_email(
             to=email,
             naam=invitee.name or email.split("@")[0],
-            code=code,
             inviter_name=user.name or user.email,
             group_name=group.name,
         )
@@ -855,8 +856,10 @@ def speltak_invite_member(
             description=f"{role} bij speltak {speltak.name} van groep {group.name}",
         )
     else:
-        # New or pending user — registration flow with pending membership
-        code, _token_type, invitee = users_svc.start_registration(db, email)
+        # New or pending user — they start the registration flow themselves
+        # via the /register?email=… link in the invite e-mail (no 1-hour
+        # confirmation-token countdown at invite time).
+        invitee = users_svc.get_or_create_pending_user(db, email)
         m = db.query(SpeltakMembership).filter_by(user_id=invitee.id, speltak_id=speltak.id).first()
         if m:
             m.role = role
@@ -870,7 +873,6 @@ def speltak_invite_member(
         email_svc.send_speltak_invite_email(
             to=email,
             naam=invitee.name or email.split("@")[0],
-            code=code,
             inviter_name=user.name or user.email,
             group_name=group.name,
             speltak_name=speltak.name,

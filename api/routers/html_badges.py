@@ -1037,7 +1037,16 @@ def _build_badge_catalogue(all_progress: dict, db=None, scout_id: str | None = N
 
 
 def _require_scout_access(request: Request, scout_id: str, db: Session):
-    """Return (current_user, scout) or (None, redirect) on auth/access failure."""
+    """Return (current_user, scout) or (None, redirect) on auth/access failure.
+
+    ``scout_id`` is validated against ``_UUID_RE`` up-front. UUIDs in this
+    project are generated server-side via ``uuid4``, so a well-formed value
+    is the only legitimate input here — rejecting garbage early prevents any
+    user-controlled string from reaching downstream interpolation (CodeQL
+    `py/url-redirection` defence in depth).
+    """
+    if not _UUID_RE.match(scout_id):
+        return None, RedirectResponse("/", status_code=303)
     current_user = _get_current_user(request, db)
     if current_user is None:
         return None, RedirectResponse("/login", status_code=303)

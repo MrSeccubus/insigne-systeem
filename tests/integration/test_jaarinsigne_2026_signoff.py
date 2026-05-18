@@ -172,6 +172,15 @@ class TestRequestSignoffDirect:
         with pytest.raises(progress_svc.Forbidden, match="self_signoff"):
             progress_svc.request_jaarinsigne_2026_signoff(db, scout.id, "scout@x.com")
 
+    def test_raises_invalid_email_for_garbage_input(self, db):
+        from insigne.models import User
+        scout = _user(db, "scout@x.com", "Scout")
+        _entry(db, scout.id, 1, 0, "work_done")
+        users_before = db.query(User).count()
+        with pytest.raises(progress_svc.Conflict, match="invalid_email"):
+            progress_svc.request_jaarinsigne_2026_signoff(db, scout.id, "not-an-email")
+        assert db.query(User).count() == users_before
+
 
 # ── cancel_jaarinsigne_2026_signoff_requests ─────────────────────────────────
 

@@ -471,6 +471,8 @@ async def request_signoff(
             error = "Deze stap is al afgetekend."
         elif str(exc) == "not_work_done":
             error = "Je kunt pas aftekening aanvragen als je de stap als 'Klaar' hebt gemeld."
+        elif str(exc) == "invalid_email":
+            error = "Geef een geldig e-mailadres op."
         else:
             error = "Dit e-mailadres is al uitgenodigd."
         db.refresh(entry)
@@ -1361,6 +1363,8 @@ def _translate_signoff_exc(exc: Exception) -> str:
         return "Geen geschikte (bege-)leider gevonden om af te tekenen."
     if msg == "already_signed_off":
         return "Deze stap is al afgetekend."
+    if msg == "invalid_email":
+        return "Geef een geldig e-mailadres op."
     return "Aanvraag aftekening mislukt."
 
 

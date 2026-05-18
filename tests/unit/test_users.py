@@ -67,6 +67,29 @@ class TestJWT:
 
 # ── start_registration ────────────────────────────────────────────────────────
 
+class TestIsValidEmail:
+    @pytest.mark.parametrize("addr", [
+        "jan@example.com",
+        "frank+test@breedijk.net",
+        "user.name@sub.domain.example",
+    ])
+    def test_accepts_valid(self, addr):
+        assert user_svc.is_valid_email(addr) is True
+
+    @pytest.mark.parametrize("addr", [
+        "",
+        "   ",
+        "not-an-email",
+        "jan@",
+        "@example.com",
+        "jan@@example.com",
+        "jan@example",       # missing TLD
+        "jan example@x.com",
+    ])
+    def test_rejects_invalid(self, addr):
+        assert user_svc.is_valid_email(addr) is False
+
+
 class TestGetOrCreatePendingUser:
     def test_creates_pending_user_without_token(self, db):
         from insigne.models import ConfirmationToken
@@ -85,6 +108,14 @@ class TestGetOrCreatePendingUser:
     def test_normalises_email(self, db):
         u = user_svc.get_or_create_pending_user(db, "  X@Example.COM  ")
         assert u.email == "x@example.com"
+
+    def test_raises_invalid_email_for_garbage_input(self, db):
+        """An inviter typing junk in the invite form must not leave a bogus
+        pending User row behind (issue #98 / #106)."""
+        users_before = db.query(User).count()
+        with pytest.raises(ValueError, match="invalid_email"):
+            user_svc.get_or_create_pending_user(db, "not-an-email")
+        assert db.query(User).count() == users_before
 
 
 class TestStartRegistration:

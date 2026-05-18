@@ -154,7 +154,7 @@ def request_signoff(
 
     Only allowed when the entry status is 'work_done' or already 'pending_signoff'.
     Raises NotFound, Conflict("not_work_done"), Conflict("already_invited"),
-    Conflict("already_signed_off").
+    Conflict("already_signed_off"), Conflict("invalid_email").
     """
     entry = db.query(ProgressEntry).filter(
         ProgressEntry.id == entry_id,
@@ -167,7 +167,11 @@ def request_signoff(
     if entry.status not in ("work_done", "pending_signoff"):
         raise Conflict("not_work_done")
 
+    from .users import is_valid_email
+
     mentor_email = mentor_email.strip().lower()
+    if not is_valid_email(mentor_email):
+        raise Conflict("invalid_email")
 
     scout = db.get(User, scout_id)
     if scout and scout.email and scout.email.lower() == mentor_email:
@@ -436,12 +440,19 @@ def request_jaarinsigne_2026_signoff_members(
 def request_jaarinsigne_2026_signoff(
     db: Session, scout_id: str, mentor_email: str
 ) -> tuple[list[ProgressEntry], User, bool]:
-    """Direct (single-mentor by e-mail) batch sign-off request for jaarinsigne_2026."""
+    """Direct (single-mentor by e-mail) batch sign-off request for jaarinsigne_2026.
+
+    Raises NotFound("no_entries"), Conflict("invalid_email"), Forbidden("self_signoff").
+    """
     entries = _jaarinsigne_2026_eligible_entries(db, scout_id)
     if not entries:
         raise NotFound("no_entries")
 
+    from .users import is_valid_email
+
     mentor_email = mentor_email.strip().lower()
+    if not is_valid_email(mentor_email):
+        raise Conflict("invalid_email")
 
     scout = db.get(User, scout_id)
     if scout and scout.email and scout.email.lower() == mentor_email:

@@ -170,11 +170,12 @@ async def request_signoff(
             raise HTTPException(status_code=403, detail="You cannot invite yourself to sign off.")
         raise HTTPException(status_code=403, detail="Forbidden.")
     except progress_svc.Conflict as exc:
-        detail = (
-            "This step is already completed."
-            if str(exc) == "already_signed_off"
-            else "This mentor has already been invited."
-        )
+        if str(exc) == "already_signed_off":
+            detail = "This step is already completed."
+        elif str(exc) == "invalid_email":
+            raise HTTPException(status_code=422, detail="Invalid e-mail address.")
+        else:
+            detail = "This mentor has already been invited."
         raise HTTPException(status_code=409, detail=detail)
 
     badge = _CATALOGUE.get(entry.badge_slug)
@@ -671,7 +672,9 @@ async def jaarinsigne_2026_request_signoff_direct(
         raise HTTPException(status_code=403, detail="Forbidden.")
     except progress_svc.NotFound:
         raise HTTPException(status_code=409, detail="No eisen ready for sign-off.")
-    except progress_svc.Conflict:
+    except progress_svc.Conflict as exc:
+        if str(exc) == "invalid_email":
+            raise HTTPException(status_code=422, detail="Invalid e-mail address.")
         raise HTTPException(status_code=409, detail="Conflict.")
 
     badge = _CATALOGUE.get("jaarinsigne_2026")

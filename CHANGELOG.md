@@ -10,6 +10,16 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+---
+
+## [v1.0.0] — 2026-05-18
+
+### Eerste stabiele release — jaarinsignes, batch sign-off en gebruikersfavorieten
+
+Drie kwartalen aan ontwikkeling stabiliseren in deze eerste 1.0-release. De jaarinsigne-architectuur (één badge met aparte eisen per speltak), het meta-insigne Jaarinsigne 2026 (afgeleid van bestaande voortgang), batch-aftekenen, een complete JSON-API voor jaarinsigne-2026 en persoonlijke insignefavorieten zitten allemaal in dit pakket. Daarnaast is de hele schrijfflow voor mentor- en uitnodigingse-mails ge-audit: alleen geldige adressen kunnen nog `User`-rijen aanmaken, en aftekenverzoeken zijn gescoped op de daadwerkelijke speltak- en groepslidmaatschappen van de scout.
+
+#### Nieuw
+
 - **Persoonlijke favoriete insignes** (#90) — naast de bestaande speltak- en groepsfavorieten kun je nu ook per gebruiker insignes "sterren" via de homepagina. De ster-knop verschijnt alleen op de homepage (`/`) — nooit op een leider-overzicht. Een ★/☆-toggle bovenaan filtert de homepage op je eigen favorieten. Voorkeur blijft bewaard onafhankelijk van speltak- of groepslidmaatschap.
   - Nieuw `UserFavoriteBadge` model + Alembic-migratie.
   - Nieuwe service-functies `get_user_favorite_slugs` / `toggle_user_favorite_badge`.
@@ -26,7 +36,7 @@ weer leeg gemaakt.
 - **JSON-API voor jaarinsigne 2026** (10 endpoints) — afspiegeling van de HTML-flow zodat externe consumenten (mobiele apps, scripts) hetzelfde kunnen. Inclusies (`GET/POST /api/users/me/jaarinsigne_2026/inclusions{,/available,/toggle}`), score (`GET /score`), batch-aftekenen (`POST /signoff{,-speltak,-members}`, `DELETE /signoff`), en mentor-acties (`POST /api/scouts/{id}/jaarinsigne_2026/{confirm,reject}-signoff`).
 - **Dedicated jaarinsigne e-mail templates** — verzoek / uitnodiging / afgetekend / afgewezen met correcte labels (Insigne / Speltak / Eis(en) met de echte eisnummer + titel). Eisteksten worden nu door de markdown-renderer gehaald: `**vet**`, lijsten en `==groen==` accenten komen door, ruwe markdown-tekens niet meer.
 
-### Verbeteringen
+#### Verbeteringen
 
 - **Loop-icoon vervangt emoji** (#91) — de eerder gebruikte 🏃-emoji is vervangen door een inline Font Awesome SVG, voor consistentere rendering op alle platforms en mailclients.
 - **Lege-staat berichten voor filtercombinaties** (#91) — bij actieve filters maar geen resultaten was er voorheen een lege pagina; nu staat er per combinatie een duidelijke melding:
@@ -41,7 +51,7 @@ weer leeg gemaakt.
 - **Uitnodigingen** (sluit #92) — de uitnodigingsmail voor nieuwe groepsleiders en speltakleden bevat geen 1 uur geldige bevestigingscode meer; in plaats daarvan staat er een link naar `/register?email=<adres>` waar de uitnodigde de standaard registratieflow doorloopt op eigen tempo. De pending User-rij en lidmaatschappen worden bij uitnodiging aangemaakt (zodat de leider de openstaande uitnodiging blijft zien) zonder bijbehorende ConfirmationToken. Ook de mentor-uitnodigingsmails voor zowel reguliere step-signoffs als jaarinsigne-2026 batch-signoffs gebruiken nu dezelfde `/register?email=<adres>` link, zodat het ingevulde adres meteen voorgevuld in het registratieformulier staat.
 - **Aanmeldverzoeken** (sluit #92) — bij openstaande aanmeldverzoeken voor een speltak ziet de speltakleider nu zowel de naam als het e-mailadres van de aanvrager, zodat onbekende namen makkelijker te herkennen zijn.
 
-### Opgelost
+#### Opgelost
 
 - **Numerieke query-parameters met aangehangen leestekens** (sluit #93) — URL's die uit tekst tussen haakjes worden gekopieerd (zoals `(https://…?niveau=1)`) bevatten soms de afsluitende `)`. De HTML-routes voor `niveau` en `only_in_progress` accepteren nu een leidende numerieke waarde en strippen aangehangen niet-numerieke tekens, zodat zulke URL's gewoon de juiste pagina openen in plaats van een 422-foutmelding te tonen.
 - **Step-check dropdown positionering** (#96, sluit #95) — drie aparte bugs in de leider-aftekendropdown:
@@ -53,7 +63,7 @@ weer leeg gemaakt.
 - **Zelf-verwerping** op `reject_jaarinsigne_2026_signoff` heeft nu net als `confirm_*` een expliciete `mentor_id != scout_id`-controle (was alleen impliciet via een data-invariant).
 - **Dode code verwijderd** — het `dedicated_api`-vlaggetje dat speculatief tijdens het jaarinsigne-design was toegevoegd, werd nergens gebruikt; weggehaald uit `BadgeCatalogue`, alle routers en templates.
 
-### Beveiliging
+#### Beveiliging
 
 - **Self-signoff foutmelding** in de directe-aftekenen flow — een scout die zijn eigen e-mail invult krijgt nu een inline foutmelding in plaats van een stilte zonder bevestiging.
 - **Validatie van e-mailadressen bij aftekenverzoeken en uitnodigingen** (sluit #98, #106) — alle flows die op basis van een formulierveld een nieuwe `User`-rij konden aanmaken controleren het adresformaat nu eerst met dezelfde `email-validator` als Pydantic's `EmailStr`. Het HTML-formulier toont *"Geef een geldig e-mailadres op."* inline; JSON-endpoints geven `422`. Voorkomt vervuiling van de `users`-tabel via een formulierveld. Aangepaste plekken:
@@ -65,11 +75,11 @@ weer leeg gemaakt.
   - **Members-pad** — `progress_svc.request_signoff_from_members` / `request_jaarinsigne_2026_signoff_members` filteren `mentor_ids` via `groups_svc.filter_mentor_ids_sharing_speltak` zodat alleen mentoren die een actieve speltakgenoot van de scout zijn doorkomen. Resterend lege lijst → bestaande `NotFound("no_eligible_mentors")` (geen informatie over de gefilterde mentoren in de respons).
 - Security-champion review uitgevoerd; geen High/Medium bevindingen. Drie pre-existing observaties op tracking-issues gezet (#97 scope mentor/speltak-input, #98 e-mailvalidatie, #99 CSRF-houding).
 
-### Onderhoud
+#### Onderhoud
 
 - Frontend-stack documentatie (Jinja2 + HTMX + Alpine.js + inline Font Awesome SVG) toegevoegd aan `CLAUDE.md`.
 - Jaarinsigne-specifieke structuurtests (`TestJaarinsigneStructure`, `TestJaarinsigne2026Structure`) toegevoegd om gaten te dichten waar de generieke `TestBadgeStructure` jaarinsignes oversloeg.
-- Totaal aantal tests: 1210 (was 1099 voor deze PR).
+- Totaal aantal tests: 1255 (was 1099 aan het begin van deze cyclus).
 
 ---
 

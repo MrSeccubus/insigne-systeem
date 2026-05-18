@@ -2,6 +2,38 @@
 
 Alle noemenswaardige wijzigingen per release, in omgekeerde chronologische volgorde.
 
+PR's voegen hun wijzigingen toe onder `## [Unreleased]`. Bij een release wordt
+deze sectie geconsolideerd in een nieuwe `## [vX.Y.Z]` sectie en `[Unreleased]`
+weer leeg gemaakt.
+
+---
+
+## [Unreleased]
+
+### Nieuw
+
+- **Persoonlijke favoriete insignes** (#90) — naast de bestaande speltak- en groepsfavorieten kun je nu ook per gebruiker insignes "sterren" via de homepagina. De ster-knop verschijnt alleen op de homepage (`/`) — nooit op een leider-overzicht. Een ★/☆-toggle bovenaan filtert de homepage op je eigen favorieten. Voorkeur blijft bewaard onafhankelijk van speltak- of groepslidmaatschap.
+  - Nieuw `UserFavoriteBadge` model + Alembic-migratie.
+  - Nieuwe service-functies `get_user_favorite_slugs` / `toggle_user_favorite_badge`.
+  - JSON-endpoint `GET /api/users/me/favorite-badges` en `POST /api/users/me/favorite-badges/{slug}/toggle`.
+- **Voortgangsfilter "lopende insignes"** (#91) — 🏃 (Font Awesome person-running SVG) toggle-knop op de homepage, scout-voortgangspagina (`/scouts/{id}`) en speltak-voortgangspagina toont alleen insignes waar al voortgang op is. De nieuwe filter combineert met de bestaande ★-favorietenfilter; de query-parameters `only_favorites` en `only_in_progress` worden onafhankelijk van elkaar bewaard bij toggle.
+
+### Verbeteringen
+
+- **Loop-icoon vervangt emoji** (#91) — de eerder gebruikte 🏃-emoji is vervangen door een inline Font Awesome SVG, voor consistentere rendering op alle platforms en mailclients.
+- **Lege-staat berichten voor filtercombinaties** (#91) — bij actieve filters maar geen resultaten was er voorheen een lege pagina; nu staat er per combinatie een duidelijke melding:
+  - ★ alleen, geen favorieten ingesteld → uitleg en uitnodiging om favorieten toe te voegen.
+  - ★ alleen, favorieten bestaan maar geen match in deze categorie/speltak.
+  - 🏃 alleen, geen lopende voortgang.
+  - 🏃 + ★ samen, geen overlap.
+
+### Opgelost
+
+- **Step-check dropdown positionering** (#96, sluit #95) — drie aparte bugs in de leider-aftekendropdown:
+  - **Verkeerde positie na HTMX-swap**: de `<details>`-summary kreeg een Alpine.js `@toggle`-handler die `getBoundingClientRect()` leest en `top`/`left` op de dropdown zet wanneer deze `position: fixed` is. Mobile-layout (`position: absolute`) blijft onaangetast.
+  - **Meerdere dropdowns tegelijk open**: globale `click`-handler op `document` sluit alle andere open `.step-check-wrapper`-elementen wanneer een wrapper wordt aangeklikt; klikken buiten elke wrapper sluit alles.
+  - **Dropdown blijft zichtbaar bij scrollen**: globale `scroll`-handler (met `capture: true`) sluit alle open dropdowns zodra de pagina scrollt — voorkomt dat de dropdown midden op het scherm "zweeft" wanneer de trigger is weggescrolld.
+
 ---
 
 ## [v0.12.1] — 2026-05-12

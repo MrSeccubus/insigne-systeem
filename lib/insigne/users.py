@@ -51,8 +51,14 @@ def get_or_create_pending_user(db: Session, email: str) -> User:
     Used by invite flows that need a stable ``user_id`` for the pending
     membership but should **not** issue a 1-hour-valid confirmation token —
     the invitee starts the registration flow themselves at their own pace.
+
+    Raises ``ValueError("invalid_email")`` for syntactically invalid input,
+    so an inviter typing junk in the form does not pollute the ``users``
+    table with a bogus pending row.
     """
     email = email.strip().lower()
+    if not is_valid_email(email):
+        raise ValueError("invalid_email")
     user = db.query(User).filter(User.email == email).first()
     if user is None:
         user = User(email=email)

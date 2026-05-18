@@ -1363,6 +1363,8 @@ def _translate_signoff_exc(exc: Exception) -> str:
         return "Geen geschikte (bege-)leider gevonden om af te tekenen."
     if msg == "already_signed_off":
         return "Deze stap is al afgetekend."
+    if msg == "invalid_email":
+        return "Geef een geldig e-mailadres op."
     return "Aanvraag aftekening mislukt."
 
 

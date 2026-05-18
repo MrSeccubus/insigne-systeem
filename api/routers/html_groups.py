@@ -590,6 +590,11 @@ def group_invite_member(
     group = groups_svc.get_group_by_slug(db, slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse("/groups", status_code=303)
+    if not users_svc.is_valid_email(email.strip().lower()):
+        return _page(request, "group_detail.html", db,
+                     **_group_detail_ctx(db, group, user),
+                     error="Geef een geldig e-mailadres op.",
+                     invite_email=email)
     from insigne.models import User as UserModel
     invitee = db.query(UserModel).filter_by(email=email.strip().lower()).first()
 
@@ -834,6 +839,18 @@ def speltak_invite_member(
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
         return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
+    if not users_svc.is_valid_email(email.strip().lower()):
+        members = groups_svc.list_speltak_members(db, speltak.id)
+        pending_members = groups_svc.list_pending_speltak_members(db, speltak.id)
+        other_speltakken = [s for s in group.speltakken if s.id != speltak.id]
+        suggested_users = groups_svc.list_group_users_not_in_speltak(db, group.id, speltak.id)
+        return _page(request, "speltak_detail.html", db,
+                     group=group, speltak=speltak, members=members,
+                     pending_members=pending_members,
+                     can_manage=True, other_speltakken=other_speltakken,
+                     suggested_users=suggested_users,
+                     error="Geef een geldig e-mailadres op.",
+                     invite_email=email)
     from insigne.models import User as UserModel
     invitee = db.query(UserModel).filter_by(email=email.strip().lower()).first()
 

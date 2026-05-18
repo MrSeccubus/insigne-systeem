@@ -168,6 +168,20 @@ class TestGroupAddMember:
         assert r.status_code == 303
         assert r.headers["location"] == "/groups"
 
+    def test_invite_rejects_invalid_email_inline(self, client, db):
+        """Issue #106 — junk in the invite form must produce an inline error
+        and must not pollute the users table with a bogus pending row."""
+        from insigne.models import GroupMembership, User
+        leider = _user(db)
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+        _login(client, leider)
+        users_before = db.query(User).count()
+        r = client.post("/groups/g/members/invite", data={"email": "not-an-email"})
+        assert r.status_code == 200
+        assert "Geef een geldig e-mailadres op." in r.text
+        assert db.query(User).count() == users_before
+        assert db.query(GroupMembership).filter_by(group_id=g.id, approved=False).count() == 0
+
 
 # ── POST /groups/{slug}/members/{id}/remove ───────────────────────────────────
 

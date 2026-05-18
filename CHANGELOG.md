@@ -56,7 +56,10 @@ weer leeg gemaakt.
 ### Beveiliging
 
 - **Self-signoff foutmelding** in de directe-aftekenen flow — een scout die zijn eigen e-mail invult krijgt nu een inline foutmelding in plaats van een stilte zonder bevestiging.
-- **Validatie van mentor-e-mailadressen bij aftekenverzoeken** (sluit #98) — de directe-aftekenflow (`POST /progress/{id}/request-signoff`) maakte tot nu toe een `User`-rij aan voor elke niet-lege invoer in het mentor-veld, ook voor onzin zoals `"not-an-email"`. De service controleert nu het formaat met dezelfde `email-validator` als Pydantic's `EmailStr`, weigert ongeldige adressen met `Conflict("invalid_email")`, en het HTML-formulier toont de melding *"Geef een geldig e-mailadres op."* inline. De JSON-API endpoint geeft `422` bij ongeldige invoer. Voorkomt vervuiling van de `users`-tabel via een formulierveld.
+- **Validatie van e-mailadressen bij aftekenverzoeken en uitnodigingen** (sluit #98, #106) — alle flows die op basis van een formulierveld een nieuwe `User`-rij konden aanmaken controleren het adresformaat nu eerst met dezelfde `email-validator` als Pydantic's `EmailStr`. Het HTML-formulier toont *"Geef een geldig e-mailadres op."* inline; JSON-endpoints geven `422`. Voorkomt vervuiling van de `users`-tabel via een formulierveld. Aangepaste plekken:
+  - Per-eis directe aftekenen (`POST /progress/{id}/request-signoff`) — `progress_svc.request_signoff` gooit `Conflict("invalid_email")`.
+  - Jaarinsigne-2026 batch directe aftekenen (`POST /badges/jaarinsigne_2026/request-signoff`) — `progress_svc.request_jaarinsigne_2026_signoff` gooit `Conflict("invalid_email")`.
+  - Groepsleider- en speltakuitnodigingen (`POST /groups/{slug}/members/invite`, `POST /groups/{g}/speltakken/{s}/members/invite`) — `users_svc.get_or_create_pending_user` gooit `ValueError("invalid_email")`; de HTML-handlers vangen dit en renderen een inline foutmelding.
 - Security-champion review uitgevoerd; geen High/Medium bevindingen. Drie pre-existing observaties op tracking-issues gezet (#97 scope mentor/speltak-input, #98 e-mailvalidatie, #99 CSRF-houding).
 
 ### Onderhoud

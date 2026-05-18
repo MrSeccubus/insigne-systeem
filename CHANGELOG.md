@@ -38,9 +38,12 @@ weer leeg gemaakt.
 - **Step-check tickboxes** in de jaarinsigne-2026-editor synchroniseren live mee met de inclusies via een HTMX-bodyswap.
 - **Compacte eis-rendering** in de editor cards — markdown wordt gestript behalve `==…==` groene accenten; te lange teksten krijgen een "Toon volledige eis"-toggle die de volledige markdown laat zien.
 - **Sortering** in beide editorkolommen volgt `badges.yml`-volgorde → niveau → eisnummer.
+- **Uitnodigingen** (sluit #92) — de uitnodigingsmail voor nieuwe groepsleiders en speltakleden bevat geen 1 uur geldige bevestigingscode meer; in plaats daarvan staat er een link naar `/register?email=<adres>` waar de uitnodigde de standaard registratieflow doorloopt op eigen tempo. De pending User-rij en lidmaatschappen worden bij uitnodiging aangemaakt (zodat de leider de openstaande uitnodiging blijft zien) zonder bijbehorende ConfirmationToken. Ook de mentor-uitnodigingsmails voor zowel reguliere step-signoffs als jaarinsigne-2026 batch-signoffs gebruiken nu dezelfde `/register?email=<adres>` link, zodat het ingevulde adres meteen voorgevuld in het registratieformulier staat.
+- **Aanmeldverzoeken** (sluit #92) — bij openstaande aanmeldverzoeken voor een speltak ziet de speltakleider nu zowel de naam als het e-mailadres van de aanvrager, zodat onbekende namen makkelijker te herkennen zijn.
 
 ### Opgelost
 
+- **Numerieke query-parameters met aangehangen leestekens** (sluit #93) — URL's die uit tekst tussen haakjes worden gekopieerd (zoals `(https://…?niveau=1)`) bevatten soms de afsluitende `)`. De HTML-routes voor `niveau` en `only_in_progress` accepteren nu een leidende numerieke waarde en strippen aangehangen niet-numerieke tekens, zodat zulke URL's gewoon de juiste pagina openen in plaats van een 422-foutmelding te tonen.
 - **Step-check dropdown positionering** (#96, sluit #95) — drie aparte bugs in de leider-aftekendropdown:
   - **Verkeerde positie na HTMX-swap**: de `<details>`-summary kreeg een Alpine.js `@toggle`-handler die `getBoundingClientRect()` leest en `top`/`left` op de dropdown zet wanneer deze `position: fixed` is. Mobile-layout (`position: absolute`) blijft onaangetast.
   - **Meerdere dropdowns tegelijk open**: globale `click`-handler op `document` sluit alle andere open `.step-check-wrapper`-elementen wanneer een wrapper wordt aangeklikt; klikken buiten elke wrapper sluit alles.
@@ -53,6 +56,7 @@ weer leeg gemaakt.
 ### Beveiliging
 
 - **Self-signoff foutmelding** in de directe-aftekenen flow — een scout die zijn eigen e-mail invult krijgt nu een inline foutmelding in plaats van een stilte zonder bevestiging.
+- **Validatie van mentor-e-mailadressen bij aftekenverzoeken** (sluit #98) — de directe-aftekenflow (`POST /progress/{id}/request-signoff`) maakte tot nu toe een `User`-rij aan voor elke niet-lege invoer in het mentor-veld, ook voor onzin zoals `"not-an-email"`. De service controleert nu het formaat met dezelfde `email-validator` als Pydantic's `EmailStr`, weigert ongeldige adressen met `Conflict("invalid_email")`, en het HTML-formulier toont de melding *"Geef een geldig e-mailadres op."* inline. De JSON-API endpoint geeft `422` bij ongeldige invoer. Voorkomt vervuiling van de `users`-tabel via een formulierveld.
 - Security-champion review uitgevoerd; geen High/Medium bevindingen. Drie pre-existing observaties op tracking-issues gezet (#97 scope mentor/speltak-input, #98 e-mailvalidatie, #99 CSRF-houding).
 
 ### Onderhoud
@@ -60,10 +64,6 @@ weer leeg gemaakt.
 - Frontend-stack documentatie (Jinja2 + HTMX + Alpine.js + inline Font Awesome SVG) toegevoegd aan `CLAUDE.md`.
 - Jaarinsigne-specifieke structuurtests (`TestJaarinsigneStructure`, `TestJaarinsigne2026Structure`) toegevoegd om gaten te dichten waar de generieke `TestBadgeStructure` jaarinsignes oversloeg.
 - Totaal aantal tests: 1210 (was 1099 voor deze PR).
-
-### Beveiliging
-
-- **Validatie van mentor-e-mailadressen bij aftekenverzoeken** (sluit #98) — de directe-aftekenflow (`POST /progress/{id}/request-signoff`) maakte tot nu toe een `User`-rij aan voor elke niet-lege invoer in het mentor-veld, ook voor onzin zoals `"not-an-email"`. De service controleert nu het formaat met dezelfde `email-validator` als Pydantic's `EmailStr`, weigert ongeldige adressen met `Conflict("invalid_email")`, en het HTML-formulier toont de melding *"Geef een geldig e-mailadres op."* inline. De JSON-API endpoint geeft `422` bij ongeldige invoer. Voorkomt vervuiling van de `users`-tabel via een formulierveld.
 
 ---
 

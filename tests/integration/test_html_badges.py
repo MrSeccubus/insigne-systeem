@@ -58,6 +58,18 @@ class TestBadgeDetail:
         r = client.get(f"/badges/{_BADGE}?niveau=1")
         assert r.status_code == 200
 
+    def test_niveau_with_trailing_paren_still_renders(self, client, db):
+        """Bug #93: URLs copied from inside (parentheses) sometimes include
+        the trailing ')'. The page should still render rather than 422.
+        """
+        r = client.get(f"/badges/{_BADGE}?niveau=1)")
+        assert r.status_code == 200
+
+    def test_niveau_with_garbage_falls_back_to_no_filter(self, client, db):
+        # Non-numeric leading char → niveau is treated as None, page still loads
+        r = client.get(f"/badges/{_BADGE}?niveau=abc")
+        assert r.status_code == 200
+
 
 # ── render_eis integration: introduction, afterword, and step text in HTML ───
 

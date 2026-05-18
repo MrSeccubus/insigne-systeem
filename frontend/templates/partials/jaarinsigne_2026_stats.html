@@ -1,0 +1,25 @@
+<div class="jaarinsigne-stats">
+    <div class="jaarinsigne-stat">
+        <span class="jaarinsigne-stat-value">{{ prefix }}{{ summary.total_punten }}</span>
+        <span class="jaarinsigne-stat-label">punten</span>
+    </div>
+    <div class="jaarinsigne-stat">
+        <span class="jaarinsigne-stat-value">
+            {{ prefix }}{{ summary.total_groen }}
+            <span class="jaarinsigne-leaf">{% include "partials/icon_leaf.html" %}</span>
+        </span>
+        <span class="jaarinsigne-stat-label">groen</span>
+    </div>
+    <div class="jaarinsigne-stat">
+        <span class="jaarinsigne-stat-value">{{ prefix }}{{ summary.distinct_insignes }}</span>
+        <span class="jaarinsigne-stat-label">insigne{{ "s" if summary.distinct_insignes != 1 else "" }}</span>
+    </div>
+    <div class="jaarinsigne-stat jaarinsigne-stat--niveaus">
+        <span class="jaarinsigne-stat-value">
+            <span class="jaarinsigne-niveau-pill jaarinsigne-niveau-1" title="Niveau 1">{{ prefix }}{{ summary.total_niveau1 }}</span>
+            <span class="jaarinsigne-niveau-pill jaarinsigne-niveau-2" title="Niveau 2">{{ prefix }}{{ summary.total_niveau2 }}</span>
+            <span class="jaarinsigne-niveau-pill jaarinsigne-niveau-3" title="Niveau 3">{{ prefix }}{{ summary.total_niveau3 }}</span>
+        </span>
+        <span class="jaarinsigne-stat-label">N1&nbsp;/&nbsp;N2&nbsp;/&nbsp;N3</span>
+    </div>
+</div>

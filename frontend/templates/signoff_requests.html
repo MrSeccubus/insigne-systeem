@@ -10,7 +10,11 @@
     {% if requests %}
         <div id="signoff-list">
             {% for req in requests %}
+            {% if req.type == "jaarinsigne_2026_group" %}
+            {% include "partials/signoff_request_jaarinsigne_2026_item.html" %}
+            {% else %}
             {% include "partials/signoff_request_item.html" %}
+            {% endif %}
             {% endfor %}
         </div>
     {% else %}

@@ -35,6 +35,8 @@ from schemas import (
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 
+_VALID_SPELTAK_TYPES = {"bevers", "welpen", "scouts", "explorers", "roverscouts", "plusscouts"}
+
 
 def _group_response(g) -> GroupResponse:
     return GroupResponse(id=g.id, name=g.name, slug=g.slug,
@@ -43,7 +45,8 @@ def _group_response(g) -> GroupResponse:
 
 def _speltak_response(s) -> SpeltakResponse:
     return SpeltakResponse(id=s.id, group_id=s.group_id, name=s.name, slug=s.slug,
-                           peer_signoff=s.peer_signoff)
+                           peer_signoff=s.peer_signoff, speltak_type=s.speltak_type,
+                           jaarinsigne_2026_min_punten=s.jaarinsigne_2026_min_punten)
 
 
 def _group_membership_response(m) -> GroupMembershipResponse:
@@ -280,8 +283,13 @@ def create_speltak(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed.")
     if groups_svc.get_speltak_by_slug(db, group_id, body.slug):
         raise HTTPException(status.HTTP_409_CONFLICT, "Slug already in use.")
+    if body.speltak_type is not None and body.speltak_type not in _VALID_SPELTAK_TYPES:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Invalid speltak_type.")
+    min_punten = body.jaarinsigne_2026_min_punten if body.speltak_type == "bevers" else None
     s = groups_svc.create_speltak(db, group_id=group_id, name=body.name, slug=body.slug,
-                                  peer_signoff=body.peer_signoff)
+                                  peer_signoff=body.peer_signoff,
+                                  speltak_type=body.speltak_type,
+                                  jaarinsigne_2026_min_punten=min_punten)
     return _speltak_response(s)
 
 
@@ -301,8 +309,13 @@ def update_speltak(
     existing = groups_svc.get_speltak_by_slug(db, group_id, body.slug)
     if existing and existing.id != speltak_id:
         raise HTTPException(status.HTTP_409_CONFLICT, "Slug already in use.")
+    if body.speltak_type is not None and body.speltak_type not in _VALID_SPELTAK_TYPES:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Invalid speltak_type.")
+    min_punten = body.jaarinsigne_2026_min_punten if body.speltak_type == "bevers" else None
     return _speltak_response(groups_svc.update_speltak(db, s, name=body.name, slug=body.slug,
-                                                       peer_signoff=body.peer_signoff))
+                                                       peer_signoff=body.peer_signoff,
+                                                       speltak_type=body.speltak_type,
+                                                       jaarinsigne_2026_min_punten=min_punten))
 
 
 @router.delete("/{group_id}/speltakken/{speltak_id}", status_code=status.HTTP_204_NO_CONTENT)

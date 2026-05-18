@@ -96,7 +96,7 @@ def send_welcome_email(to: str, naam: str) -> None:
 
 
 def send_mentor_signoff_invite_email(to: str, scout_name: str, badge_title: str, niveau_number: int, step_text: str, notes: str | None = None) -> None:
-    register_url = f"{config.base_url}/register"
+    register_url = f"{config.base_url}/register?email={quote_plus(to)}"
     send(to, "mentor_signoff_invite",
          email=to,
          scout_name=scout_name,
@@ -140,7 +140,7 @@ def send_mentor_jaarinsigne_signoff_invite_email(
     to: str, scout_name: str, badge_slug: str, badge_title: str,
     speltak_name: str, speltak_leeftijd: str, eisen: list, notes: str | None = None,
 ) -> None:
-    register_url = f"{config.base_url}/register"
+    register_url = f"{config.base_url}/register?email={quote_plus(to)}"
     send(to, "mentor_jaarinsigne_signoff_invite",
          email=to,
          scout_name=scout_name,

@@ -2624,3 +2624,58 @@ button:disabled, a[disabled] {
         gap: 0.5rem;
     }
 }
+
+/* ── Flat-layout jaarinsigne cards (home + scout progress) ────────────────── */
+
+.badge-card-wrapper {
+    position: relative;
+}
+
+.badge-card-wrapper > .badge-card,
+.badge-card-wrapper > .badge-card-link {
+    height: 100%;
+}
+
+.badge-mobile-card-wrapper {
+    position: relative;
+}
+
+/* Match the appearance of `.badge-card-level` on regular badge cards so the
+   home/scout-progress grid reads consistently across categories. */
+.badge-card-insigne-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #555;
+    text-align: center;
+    margin-top: -0.5rem;
+    margin-bottom: 0.25rem;
+    line-height: 1.3;
+}
+
+/* Speltak name sits right under the insigne title — keep it visually
+   subordinate so the title reads first. */
+.badge-card .badge-card-insigne-title + .badge-card-level {
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: #6b7280;
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+}
+
+.badge-mobile-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #555;
+    margin: 0 0 0.35rem;
+    line-height: 1.3;
+}
+
+.badge-card-star {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 2;
+    font-size: 1rem;
+    padding: 0 0.4rem;
+    line-height: 1.6;
+}

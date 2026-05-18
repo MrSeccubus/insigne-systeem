@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
-from insigne.models import ConfirmationToken, ProgressEntry, User
+from insigne import groups as groups_svc
+from insigne.models import ConfirmationToken, GroupMembership, ProgressEntry, SpeltakMembership, User
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -328,3 +329,131 @@ class TestListMentors:
         assert r.status_code == 200
         assert len(r.json()) == 1
         assert r.json()[0]["name"] == "Mentor"
+
+
+# ── Jaarinsigne set-level ─────────────────────────────────────────────────────
+
+def _quick_user(db, email):
+    from insigne.auth import create_access_token as _cat  # noqa: F401 — imported for side-effect check
+    u = User(email=email, name=email, status="active", password_hash="x")
+    db.add(u)
+    db.commit()
+    return u
+
+
+def _token_for(user):
+    from insigne.auth import create_access_token
+    token, _ = create_access_token(user.id)
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _jaarinsigne_speltak_setup(db, peer_signoff=False, speltak_type="scouts"):
+    """Creates leider + scout in a speltak, returns (leider, scout, speltak)."""
+    suffix = f"{peer_signoff}-{speltak_type}"
+    leider = _quick_user(db, f"l-ji-{suffix}@x.com")
+    scout = _quick_user(db, f"s-ji-{suffix}@x.com")
+    g = groups_svc.create_group(db, name="JI-G", slug=f"ji-g-{suffix}", created_by_id=leider.id)
+    s = groups_svc.create_speltak(db, group_id=g.id, name="JI-S", slug=f"ji-s-{suffix}",
+                                  peer_signoff=peer_signoff, speltak_type=speltak_type)
+    db.add(SpeltakMembership(user_id=leider.id, speltak_id=s.id, role="speltakleider", approved=True))
+    db.add(SpeltakMembership(user_id=scout.id, speltak_id=s.id, role="scout", approved=True))
+    db.add(GroupMembership(user_id=scout.id, group_id=g.id, role="member", approved=True))
+    db.commit()
+    return leider, scout, s
+
+
+class TestSetOwnJaarinsigneLevel:
+    def test_peer_signoff_scout_can_set_own_level(self, client, db):
+        _, scout, _ = _jaarinsigne_speltak_setup(db, peer_signoff=True, speltak_type="scouts")
+        r = client.post("/api/badges/jaarinsigne_2025/set-level",
+                        params={"speltak_slug": "scouts"},
+                        headers=_token_for(scout))
+        assert r.status_code == 200
+        assert r.json()["speltak_slug"] == "scouts"
+        assert r.json()["badge_slug"] == "jaarinsigne_2025"
+
+    def test_speltakleider_can_set_own_level(self, client, db):
+        leider, _, _ = _jaarinsigne_speltak_setup(db, peer_signoff=False, speltak_type="scouts")
+        r = client.post("/api/badges/jaarinsigne_2025/set-level",
+                        params={"speltak_slug": "scouts"},
+                        headers=_token_for(leider))
+        assert r.status_code == 200
+
+    def test_regular_scout_non_peer_signoff_returns_403(self, client, db):
+        _, scout, _ = _jaarinsigne_speltak_setup(db, peer_signoff=False, speltak_type="scouts")
+        r = client.post("/api/badges/jaarinsigne_2025/set-level",
+                        params={"speltak_slug": "scouts"},
+                        headers=_token_for(scout))
+        assert r.status_code == 403
+
+    def test_invalid_speltak_slug_returns_422(self, client, db):
+        _, scout, _ = _jaarinsigne_speltak_setup(db, peer_signoff=True, speltak_type="scouts")
+        r = client.post("/api/badges/jaarinsigne_2025/set-level",
+                        params={"speltak_slug": "nonexistent"},
+                        headers=_token_for(scout))
+        assert r.status_code == 422
+
+    def test_non_jaarinsigne_badge_returns_404(self, client, db):
+        _, scout, _ = _jaarinsigne_speltak_setup(db, peer_signoff=True, speltak_type="scouts")
+        r = client.post("/api/badges/kamperen/set-level",
+                        params={"speltak_slug": "scouts"},
+                        headers=_token_for(scout))
+        assert r.status_code == 404
+
+    def test_requires_auth(self, client, db):
+        r = client.post("/api/badges/jaarinsigne_2025/set-level",
+                        params={"speltak_slug": "scouts"})
+        assert r.status_code == 401
+
+
+class TestSetScoutJaarinsigneLevel:
+    def test_speltakleider_can_set_scout_level(self, client, db):
+        leider, scout, _ = _jaarinsigne_speltak_setup(db, peer_signoff=False, speltak_type="scouts")
+        r = client.post(f"/api/scouts/{scout.id}/badges/jaarinsigne_2025/set-level",
+                        params={"speltak_slug": "scouts"},
+                        headers=_token_for(leider))
+        assert r.status_code == 200
+        assert r.json()["user_id"] == scout.id
+        assert r.json()["set_by_user_id"] == leider.id
+
+    def test_outsider_cannot_set_scout_level(self, client, db):
+        _, scout, _ = _jaarinsigne_speltak_setup(db, peer_signoff=False, speltak_type="scouts")
+        outsider = _quick_user(db, "out-ji@x.com")
+        r = client.post(f"/api/scouts/{scout.id}/badges/jaarinsigne_2025/set-level",
+                        params={"speltak_slug": "scouts"},
+                        headers=_token_for(outsider))
+        assert r.status_code == 403
+
+    def test_own_id_returns_400(self, client, db):
+        leider, _, _ = _jaarinsigne_speltak_setup(db, peer_signoff=False, speltak_type="scouts")
+        r = client.post(f"/api/scouts/{leider.id}/badges/jaarinsigne_2025/set-level",
+                        params={"speltak_slug": "scouts"},
+                        headers=_token_for(leider))
+        assert r.status_code == 400
+
+    def test_invalid_speltak_slug_returns_422(self, client, db):
+        leider, scout, _ = _jaarinsigne_speltak_setup(db, peer_signoff=False, speltak_type="scouts")
+        r = client.post(f"/api/scouts/{scout.id}/badges/jaarinsigne_2025/set-level",
+                        params={"speltak_slug": "nonexistent"},
+                        headers=_token_for(leider))
+        assert r.status_code == 422
+
+    def test_nonexistent_scout_returns_404(self, client, db):
+        leider, _, _ = _jaarinsigne_speltak_setup(db, peer_signoff=False, speltak_type="scouts")
+        r = client.post("/api/scouts/00000000-0000-0000-0000-000000000000/badges/jaarinsigne_2025/set-level",
+                        params={"speltak_slug": "scouts"},
+                        headers=_token_for(leider))
+        assert r.status_code == 404
+
+    def test_non_jaarinsigne_badge_returns_404(self, client, db):
+        leider, scout, _ = _jaarinsigne_speltak_setup(db, peer_signoff=False, speltak_type="scouts")
+        r = client.post(f"/api/scouts/{scout.id}/badges/kamperen/set-level",
+                        params={"speltak_slug": "scouts"},
+                        headers=_token_for(leider))
+        assert r.status_code == 404
+
+    def test_requires_auth(self, client, db):
+        leider, scout, _ = _jaarinsigne_speltak_setup(db, peer_signoff=False, speltak_type="scouts")
+        r = client.post(f"/api/scouts/{scout.id}/badges/jaarinsigne_2025/set-level",
+                        params={"speltak_slug": "scouts"})
+        assert r.status_code == 401

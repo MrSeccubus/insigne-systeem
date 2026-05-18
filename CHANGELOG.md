@@ -10,13 +10,21 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
-### Nieuw
-
 - **Persoonlijke favoriete insignes** (#90) — naast de bestaande speltak- en groepsfavorieten kun je nu ook per gebruiker insignes "sterren" via de homepagina. De ster-knop verschijnt alleen op de homepage (`/`) — nooit op een leider-overzicht. Een ★/☆-toggle bovenaan filtert de homepage op je eigen favorieten. Voorkeur blijft bewaard onafhankelijk van speltak- of groepslidmaatschap.
   - Nieuw `UserFavoriteBadge` model + Alembic-migratie.
   - Nieuwe service-functies `get_user_favorite_slugs` / `toggle_user_favorite_badge`.
   - JSON-endpoint `GET /api/users/me/favorite-badges` en `POST /api/users/me/favorite-badges/{slug}/toggle`.
 - **Voortgangsfilter "lopende insignes"** (#91) — 🏃 (Font Awesome person-running SVG) toggle-knop op de homepage, scout-voortgangspagina (`/scouts/{id}`) en speltak-voortgangspagina toont alleen insignes waar al voortgang op is. De nieuwe filter combineert met de bestaande ★-favorietenfilter; de query-parameters `only_favorites` en `only_in_progress` worden onafhankelijk van elkaar bewaard bij toggle.
+- **Jaarinsigne-ondersteuning** (sluit #73) — algemeen mechanisme voor jaarinsignes (één badge met aparte eisen per speltak), inclusief twee concrete jaarinsignes:
+  - **Jaarinsigne 2025 — Wijs met drinkwater**: standaardflow per eis, gebruikt het bestaande step-card-pad.
+  - **Jaarinsigne 2026 — Nieuwe Insignes**: meta-insigne waarbij voortgang wordt afgeleid van afgetekende eisen van *gewone* en *buitengewone* insignes. Scouts selecteren in een tweekoloms-editor welke eisen meetellen; het systeem berekent de eis-statussen tegen de drempels (`punten`, `groen`, `niveau2`, `niveau3`, `insignes`, `leiding_bepaald`) en zet ze programmatisch.
+- **Speltak-type op `Speltak`** — speltakken kunnen nu getagd worden als `bevers` / `welpen` / `scouts` / `explorers` / `roverscouts` / `plusscouts`. JSON-API: veld in `SpeltakResponse`, valideert op `422`. HTML: dropdown in de speltak-edit-form; `peer_signoff` schakelt automatisch om voor roverscouts/plusscouts. Tonen in groep- en speltak-detailpagina's.
+- **`POST /api/badges/{slug}/set-level`** en **`POST /api/scouts/{id}/badges/{slug}/set-level`** — scout zet eigen jaarinsigne-speltak; leider kan voor een scout overschrijven. HTML- en JSON-varianten beide.
+- **Include / exclude editor** op `/badges/jaarinsigne_2026` — twee kolommen ("Meegeteld" + "Beschikbaar") met cards getiteld `{Insigne} — Niveau N — Eis M`, een puntenbadge, inline Font Awesome blad-icoon voor groene eisen, en statistieken (punten / groen / insignes / per-niveau-pillen) per kolom. Toggle-knoppen verplaatsen kaarten via HTMX zonder paginaherlaad.
+- **Batch-aftekenen voor jaarinsigne 2026** — één **Aftekenen…**-knop verplaatst alle eisen tegelijk naar `pending_signoff`. De knop is uitgeschakeld tot alle eisen `work_done` zijn; eenmaal actief opent dezelfde mentor-keuze (speltakleiders / peer-leden / direct e-mail) als de bestaande step-card flow. De scout kan het verzoek intrekken; tijdens "pending" is de editor vergrendeld.
+- **Gegroepeerde mentor-inbox** — `/signoff-requests` toont alle jaarinsigne-2026-aanvragen van één scout als één kaart. Mentor ziet de geselecteerde insigne-eisen ("Behaalde eisen"), de drempel-eisen met scoreregels (`10 punten behaald (minimaal 8)`, `2 "groene" eisen behaald (minimaal 1)`, …) en één paar Aftekenen / Afwijzen-knoppen dat alle eisen in één transactie afhandelt.
+- **JSON-API voor jaarinsigne 2026** (10 endpoints) — afspiegeling van de HTML-flow zodat externe consumenten (mobiele apps, scripts) hetzelfde kunnen. Inclusies (`GET/POST /api/users/me/jaarinsigne_2026/inclusions{,/available,/toggle}`), score (`GET /score`), batch-aftekenen (`POST /signoff{,-speltak,-members}`, `DELETE /signoff`), en mentor-acties (`POST /api/scouts/{id}/jaarinsigne_2026/{confirm,reject}-signoff`).
+- **Dedicated jaarinsigne e-mail templates** — verzoek / uitnodiging / afgetekend / afgewezen met correcte labels (Insigne / Speltak / Eis(en) met de echte eisnummer + titel). Eisteksten worden nu door de markdown-renderer gehaald: `**vet**`, lijsten en `==groen==` accenten komen door, ruwe markdown-tekens niet meer.
 
 ### Verbeteringen
 
@@ -26,6 +34,10 @@ weer leeg gemaakt.
   - ★ alleen, favorieten bestaan maar geen match in deze categorie/speltak.
   - 🏃 alleen, geen lopende voortgang.
   - 🏃 + ★ samen, geen overlap.
+- **`render_eis` gedeeld** — markdown-naar-inline-HTML-routine verplaatst naar `lib/insigne/eis_render.py` met een `render_eis_email` variant die `==…==` als inline groen rendert (mailclients negeren `<style>`-blokken). Reguliere insigne-e-mails pikken dezelfde fix op.
+- **Step-check tickboxes** in de jaarinsigne-2026-editor synchroniseren live mee met de inclusies via een HTMX-bodyswap.
+- **Compacte eis-rendering** in de editor cards — markdown wordt gestript behalve `==…==` groene accenten; te lange teksten krijgen een "Toon volledige eis"-toggle die de volledige markdown laat zien.
+- **Sortering** in beide editorkolommen volgt `badges.yml`-volgorde → niveau → eisnummer.
 - **Uitnodigingen** (sluit #92) — de uitnodigingsmail voor nieuwe groepsleiders en speltakleden bevat geen 1 uur geldige bevestigingscode meer; in plaats daarvan staat er een link naar `/register?email=<adres>` waar de uitnodigde de standaard registratieflow doorloopt op eigen tempo. De pending User-rij en lidmaatschappen worden bij uitnodiging aangemaakt (zodat de leider de openstaande uitnodiging blijft zien) zonder bijbehorende ConfirmationToken.
 - **Aanmeldverzoeken** (sluit #92) — bij openstaande aanmeldverzoeken voor een speltak ziet de speltakleider nu zowel de naam als het e-mailadres van de aanvrager, zodat onbekende namen makkelijker te herkennen zijn.
 
@@ -35,6 +47,21 @@ weer leeg gemaakt.
   - **Verkeerde positie na HTMX-swap**: de `<details>`-summary kreeg een Alpine.js `@toggle`-handler die `getBoundingClientRect()` leest en `top`/`left` op de dropdown zet wanneer deze `position: fixed` is. Mobile-layout (`position: absolute`) blijft onaangetast.
   - **Meerdere dropdowns tegelijk open**: globale `click`-handler op `document` sluit alle andere open `.step-check-wrapper`-elementen wanneer een wrapper wordt aangeklikt; klikken buiten elke wrapper sluit alles.
   - **Dropdown blijft zichtbaar bij scrollen**: globale `scroll`-handler (met `capture: true`) sluit alle open dropdowns zodra de pagina scrollt — voorkomt dat de dropdown midden op het scherm "zweeft" wanneer de trigger is weggescrolld.
+- **Self in autocomplete** — `list_previous_mentors` filtert defensief de scout zelf weg, zodat een per ongeluk ontstane "self-signoff"-rij niet meer in de mentor-suggesties opduikt.
+- **UUID-tak van direct-aftekenen** stuurde een verouderde signatuur naar de jaarinsigne-2026 batch-mail-helper en gooide een `NameError` **nadat** de SignoffRequest-rijen al gecommit waren — fix + regressietest toegevoegd.
+- **Zelf-verwerping** op `reject_jaarinsigne_2026_signoff` heeft nu net als `confirm_*` een expliciete `mentor_id != scout_id`-controle (was alleen impliciet via een data-invariant).
+- **Dode code verwijderd** — het `dedicated_api`-vlaggetje dat speculatief tijdens het jaarinsigne-design was toegevoegd, werd nergens gebruikt; weggehaald uit `BadgeCatalogue`, alle routers en templates.
+
+### Beveiliging
+
+- **Self-signoff foutmelding** in de directe-aftekenen flow — een scout die zijn eigen e-mail invult krijgt nu een inline foutmelding in plaats van een stilte zonder bevestiging.
+- Security-champion review uitgevoerd; geen High/Medium bevindingen. Drie pre-existing observaties op tracking-issues gezet (#97 scope mentor/speltak-input, #98 e-mailvalidatie, #99 CSRF-houding).
+
+### Onderhoud
+
+- Frontend-stack documentatie (Jinja2 + HTMX + Alpine.js + inline Font Awesome SVG) toegevoegd aan `CLAUDE.md`.
+- Jaarinsigne-specifieke structuurtests (`TestJaarinsigneStructure`, `TestJaarinsigne2026Structure`) toegevoegd om gaten te dichten waar de generieke `TestBadgeStructure` jaarinsignes oversloeg.
+- Totaal aantal tests: 1210 (was 1099 voor deze PR).
 
 ---
 

@@ -457,6 +457,7 @@ def _group_detail_ctx(db: Session, group, user):
         speltak_member_counts=speltak_member_counts,
         members_without_speltak=members_without_speltak,
         member_email_suggestions=member_email_suggestions,
+        speltakken_meta=_CATALOGUE.speltakken_meta,
     )
 
 
@@ -673,7 +674,11 @@ def speltak_new_form(group_slug: str, request: Request, db: Session = Depends(ge
     group = groups_svc.get_group_by_slug(db, group_slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
-    return _page(request, "speltak_edit.html", db, group=group, speltak=None, error=None)
+    return _page(request, "speltak_edit.html", db, group=group, speltak=None, error=None,
+                 speltakken_meta=_CATALOGUE.speltakken_meta)
+
+
+_VALID_SPELTAK_TYPES = {"bevers", "welpen", "scouts", "explorers", "roverscouts", "plusscouts"}
 
 
 @router.post("/groups/{group_slug}/speltakken/new", response_class=HTMLResponse)
@@ -682,6 +687,8 @@ def speltak_create(
     request: Request,
     name: str = Form(...),
     peer_signoff: bool = Form(False),
+    speltak_type: str = Form(""),
+    jaarinsigne_2026_min_punten: int | None = Form(None),
     db: Session = Depends(get_db),
 ):
     user, redirect = _require_user(request, db)
@@ -690,8 +697,12 @@ def speltak_create(
     group = groups_svc.get_group_by_slug(db, group_slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
+    if speltak_type not in _VALID_SPELTAK_TYPES:
+        return _page(request, "speltak_edit.html", db, group=group, speltak=None,
+                     error="Kies een speltak type.", speltakken_meta=_CATALOGUE.speltakken_meta)
     slug = groups_svc.unique_speltak_slug(db, group.id, groups_svc.name_to_slug(name))
-    groups_svc.create_speltak(db, group_id=group.id, name=name, slug=slug, peer_signoff=peer_signoff)
+    min_punten = jaarinsigne_2026_min_punten if speltak_type == "bevers" else None
+    groups_svc.create_speltak(db, group_id=group.id, name=name, slug=slug, peer_signoff=peer_signoff, speltak_type=speltak_type, jaarinsigne_2026_min_punten=min_punten)
     return RedirectResponse(f"/groups/{group.slug}", status_code=303)
 
 
@@ -722,7 +733,8 @@ def speltak_detail(
                  group=group, speltak=speltak, members=members,
                  pending_members=pending_members,
                  can_manage=can_manage, other_speltakken=other_speltakken,
-                 suggested_users=suggested_users)
+                 suggested_users=suggested_users,
+                 speltakken_meta=_CATALOGUE.speltakken_meta)
 
 
 @router.get("/groups/{group_slug}/speltakken/{speltak_slug}/edit", response_class=HTMLResponse)
@@ -736,7 +748,8 @@ def speltak_edit_form(
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
-    return _page(request, "speltak_edit.html", db, group=group, speltak=speltak, error=None)
+    return _page(request, "speltak_edit.html", db, group=group, speltak=speltak, error=None,
+                 speltakken_meta=_CATALOGUE.speltakken_meta)
 
 
 @router.post("/groups/{group_slug}/speltakken/{speltak_slug}/edit", response_class=HTMLResponse)
@@ -746,6 +759,8 @@ def speltak_edit(
     request: Request,
     name: str = Form(...),
     peer_signoff: bool = Form(False),
+    speltak_type: str = Form(""),
+    jaarinsigne_2026_min_punten: int | None = Form(None),
     db: Session = Depends(get_db),
 ):
     user, redirect = _require_user(request, db)
@@ -755,7 +770,11 @@ def speltak_edit(
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
-    groups_svc.update_speltak(db, speltak, name=name, slug=speltak.slug, peer_signoff=peer_signoff)
+    if speltak_type not in _VALID_SPELTAK_TYPES:
+        return _page(request, "speltak_edit.html", db, group=group, speltak=speltak,
+                     error="Kies een speltak type.", speltakken_meta=_CATALOGUE.speltakken_meta)
+    min_punten = jaarinsigne_2026_min_punten if speltak_type == "bevers" else None
+    groups_svc.update_speltak(db, speltak, name=name, slug=speltak.slug, peer_signoff=peer_signoff, speltak_type=speltak_type, jaarinsigne_2026_min_punten=min_punten)
     return RedirectResponse(f"/groups/{group.slug}/speltakken/{speltak.slug}", status_code=303)
 
 
@@ -1179,7 +1198,8 @@ def speltak_progress(
                  only_favorites=only_favorites,
                  progress_slugs=progress_slugs,
                  only_in_progress=bool(only_in_progress),
-                 leider_id=user.id)
+                 leider_id=user.id,
+                 category_labels=_CATALOGUE.category_labels)
 
 
 @router.post("/groups/{group_slug}/speltakken/{speltak_slug}/scouts/{scout_id}/progress/set",

@@ -37,6 +37,80 @@
     </div>
     {% endif %}
 
+    {% if badge.type == "jaarinsigne" %}
+
+    {% if resolved_level_index is none %}
+    <div class="notification-bar" style="margin-bottom:1.5rem;">
+        Dit jaarinsigne is niet beschikbaar op jouw niveau.
+    </div>
+    {% endif %}
+
+    {# ── Speltak tab selector ── #}
+    <div class="mobile-niveau-selector">
+        <span class="mobile-niveau-label">Speltak:</span>
+        {% for level in badge.levels %}
+        <a href="/badges/{{ badge.slug }}?speltak={{ level.slug }}"
+           class="mobile-niveau-tab{% if level.level_index == selected_level_index %} mobile-niveau-tab--active{% endif %}">
+            {{ level.name }}{% if level.leeftijd %} <span class="muted" style="font-size:0.8em;">({{ level.leeftijd }})</span>{% endif %}
+        </a>
+        {% endfor %}
+    </div>
+
+    {# ── Steps for each speltak level ── #}
+    {% for level in badge.levels %}
+    {% set is_selected = level.level_index == selected_level_index %}
+    {% set is_editable = level.level_index == resolved_level_index %}
+    <details{% if is_selected %} open{% endif %} class="jaarinsigne-speltak-details" style="margin-bottom:1rem;">
+        <summary style="cursor:pointer;font-weight:600;padding:0.5rem 0;">
+            {{ level.name }}{% if level.leeftijd %} <span style="font-size:0.8em;color:#888;">({{ level.leeftijd }})</span>{% endif %}{% if is_editable %} <span style="font-size:0.8em;color:#888;">— jouw niveau</span>{% endif %}
+            {% if can_set_own_level and not is_editable %}
+            <form method="post" action="/badges/{{ badge.slug }}/set-level" style="display:inline;margin-left:0.75rem;" onclick="event.stopPropagation()">
+                <input type="hidden" name="speltak_slug" value="{{ level.slug }}">
+                <button type="submit" class="btn-sm btn-neutral" style="font-weight:normal;">Stel als mijn niveau in</button>
+            </form>
+            {% endif %}
+        </summary>
+        {% if badge.slug == "jaarinsigne_2026" and is_editable and current_user and score_summary %}
+        {# ── Step cards + include/exclude editor wrapped as one HTMX swap target ── #}
+        {% include "partials/jaarinsigne_2026_body.html" %}
+        {% else %}
+        <div class="scroll-x">
+        <div class="badge-overview-grid badge-overview-grid--single"
+             style="grid-template-columns: 160px 1fr;">
+            {% for step in level.steps %}
+            {% set level_index = level.level_index %}
+            {% set level_name = level.name %}
+            {% set step_index = loop.index0 %}
+            {% set step_text = step.text %}
+            {% set entry = progress_map.get((level_index, step_index)) %}
+            {% set slug = badge.slug %}
+            {% set niveau_label_kort = "E" %}
+            {% set computed_status = (badge.slug == "jaarinsigne_2026") %}
+            <div class="eis-row-header">
+                <span class="eis-row-number">Eis {{ loop.index }}</span>
+                <span class="eis-row-name">{{ step.titel }}</span>
+            </div>
+            {% if is_editable %}
+            {% include "partials/step_card.html" %}
+            {% else %}
+            {% with current_user = None %}
+            {% include "partials/step_card.html" %}
+            {% endwith %}
+            {% endif %}
+            {% endfor %}
+        </div>
+        </div>
+        {% endif %}
+
+    </details>
+    {% endfor %}
+
+    {% if badge.afterword %}
+    <div class="badge-afterword">{{ badge.afterword | render_eis }}</div>
+    {% endif %}
+
+    {% else %}
+
     <div class="mobile-niveau-selector"
          x-data
          x-init="if (window.innerWidth <= 640 && !new URLSearchParams(location.search).has('niveau')) {
@@ -108,5 +182,7 @@
     {% if badge.afterword %}
     <div class="badge-afterword">{{ badge.afterword | render_eis }}</div>
     {% endif %}
+
+    {% endif %}{# end {% if badge.type == "jaarinsigne" %} … {% else %} … #}
 </main>
 {% endblock %}

@@ -622,3 +622,73 @@ class TestImportApi:
         r = client.post("/api/users/me/import",
                         files={"file": ("e.yml", b"version: 1", "application/x-yaml")})
         assert r.status_code == 401
+
+
+class TestJaarinsigne2026InclusionsViaApi:
+    """End-to-end API round-trip for #111: a scout's jaarinsigne_2026
+    inclusion picks must survive an export-via-API + import-via-API cycle
+    on a different account. Mirrors the unit-level
+    TestJaarinsigne2026Inclusions but goes through the HTTP layer."""
+
+    def _setup_source(self, client, db):
+        token = _full_register(client, db, email="src@example.com", name="Src")
+        user = db.query(User).filter_by(email="src@example.com").first()
+        for bs, li, si in [("sport_spel", 0, 1), ("sport_spel", 1, 0), ("kamperen", 0, 0)]:
+            db.add(Jaarinsigne2026Inclusion(
+                user_id=user.id, badge_slug=bs, level_index=li, step_index=si,
+            ))
+        db.commit()
+        return token, user
+
+    def test_yaml_roundtrip_via_api_restores_inclusions(self, client, db):
+        src_token, _ = self._setup_source(client, db)
+        # Export via API
+        r = client.get("/api/users/me/export?format=yaml", headers=_auth(src_token))
+        assert r.status_code == 200
+        exported = yaml.safe_load(r.content)
+        assert exported["version"] == 3
+        assert len(exported["jaarinsigne_2026_inclusions"]) == 3
+
+        # Fresh account, import via API
+        tgt_token = _full_register(client, db, email="tgt@example.com", name="Tgt")
+        tgt_user = db.query(User).filter_by(email="tgt@example.com").first()
+        r = client.post(
+            "/api/users/me/import",
+            headers=_auth(tgt_token),
+            files={"file": ("export.yml", r.content, "application/x-yaml")},
+        )
+        assert r.status_code == 200
+
+        rows = (
+            db.query(Jaarinsigne2026Inclusion)
+            .filter_by(user_id=tgt_user.id)
+            .order_by(Jaarinsigne2026Inclusion.badge_slug,
+                      Jaarinsigne2026Inclusion.level_index,
+                      Jaarinsigne2026Inclusion.step_index)
+            .all()
+        )
+        assert [(r.badge_slug, r.level_index, r.step_index) for r in rows] == [
+            ("kamperen", 0, 0),
+            ("sport_spel", 0, 1),
+            ("sport_spel", 1, 0),
+        ]
+
+    def test_pdf_roundtrip_via_api_restores_inclusions(self, client, db):
+        """PDF embeds the YAML — import-via-API on a PDF must restore
+        inclusions just like the YAML path."""
+        src_token, _ = self._setup_source(client, db)
+        r = client.get("/api/users/me/export?format=pdf", headers=_auth(src_token))
+        assert r.status_code == 200
+        pdf_bytes = r.content
+
+        tgt_token = _full_register(client, db, email="tgt2@example.com", name="Tgt2")
+        tgt_user = db.query(User).filter_by(email="tgt2@example.com").first()
+        r = client.post(
+            "/api/users/me/import",
+            headers=_auth(tgt_token),
+            files={"file": ("export.pdf", pdf_bytes, "application/pdf")},
+        )
+        assert r.status_code == 200
+
+        n = db.query(Jaarinsigne2026Inclusion).filter_by(user_id=tgt_user.id).count()
+        assert n == 3

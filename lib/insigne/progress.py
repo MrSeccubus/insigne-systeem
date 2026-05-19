@@ -667,16 +667,29 @@ def set_jaarinsigne_level(
     if existing:
         existing.speltak_slug = speltak_slug
         existing.set_by_user_id = set_by_user_id
-        db.commit()
-        return existing
-    record = JaarinsigneLevel(
-        user_id=user_id,
-        badge_slug=badge_slug,
-        speltak_slug=speltak_slug,
-        set_by_user_id=set_by_user_id,
-    )
-    db.add(record)
+        record = existing
+    else:
+        record = JaarinsigneLevel(
+            user_id=user_id,
+            badge_slug=badge_slug,
+            speltak_slug=speltak_slug,
+            set_by_user_id=set_by_user_id,
+        )
+        db.add(record)
     db.commit()
+
+    # Jaarinsigne_2026 is a meta-insigne: the level governs which threshold
+    # eisen apply (and at which scores). Switching levels reshuffles which
+    # checkboxes the scout's existing inclusion set satisfies, so recompute
+    # ProgressEntry statuses for the new speltak. Without this, the editor
+    # checkboxes on the new level stay at "none" until the scout next
+    # toggles an inclusion.
+    if badge_slug == "jaarinsigne_2026":
+        from . import jaarinsigne_2026 as ji26
+        new_speltak_slug, new_min_punten = ji26.resolve_user_level(db, user_id)
+        if new_speltak_slug:
+            ji26.update_progress_entries(db, user_id, new_speltak_slug, new_min_punten)
+
     return record
 
 

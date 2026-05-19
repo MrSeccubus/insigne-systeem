@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 from sqlalchemy.orm import Session
 
-from .models import ProgressEntry, User
+from .models import Jaarinsigne2026Inclusion, ProgressEntry, User
 
 _STATUS_RANK = {"in_progress": 1, "work_done": 2, "signed_off": 3}
 
@@ -66,11 +66,31 @@ def export_data(db: Session, user_id: str) -> dict:
         }
         progress.append(item)
 
+    inclusion_rows = (
+        db.query(Jaarinsigne2026Inclusion)
+        .filter(Jaarinsigne2026Inclusion.user_id == user_id)
+        .order_by(
+            Jaarinsigne2026Inclusion.badge_slug,
+            Jaarinsigne2026Inclusion.level_index,
+            Jaarinsigne2026Inclusion.step_index,
+        )
+        .all()
+    )
+    jaarinsigne_2026_inclusions = [
+        {
+            "badge_slug": inc.badge_slug,
+            "level_index": inc.level_index,
+            "step_index": inc.step_index,
+        }
+        for inc in inclusion_rows
+    ]
+
     return {
-        "version": 2,
+        "version": EXPORT_VERSION,
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "user": {"name": user.name if user else None},
         "progress": progress,
+        "jaarinsigne_2026_inclusions": jaarinsigne_2026_inclusions,
     }
 
 
@@ -424,11 +444,15 @@ def extract_yaml_from_pdf(pdf_bytes: bytes) -> str | None:
 
 # ── import ────────────────────────────────────────────────────────────────────
 
-EXPORT_VERSION = 2
+EXPORT_VERSION = 3
 
 
 def import_progress(db: Session, user_id: str, data: dict) -> int:
-    """Upsert progress entries from export data. Returns count of created/updated rows."""
+    """Upsert progress entries and jaarinsigne_2026 inclusions from export data.
+
+    Returns count of created/updated ProgressEntry rows (inclusions are not
+    counted in the return value, to preserve the v2 API contract).
+    """
     file_version = data.get("version", 1)
     if file_version > EXPORT_VERSION:
         raise ValueError(
@@ -492,6 +516,32 @@ def import_progress(db: Session, user_id: str, data: dict) -> int:
                     pass
 
         count += 1
+
+    # ── jaarinsigne_2026 inclusions (added in export v3) ──────────────────────
+    # Older exports (v1/v2) simply don't carry this key — the loop is a no-op.
+    for inc in data.get("jaarinsigne_2026_inclusions", []) or []:
+        badge_slug = inc.get("badge_slug")
+        level_index = inc.get("level_index")
+        step_index = inc.get("step_index")
+        if badge_slug is None or level_index is None or step_index is None:
+            continue
+        existing = (
+            db.query(Jaarinsigne2026Inclusion)
+            .filter_by(
+                user_id=user_id,
+                badge_slug=badge_slug,
+                level_index=level_index,
+                step_index=step_index,
+            )
+            .first()
+        )
+        if existing is None:
+            db.add(Jaarinsigne2026Inclusion(
+                user_id=user_id,
+                badge_slug=badge_slug,
+                level_index=level_index,
+                step_index=step_index,
+            ))
 
     db.commit()
     return count

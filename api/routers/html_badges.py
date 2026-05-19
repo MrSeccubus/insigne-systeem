@@ -142,6 +142,12 @@ def _emit_rejected_email(
 
 def _step_card(request, slug, level_index, level_name, step_index, step_text, entry, previous_mentors=None, error="", current_user=None, scout_signoff_options=None):
     _badge = _CATALOGUE.get(slug)
+    step_green = False
+    if _badge:
+        try:
+            step_green = bool(_badge["levels"][level_index]["steps"][step_index].get("green", False))
+        except (IndexError, KeyError):
+            pass
     response = _partial(
         request, "step_card.html",
         slug=slug,
@@ -149,6 +155,7 @@ def _step_card(request, slug, level_index, level_name, step_index, step_text, en
         level_name=level_name,
         step_index=step_index,
         step_text=step_text,
+        step_green=step_green,
         entry=entry,
         previous_mentors=previous_mentors or [],
         error=error,

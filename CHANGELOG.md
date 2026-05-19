@@ -10,6 +10,14 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Opgelost
+
+- **Jaarinsigne-2026-selecties verloren bij export/import** (sluit #111) — de scout maakt in de jaarinsigne-2026-editor een keuze welke eisen van *gewone* en *buitengewone* insignes meetellen. Die rijen leven in een eigen tabel (`Jaarinsigne2026Inclusion`) en werden door `progress_export.export_data` en `progress_export.import_progress` niet meegenomen. Wie zijn voortgang exporteerde en op een ander account importeerde, raakte z'n meta-insigne-inclusies kwijt. Exportversie verhoogd naar `3` met een nieuwe top-level `jaarinsigne_2026_inclusions` lijst; import is idempotent (controleert op de bestaande unique-constraint) en blijft v1/v2-exports zonder deze sleutel gewoon accepteren.
+
+### Verbeteringen
+
+- **Blad-icoon op "groene" eisen ook in step-cards** (sluit #108) — het inline Font Awesome bladicoon dat tot nu toe alleen in de jaarinsigne-2026-editor groene eisen markeerde, verschijnt nu ook in de gewone step-card-weergave. `_step_card` leest de `green`-vlag uit de badge-catalogus en geeft die door als `step_green`; `step_card.html`, `badge.html` en `jaarinsigne_2026_body.html` renderen `<span class="jaarinsigne-leaf">` wanneer de vlag aan staat, met dezelfde groene CSS-kleur als in de editor.
+
 ---
 
 ## [v1.0.0] — 2026-05-18

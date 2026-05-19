@@ -8,7 +8,7 @@ import yaml
 import pytest
 
 from insigne.badges import BadgeCatalogue
-from insigne.models import ProgressEntry, User
+from insigne.models import Jaarinsigne2026Inclusion, ProgressEntry, User
 
 _DATA_DIR = Path(__file__).parent.parent.parent / "api" / "data"
 _CATALOGUE = BadgeCatalogue(_DATA_DIR)
@@ -111,7 +111,7 @@ class TestExportData:
     def test_version_and_structure(self, db):
         user = _make_user(db)
         data = export_data(db, user.id)
-        assert data["version"] == 2
+        assert data["version"] == 3
         assert "exported_at" in data
         assert data["user"]["name"] == "Scout"
 
@@ -130,7 +130,7 @@ class TestToYaml:
         _make_entry(db, user.id, status="work_done")
         data = export_data(db, user.id)
         parsed = yaml.safe_load(to_yaml(data))
-        assert parsed["version"] == 2
+        assert parsed["version"] == 3
         assert parsed["progress"][0]["status"] == "work_done"
 
 
@@ -211,7 +211,7 @@ class TestPdfYamlEmbedding:
         yaml_str = to_yaml(data)
         pdf = embed_yaml_in_pdf(to_pdf(data), yaml_str)
         extracted = yaml.safe_load(extract_yaml_from_pdf(pdf))
-        assert extracted["version"] == 2
+        assert extracted["version"] == 3
         assert extracted["progress"][0]["status"] == "work_done"
 
 
@@ -453,6 +453,79 @@ class TestFullRoundtrip:
             )
 
 
+class TestJaarinsigne2026Inclusions:
+    """Issue #111 — the include/exclude selections for jaarinsigne_2026 must
+    survive an export/import round-trip."""
+
+    def _setup_user_with_inclusions(self, db):
+        scout = _make_user(db, email="ji@example.com", name="JI Scout")
+        # Three picks across two badges and two niveaus.
+        for bs, li, si in [("sport_spel", 0, 1), ("sport_spel", 1, 0), ("kamperen", 0, 0)]:
+            db.add(Jaarinsigne2026Inclusion(
+                user_id=scout.id, badge_slug=bs, level_index=li, step_index=si,
+            ))
+        db.commit()
+        return scout
+
+    def test_export_includes_inclusions(self, db):
+        scout = self._setup_user_with_inclusions(db)
+        data = export_data(db, scout.id)
+        assert data["version"] == 3
+        incs = data["jaarinsigne_2026_inclusions"]
+        assert len(incs) == 3
+        # Verify deterministic ordering (badge_slug, level_index, step_index)
+        keys = [(i["badge_slug"], i["level_index"], i["step_index"]) for i in incs]
+        assert keys == sorted(keys)
+
+    def test_yaml_roundtrip_restores_inclusions_on_new_user(self, db):
+        source = self._setup_user_with_inclusions(db)
+        yaml_str = to_yaml(export_data(db, source.id))
+
+        target = _make_user(db, email="target@example.com", name="Target")
+        import_progress(db, target.id, yaml.safe_load(yaml_str))
+
+        rows = (
+            db.query(Jaarinsigne2026Inclusion)
+            .filter_by(user_id=target.id)
+            .order_by(Jaarinsigne2026Inclusion.badge_slug,
+                      Jaarinsigne2026Inclusion.level_index,
+                      Jaarinsigne2026Inclusion.step_index)
+            .all()
+        )
+        assert [(r.badge_slug, r.level_index, r.step_index) for r in rows] == [
+            ("kamperen", 0, 0),
+            ("sport_spel", 0, 1),
+            ("sport_spel", 1, 0),
+        ]
+
+    def test_import_is_idempotent(self, db):
+        source = self._setup_user_with_inclusions(db)
+        yaml_str = to_yaml(export_data(db, source.id))
+        target = _make_user(db, email="target@example.com", name="Target")
+
+        import_progress(db, target.id, yaml.safe_load(yaml_str))
+        import_progress(db, target.id, yaml.safe_load(yaml_str))  # again
+
+        n = db.query(Jaarinsigne2026Inclusion).filter_by(user_id=target.id).count()
+        assert n == 3  # not 6 — unique constraint + existence check
+
+    def test_v2_import_does_not_crash_or_create_inclusions(self, db):
+        """Older v2 exports lack the jaarinsigne_2026_inclusions key; import must
+        still work and simply create no inclusion rows."""
+        target = _make_user(db, email="target@example.com", name="Target")
+        v2_data = {
+            "version": 2,
+            "user": {"name": "Old Scout"},
+            "progress": [{
+                "badge_slug": "sport_spel", "level_index": 0, "step_index": 0,
+                "status": "work_done", "notes": None,
+                "signed_off_by": None, "signed_off_at": None,
+            }],
+        }
+        import_progress(db, target.id, v2_data)
+        assert db.query(Jaarinsigne2026Inclusion).filter_by(user_id=target.id).count() == 0
+
+
 # ── API endpoints ─────────────────────────────────────────────────────────────
 
 def _full_register(client, db, email="scout@example.com", password="validpass1", name="Scout"):
@@ -477,7 +550,7 @@ class TestExportApi:
         assert r.status_code == 200
         assert "yaml" in r.headers["content-type"]
         data = yaml.safe_load(r.content)
-        assert data["version"] == 2
+        assert data["version"] == 3
 
     def test_pdf_export_returns_pdf(self, client, db):
         token = _full_register(client, db)
@@ -490,7 +563,7 @@ class TestExportApi:
         r = client.get("/api/users/me/export?format=pdf", headers=_auth(token))
         extracted = extract_yaml_from_pdf(r.content)
         assert extracted is not None
-        assert yaml.safe_load(extracted)["version"] == 2
+        assert yaml.safe_load(extracted)["version"] == 3
 
     def test_export_requires_auth(self, client, db):
         r = client.get("/api/users/me/export?format=yaml")

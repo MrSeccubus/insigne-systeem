@@ -667,3 +667,46 @@ class TestResolveJaarinsigneLevelIndex:
         cat = self._make_catalogue(tmp_path, ["scouts"])
         badge = cat.get("jaar_test")
         assert cat.resolve_jaarinsigne_level_index(badge, "bevers") is None
+
+
+class TestJaarinsigneLevelsForScout:
+    """Unit tests for jaarinsigne_levels_for_scout helper (issue #122)."""
+
+    def _make_badge(self, level_indices=(1, 2, 3)):
+        return {
+            "type": "jaarinsigne",
+            "levels": [
+                {"level_index": idx, "name": f"Level {idx}", "kort": f"L{idx}",
+                 "slug": f"l{idx}", "steps": []}
+                for idx in level_indices
+            ],
+        }
+
+    def test_returns_levels_where_progress_exists(self):
+        from insigne.badges import jaarinsigne_levels_for_scout
+        badge = self._make_badge((1, 2, 3))
+        slug_progress = {(1, 0): object(), (3, 1): object()}
+        result = jaarinsigne_levels_for_scout(badge, slug_progress, resolved_level_index=2)
+        assert [l["level_index"] for l in result] == [1, 3]
+
+    def test_falls_back_to_resolved_when_no_progress(self):
+        from insigne.badges import jaarinsigne_levels_for_scout
+        badge = self._make_badge((1, 2, 3))
+        result = jaarinsigne_levels_for_scout(badge, slug_progress={}, resolved_level_index=2)
+        assert [l["level_index"] for l in result] == [2]
+
+    def test_returns_empty_when_no_progress_and_no_resolved(self):
+        from insigne.badges import jaarinsigne_levels_for_scout
+        badge = self._make_badge((1, 2, 3))
+        result = jaarinsigne_levels_for_scout(badge, slug_progress={}, resolved_level_index=None)
+        assert result == []
+
+    def test_progress_on_undefined_level_index_is_ignored(self):
+        """If progress exists on a level_index that isn't in badge['levels']
+        (e.g. stale data), it must not show as a card. The resolved fallback
+        kicks in instead."""
+        from insigne.badges import jaarinsigne_levels_for_scout
+        badge = self._make_badge((1, 2, 3))
+        slug_progress = {(99, 0): object()}  # not in (1, 2, 3)
+        result = jaarinsigne_levels_for_scout(badge, slug_progress, resolved_level_index=2)
+        assert [l["level_index"] for l in result] == [2]

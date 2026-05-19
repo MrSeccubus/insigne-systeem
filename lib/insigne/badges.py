@@ -176,3 +176,38 @@ class BadgeCatalogue:
                     return _SPELTAK_ORDER.index(candidate)
 
         return None  # badge not available for this speltak type
+
+
+def jaarinsigne_levels_for_scout(
+    detail: dict, slug_progress: dict, resolved_level_index: int | None,
+) -> list[dict]:
+    """Return the list of level dicts (not indices) to render for a scout on a jaarinsigne.
+
+    Rule (issue #122):
+
+    1. If the scout has any ``ProgressEntry`` for this badge — at any level —
+       return one entry per level where progress exists, sorted by ``level_index``.
+    2. Else, fall back to ``[resolved_level]`` if the resolved level exists in
+       ``detail["levels"]``.
+    3. Else return ``[]`` (caller renders a "niet beschikbaar" placeholder).
+
+    ``slug_progress`` is the per-badge progress dict keyed by
+    ``(level_index, step_index)``; the values are unused (any presence counts
+    as "has progress").
+    """
+    levels_with_progress = sorted({lv for (lv, _) in slug_progress.keys()})
+    if levels_with_progress:
+        rendered: list[dict] = []
+        for idx in levels_with_progress:
+            level = next((l for l in detail["levels"] if l["level_index"] == idx), None)
+            if level is not None:
+                rendered.append(level)
+        if rendered:
+            return rendered
+    if resolved_level_index is not None:
+        level = next(
+            (l for l in detail["levels"] if l["level_index"] == resolved_level_index), None,
+        )
+        if level is not None:
+            return [level]
+    return []

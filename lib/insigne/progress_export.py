@@ -207,6 +207,38 @@ def to_pdf(data: dict, catalogue=None, base_url: str = "") -> bytes:
             w = min(STEP_COL_W - 8, IMG_H * ratio)
             return RLImage(str(img_path), width=w, height=w / ratio)
 
+    def _jaarinsigne_img(slug: str):
+        """Return a downscaled RLImage for the jaarinsigne meta-image ({slug}.png), or None.
+
+        Jaarinsigne images are not per-niveau — one image per badge — so this
+        is rendered once at the top of the badge section rather than in a
+        per-niveau header row.
+        """
+        if not catalogue:
+            return None
+        img_path = catalogue.data_dir / "images" / f"{slug}.png"
+        if not img_path.exists():
+            return None
+        target_h = 60  # pt
+        try:
+            from PIL import Image as PILImage
+            with PILImage.open(img_path) as pil_img:
+                iw, ih = pil_img.size
+                ratio = iw / ih
+                display_h = target_h
+                display_w = display_h * ratio
+                px_w = max(1, int(display_w * 2))
+                px_h = max(1, int(display_h * 2))
+                resized = pil_img.convert("RGBA").resize((px_w, px_h), PILImage.LANCZOS)
+                img_buf = io.BytesIO()
+                resized.save(img_buf, format="PNG", optimize=True)
+                img_buf.seek(0)
+                return RLImage(img_buf, width=display_w, height=display_h)
+        except Exception:
+            iw, ih = ImageReader(str(img_path)).getSize()
+            ratio = iw / ih
+            return RLImage(str(img_path), width=target_h * ratio, height=target_h)
+
     # Build progress lookup: (badge_slug, level_index, step_index) → item
     progress_map: dict[tuple, dict] = {}
     for item in data.get("progress", []):
@@ -270,57 +302,20 @@ def to_pdf(data: dict, catalogue=None, base_url: str = "") -> bytes:
                 badge_title_para = Paragraph(badge_info["title"], badge_st)
                 badge_type = badge_full.get("type", "gewoon")
 
-                # ── Special case: jaarinsigne_2026 (meta-insigne) ────────────
-                if slug == "jaarinsigne_2026":
-                    inclusions = data.get("jaarinsigne_2026_inclusions") or []
-                    if not inclusions:
-                        continue
-                    inc_rows: list = [[
-                        Paragraph("<b>Insigne</b>", hdr_dk_st),
-                        Paragraph("<b>Niveau</b>", hdr_dk_st),
-                        Paragraph("<b>Eis</b>", hdr_dk_st),
-                    ]]
-                    for inc in inclusions:
-                        ib_slug = inc.get("badge_slug")
-                        li = inc.get("level_index")
-                        si = inc.get("step_index")
-                        ref_badge = catalogue.get(ib_slug) if ib_slug else None
-                        ref_title = ref_badge["title"] if ref_badge else (ib_slug or "?")
-                        try:
-                            ref_step = ref_badge["levels"][li]["steps"][si]
-                            ref_eis = ref_step.get("titel") or ref_step.get("text", "")
-                        except (TypeError, IndexError, KeyError):
-                            ref_eis = ""
-                        inc_rows.append([
-                            Paragraph(ref_title, _ps("PIncBadge", fontSize=8, leading=10)),
-                            Paragraph(f"Niveau {(li or 0) + 1}", _ps("PIncLvl", fontSize=8, leading=10)),
-                            Paragraph(f"Eis {(si or 0) + 1}: {ref_eis}", _ps("PIncEis", fontSize=8, leading=10)),
-                        ])
-                    inc_tbl = Table(inc_rows, colWidths=[CONTENT_W * 0.30, CONTENT_W * 0.18, CONTENT_W * 0.52])
-                    inc_tbl.setStyle(TableStyle([
-                        ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cccccc")),
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f3f4f6")),
-                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                        ("TOPPADDING", (0, 0), (-1, -1), 3),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-                    ]))
-                    block: list = [badge_title_para,
-                                   Paragraph("Behaalde eisen voor deze meta-insigne:",
-                                             _ps("PInc2026Caption", fontSize=8, textColor=colors.HexColor("#555555"))),
-                                   inc_tbl]
-                    if badge_idx == 0:
-                        block.insert(0, cat_para)
-                    story.append(KeepTogether(block))
-                    continue
-
                 # ── Jaarinsigne (per-speltak, one mini-table per level) ──────
+                # Jaarinsigne_2026 (meta-insigne) shares this path; the
+                # inclusion list is appended as a final section below.
                 if badge_type == "jaarinsigne":
                     slug_progress = _slug_progress(slug)
                     resolved_level_index = catalogue.resolve_jaarinsigne_level_index(badge_full, speltak_slug)
                     levels_to_show = jaarinsigne_levels_for_scout(badge_full, slug_progress, resolved_level_index)
-                    if not levels_to_show:
+                    inclusions = data.get("jaarinsigne_2026_inclusions") or [] if slug == "jaarinsigne_2026" else []
+                    if not levels_to_show and not inclusions:
                         continue
-                    block = [badge_title_para]
+                    block: list = [badge_title_para]
+                    meta_img = _jaarinsigne_img(slug)
+                    if meta_img:
+                        block.append(meta_img)
                     for level in levels_to_show:
                         li = level["level_index"]
                         n_steps = len(level["steps"])
@@ -357,6 +352,45 @@ def to_pdf(data: dict, catalogue=None, base_url: str = "") -> bytes:
                             _ps("PJaarLvl", fontSize=10, leading=12, spaceBefore=8, spaceAfter=2, fontName="Helvetica-Bold"),
                         ))
                         block.append(sub_tbl)
+                    # Jaarinsigne_2026 only: appendix listing the scout's
+                    # inclusion picks. The inclusion set is shared across
+                    # levels, so render once for the whole badge.
+                    if inclusions:
+                        inc_rows: list = [[
+                            Paragraph("<b>Insigne</b>", hdr_dk_st),
+                            Paragraph("<b>Niveau</b>", hdr_dk_st),
+                            Paragraph("<b>Eis</b>", hdr_dk_st),
+                        ]]
+                        for inc in inclusions:
+                            ib_slug = inc.get("badge_slug")
+                            li = inc.get("level_index")
+                            si = inc.get("step_index")
+                            ref_badge = catalogue.get(ib_slug) if ib_slug else None
+                            ref_title = ref_badge["title"] if ref_badge else (ib_slug or "?")
+                            try:
+                                ref_step = ref_badge["levels"][li]["steps"][si]
+                                ref_eis = ref_step.get("titel") or ref_step.get("text", "")
+                            except (TypeError, IndexError, KeyError):
+                                ref_eis = ""
+                            inc_rows.append([
+                                Paragraph(ref_title, _ps("PIncBadge", fontSize=8, leading=10)),
+                                Paragraph(f"Niveau {(li or 0) + 1}", _ps("PIncLvl", fontSize=8, leading=10)),
+                                Paragraph(f"Eis {(si or 0) + 1}: {ref_eis}", _ps("PIncEis", fontSize=8, leading=10)),
+                            ])
+                        inc_tbl = Table(inc_rows, colWidths=[CONTENT_W * 0.30, CONTENT_W * 0.18, CONTENT_W * 0.52])
+                        inc_tbl.setStyle(TableStyle([
+                            ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cccccc")),
+                            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f3f4f6")),
+                            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                            ("TOPPADDING", (0, 0), (-1, -1), 3),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                        ]))
+                        block.append(Paragraph(
+                            "Insignes die meetellen voor dit jaarinsigne:",
+                            _ps("PInc2026Caption", fontSize=9, textColor=colors.HexColor("#555555"),
+                                spaceBefore=8, spaceAfter=2),
+                        ))
+                        block.append(inc_tbl)
                     if badge_idx == 0:
                         block.insert(0, cat_para)
                     story.append(KeepTogether(block))

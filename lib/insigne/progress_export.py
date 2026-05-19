@@ -38,7 +38,12 @@ def find_or_create_nameholder(db: Session, name: str) -> User:
 
 def export_data(db: Session, user_id: str) -> dict:
     """Return a serialisable dict of the user's non-pending progress."""
+    from . import groups as groups_svc
+
     user = db.get(User, user_id)
+    primary_speltak_type = (
+        groups_svc.get_user_primary_speltak_type(db, user_id) if user else None
+    )
     entries = (
         db.query(ProgressEntry)
         .filter(
@@ -88,7 +93,10 @@ def export_data(db: Session, user_id: str) -> dict:
     return {
         "version": EXPORT_VERSION,
         "exported_at": datetime.now(timezone.utc).isoformat(),
-        "user": {"name": user.name if user else None},
+        "user": {
+            "name": user.name if user else None,
+            "primary_speltak_type": primary_speltak_type,
+        },
         "progress": progress,
         "jaarinsigne_2026_inclusions": jaarinsigne_2026_inclusions,
     }
@@ -224,7 +232,30 @@ def to_pdf(data: dict, catalogue=None, base_url: str = "") -> bytes:
         Paragraph(site_line, sub_st),
     ]
 
+    # Per-badge slug_progress: filter progress_map to entries on this badge,
+    # keyed by (level_index, step_index) — same shape jaarinsigne_levels_for_scout expects.
+    def _slug_progress(slug: str) -> dict:
+        return {
+            (li, si): item for (s, li, si), item in progress_map.items() if s == slug
+        }
+
+    speltak_slug = (data.get("user") or {}).get("primary_speltak_type")
+
+    def _cell_for(item: dict | None) -> tuple[list, str | None]:
+        status = item["status"] if item else None
+        sts = CSTS[status]
+        cell = [Paragraph(f"Status: {STATUS_LABEL_NL[status]}", sts["status"])]
+        if item and item.get("signed_off_at"):
+            cell.append(Paragraph(f"Op: {_format_date(item['signed_off_at'])}", sts["detail"]))
+        if item and item.get("signed_off_by"):
+            cell.append(Paragraph(f"Door: {item['signed_off_by']}", sts["detail"]))
+        if item and item.get("notes"):
+            cell.append(Paragraph(item["notes"], sts["notes"]))
+        return cell, status
+
     if catalogue:
+        from .badges import jaarinsigne_levels_for_scout
+
         badges_by_cat = catalogue.list()
         for category, badge_list in badges_by_cat.items():
             cat_label = {"gewoon": "Gewone insignes", "buitengewoon": "Buitengewone insignes", "explorers": "Explorers"}.get(category, category)
@@ -237,8 +268,101 @@ def to_pdf(data: dict, catalogue=None, base_url: str = "") -> bytes:
                     continue
 
                 badge_title_para = Paragraph(badge_info["title"], badge_st)
+                badge_type = badge_full.get("type", "gewoon")
 
-                # ── header row ────────────────────────────────────────────────
+                # ── Special case: jaarinsigne_2026 (meta-insigne) ────────────
+                if slug == "jaarinsigne_2026":
+                    inclusions = data.get("jaarinsigne_2026_inclusions") or []
+                    if not inclusions:
+                        continue
+                    inc_rows: list = [[
+                        Paragraph("<b>Insigne</b>", hdr_dk_st),
+                        Paragraph("<b>Niveau</b>", hdr_dk_st),
+                        Paragraph("<b>Eis</b>", hdr_dk_st),
+                    ]]
+                    for inc in inclusions:
+                        ib_slug = inc.get("badge_slug")
+                        li = inc.get("level_index")
+                        si = inc.get("step_index")
+                        ref_badge = catalogue.get(ib_slug) if ib_slug else None
+                        ref_title = ref_badge["title"] if ref_badge else (ib_slug or "?")
+                        try:
+                            ref_step = ref_badge["levels"][li]["steps"][si]
+                            ref_eis = ref_step.get("titel") or ref_step.get("text", "")
+                        except (TypeError, IndexError, KeyError):
+                            ref_eis = ""
+                        inc_rows.append([
+                            Paragraph(ref_title, _ps("PIncBadge", fontSize=8, leading=10)),
+                            Paragraph(f"Niveau {(li or 0) + 1}", _ps("PIncLvl", fontSize=8, leading=10)),
+                            Paragraph(f"Eis {(si or 0) + 1}: {ref_eis}", _ps("PIncEis", fontSize=8, leading=10)),
+                        ])
+                    inc_tbl = Table(inc_rows, colWidths=[CONTENT_W * 0.30, CONTENT_W * 0.18, CONTENT_W * 0.52])
+                    inc_tbl.setStyle(TableStyle([
+                        ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cccccc")),
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f3f4f6")),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("TOPPADDING", (0, 0), (-1, -1), 3),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                    ]))
+                    block: list = [badge_title_para,
+                                   Paragraph("Behaalde eisen voor deze meta-insigne:",
+                                             _ps("PInc2026Caption", fontSize=8, textColor=colors.HexColor("#555555"))),
+                                   inc_tbl]
+                    if badge_idx == 0:
+                        block.insert(0, cat_para)
+                    story.append(KeepTogether(block))
+                    continue
+
+                # ── Jaarinsigne (per-speltak, one mini-table per level) ──────
+                if badge_type == "jaarinsigne":
+                    slug_progress = _slug_progress(slug)
+                    resolved_level_index = catalogue.resolve_jaarinsigne_level_index(badge_full, speltak_slug)
+                    levels_to_show = jaarinsigne_levels_for_scout(badge_full, slug_progress, resolved_level_index)
+                    if not levels_to_show:
+                        continue
+                    block = [badge_title_para]
+                    for level in levels_to_show:
+                        li = level["level_index"]
+                        n_steps = len(level["steps"])
+                        sub_rows = [[
+                            Paragraph("<b>Eis</b>", hdr_dk_st),
+                            Paragraph("<b>Voortgang</b>", hdr_dk_st),
+                        ]]
+                        sub_ts = [
+                            ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cccccc")),
+                            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f3f4f6")),
+                            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                            ("TOPPADDING", (0, 0), (-1, -1), 3),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                        ]
+                        for step_idx in range(n_steps):
+                            step = level["steps"][step_idx]
+                            eis_para = Paragraph(
+                                f"{step_idx + 1}. {step.get('titel') or ''}".strip().rstrip("."),
+                                rowlbl_st,
+                            )
+                            item = progress_map.get((slug, li, step_idx))
+                            cell, status = _cell_for(item)
+                            sub_rows.append([eis_para, cell])
+                            bg = STATUS_BG.get(status)
+                            if bg:
+                                row_num = len(sub_rows) - 1
+                                sub_ts.append(("BACKGROUND", (1, row_num), (1, row_num), bg))
+                        sub_tbl = Table(sub_rows, colWidths=[ROW_LABEL_W, CONTENT_W - ROW_LABEL_W])
+                        sub_tbl.setStyle(TableStyle(sub_ts))
+                        block.append(Paragraph(
+                            f"<b>{level['name']}</b>",
+                            _ps("PJaarLvl", fontSize=10, leading=12, spaceBefore=8, spaceAfter=2, fontName="Helvetica-Bold"),
+                        ))
+                        block.append(sub_tbl)
+                    if badge_idx == 0:
+                        block.insert(0, cat_para)
+                    story.append(KeepTogether(block))
+                    continue
+
+                # ── Regular badge: 5 eisen × 3 niveau grid ───────────────────
                 niveau_label = badge_full.get("niveau_label", "Niveau")
                 header = [Paragraph("", hdr_dk_st)]
                 for step_i in range(3):
@@ -264,33 +388,17 @@ def to_pdf(data: dict, catalogue=None, base_url: str = "") -> bytes:
                     ("VALIGN",     (0, 1), (0, -1), "MIDDLE"),
                 ]
 
-                # ── data rows (one per eis group / niveau) ────────────────────
                 for lvl_i, level in enumerate(badge_full["levels"]):
                     row_num = lvl_i + 1
                     row = [Paragraph(f"{lvl_i + 1}. {level['name']}", rowlbl_st)]
-
                     for step_i in range(3):
                         col_num = step_i + 1
-                        item    = progress_map.get((slug, lvl_i, step_i))
-                        status  = item["status"] if item else None
-                        sts     = CSTS[status]
-
-                        cell = [
-                            Paragraph(f"Status: {STATUS_LABEL_NL[status]}", sts["status"]),
-                        ]
-                        if item and item.get("signed_off_at"):
-                            cell.append(Paragraph(f"Op: {_format_date(item['signed_off_at'])}", sts["detail"]))
-                        if item and item.get("signed_off_by"):
-                            cell.append(Paragraph(f"Door: {item['signed_off_by']}", sts["detail"]))
-                        if item and item.get("notes"):
-                            cell.append(Paragraph(item["notes"], sts["notes"]))
-
+                        item = progress_map.get((slug, lvl_i, step_i))
+                        cell, status = _cell_for(item)
                         row.append(cell)
-
                         bg = STATUS_BG.get(status)
                         if bg:
                             ts.append(("BACKGROUND", (col_num, row_num), (col_num, row_num), bg))
-
                     tbl_data.append(row)
 
                 tbl = Table(tbl_data, colWidths=[ROW_LABEL_W, STEP_COL_W, STEP_COL_W, STEP_COL_W])

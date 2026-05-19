@@ -25,10 +25,13 @@
         {% set st = speltakken_meta | selectattr('slug', 'equalto', speltak.speltak_type) | first | default(None) %}
         {% if st %}
             <strong>{{ st.naam }}</strong> ({{ st.leeftijd }}){% if speltak.peer_signoff %} — leden mogen voor elkaar aftekenen{% endif %}.
-        {% elif speltak.peer_signoff %}
-            <strong>Volwassenen speltak</strong> — leden mogen voor elkaar aftekenen.
         {% else %}
-            Type: <strong>Onbekend</strong> — <a href="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/edit">stel het speltak type in</a>.
+            {% if speltak.peer_signoff %}
+                <strong>Volwassenen speltak</strong> — leden mogen voor elkaar aftekenen — type nog niet ingesteld.
+            {% else %}
+                Type: <strong>Onbekend</strong>.
+            {% endif %}
+            {% if can_manage %} <a href="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/edit">Stel het speltak type in</a>.{% endif %}
         {% endif %}
     </p>
 

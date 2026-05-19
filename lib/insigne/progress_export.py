@@ -386,9 +386,9 @@ def to_pdf(data: dict, catalogue=None, base_url: str = "") -> bytes:
                             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
                         ]))
                         block.append(Paragraph(
-                            "Insignes die meetellen voor dit jaarinsigne:",
-                            _ps("PInc2026Caption", fontSize=9, textColor=colors.HexColor("#555555"),
-                                spaceBefore=8, spaceAfter=2),
+                            "<b>Insignes die meetellen voor dit jaarinsigne</b>",
+                            _ps("PInc2026Caption", fontSize=10, leading=12,
+                                spaceBefore=8, spaceAfter=2, fontName="Helvetica-Bold"),
                         ))
                         block.append(inc_tbl)
                     if badge_idx == 0:

@@ -82,6 +82,7 @@
             {% set level_name = level.name %}
             {% set step_index = loop.index0 %}
             {% set step_text = step.text %}
+            {% set step_green = step.green %}
             {% set entry = progress_map.get((level_index, step_index)) %}
             {% set slug = badge.slug %}
             {% set niveau_label_kort = "E" %}
@@ -167,6 +168,7 @@
         {% if step.text %}
         {% set step_index = step.index %}
         {% set step_text = step.text %}
+        {% set step_green = step.green %}
         {% set entry = progress_map.get((level_index, step_index)) %}
         {% set error = "" %}
         {% include "partials/step_card.html" %}

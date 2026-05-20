@@ -12,6 +12,25 @@ weer leeg gemaakt.
 
 ---
 
+## [v1.0.1] — 2026-05-19
+
+### Patchrelease — jaarinsigne-rendering en export/import
+
+Een korte patch op v1.0.0 om de jaarinsigne-weergave op de homepage, de leider-scoutpagina en de PDF-export te corrigeren (per-niveau in plaats van één niveau), om de jaarinsigne-2026-selecties netjes mee te nemen in export/import, om het bladicoon ook op gewone step-cards te tonen, en om een paar kleinere UX-haakjes uit v1.0.0 op te lossen.
+
+#### Opgelost
+
+- **Speltaktype-prompt op peer-signoff speltakken zonder type** (sluit #118) — een speltak met `peer_signoff=True` en zonder `speltak_type` toonde alleen "Volwassenen speltak — leden mogen voor elkaar aftekenen", zonder de leider erop te wijzen dat het type nog niet ingesteld was (en zonder edit-link). De else-tak van speltak_detail.html werd voor niet-peer-signoff speltakken wel met een "stel het speltak type in"-link weergegeven, voor peer-signoff niet. Beide ontbrekende-type-branches komen nu samen: ze laten zien dat het type ontbreekt en bieden de leider (`can_manage`) een directe link om het type in te stellen.
+- **Jaarinsigne-2026 niveau-wissel herberekent eis-statussen** — wisselde een scout in de editor van speltak-niveau (bv. van welpen naar scouts), dan bleven de eis-checkboxes op het nieuwe niveau op "none" staan tot er handmatig een inclusie werd toe/afgeroepen. De per-niveau drempels (`punten`, `groen`, `niveau2`, `niveau3`, `insignes`, `leiding_bepaald`) zijn echter wél anders per speltak, dus de bestaande inclusies vinden tegen het nieuwe niveau soms wel/niet een drempel. `progress_svc.set_jaarinsigne_level` roept nu, alleen voor `jaarinsigne_2026`, direct na het persistenten van het niveau `jaarinsigne_2026.update_progress_entries` aan voor het nieuwe niveau, zodat de checkboxes meteen kloppen. 3 nieuwe service-tests.
+- **Jaarinsigne-weergave volgens scout-voortgang** (sluit #122) — de homepage en PDF-export toonden een jaarinsigne altijd op precies één niveau (het door `resolve_jaarinsigne_level_index` gekozen "scout-speltak"-niveau). Daardoor verdween informatie zodra een scout op meerdere speltakken voortgang had, en in de PDF werden jaarinsignes met het reguliere 5-eis × 3-niveau raster gerenderd dat niet bij hun structuur past. Nieuwe regel: één kaart/sectie per niveau waar de scout *enige* `ProgressEntry` heeft; bij geen voortgang valt de weergave terug op het opgeloste niveau van de scout's eigen speltak. Gedeelde helper `insigne.badges.jaarinsigne_levels_for_scout` toegepast op `api/main.py:index`, `api/routers/html_badges.py:_build_badge_catalogue` en de PDF-renderer in `progress_export.to_pdf`. De PDF heeft nu ook per jaarinsigne-niveau een eigen mini-tabel (rijen = eisen, één kolom = status) in plaats van het verkeerde 3-niveau-raster. Voor jaarinsigne_2026 (meta-insigne) toont de PDF nu de geselecteerde inclusies (Insigne / Niveau / Eis), wat tegelijk gebruikmaakt van de nieuwe `jaarinsigne_2026_inclusions` exportsleutel uit #111. Ook `user.primary_speltak_type` is aan de export-YAML toegevoegd zodat de PDF de scout's speltak kent voor de fallback.
+- **Jaarinsigne-2026-selecties verloren bij export/import** (sluit #111) — de scout maakt in de jaarinsigne-2026-editor een keuze welke eisen van *gewone* en *buitengewone* insignes meetellen. Die rijen leven in een eigen tabel (`Jaarinsigne2026Inclusion`) en werden door `progress_export.export_data` en `progress_export.import_progress` niet meegenomen. Wie zijn voortgang exporteerde en op een ander account importeerde, raakte z'n meta-insigne-inclusies kwijt. Exportversie verhoogd naar `3` met een nieuwe top-level `jaarinsigne_2026_inclusions` lijst; import is idempotent (controleert op de bestaande unique-constraint) en blijft v1/v2-exports zonder deze sleutel gewoon accepteren.
+
+#### Verbeteringen
+
+- **Blad-icoon op "groene" eisen ook in step-cards** (sluit #108) — het inline Font Awesome bladicoon dat tot nu toe alleen in de jaarinsigne-2026-editor groene eisen markeerde, verschijnt nu ook in de gewone step-card-weergave. Het icoon staat verticaal gestapeld onder de Nx-indicator (geen horizontale ruimte gebruikt — voorkomt dat step-cards in de overzichtsgrid te smal worden). Voor gedeeltelijk-groene eisen (\`==tekst==\` binnen een zin) verschijnt het bladicoon via een pure-CSS \`::before\` regel op elke \`<span class="eis-groen">\`, met een data-URI SVG (geen wijziging aan de render-pipeline).
+
+---
+
 ## [v1.0.0] — 2026-05-18
 
 ### Eerste stabiele release — jaarinsignes, batch sign-off en gebruikersfavorieten

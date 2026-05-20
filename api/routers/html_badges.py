@@ -9,7 +9,7 @@ from insigne import jaarinsigne_2026 as jaarinsigne_2026_svc
 from insigne import progress as progress_svc
 from datetime import datetime
 
-from insigne.badges import BadgeCatalogue
+from insigne.badges import BadgeCatalogue, jaarinsigne_levels_for_scout
 from insigne.database import get_db
 from insigne.email import (
     send_mentor_jaarinsigne_signoff_invite_email,
@@ -142,6 +142,12 @@ def _emit_rejected_email(
 
 def _step_card(request, slug, level_index, level_name, step_index, step_text, entry, previous_mentors=None, error="", current_user=None, scout_signoff_options=None):
     _badge = _CATALOGUE.get(slug)
+    step_green = False
+    if _badge:
+        try:
+            step_green = bool(_badge["levels"][level_index]["steps"][step_index].get("green", False))
+        except (IndexError, KeyError):
+            pass
     response = _partial(
         request, "step_card.html",
         slug=slug,
@@ -149,6 +155,7 @@ def _step_card(request, slug, level_index, level_name, step_index, step_text, en
         level_name=level_name,
         step_index=step_index,
         step_text=step_text,
+        step_green=step_green,
         entry=entry,
         previous_mentors=previous_mentors or [],
         error=error,
@@ -969,6 +976,7 @@ def _build_badge_catalogue(all_progress: dict, db=None, scout_id: str | None = N
             detail = _CATALOGUE.get(badge["slug"])
             badge["type"] = detail.get("type", "gewoon")
             if detail.get("type") == "jaarinsigne":
+                slug_progress = all_progress.get(badge["slug"], {})
                 jl = progress_svc.get_jaarinsigne_level(db, scout_id, badge["slug"]) if db and scout_id else None
                 if jl:
                     speltak_slug = jl.speltak_slug
@@ -977,23 +985,26 @@ def _build_badge_catalogue(all_progress: dict, db=None, scout_id: str | None = N
                 else:
                     speltak_slug = None
                 resolved_level_index = _CATALOGUE.resolve_jaarinsigne_level_index(detail, speltak_slug)
-                level = next((l for l in detail["levels"] if l["level_index"] == resolved_level_index), None)
-                if level:
-                    slug_progress = all_progress.get(badge["slug"], {})
-                    n_steps = len(level["steps"])
-                    badge["level_cards"] = [{
-                        "index": resolved_level_index,
-                        "name": level["name"],
-                        "short_name": level["kort"],
-                        "image": f"/images/{badge['slug']}.png",
-                        "total": n_steps,
-                        "completed": sum(
-                            1 for step_idx in range(n_steps)
-                            if slug_progress.get((resolved_level_index, step_idx))
-                            and slug_progress[(resolved_level_index, step_idx)].status == "signed_off"
-                        ),
-                        "completed_at": None,
-                    }]
+                levels_to_show = jaarinsigne_levels_for_scout(detail, slug_progress, resolved_level_index)
+                if levels_to_show:
+                    cards = []
+                    for level in levels_to_show:
+                        li = level["level_index"]
+                        n_steps = len(level["steps"])
+                        cards.append({
+                            "index": li,
+                            "name": level["name"],
+                            "short_name": level["kort"],
+                            "image": f"/images/{badge['slug']}.png",
+                            "total": n_steps,
+                            "completed": sum(
+                                1 for step_idx in range(n_steps)
+                                if slug_progress.get((li, step_idx))
+                                and slug_progress[(li, step_idx)].status == "signed_off"
+                            ),
+                            "completed_at": None,
+                        })
+                    badge["level_cards"] = cards
                 else:
                     # Render a placeholder card so the leader can navigate to
                     # the scout's badge page and override the level if needed.

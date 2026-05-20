@@ -10,7 +10,7 @@ import insigne.models  # noqa: F401 — registers all ORM classes on Base.metada
 from insigne import groups as groups_svc
 from insigne import progress as progress_svc
 from insigne import users as users_svc
-from insigne.badges import BadgeCatalogue
+from insigne.badges import BadgeCatalogue, jaarinsigne_levels_for_scout
 from insigne.config import config
 from insigne.database import get_db
 from routers import api_admin, api_auth, api_badges, api_contact, api_groups, api_progress, api_users, api_version, html_admin, html_badges, html_contact, html_groups, users
@@ -80,6 +80,7 @@ async def index(request: Request, only_favorites: int = 0, only_in_progress: int
             detail = _CATALOGUE.get(badge["slug"])
             if detail.get("type") == "jaarinsigne":
                 badge["type"] = "jaarinsigne"
+                slug_progress = all_progress.get(badge["slug"], {})
                 jl = progress_svc.get_jaarinsigne_level(db, current_user.id, badge["slug"]) if current_user else None
                 if jl:
                     speltak_slug = jl.speltak_slug
@@ -88,37 +89,37 @@ async def index(request: Request, only_favorites: int = 0, only_in_progress: int
                 else:
                     speltak_slug = None
                 resolved_level_index = _CATALOGUE.resolve_jaarinsigne_level_index(detail, speltak_slug)
-                level = next((l for l in detail["levels"] if l["level_index"] == resolved_level_index), None)
-                if level:
-                    slug_progress = all_progress.get(badge["slug"], {})
-                    n_steps = len(level["steps"])
-                    completed = sum(
-                        1 for step_idx in range(n_steps)
-                        if slug_progress.get((resolved_level_index, step_idx))
-                        and slug_progress[(resolved_level_index, step_idx)].status == "signed_off"
-                    )
-                    badge["level_cards"] = [{
-                        "index": resolved_level_index,
-                        "name": level["name"],
-                        "short_name": level["kort"],
-                        "image": f"/images/{badge['slug']}.png",
-                        "total": n_steps,
-                        "completed": completed,
-                        "completed_at": max(
-                            (slug_progress[(resolved_level_index, step_idx)].signed_off_at
-                             for step_idx in range(n_steps)
-                             if slug_progress.get((resolved_level_index, step_idx))
-                             and slug_progress[(resolved_level_index, step_idx)].status == "signed_off"
-                             and slug_progress[(resolved_level_index, step_idx)].signed_off_at),
-                            default=None,
-                        ),
-                    }]
+                levels_to_show = jaarinsigne_levels_for_scout(detail, slug_progress, resolved_level_index)
+                if levels_to_show:
+                    cards = []
+                    for level in levels_to_show:
+                        li = level["level_index"]
+                        n_steps = len(level["steps"])
+                        cards.append({
+                            "index": li,
+                            "name": level["name"],
+                            "short_name": level["kort"],
+                            "image": f"/images/{badge['slug']}.png",
+                            "total": n_steps,
+                            "completed": sum(
+                                1 for step_idx in range(n_steps)
+                                if slug_progress.get((li, step_idx))
+                                and slug_progress[(li, step_idx)].status == "signed_off"
+                            ),
+                            "completed_at": max(
+                                (slug_progress[(li, step_idx)].signed_off_at
+                                 for step_idx in range(n_steps)
+                                 if slug_progress.get((li, step_idx))
+                                 and slug_progress[(li, step_idx)].status == "signed_off"
+                                 and slug_progress[(li, step_idx)].signed_off_at),
+                                default=None,
+                            ),
+                        })
+                    badge["level_cards"] = cards
                 else:
-                    # Jaarinsigne not available for this scout's speltak. Render
-                    # a placeholder card so the user can still navigate to the
-                    # detail page and see the "niet beschikbaar" notification
-                    # (and, if eligible, use the "stel als mijn niveau in"
-                    # buttons there).
+                    # Jaarinsigne not available for this scout's speltak and no
+                    # progress to show. Render a placeholder card so the user can
+                    # still navigate to the detail page.
                     badge["level_cards"] = [{
                         "index": -1,
                         "name": "Niet beschikbaar voor jouw speltak",

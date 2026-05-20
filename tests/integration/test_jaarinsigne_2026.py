@@ -312,3 +312,71 @@ class TestUpdateProgressEntries:
             user_id=u.id, badge_slug="jaarinsigne_2026"
         ).all()
         assert entries == []
+
+
+class TestSetJaarinsigneLevelRecomputes:
+    """Switching the scout's jaarinsigne_2026 level must recompute the new
+    level's eis statuses against existing inclusions — otherwise the editor
+    checkboxes on the new level stay at "none" until the next inclusion
+    toggle, which was reported as a confusing UX bug."""
+
+    def test_setting_level_creates_entries_for_new_speltak(self, db):
+        from insigne import progress as progress_svc
+
+        u = _user(db)
+        # 8 signed-off eisen on kamperen → 8 punten, enough to clear scouts'
+        # punten threshold.
+        for eis_idx in range(8):
+            _signed_off_entry(db, u.id, "kamperen", eis_idx, 0)
+            svc.toggle_inclusion(db, u.id, "kamperen", eis_idx, 0)
+
+        # Sanity: no jaarinsigne_2026 ProgressEntry rows exist yet (we never
+        # called update_progress_entries directly).
+        assert db.query(ProgressEntry).filter_by(
+            user_id=u.id, badge_slug="jaarinsigne_2026"
+        ).count() == 0
+
+        progress_svc.set_jaarinsigne_level(db, u.id, "jaarinsigne_2026", "scouts", u.id)
+
+        # The scouts-level punten eis (level_index=2, step_index=0) must now
+        # exist with work_done.
+        punten_entry = db.query(ProgressEntry).filter_by(
+            user_id=u.id, badge_slug="jaarinsigne_2026",
+            level_index=2, step_index=0,
+        ).first()
+        assert punten_entry is not None
+        assert punten_entry.status == "work_done"
+
+    def test_switching_level_populates_the_new_level(self, db):
+        """Scout starts at scouts, then switches to welpen — welpen's eis
+        statuses must be computed from the same inclusions."""
+        from insigne import progress as progress_svc
+
+        u = _user(db)
+        for eis_idx in range(8):
+            _signed_off_entry(db, u.id, "kamperen", eis_idx, 0)
+            svc.toggle_inclusion(db, u.id, "kamperen", eis_idx, 0)
+
+        progress_svc.set_jaarinsigne_level(db, u.id, "jaarinsigne_2026", "scouts", u.id)
+        scouts_count = db.query(ProgressEntry).filter_by(
+            user_id=u.id, badge_slug="jaarinsigne_2026", level_index=2,
+        ).count()
+        assert scouts_count > 0
+
+        # Switch to welpen (level_index=1).
+        progress_svc.set_jaarinsigne_level(db, u.id, "jaarinsigne_2026", "welpen", u.id)
+        welpen_count = db.query(ProgressEntry).filter_by(
+            user_id=u.id, badge_slug="jaarinsigne_2026", level_index=1,
+        ).count()
+        assert welpen_count > 0
+
+    def test_no_recompute_for_non_2026_jaarinsignes(self, db):
+        """Other jaarinsignes don't have programmatic eis statuses — the
+        recompute hook must only fire for jaarinsigne_2026."""
+        from insigne import progress as progress_svc
+
+        u = _user(db)
+        # Should not raise even though there's no jaarinsigne_2026 in play.
+        record = progress_svc.set_jaarinsigne_level(db, u.id, "jaarinsigne_2025", "scouts", u.id)
+        assert record.badge_slug == "jaarinsigne_2025"
+        assert record.speltak_slug == "scouts"

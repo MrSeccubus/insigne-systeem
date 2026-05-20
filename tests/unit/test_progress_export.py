@@ -525,6 +525,53 @@ class TestJaarinsigne2026Inclusions:
         import_progress(db, target.id, v2_data)
         assert db.query(Jaarinsigne2026Inclusion).filter_by(user_id=target.id).count() == 0
 
+    def _hand_edited(self, inclusion_row: dict) -> dict:
+        """v3 export payload with a single hand-edited inclusion row, no progress."""
+        return {
+            "version": 3,
+            "user": {"name": "Hand-edited", "primary_speltak_type": "scouts"},
+            "progress": [],
+            "jaarinsigne_2026_inclusions": [inclusion_row],
+        }
+
+    def test_import_skips_non_int_indices(self, db):
+        """Issue #124 — non-int level_index / step_index would 500 downstream
+        pages (compute_score TypeError). The import must skip them silently."""
+        target = _make_user(db, email="ne@example.com", name="NonInt")
+        import_progress(db, target.id, self._hand_edited(
+            {"badge_slug": "sport_spel", "level_index": "one", "step_index": 0}
+        ))
+        assert db.query(Jaarinsigne2026Inclusion).filter_by(user_id=target.id).count() == 0
+
+    def test_import_skips_ineligible_badge_slug(self, db):
+        """Issue #124 — only `gewoon` / `buitengewoon` badges may appear in an
+        inclusion. A hand-edited slug pointing at an explorers badge or a
+        completely made-up slug must be rejected at the import boundary."""
+        target = _make_user(db, email="ie@example.com", name="Ineligible")
+        # Made-up slug.
+        import_progress(db, target.id, self._hand_edited(
+            {"badge_slug": "definitely_not_a_real_badge", "level_index": 0, "step_index": 0}
+        ))
+        assert db.query(Jaarinsigne2026Inclusion).filter_by(user_id=target.id).count() == 0
+
+    def test_import_skips_non_string_badge_slug(self, db):
+        target = _make_user(db, email="ns@example.com", name="NonStr")
+        import_progress(db, target.id, self._hand_edited(
+            {"badge_slug": 12345, "level_index": 0, "step_index": 0}
+        ))
+        assert db.query(Jaarinsigne2026Inclusion).filter_by(user_id=target.id).count() == 0
+
+    def test_import_still_accepts_valid_inclusions(self, db):
+        """Sanity: the harden-up didn't reject legitimate rows."""
+        target = _make_user(db, email="ok@example.com", name="OK")
+        import_progress(db, target.id, self._hand_edited(
+            {"badge_slug": "sport_spel", "level_index": 0, "step_index": 1}
+        ))
+        rows = db.query(Jaarinsigne2026Inclusion).filter_by(user_id=target.id).all()
+        assert len(rows) == 1
+        assert rows[0].level_index == 0
+        assert rows[0].step_index == 1
+
 
 # ── API endpoints ─────────────────────────────────────────────────────────────
 

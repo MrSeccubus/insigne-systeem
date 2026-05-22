@@ -10,6 +10,10 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Beveiliging
+
+- **Auth-helpers retourneren alleen data — geen `RedirectResponse`** (sluit #100) — re-verificatie van de 46 gedismisste `py/reflective-xss` CodeQL-bevindingen wees uit dat ze allemaal hetzelfde patroon waren: `_require_user` / `_require_admin` retourneerden `(user, RedirectResponse | None)` en aanroepers deden `return redirect`. CodeQL's taint-analyse kon door de uniontype niet zien dat de redirect altijd een constante URL gebruikt, dus elke `return redirect` werd als reflective-XSS gemarkeerd. In plaats van de 46 dismissals te herbevestigen, is dezelfde refactor toegepast als in PR #116 (CodeQL #87): `_require_user` retourneert nu enkel `User | None`, `_require_admin` retourneert `(current_user, admin)` waar beide `User | None` zijn, en de 51 aanroeplocaties bouwen hun eigen `RedirectResponse` op uit string-literals (`"/login"` of `"/"`). CodeQL's volgende scan moet de dismissals naar "fixed" promoten of leeggemaakt achterlaten.
+
 ---
 
 ## [v1.0.1] — 2026-05-19

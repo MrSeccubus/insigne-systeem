@@ -51,12 +51,13 @@ class TestExplorersCategoryAutoCollapse:
         assert _EXPLORERS_SUMMARY.search(r.text), "Non-explorer should see <details><summary> for Explorers"
         assert not _EXPLORERS_H2.search(r.text), "Non-explorer should not see Explorers as plain <h2>"
 
-    def test_anonymous_visitor_sees_collapsed_section(self, client, db):
-        """Anonymous visitors have no speltak type and so see Explorers
-        collapsed by default (consistent with the rule's intent)."""
+    def test_anonymous_visitor_sees_open_section(self, client, db):
+        """Anonymous visitors don't have a speltak type to scope this UX against
+        — show them all categories open, including Explorers."""
         r = client.get("/")
         assert r.status_code == 200
-        assert _EXPLORERS_SUMMARY.search(r.text), "Anonymous should see <details><summary> for Explorers"
+        assert _EXPLORERS_H2.search(r.text), "Anonymous should see Explorers as plain <h2>"
+        assert not _EXPLORERS_SUMMARY.search(r.text), "Anonymous should not see Explorers collapsed"
 
     def test_other_categories_unchanged(self, client, db):
         """The collapse logic only applies to the Explorers category — the

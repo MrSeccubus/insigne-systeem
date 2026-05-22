@@ -63,6 +63,7 @@ async def index(request: Request, only_favorites: int = 0, only_in_progress: int
     pending_request_count = 0
     my_group_memberships: list = []
     my_speltak_memberships: list = []
+    current_user_speltak_type = None
     if current_user:
         for entry in progress_svc.list_progress(db, current_user.id):
             all_progress.setdefault(entry.badge_slug, {})[(entry.level_index, entry.step_index)] = entry
@@ -73,6 +74,7 @@ async def index(request: Request, only_favorites: int = 0, only_in_progress: int
         my_group_memberships, my_speltak_memberships = groups_svc.list_active_memberships_for_user(db, current_user.id)
         user_favorite_slugs = users_svc.get_user_favorite_slugs(db, current_user.id)
         progress_slugs = set(all_progress.keys())
+        current_user_speltak_type = groups_svc.get_user_primary_speltak_type(db, current_user.id)
 
     # Enrich each badge with level cards
     for badges in all_badges.values():
@@ -201,6 +203,7 @@ async def index(request: Request, only_favorites: int = 0, only_in_progress: int
             "only_favorites": bool(only_favorites and current_user),
             "progress_slugs": progress_slugs,
             "only_in_progress": bool(only_in_progress and current_user),
+            "current_user_speltak_type": current_user_speltak_type,
         },
     )
     response.headers["Cache-Control"] = "no-store"

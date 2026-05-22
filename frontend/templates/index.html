@@ -181,7 +181,13 @@
     {% if only_in_progress %}{% set visible_badges = visible_badges | selectattr("slug", "in", progress_slugs) | list %}{% endif %}
     {% if visible_badges %}{% set page_ns.any_visible = true %}{% endif %}
     {% if visible_badges %}
+    {% set collapse_category = category == "explorers" and current_user_speltak_type != "explorers" %}
+    {% if collapse_category %}
+    <details class="category-collapsible">
+        <summary class="section-header">{{ category_labels.get(category, category ~ ' insignes') }}</summary>
+    {% else %}
     <h2 class="section-header">{{ category_labels.get(category, category ~ ' insignes') }}</h2>
+    {% endif %}
 
     {% if category == "jaarinsignes" %}
     {# ── Flat jaarinsigne layout: one card per insigne+level, all in one grid ── #}
@@ -413,6 +419,7 @@
     {% endfor %}
     {% endif %}{# end if category == "jaarinsignes" / else #}
 
+    {% if collapse_category %}</details>{% endif %}
     {% endif %}
     {% endfor %}
 

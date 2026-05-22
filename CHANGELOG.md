@@ -10,6 +10,10 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Verbeteringen
+
+- **Auto-inklappen van het "Explorers"-blok op de homepage** (sluit #110) — scouts die niet in een explorers-speltak zitten (welpen, scouts, roverscouts, plusscouts, of een anonieme bezoeker) zien het "Explorers"-blok op `/` nu standaard ingeklapt als `<details>`-element. Explorers zelf en gebruikers zonder speltak-type krijgen het blok zoals voorheen direct uitgeklapt onder een `<h2>`. Geen wijziging aan andere categorieën. `current_user_speltak_type` toegevoegd aan de homepage-template-context.
+
 ---
 
 ## [v1.0.1] — 2026-05-19

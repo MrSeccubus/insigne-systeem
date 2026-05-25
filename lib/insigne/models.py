@@ -196,6 +196,21 @@ class Speltak(Base):
         cascade="all, delete-orphan",
     )
 
+    @property
+    def speltak_type_order(self) -> int:
+        """Sort key for ordering speltakken by age group (#119).
+
+        Returns the position of ``speltak_type`` in the canonical age order
+        (bevers → plusscouts) so Jinja's ``sort(attribute='speltak_type_order')``
+        produces a sensible natural ordering. Unknown or missing types sort
+        after the known ones.
+        """
+        _ORDER = ("bevers", "welpen", "scouts", "explorers", "roverscouts", "plusscouts")
+        try:
+            return _ORDER.index(self.speltak_type) if self.speltak_type else len(_ORDER)
+        except ValueError:
+            return len(_ORDER)
+
 
 class GroupMembership(Base):
     __tablename__ = "group_memberships"

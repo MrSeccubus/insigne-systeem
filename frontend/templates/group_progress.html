@@ -16,7 +16,7 @@
         <section style="margin-bottom:2rem;">
             <h2 style="font-size:1.1rem;margin-bottom:0.75rem;">Speltakken</h2>
             <ul class="item-list">
-                {% for entry in speltakken_data %}
+                {% for entry in speltakken_data | sort(attribute='speltak.name') | sort(attribute='speltak.speltak_type_order') %}
                 <li class="item-list-row">
                     <span>
                         {{ entry.speltak.name }}

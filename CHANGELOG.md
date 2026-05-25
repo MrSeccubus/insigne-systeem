@@ -10,6 +10,10 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Verbeteringen
+
+- **Speltakken sorteren op groep → leeftijdsgroep → naam** (sluit #119) — overal waar speltakken in lijsten verschijnen (groep-detailpagina, speltak-overvliegopties, "Mijn speltakken", homepage-lidmaatschapspaneel, groep-voortgangspagina, aanmeldverzoeken) worden ze nu eerst gesorteerd op groepsnaam, dan op leeftijdsgroep (`bevers` → `welpen` → `scouts` → `explorers` → `roverscouts` → `plusscouts`), dan op naam. Nieuwe `Speltak.speltak_type_order`-property exposeert de leeftijds-volgorde als sort key voor Jinja's stabiele `sort`-filter; legacy speltakken zonder type sorteren achter de bekende types.
+
 ---
 
 ## [v1.0.1] — 2026-05-19

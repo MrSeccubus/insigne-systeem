@@ -64,7 +64,7 @@
                             <form method="post" action="/groups/{{ group.slug }}/speltakken/{{ speltak.slug }}/members/{{ m.user_id }}/transfer" class="inline-form" style="width:auto;">
                                 <select name="to_speltak_id" onchange="this.form.submit()" class="role-select">
                                     <option value="">Overvliegen naar…</option>
-                                    {% for s in other_speltakken %}
+                                    {% for s in other_speltakken | sort(attribute='name') | sort(attribute='speltak_type_order') %}
                                     <option value="{{ s.id }}">{{ s.name }}</option>
                                     {% endfor %}
                                 </select>

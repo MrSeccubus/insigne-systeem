@@ -4,10 +4,10 @@
 <main>
     <div style="max-width:700px;margin:3rem auto;">
         <h1 style="font-size:1.4rem;margin-bottom:1.5rem;">Mijn speltakken</h1>
-        {% for entry in nav_entries %}
+        {% for entry in nav_entries | sort(attribute='group.name') %}
         <h2 style="font-size:1.1rem;margin:1.5rem 0 0.5rem;">{{ entry.group.name }}</h2>
         <ul class="item-list">
-            {% for speltak in entry.speltakken %}
+            {% for speltak in entry.speltakken | sort(attribute='name') | sort(attribute='speltak_type_order') %}
             <li class="item-list-row">
                 <span>{{ speltak.name }}</span>
                 <span class="row-actions">

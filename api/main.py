@@ -2,7 +2,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
@@ -25,6 +25,43 @@ IMAGES_DIR = DATA_DIR / "images"
 _CATALOGUE = BadgeCatalogue(DATA_DIR)
 
 app = FastAPI()
+
+
+# ── CSRF defence-in-depth: Origin header check ─────────────────────────────────
+#
+# Authenticated state-changing requests are primarily protected by the
+# access_token cookie's ``SameSite=Lax`` attribute, which blocks the
+# overwhelming majority of cross-site form submissions. This middleware adds a
+# second layer: any browser-driven state-changing request whose Origin header
+# doesn't match ``config.base_url`` is rejected with 403, regardless of
+# SameSite behaviour.
+#
+# What's allowed without an Origin check:
+#  - Non-state-changing HTTP methods (GET / HEAD / OPTIONS).
+#  - Paths under ``/api/`` — the JSON API uses bearer-token auth, not cookies,
+#    so cross-site requests can't ride on the session.
+#  - Requests that omit the Origin header entirely. Browsers always send Origin
+#    on POST/PUT/DELETE/PATCH; only non-browser clients (curl, server-to-server,
+#    TestClient) omit it. Blocking them would be over-strict for what is
+#    primarily a CSRF defence.
+#
+# Closes issue #99 (the "evaluate CSRF posture" follow-up).
+
+_CSRF_STATE_CHANGING_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
+
+
+@app.middleware("http")
+async def origin_csrf_check(request: Request, call_next):
+    if request.method in _CSRF_STATE_CHANGING_METHODS and not request.url.path.startswith("/api/"):
+        origin = request.headers.get("origin")
+        if origin and origin != config.base_url:
+            return PlainTextResponse(
+                "Aanvraag geweigerd: ongeldige Origin-header. "
+                "Probeer opnieuw vanaf de oorspronkelijke pagina.",
+                status_code=403,
+            )
+    return await call_next(request)
+
 
 app.include_router(users.router)
 app.include_router(html_admin.router)

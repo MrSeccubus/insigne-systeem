@@ -619,37 +619,314 @@ def reject_jaarinsigne_2026_signoff(
 
 
 def list_signoff_requests_grouped(db: Session, mentor_id: str) -> list:
-    """Like ``list_signoff_requests`` but jaarinsigne_2026 invites are coalesced
-    per (scout, badge) into a single group item.
+    """Like ``list_signoff_requests`` but related invites are coalesced into
+    a single group item.
 
-    Returns a heterogeneous list where each item is either a plain
-    ``SignoffRequest`` (regular badges) or a dict::
+    Returns a heterogeneous list where each item is one of:
 
-        {"type": "jaarinsigne_2026_group", "scout": User, "requests": [SignoffRequest, ...]}
-
-    The dict's ``requests`` list contains one SignoffRequest per eis the mentor
-    was invited to.
+    - ``SignoffRequest`` — a regular per-eis request with no batchable siblings.
+    - ``{"type": "jaarinsigne_2026_group", "scout": User, "requests": [...]}``
+      — every jaarinsigne_2026 invite the mentor has for one scout (always
+      grouped, even with a single request).
+    - ``{"type": "badge_niveau_group", "scout": User, "badge_slug": str,
+      "niveau_index": int, "requests": [...]}`` — per-eis invites for the
+      same ``(scout, badge_slug, step_index)`` triple where there are at
+      least 2 siblings (#102). Singletons render as plain ``SignoffRequest``
+      to keep the existing per-eis card behaviour.
     """
     raw = list_signoff_requests(db, mentor_id)
-    groups: dict[str, dict] = {}
+    ji_groups: dict[str, dict] = {}
+    # Detect badge-niveau groups in two passes: first count siblings per
+    # (scout, badge, niveau) triple, then group only those with >=2.
+    triple_counts: dict[tuple[str, str, int], int] = {}
+    for sr in raw:
+        pe = sr.progress_entry
+        if pe.badge_slug != _JAARINSIGNE_2026_SLUG:
+            triple_counts[(pe.user_id, pe.badge_slug, pe.step_index)] = (
+                triple_counts.get((pe.user_id, pe.badge_slug, pe.step_index), 0) + 1
+            )
+    badge_groups: dict[tuple[str, str, int], dict] = {}
+
     out: list = []
     for sr in raw:
         pe = sr.progress_entry
         if pe.badge_slug == _JAARINSIGNE_2026_SLUG:
             key = pe.user_id
-            if key not in groups:
+            if key not in ji_groups:
                 group = {
                     "type": "jaarinsigne_2026_group",
                     "scout": pe.user,
                     "requests": [sr],
                 }
-                groups[key] = group
+                ji_groups[key] = group
                 out.append(group)
             else:
-                groups[key]["requests"].append(sr)
-        else:
-            out.append(sr)
+                ji_groups[key]["requests"].append(sr)
+            continue
+        triple = (pe.user_id, pe.badge_slug, pe.step_index)
+        if triple_counts.get(triple, 0) >= 2:
+            if triple not in badge_groups:
+                group = {
+                    "type": "badge_niveau_group",
+                    "scout": pe.user,
+                    "badge_slug": pe.badge_slug,
+                    "niveau_index": pe.step_index,
+                    "requests": [sr],
+                }
+                badge_groups[triple] = group
+                out.append(group)
+            else:
+                badge_groups[triple]["requests"].append(sr)
+            continue
+        out.append(sr)
     return out
+
+
+# ── Batch sign-off per badge niveau ─────────────────────────────────────────
+# Closes #102. Mirrors the jaarinsigne_2026 batch flow but scoped to one
+# (badge_slug, niveau_index = step_index) at a time. Skips the editor-lock
+# concept (regular badges have no inclusion editor) and the inclusion-
+# recompute hook (no derived progress on regular badges).
+
+
+def _badge_niveau_eligible_entries(
+    db: Session, scout_id: str, badge_slug: str, niveau_index: int,
+) -> list[ProgressEntry]:
+    """Entries a per-niveau batch sign-off applies to: ``work_done`` or
+    ``pending_signoff`` at this ``(badge_slug, step_index=niveau_index)``."""
+    return db.query(ProgressEntry).filter(
+        ProgressEntry.user_id == scout_id,
+        ProgressEntry.badge_slug == badge_slug,
+        ProgressEntry.step_index == niveau_index,
+        ProgressEntry.status.in_(("work_done", "pending_signoff")),
+    ).all()
+
+
+def request_badge_niveau_signoff_speltak(
+    db: Session, scout_id: str, badge_slug: str, niveau_index: int, speltak_id: str,
+) -> tuple[list[ProgressEntry], list[User]]:
+    """Request sign-off from all leiders of a speltak for every work_done eis
+    at this badge+niveau.
+
+    Raises NotFound("no_entries"), Forbidden("not_member"),
+    NotFound("no_eligible_mentors").
+    """
+    from insigne import groups as groups_svc
+
+    entries = _badge_niveau_eligible_entries(db, scout_id, badge_slug, niveau_index)
+    if not entries:
+        raise NotFound("no_entries")
+    if not groups_svc.is_active_member_of_speltak(db, scout_id, speltak_id):
+        raise Forbidden("not_member")
+    leiders = [
+        u for u in groups_svc.list_speltakleiders_for_speltak(db, speltak_id)
+        if u.id != scout_id
+    ]
+    if not leiders:
+        raise NotFound("no_eligible_mentors")
+
+    invited = _add_signoff_requests(db, entries, [l.id for l in leiders])
+    db.commit()
+    for e in entries:
+        db.refresh(e)
+    return entries, invited
+
+
+def request_badge_niveau_signoff_members(
+    db: Session, scout_id: str, badge_slug: str, niveau_index: int, mentor_ids: list[str],
+) -> tuple[list[ProgressEntry], list[User]]:
+    """Peer batch sign-off for this badge+niveau."""
+    from insigne import groups as groups_svc
+
+    entries = _badge_niveau_eligible_entries(db, scout_id, badge_slug, niveau_index)
+    if not entries:
+        raise NotFound("no_entries")
+
+    eligible_ids = [mid for mid in mentor_ids if mid != scout_id]
+    eligible_ids = groups_svc.filter_mentor_ids_sharing_speltak(db, scout_id, eligible_ids)
+    if not eligible_ids:
+        raise NotFound("no_eligible_mentors")
+
+    invited = _add_signoff_requests(db, entries, eligible_ids)
+    if not invited:
+        raise NotFound("no_eligible_mentors")
+
+    db.commit()
+    for e in entries:
+        db.refresh(e)
+    return entries, invited
+
+
+def request_badge_niveau_signoff(
+    db: Session, scout_id: str, badge_slug: str, niveau_index: int, mentor_email: str,
+) -> tuple[list[ProgressEntry], User, bool]:
+    """Direct (single-mentor by e-mail) batch sign-off for this badge+niveau.
+
+    Raises NotFound("no_entries"), Conflict("invalid_email"),
+    Forbidden("self_signoff").
+    """
+    entries = _badge_niveau_eligible_entries(db, scout_id, badge_slug, niveau_index)
+    if not entries:
+        raise NotFound("no_entries")
+
+    from .users import is_valid_email
+
+    mentor_email = mentor_email.strip().lower()
+    if not is_valid_email(mentor_email):
+        raise Conflict("invalid_email")
+
+    scout = db.get(User, scout_id)
+    if scout and scout.email and scout.email.lower() == mentor_email:
+        raise Forbidden("self_signoff")
+
+    mentor = db.query(User).filter(User.email == mentor_email).first()
+    created = False
+    if mentor is None:
+        mentor = User(email=mentor_email)
+        db.add(mentor)
+        db.flush()
+        created = True
+
+    _add_signoff_requests(db, entries, [mentor.id])
+    db.commit()
+    for e in entries:
+        db.refresh(e)
+    return entries, mentor, created
+
+
+def cancel_badge_niveau_signoff_requests(
+    db: Session, scout_id: str, badge_slug: str, niveau_index: int,
+) -> list[ProgressEntry]:
+    """Revoke every pending sign-off request for this (scout, badge, niveau).
+
+    Deletes the SignoffRequest rows and flips each affected entry back to
+    ``work_done``. ``signed_off`` entries are untouched.
+    """
+    entries = db.query(ProgressEntry).filter(
+        ProgressEntry.user_id == scout_id,
+        ProgressEntry.badge_slug == badge_slug,
+        ProgressEntry.step_index == niveau_index,
+        ProgressEntry.status == "pending_signoff",
+    ).all()
+    for entry in entries:
+        db.query(SignoffRequest).filter(
+            SignoffRequest.progress_entry_id == entry.id
+        ).delete()
+        entry.status = "work_done"
+    db.commit()
+    for e in entries:
+        db.refresh(e)
+    return entries
+
+
+def confirm_badge_niveau_signoff(
+    db: Session, mentor_id: str, scout_id: str, badge_slug: str, niveau_index: int,
+    comment: str | None = None,
+) -> list[ProgressEntry]:
+    """Confirm every per-eis invite for this (scout, badge, niveau) triple
+    that this mentor holds.
+
+    Raises ``Forbidden("self_signoff")`` if mentor_id == scout_id, and
+    ``Forbidden("not_invited")`` if the mentor has zero open invitations on
+    this triple.
+    """
+    if mentor_id == scout_id:
+        raise Forbidden("self_signoff")
+
+    requests = (
+        db.query(SignoffRequest)
+        .join(ProgressEntry, SignoffRequest.progress_entry_id == ProgressEntry.id)
+        .filter(
+            SignoffRequest.mentor_id == mentor_id,
+            ProgressEntry.user_id == scout_id,
+            ProgressEntry.badge_slug == badge_slug,
+            ProgressEntry.step_index == niveau_index,
+        )
+        .all()
+    )
+    if not requests:
+        raise Forbidden("not_invited")
+
+    now = datetime.now(timezone.utc)
+    affected: list[ProgressEntry] = []
+    seen: set[str] = set()
+    for sr in requests:
+        entry = sr.progress_entry
+        if entry.id in seen:
+            continue
+        seen.add(entry.id)
+        if entry.status == "signed_off":
+            continue
+        entry.status = "signed_off"
+        entry.signed_off_by_id = mentor_id
+        entry.signed_off_at = now
+        entry.mentor_comment = comment or None
+        db.query(SignoffRequest).filter(
+            SignoffRequest.progress_entry_id == entry.id
+        ).delete()
+        affected.append(entry)
+
+    db.commit()
+    for e in affected:
+        db.refresh(e)
+    return affected
+
+
+def reject_badge_niveau_signoff(
+    db: Session, mentor_id: str, scout_id: str, badge_slug: str, niveau_index: int,
+    message: str,
+) -> list[ProgressEntry]:
+    """Reject every invite this mentor holds for this (scout, badge, niveau).
+
+    Adds one rejection row per entry; deletes this mentor's invite per entry;
+    reverts each entry to ``work_done`` only when no other mentor is still
+    pending on it.
+    """
+    if mentor_id == scout_id:
+        raise Forbidden("self_signoff")
+
+    requests = (
+        db.query(SignoffRequest)
+        .join(ProgressEntry, SignoffRequest.progress_entry_id == ProgressEntry.id)
+        .filter(
+            SignoffRequest.mentor_id == mentor_id,
+            ProgressEntry.user_id == scout_id,
+            ProgressEntry.badge_slug == badge_slug,
+            ProgressEntry.step_index == niveau_index,
+        )
+        .all()
+    )
+    if not requests:
+        raise Forbidden("not_invited")
+
+    mentor = db.get(User, mentor_id)
+    mentor_label = (mentor.name or mentor.email) if mentor else "(onbekend)"
+
+    affected: list[ProgressEntry] = []
+    seen: set[str] = set()
+    for sr in requests:
+        entry = sr.progress_entry
+        if entry.id in seen:
+            continue
+        seen.add(entry.id)
+        if entry.status == "signed_off":
+            continue
+        db.add(SignoffRejection(
+            progress_entry_id=entry.id,
+            mentor_name=mentor_label,
+            message=message,
+        ))
+        db.delete(sr)
+        db.flush()
+        remaining = db.query(SignoffRequest).filter_by(progress_entry_id=entry.id).count()
+        if remaining == 0 and entry.status == "pending_signoff":
+            entry.status = "work_done"
+        affected.append(entry)
+
+    db.commit()
+    for e in affected:
+        db.refresh(e)
+    return affected
 
 
 def get_jaarinsigne_level(db: Session, user_id: str, badge_slug: str) -> JaarinsigneLevel | None:

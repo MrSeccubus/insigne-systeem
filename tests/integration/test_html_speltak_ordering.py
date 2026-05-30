@@ -50,6 +50,33 @@ class TestGroupDetailSpeltakOrder:
         )
 
 
+class TestGroupsJoinSpeltakOrder:
+    def test_speltakken_serialized_in_age_order(self, client, db):
+        """The /groups/join page serializes each group's speltakken as JSON;
+        order must be age-band first, then name."""
+        u = User(email="joiner@example.com", name="Joiner",
+                 status="active", password_hash="x")
+        db.add(u); db.commit()
+        _group_with_speltakken_in_creation_order(db, name="JoinGroup", slug="join-grp")
+
+        token, _ = auth_svc.create_access_token(u.id)
+        client.cookies.set("access_token", token)
+        r = client.get("/groups/join")
+        assert r.status_code == 200
+
+        # Capture the names list inside this group's "speltakken": [...] block.
+        # Group entries are emitted as: {..., "speltakken": [{"id": N, "name": "X"}, ...]}
+        m = re.search(
+            r'"slug":\s*"join-grp"[^}]*"speltakken":\s*(\[[^\]]*\])',
+            r.text,
+        )
+        assert m, "Could not find speltakken JSON for the test group"
+        names = re.findall(r'"name":\s*"([^"]+)"', m.group(1))
+        assert names == ["Bevers", "Welpen", "Scouts", "Explorers", "Roverscouts", "Plusscouts"], (
+            f"Expected age-ordered speltakken; got: {names}"
+        )
+
+
 class TestHomePageSpeltakOrder:
     def test_my_speltakken_panel_sorted_by_group_then_age(self, client, db):
         """The membership panel on the home page shows speltakken sorted by

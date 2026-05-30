@@ -10,6 +10,15 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Nieuw
+
+- **Batch-aftekenen per insigne-niveau** (sluit #102) — scouts kunnen nu in één klik aftekening vragen voor alle eisen van één niveau van een regulier insigne, in plaats van het per-eis te doen. Wanneer alle eisen van een niveau op `work_done` staan, verschijnt onder het eisen-raster een paneel "Je hebt alle eisen van {niveau_label} {N} gedaan. Vraag aftekening in één keer." met dezelfde mentor-keuze (speltakleiders / peer-leden / direct e-mail) als de bestaande per-eis flow. De per-eis "Aftekenen…"-knop blijft staan voor scouts die maar één eis afronden.
+  - **Mentor-inbox auto-groupering**: `/signoff-requests` toont alle per-eis aanvragen voor dezelfde `(scout, badge, niveau)` als één kaart met één paar Aftekenen/Afwijzen-knoppen — ongeacht of de scout de batch-knop of de losse per-eis knoppen gebruikte (≥ 2 siblings → groep, 1 → losse kaart, zoals voorheen).
+  - **Gedeelde e-mail-templates**: nieuwe `mentor_batch_signoff_request` / `mentor_batch_signoff_invite` templates worden zowel voor de jaarinsigne-batch flow (sinds v1.0.0) als de nieuwe per-niveau flow gebruikt; geparameteriseerd op `scope_label` / `scope_value` (Speltak vs Niveau). De bestaande `mentor_jaarinsigne_signoff_*` helpers zijn dunne wrappers gebleven, callsites onveranderd.
+  - **Nieuwe service-functies** in `lib/insigne/progress.py`: `request_badge_niveau_signoff_speltak`, `_members`, direct-e-mail, `cancel_badge_niveau_signoff_requests`, `confirm_badge_niveau_signoff`, `reject_badge_niveau_signoff`. Spiegel van de jaarinsigne_2026-batch functies maar gescoped op `(badge_slug, step_index = niveau_index)`.
+  - **Nieuwe HTML endpoints** onder `/badges/{slug}/niveau/{n}/...` (scout) en `/scouts/{scout_id}/badges/{slug}/niveau/{n}/...` (mentor). JSON-API endpoints volgen later; deze PR levert alleen de HTML-flow.
+  - 25 nieuwe tests (17 service + 8 HTML integratie).
+
 ---
 
 ## [v1.0.1] — 2026-05-19

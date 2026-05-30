@@ -181,7 +181,10 @@
     {% if only_in_progress %}{% set visible_badges = visible_badges | selectattr("slug", "in", progress_slugs) | list %}{% endif %}
     {% if visible_badges %}{% set page_ns.any_visible = true %}{% endif %}
     {% if visible_badges %}
-    <h2 class="section-header">{{ category_labels.get(category, category ~ ' insignes') }}</h2>
+    {% set category_has_user_favorite = (badges | selectattr("slug", "in", user_favorite_slugs) | list | length) > 0 %}
+    {% set collapse_category = category == "explorers" and current_user and "explorers" not in current_user_speltak_types and not category_has_user_favorite %}
+    <details class="category-collapsible"{% if not collapse_category %} open{% endif %}>
+        <summary class="section-header">{{ category_labels.get(category, category ~ ' insignes') }}</summary>
 
     {% if category == "jaarinsignes" %}
     {# ── Flat jaarinsigne layout: one card per insigne+level, all in one grid ── #}
@@ -413,6 +416,7 @@
     {% endfor %}
     {% endif %}{# end if category == "jaarinsignes" / else #}
 
+    </details>
     {% endif %}
     {% endfor %}
 

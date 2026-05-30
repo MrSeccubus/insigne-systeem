@@ -12,8 +12,6 @@ from datetime import datetime
 from insigne.badges import BadgeCatalogue, jaarinsigne_levels_for_scout
 from insigne.database import get_db
 from insigne.email import (
-    send_mentor_batch_signoff_invite_email,
-    send_mentor_batch_signoff_request_email,
     send_mentor_jaarinsigne_signoff_invite_email,
     send_mentor_jaarinsigne_signoff_request_email,
     send_mentor_signoff_invite_email,
@@ -357,12 +355,15 @@ async def badge_detail(
     ]
 
     # Per-niveau batch-signoff state (#102). Drives the "Vraag aftekening van
-    # heel Niveau N" panel below the eisen grid.
+    # heel Niveau N" panel below the eisen grid. The panel does a client-side
+    # JS loop over the existing per-entry /progress/{id}/request-signoff-*
+    # endpoints (one HTTP call per eis), so we also pass the entry IDs.
     #   "ready"   — at least one eis is work_done; nothing is in_progress.
     #   "pending" — at least one eis is pending_signoff; nothing is in_progress.
     #   "done"    — every eis with text is signed_off.
     #   "not_ready" — otherwise (some eisen are in_progress or absent).
-    niveau_batch_states = {}
+    niveau_batch_states: dict[int, str] = {}
+    niveau_batch_entry_ids: dict[int, list[str]] = {}
     if current_user:
         for niveau_idx in range(3):
             text_eis_indices = [
@@ -371,11 +372,10 @@ async def badge_detail(
             ]
             if not text_eis_indices:
                 continue
-            statuses = [
-                (progress_map.get((ei, niveau_idx)).status
-                 if progress_map.get((ei, niveau_idx)) else None)
-                for ei in text_eis_indices
+            entries = [
+                progress_map.get((ei, niveau_idx)) for ei in text_eis_indices
             ]
+            statuses = [e.status if e else None for e in entries]
             if all(s == "signed_off" for s in statuses):
                 niveau_batch_states[niveau_idx] = "done"
             elif any(s == "pending_signoff" for s in statuses) and \
@@ -386,6 +386,16 @@ async def badge_detail(
                 niveau_batch_states[niveau_idx] = "ready"
             else:
                 niveau_batch_states[niveau_idx] = "not_ready"
+            # The IDs the client-side loop will iterate. For "ready" we want
+            # only the work_done entries (already signed_off don't need a new
+            # request). For "pending" we want everything pending so cancel
+            # hits each entry exactly once.
+            wanted = {"ready": {"work_done"}, "pending": {"pending_signoff"}}.get(
+                niveau_batch_states[niveau_idx], set(),
+            )
+            niveau_batch_entry_ids[niveau_idx] = [
+                e.id for e in entries if e and e.status in wanted
+            ]
 
     return _TEMPLATES.TemplateResponse(
         request=request,
@@ -399,6 +409,7 @@ async def badge_detail(
             "level_stats": level_stats,
             "niveau_stats": niveau_stats,
             "niveau_batch_states": niveau_batch_states,
+            "niveau_batch_entry_ids": niveau_batch_entry_ids,
             "selected_niveaus": [niveau - 1] if niveau in (1, 2, 3) else [0, 1, 2],
             "mobile_default_niveau": _mobile_default_niveau(progress_map, badge),
         },
@@ -1754,303 +1765,6 @@ async def jaarinsigne_2026_cancel_signoff(
     if request.headers.get("HX-Request"):
         return _jaarinsigne_2026_body_response(request, db, current_user)
     return RedirectResponse(url="/badges/jaarinsigne_2026", status_code=303)
-
-
-# ── Batch sign-off per badge niveau (regular badges, #102) ───────────────────
-
-
-def _badge_niveau_eisen(badge: dict | None, niveau_index: int, entries: list) -> list:
-    """Build the eisen list for batch e-mail templates: number, titel, text."""
-    if not badge:
-        return []
-    eis_by_level = {}
-    for e in entries:
-        eis_by_level[e.level_index] = e
-    eisen = []
-    for level_index in sorted(eis_by_level):
-        level = badge["levels"][level_index] if level_index < len(badge["levels"]) else None
-        step = level["steps"][niveau_index] if level and niveau_index < len(level["steps"]) else {}
-        eisen.append({
-            "number": level_index + 1,
-            "titel": level.get("name", "") if level else "",
-            "text": step.get("text", "") if step else "",
-        })
-    return eisen
-
-
-def _send_badge_niveau_mentor_emails(
-    background_tasks: BackgroundTasks,
-    invited: list,
-    created_mentor: User | None,
-    scout_name: str,
-    badge: dict | None,
-    niveau_index: int,
-    eisen: list,
-):
-    """Send one batched e-mail per invited mentor for a per-niveau batch
-    sign-off request on a regular badge. Mirrors the jaarinsigne batch helper
-    but with scope_label='Niveau' instead of 'Speltak'."""
-    if badge is None or not eisen:
-        return
-    niveau_label = badge.get("niveau_label", "Niveau")
-    scope_value = f"{niveau_label} {niveau_index + 1}"
-    for mentor in invited:
-        if not mentor.email:
-            continue
-        if created_mentor is not None and mentor.id == created_mentor.id:
-            background_tasks.add_task(
-                send_mentor_batch_signoff_invite_email,
-                mentor.email, scout_name, badge["slug"], badge["title"],
-                "Niveau", scope_value, "", eisen, None,
-            )
-        else:
-            background_tasks.add_task(
-                send_mentor_batch_signoff_request_email,
-                mentor.email, scout_name, badge["slug"], badge["title"],
-                "Niveau", scope_value, "", eisen, None,
-            )
-
-
-def _badge_niveau_redirect(badge_slug: str) -> RedirectResponse:
-    """Redirect back to the badge detail page after a batch action.
-
-    badge_slug is sourced from the catalogue (server-derived), never from the
-    URL path parameter — keeps CodeQL py/url-redirection quiet.
-    """
-    return RedirectResponse(url=f"/badges/{badge_slug}", status_code=303)
-
-
-@router.post(
-    "/badges/{slug}/niveau/{niveau_index}/request-signoff-speltak",
-    response_class=HTMLResponse,
-)
-async def badge_niveau_request_signoff_speltak(
-    slug: str,
-    niveau_index: int,
-    request: Request,
-    background_tasks: BackgroundTasks,
-    speltak_id: str = Form(...),
-    db: Session = Depends(get_db),
-):
-    current_user = _get_current_user(request, db)
-    if current_user is None:
-        return RedirectResponse(url="/login", status_code=303)
-    badge = _CATALOGUE.get(slug)
-    if not badge or badge.get("type") == "jaarinsigne":
-        return RedirectResponse(url="/", status_code=303)
-
-    try:
-        entries, invited = progress_svc.request_badge_niveau_signoff_speltak(
-            db, current_user.id, badge["slug"], niveau_index, speltak_id,
-        )
-        scout_name = current_user.name or current_user.email.split("@")[0]
-        eisen = _badge_niveau_eisen(badge, niveau_index, entries)
-        _send_badge_niveau_mentor_emails(
-            background_tasks, invited, None, scout_name, badge, niveau_index, eisen,
-        )
-    except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict):
-        pass  # surface via redirect — the badge page reflects the latest state
-    return _badge_niveau_redirect(badge["slug"])
-
-
-@router.post(
-    "/badges/{slug}/niveau/{niveau_index}/request-signoff-members",
-    response_class=HTMLResponse,
-)
-async def badge_niveau_request_signoff_members(
-    slug: str,
-    niveau_index: int,
-    request: Request,
-    background_tasks: BackgroundTasks,
-    mentor_ids: list[str] = Form(default=[]),
-    db: Session = Depends(get_db),
-):
-    current_user = _get_current_user(request, db)
-    if current_user is None:
-        return RedirectResponse(url="/login", status_code=303)
-    badge = _CATALOGUE.get(slug)
-    if not badge or badge.get("type") == "jaarinsigne":
-        return RedirectResponse(url="/", status_code=303)
-
-    try:
-        entries, invited = progress_svc.request_badge_niveau_signoff_members(
-            db, current_user.id, badge["slug"], niveau_index, mentor_ids,
-        )
-        scout_name = current_user.name or current_user.email.split("@")[0]
-        eisen = _badge_niveau_eisen(badge, niveau_index, entries)
-        _send_badge_niveau_mentor_emails(
-            background_tasks, invited, None, scout_name, badge, niveau_index, eisen,
-        )
-    except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict):
-        pass
-    return _badge_niveau_redirect(badge["slug"])
-
-
-@router.post(
-    "/badges/{slug}/niveau/{niveau_index}/request-signoff",
-    response_class=HTMLResponse,
-)
-async def badge_niveau_request_signoff_direct(
-    slug: str,
-    niveau_index: int,
-    request: Request,
-    background_tasks: BackgroundTasks,
-    mentor_email: str = Form(...),
-    db: Session = Depends(get_db),
-):
-    current_user = _get_current_user(request, db)
-    if current_user is None:
-        return RedirectResponse(url="/login", status_code=303)
-    badge = _CATALOGUE.get(slug)
-    if not badge or badge.get("type") == "jaarinsigne":
-        return RedirectResponse(url="/", status_code=303)
-
-    try:
-        if _UUID_RE.match(mentor_email.strip()):
-            entries, invited = progress_svc.request_badge_niveau_signoff_members(
-                db, current_user.id, badge["slug"], niveau_index, [mentor_email.strip()],
-            )
-            scout_name = current_user.name or current_user.email.split("@")[0]
-            eisen = _badge_niveau_eisen(badge, niveau_index, entries)
-            _send_badge_niveau_mentor_emails(
-                background_tasks, invited, None, scout_name, badge, niveau_index, eisen,
-            )
-        else:
-            entries, mentor, created = progress_svc.request_badge_niveau_signoff(
-                db, current_user.id, badge["slug"], niveau_index, mentor_email,
-            )
-            scout_name = current_user.name or current_user.email.split("@")[0]
-            eisen = _badge_niveau_eisen(badge, niveau_index, entries)
-            _send_badge_niveau_mentor_emails(
-                background_tasks, [mentor], mentor if created else None,
-                scout_name, badge, niveau_index, eisen,
-            )
-    except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict):
-        pass
-    return _badge_niveau_redirect(badge["slug"])
-
-
-@router.post(
-    "/badges/{slug}/niveau/{niveau_index}/cancel-signoff",
-    response_class=HTMLResponse,
-)
-async def badge_niveau_cancel_signoff(
-    slug: str,
-    niveau_index: int,
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    current_user = _get_current_user(request, db)
-    if current_user is None:
-        return RedirectResponse(url="/login", status_code=303)
-    badge = _CATALOGUE.get(slug)
-    if not badge or badge.get("type") == "jaarinsigne":
-        return RedirectResponse(url="/", status_code=303)
-    progress_svc.cancel_badge_niveau_signoff_requests(
-        db, current_user.id, badge["slug"], niveau_index,
-    )
-    return _badge_niveau_redirect(badge["slug"])
-
-
-@router.post(
-    "/scouts/{scout_id}/badges/{slug}/niveau/{niveau_index}/confirm-signoff",
-    response_class=HTMLResponse,
-)
-async def badge_niveau_confirm_signoff(
-    scout_id: str,
-    slug: str,
-    niveau_index: int,
-    request: Request,
-    background_tasks: BackgroundTasks,
-    comment: str = Form(""),
-    db: Session = Depends(get_db),
-):
-    current_user = _get_current_user(request, db)
-    if current_user is None:
-        return RedirectResponse(url="/login", status_code=303)
-    badge = _CATALOGUE.get(slug)
-    if not badge or badge.get("type") == "jaarinsigne":
-        return RedirectResponse(url="/", status_code=303)
-
-    confirmed = False
-    error = ""
-    try:
-        affected = progress_svc.confirm_badge_niveau_signoff(
-            db, current_user.id, scout_id, badge["slug"], niveau_index,
-            comment=comment.strip() or None,
-        )
-        confirmed = True
-        scout = db.get(User, scout_id)
-        if scout and scout.email and affected:
-            niveau_label = badge.get("niveau_label", "Niveau")
-            for entry in affected:
-                level = badge["levels"][entry.level_index]
-                step = level["steps"][entry.step_index]
-                background_tasks.add_task(
-                    send_scout_signed_off_email,
-                    scout.email, scout.name or scout.email,
-                    badge["slug"], badge["title"],
-                    niveau_index + 1, level["name"], step["text"],
-                    current_user.name or current_user.email,
-                    entry.mentor_comment,
-                )
-    except (progress_svc.NotFound, progress_svc.Forbidden, progress_svc.Conflict) as exc:
-        error = "Kon niet aftekenen." if not isinstance(exc, progress_svc.Conflict) else "Al afgetekend."
-
-    return _partial(
-        request, "signoff_request_badge_niveau_item.html",
-        scout_id=scout_id, badge_slug=badge["slug"], niveau_index=niveau_index,
-        confirmed=confirmed, error=error,
-    )
-
-
-@router.post(
-    "/scouts/{scout_id}/badges/{slug}/niveau/{niveau_index}/reject-signoff",
-    response_class=HTMLResponse,
-)
-async def badge_niveau_reject_signoff(
-    scout_id: str,
-    slug: str,
-    niveau_index: int,
-    request: Request,
-    background_tasks: BackgroundTasks,
-    message: str = Form(""),
-    db: Session = Depends(get_db),
-):
-    current_user = _get_current_user(request, db)
-    if current_user is None:
-        return RedirectResponse(url="/login", status_code=303)
-    badge = _CATALOGUE.get(slug)
-    if not badge or badge.get("type") == "jaarinsigne":
-        return RedirectResponse(url="/", status_code=303)
-
-    try:
-        affected = progress_svc.reject_badge_niveau_signoff(
-            db, current_user.id, scout_id, badge["slug"], niveau_index, message.strip(),
-        )
-        scout = db.get(User, scout_id)
-        if scout and scout.email and affected:
-            for entry in affected:
-                level = badge["levels"][entry.level_index]
-                step = level["steps"][entry.step_index]
-                background_tasks.add_task(
-                    send_scout_rejected_email,
-                    scout.email, scout.name or scout.email,
-                    badge["title"], niveau_index + 1, level["name"],
-                    step["text"], current_user.name or current_user.email,
-                    message.strip(),
-                )
-        return _partial(
-            request, "signoff_request_badge_niveau_item.html",
-            scout_id=scout_id, badge_slug=badge["slug"], niveau_index=niveau_index,
-            confirmed=False, error="", rejected=True,
-        )
-    except (progress_svc.NotFound, progress_svc.Forbidden):
-        return _partial(
-            request, "signoff_request_badge_niveau_item.html",
-            scout_id=scout_id, badge_slug=badge["slug"], niveau_index=niveau_index,
-            confirmed=False, error="Kon niet afwijzen.",
-        )
 
 
 @router.get("/scouts/{scout_id}/badges/{slug}/niveau-checks/{niveau_index}", response_class=HTMLResponse)

@@ -1,1 +1,0 @@
-Aftekenverzoek: {{ badge_title }} — {{ scope_value }}

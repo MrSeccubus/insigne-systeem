@@ -119,74 +119,38 @@ def send_mentor_signoff_request_email(to: str, scout_name: str, badge_title: str
          signoff_url=signoff_url)
 
 
-def send_mentor_batch_signoff_request_email(
-    to: str, scout_name: str, badge_slug: str, badge_title: str,
-    scope_label: str, scope_value: str, scope_extra: str, eisen: list,
-    notes: str | None = None,
-) -> None:
-    """Send a batched sign-off request e-mail. Used for both jaarinsigne batch
-    flows (scope_label='Speltak', scope_value=<speltak name>, scope_extra=<age>)
-    and per-niveau batch flows on regular badges (scope_label='Niveau',
-    scope_value='Niveau N', scope_extra='')."""
-    signoff_url = f"{config.base_url}/signoff-requests"
-    send(to, "mentor_batch_signoff_request",
-         email=to,
-         scout_name=scout_name,
-         badge_slug=badge_slug,
-         badge_title=badge_title,
-         scope_label=scope_label,
-         scope_value=scope_value,
-         scope_extra=scope_extra,
-         eisen=eisen,
-         notes=notes,
-         signoff_url=signoff_url)
-
-
-def send_mentor_batch_signoff_invite_email(
-    to: str, scout_name: str, badge_slug: str, badge_title: str,
-    scope_label: str, scope_value: str, scope_extra: str, eisen: list,
-    notes: str | None = None,
-) -> None:
-    """Counterpart to :func:`send_mentor_batch_signoff_request_email` for
-    not-yet-registered mentors — CTA points at /register with the address
-    pre-filled."""
-    register_url = f"{config.base_url}/register?email={quote_plus(to)}"
-    send(to, "mentor_batch_signoff_invite",
-         email=to,
-         scout_name=scout_name,
-         badge_slug=badge_slug,
-         badge_title=badge_title,
-         scope_label=scope_label,
-         scope_value=scope_value,
-         scope_extra=scope_extra,
-         eisen=eisen,
-         notes=notes,
-         register_url=register_url)
-
-
-# Backwards-compatible wrappers that delegate to the generic helpers above —
-# keeps the call sites in api/routers/html_badges.py for the jaarinsigne flow
-# unchanged. Both use scope_label="Speltak".
 def send_mentor_jaarinsigne_signoff_request_email(
     to: str, scout_name: str, badge_slug: str, badge_title: str,
     speltak_name: str, speltak_leeftijd: str, eisen: list, notes: str | None = None,
 ) -> None:
-    send_mentor_batch_signoff_request_email(
-        to, scout_name, badge_slug, badge_title,
-        scope_label="Speltak", scope_value=speltak_name,
-        scope_extra=speltak_leeftijd, eisen=eisen, notes=notes,
-    )
+    signoff_url = f"{config.base_url}/signoff-requests"
+    send(to, "mentor_jaarinsigne_signoff_request",
+         email=to,
+         scout_name=scout_name,
+         badge_slug=badge_slug,
+         badge_title=badge_title,
+         speltak_name=speltak_name,
+         speltak_leeftijd=speltak_leeftijd,
+         eisen=eisen,
+         notes=notes,
+         signoff_url=signoff_url)
 
 
 def send_mentor_jaarinsigne_signoff_invite_email(
     to: str, scout_name: str, badge_slug: str, badge_title: str,
     speltak_name: str, speltak_leeftijd: str, eisen: list, notes: str | None = None,
 ) -> None:
-    send_mentor_batch_signoff_invite_email(
-        to, scout_name, badge_slug, badge_title,
-        scope_label="Speltak", scope_value=speltak_name,
-        scope_extra=speltak_leeftijd, eisen=eisen, notes=notes,
-    )
+    register_url = f"{config.base_url}/register?email={quote_plus(to)}"
+    send(to, "mentor_jaarinsigne_signoff_invite",
+         email=to,
+         scout_name=scout_name,
+         badge_slug=badge_slug,
+         badge_title=badge_title,
+         speltak_name=speltak_name,
+         speltak_leeftijd=speltak_leeftijd,
+         eisen=eisen,
+         notes=notes,
+         register_url=register_url)
 
 
 def send_scout_jaarinsigne_signed_off_email(

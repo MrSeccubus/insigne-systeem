@@ -181,7 +181,12 @@
     </div>
     </div>
 
-    {# ── Per-niveau batch sign-off panels (#102) ───────────────────────────── #}
+    {# ── Per-niveau batch sign-off panels (#102) ─────────────────────────────
+       Pure UI sugar: the panel loops over the existing per-entry
+       /progress/{id}/request-signoff-* endpoints on the client side, one
+       fetch per eis. No new server endpoints; each loop iteration sends
+       its own e-mail. The mentor inbox auto-groups the N invites into a
+       single card. #}
     {% if current_user and niveau_batch_states %}
     <div class="batch-signoff-section" style="margin-top:1.5rem;">
         {% for niveau_idx in selected_niveaus %}
@@ -189,31 +194,59 @@
         {% if state in ("ready", "pending") %}
         {% set slug = badge.slug %}
         {% set niveau_label = badge.niveau_label %}
+        {% set entry_ids = niveau_batch_entry_ids.get(niveau_idx, []) %}
         <div class="batch-signoff-panel"
-             x-data="{ open: false, signoffPath: '' }"
+             x-data="{
+                 open: false,
+                 signoffPath: '',
+                 busy: false,
+                 entryIds: {{ entry_ids | tojson }},
+                 async postEachEntry(pathFragment, body) {
+                     this.busy = true;
+                     try {
+                         for (const id of this.entryIds) {
+                             const fd = new FormData();
+                             for (const [k, v] of Object.entries(body)) {
+                                 if (Array.isArray(v)) v.forEach(x => fd.append(k, x));
+                                 else fd.append(k, v);
+                             }
+                             const r = await fetch('/progress/' + encodeURIComponent(id) + pathFragment, {
+                                 method: 'POST',
+                                 body: fd,
+                                 headers: { 'HX-Request': 'true' },
+                                 credentials: 'same-origin',
+                             });
+                             if (!r.ok) break;
+                         }
+                     } finally {
+                         location.reload();
+                     }
+                 }
+             }"
              style="margin:0.5rem 0;padding:0.75rem 1rem;background:#f3f4f6;border-radius:4px;">
             {% if state == "pending" %}
             <p style="margin:0 0 0.5rem;">
                 Aftekenverzoek voor <strong>{{ niveau_label }} {{ niveau_idx + 1 }}</strong> verstuurd.
             </p>
-            <form method="post" action="/badges/{{ slug }}/niveau/{{ niveau_idx }}/cancel-signoff">
-                <button type="submit" class="btn-secondary btn-sm">Verzoek intrekken</button>
-            </form>
+            <button type="button" class="btn-secondary btn-sm"
+                    :disabled="busy"
+                    @click="postEachEntry('/cancel-signoff', {})">
+                Verzoek intrekken
+            </button>
             {% else %}
             <p style="margin:0 0 0.5rem;">
-                Je hebt alle eisen van <strong>{{ niveau_label }} {{ niveau_idx + 1 }}</strong> gedaan. Vraag aftekening in één keer.
+                Je hebt alle eisen van <strong>{{ niveau_label }} {{ niveau_idx + 1 }}</strong> gedaan. Vraag aftekening voor het hele niveau in één keer.
             </p>
-            <button type="button" class="btn-secondary btn-sm" @click="open = !open">
+            <button type="button" class="btn-secondary btn-sm"
+                    @click="open = !open" :disabled="busy">
                 Aftekenen…
             </button>
             <div x-show="open" x-cloak class="inline-form" style="margin-top:0.5rem;">
                 {% for opt in scout_signoff_options if opt.type == "speltak_leiders" %}
-                <form method="post" action="/badges/{{ slug }}/niveau/{{ niveau_idx }}/request-signoff-speltak">
-                    <input type="hidden" name="speltak_id" value="{{ opt.speltak_id }}">
-                    <button type="submit" class="btn-path">
-                        {{ opt.label_prefix }} <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong>
-                    </button>
-                </form>
+                <button type="button" class="btn-path" :disabled="busy"
+                        @click="postEachEntry('/request-signoff-speltak', { speltak_id: '{{ opt.speltak_id }}' })">
+                    {{ opt.label_prefix }} <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong>
+                </button>
                 {% endfor %}
 
                 {% for opt in scout_signoff_options if opt.type == "speltak_members" %}
@@ -231,29 +264,35 @@
                 </button>
 
                 {% for opt in scout_signoff_options if opt.type == "speltak_members" %}
-                <form x-show="signoffPath === '{{ opt.speltak_id }}_speltak_members_{{ niveau_idx }}'" x-cloak
-                      method="post"
-                      action="/badges/{{ slug }}/niveau/{{ niveau_idx }}/request-signoff-members">
+                <div x-show="signoffPath === '{{ opt.speltak_id }}_speltak_members_{{ niveau_idx }}'" x-cloak
+                     x-data="{ memberIds: [] }">
                     <p class="signoff-member-prompt">Wie van de <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong> wil je laten aftekenen?</p>
                     <div class="signoff-member-list">
                         {% for member in opt.members %}
                         <label class="signoff-member-label">
-                            <input type="checkbox" name="mentor_ids" value="{{ member.id }}">
+                            <input type="checkbox" value="{{ member.id }}" x-model="memberIds">
                             {{ member.name or '(onbekend)' }}
                         </label>
                         {% endfor %}
                     </div>
-                    <button type="submit" class="btn-secondary btn-sm">Versturen</button>
-                </form>
+                    <button type="button" class="btn-secondary btn-sm"
+                            :disabled="busy || memberIds.length === 0"
+                            @click="postEachEntry('/request-signoff-members', { mentor_ids: memberIds })">
+                        Versturen
+                    </button>
+                </div>
                 {% endfor %}
 
-                <form x-show="signoffPath === 'direct_{{ niveau_idx }}'" x-cloak
-                      method="post"
-                      action="/badges/{{ slug }}/niveau/{{ niveau_idx }}/request-signoff">
-                    <input type="text" name="mentor_email"
+                <div x-show="signoffPath === 'direct_{{ niveau_idx }}'" x-cloak
+                     x-data="{ mentorEmail: '' }">
+                    <input type="text" x-model="mentorEmail"
                            placeholder="naam of e-mail van (bege-)leider" required>
-                    <button type="submit" class="btn-secondary btn-sm">Versturen</button>
-                </form>
+                    <button type="button" class="btn-secondary btn-sm"
+                            :disabled="busy || !mentorEmail"
+                            @click="postEachEntry('/request-signoff', { mentor_email: mentorEmail })">
+                        Versturen
+                    </button>
+                </div>
 
                 <button type="button" class="btn-cancel btn-sm" @click="open = false">Annuleren</button>
             </div>

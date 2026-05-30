@@ -1,19 +1,26 @@
-"""HTML integration tests for per-badge-niveau batch sign-off (#102)."""
+"""HTML integration tests for the batch-signoff-per-niveau UX (#102).
+
+Per the design decision on #102, no new server-side endpoints exist. The
+scout-side panel and the mentor-inbox grouped card both *loop client-side*
+over the existing per-eis ``/progress/{id}/request-signoff-*`` and
+``/progress/{id}/{confirm,reject}-signoff`` endpoints. These tests
+therefore only verify the rendered HTML — that the panel shows up when a
+niveau is ready, that the mentor inbox renders the grouped card, and that
+the per-entry endpoint URLs and entry IDs the JS loops over are present in
+the page source."""
 import re
 
 import insigne.auth as auth_svc
+from insigne.badges import BadgeCatalogue
 from insigne import groups as groups_svc
 from insigne import progress as progress_svc
 from insigne.models import (
     GroupMembership,
     ProgressEntry,
-    SignoffRequest,
     SpeltakMembership,
     User,
 )
 
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _user(db, email, name="X"):
     u = User(email=email, name=name, status="active", password_hash="x")
@@ -30,11 +37,10 @@ def _entry(db, user_id, badge_slug, level_index, step_index, status="work_done")
     return e
 
 
-def _speltak_with_leider(db, leider, scout, speltak_type="welpen"):
+def _speltak_with_leider(db, leider, scout):
     g = groups_svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
-    s = groups_svc.create_speltak(
-        db, group_id=g.id, name="Welpen", slug="welpen", speltak_type=speltak_type,
-    )
+    s = groups_svc.create_speltak(db, group_id=g.id, name="Welpen", slug="welpen",
+                                  speltak_type="welpen")
     db.add(GroupMembership(user_id=leider.id, group_id=g.id,
                            role="groepsleider", approved=True))
     db.add(SpeltakMembership(user_id=leider.id, speltak_id=s.id,
@@ -52,172 +58,87 @@ def _login(client, user):
     return {"access_token": token}
 
 
-# ── Scout-side POST endpoints ────────────────────────────────────────────────
+def _mark_all_eisen_work_done(db, user_id, badge_slug, niveau_idx):
+    """Set every non-empty eis at this niveau to work_done."""
+    from pathlib import Path
+    cat = BadgeCatalogue(Path(__file__).parent.parent.parent / "api" / "data")
+    badge = cat.get(badge_slug)
+    entries = []
+    for ei, level in enumerate(badge["levels"]):
+        if level["steps"][niveau_idx]["text"].strip():
+            entries.append(_entry(db, user_id, badge_slug, ei, niveau_idx, "work_done"))
+    return entries
 
-class TestBatchSignoffSpeltakHTML:
-    def test_creates_signoff_requests_and_redirects(self, client, db):
+
+class TestBatchPanelOnBadgePage:
+    def test_panel_appears_when_niveau_ready(self, client, db):
         scout = _user(db, "s@x.com")
-        leider = _user(db, "l@x.com", "Leider")
-        _, speltak = _speltak_with_leider(db, leider, scout)
-        _entry(db, scout.id, "kamperen", 0, 0, "work_done")
-        _entry(db, scout.id, "kamperen", 1, 0, "work_done")
-
-        client.cookies.update(_login(client, scout))
-        r = client.post(
-            "/badges/kamperen/niveau/0/request-signoff-speltak",
-            data={"speltak_id": speltak.id},
-            headers={"Origin": "http://localhost:8000"},
-            follow_redirects=False,
-        )
-        assert r.status_code == 303
-        assert r.headers["location"] == "/badges/kamperen"
-        assert db.query(SignoffRequest).count() == 2
-
-
-class TestBatchSignoffCancelHTML:
-    def test_cancel_drops_pending_requests(self, client, db):
-        scout = _user(db, "s@x.com")
-        leider = _user(db, "l@x.com", "Leider")
-        _, speltak = _speltak_with_leider(db, leider, scout)
-        _entry(db, scout.id, "kamperen", 0, 0, "work_done")
-        progress_svc.request_badge_niveau_signoff_speltak(
-            db, scout.id, "kamperen", 0, speltak.id,
-        )
-        assert db.query(SignoffRequest).count() == 1
-
-        client.cookies.update(_login(client, scout))
-        r = client.post(
-            "/badges/kamperen/niveau/0/cancel-signoff",
-            headers={"Origin": "http://localhost:8000"},
-            follow_redirects=False,
-        )
-        assert r.status_code == 303
-        assert db.query(SignoffRequest).count() == 0
-
-
-class TestBatchSignoffDirectHTML:
-    def test_direct_email_creates_pending_signoff(self, client, db):
-        scout = _user(db, "s@x.com")
-        _entry(db, scout.id, "kamperen", 0, 0, "work_done")
-        client.cookies.update(_login(client, scout))
-        r = client.post(
-            "/badges/kamperen/niveau/0/request-signoff",
-            data={"mentor_email": "new@x.com"},
-            headers={"Origin": "http://localhost:8000"},
-            follow_redirects=False,
-        )
-        assert r.status_code == 303
-        assert db.query(User).filter_by(email="new@x.com").first() is not None
-        assert db.query(SignoffRequest).count() == 1
-
-
-# ── Mentor-side confirm / reject ─────────────────────────────────────────────
-
-class TestBatchConfirmHTML:
-    def test_confirm_signs_off_all_eisen_at_niveau(self, client, db):
-        scout = _user(db, "s@x.com")
-        leider = _user(db, "l@x.com", "Leider")
-        _, speltak = _speltak_with_leider(db, leider, scout)
-        _entry(db, scout.id, "kamperen", 0, 0, "work_done")
-        _entry(db, scout.id, "kamperen", 1, 0, "work_done")
-        progress_svc.request_badge_niveau_signoff_speltak(
-            db, scout.id, "kamperen", 0, speltak.id,
-        )
-
-        client.cookies.update(_login(client, leider))
-        r = client.post(
-            f"/scouts/{scout.id}/badges/kamperen/niveau/0/confirm-signoff",
-            data={"comment": "Goed gedaan!"},
-            headers={"HX-Request": "true", "Origin": "http://localhost:8000"},
-        )
-        assert r.status_code == 200
-        # Both ProgressEntry rows must now be signed_off.
-        statuses = [
-            e.status for e in db.query(ProgressEntry)
-            .filter_by(user_id=scout.id, badge_slug="kamperen", step_index=0)
-            .all()
-        ]
-        assert statuses == ["signed_off", "signed_off"]
-
-
-class TestBatchRejectHTML:
-    def test_reject_reverts_to_work_done_with_message(self, client, db):
-        scout = _user(db, "s@x.com")
-        leider = _user(db, "l@x.com", "Leider")
-        _, speltak = _speltak_with_leider(db, leider, scout)
-        _entry(db, scout.id, "kamperen", 0, 0, "work_done")
-        progress_svc.request_badge_niveau_signoff_speltak(
-            db, scout.id, "kamperen", 0, speltak.id,
-        )
-
-        client.cookies.update(_login(client, leider))
-        r = client.post(
-            f"/scouts/{scout.id}/badges/kamperen/niveau/0/reject-signoff",
-            data={"message": "Nog niet goed"},
-            headers={"HX-Request": "true", "Origin": "http://localhost:8000"},
-        )
-        assert r.status_code == 200
-        e = db.query(ProgressEntry).filter_by(
-            user_id=scout.id, badge_slug="kamperen", step_index=0,
-        ).first()
-        assert e.status == "work_done"
-
-
-# ── Inbox view shows the group card ──────────────────────────────────────────
-
-class TestSignoffRequestsPageGroup:
-    def test_inbox_renders_badge_niveau_group_card(self, client, db):
-        scout = _user(db, "scout@x.com", "Scout")
-        leider = _user(db, "leider@x.com", "Leider")
-        _, speltak = _speltak_with_leider(db, leider, scout)
-        _entry(db, scout.id, "kamperen", 0, 0, "work_done")
-        _entry(db, scout.id, "kamperen", 1, 0, "work_done")
-        progress_svc.request_badge_niveau_signoff_speltak(
-            db, scout.id, "kamperen", 0, speltak.id,
-        )
-
-        client.cookies.update(_login(client, leider))
-        r = client.get("/signoff-requests")
-        assert r.status_code == 200
-        # The badge-niveau group card has a stable id we can grep for.
-        assert re.search(
-            rf'id="request-badge-niveau-{scout.id}-kamperen-0"',
-            r.text,
-        ), "Expected a badge_niveau_group card in the inbox"
-        # Singleton per-eis cards must NOT render alongside the group.
-        # The group card heading mentions the niveau.
-        assert "Niveau 1" in r.text
-
-
-# ── Scout badge page shows the batch panel when ready ────────────────────────
-
-class TestBatchPanelVisibility:
-    def test_panel_appears_when_all_eisen_work_done(self, client, db):
-        scout = _user(db, "s@x.com")
-        # Set every level's niveau 0 (step_index=0) to work_done.
-        # The "kamperen" badge has multiple eisen — touch them all.
-        # For the test we only need ONE eis to satisfy the "all eisen at this
-        # niveau are work_done OR signed_off" rule, but kamperen has 5 eisen,
-        # so we must mark all of them at niveau 0.
-        from insigne.badges import BadgeCatalogue
-        from pathlib import Path
-        cat = BadgeCatalogue(Path(__file__).parent.parent.parent / "api" / "data")
-        badge = cat.get("kamperen")
-        for ei, level in enumerate(badge["levels"]):
-            if level["steps"][0]["text"].strip():
-                _entry(db, scout.id, "kamperen", ei, 0, "work_done")
-
+        _mark_all_eisen_work_done(db, scout.id, "kamperen", 0)
         client.cookies.update(_login(client, scout))
         r = client.get("/badges/kamperen?niveau=1")
         assert r.status_code == 200
-        assert "Vraag aftekening" in r.text or "Aftekenen…" in r.text
-        # Form action pointing at the batch endpoint.
-        assert "/badges/kamperen/niveau/0/request-signoff" in r.text
+        # The panel headline mentions niveau 1.
+        assert "Niveau 1" in r.text
+        # The JS loops over the per-entry endpoint — its path-fragment string
+        # must be present in the page source for at least one of the three
+        # buttons (speltak / members / direct).
+        assert "/request-signoff-speltak" in r.text or \
+               "/request-signoff-members" in r.text or \
+               "/request-signoff" in r.text
 
     def test_panel_absent_when_no_eisen_done(self, client, db):
         scout = _user(db, "s@x.com")
         client.cookies.update(_login(client, scout))
         r = client.get("/badges/kamperen?niveau=1")
         assert r.status_code == 200
-        # No batch endpoint URL on the page.
-        assert "/badges/kamperen/niveau/0/request-signoff" not in r.text
+        # No "Vraag aftekening voor het hele niveau" headline.
+        assert "voor het hele niveau" not in r.text
+
+    def test_panel_renders_pending_state_with_cancel_button(self, client, db):
+        scout = _user(db, "s@x.com")
+        leider = _user(db, "l@x.com", "Leider")
+        _, speltak = _speltak_with_leider(db, leider, scout)
+        entries = _mark_all_eisen_work_done(db, scout.id, "kamperen", 0)
+        # Put two of them into pending via per-eis service calls.
+        for e in entries[:2]:
+            progress_svc.request_signoff_for_speltak(db, scout.id, e.id, speltak.id)
+
+        client.cookies.update(_login(client, scout))
+        r = client.get("/badges/kamperen?niveau=1")
+        assert r.status_code == 200
+        assert "Verzoek intrekken" in r.text
+        assert "/cancel-signoff" in r.text
+
+    def test_panel_entry_ids_match_work_done_eisen(self, client, db):
+        """The Alpine entryIds array must list exactly the work_done entry
+        IDs for that niveau — the JS loop will hit each one."""
+        scout = _user(db, "s@x.com")
+        entries = _mark_all_eisen_work_done(db, scout.id, "kamperen", 0)
+        client.cookies.update(_login(client, scout))
+        r = client.get("/badges/kamperen?niveau=1")
+        for e in entries:
+            assert e.id in r.text
+
+
+class TestSignoffRequestsPageGroup:
+    def test_inbox_renders_badge_niveau_group_card(self, client, db):
+        scout = _user(db, "scout@x.com", "Scout")
+        leider = _user(db, "leider@x.com", "Leider")
+        _, speltak = _speltak_with_leider(db, leider, scout)
+        e1 = _entry(db, scout.id, "kamperen", 0, 0, "work_done")
+        e2 = _entry(db, scout.id, "kamperen", 1, 0, "work_done")
+        progress_svc.request_signoff_for_speltak(db, scout.id, e1.id, speltak.id)
+        progress_svc.request_signoff_for_speltak(db, scout.id, e2.id, speltak.id)
+
+        client.cookies.update(_login(client, leider))
+        r = client.get("/signoff-requests")
+        assert r.status_code == 200
+        # Group card has a stable id.
+        assert re.search(
+            rf'id="request-badge-niveau-{scout.id}-kamperen-0"',
+            r.text,
+        )
+        # The card's Alpine entryIds must list both entry UUIDs so the
+        # confirm/reject loop hits each.
+        assert e1.id in r.text
+        assert e2.id in r.text

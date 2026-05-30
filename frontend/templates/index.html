@@ -22,7 +22,7 @@
                     <span class="role-badge">{{ m.role }}</span>
                 </li>
                 {% endfor %}
-                {% for m in my_speltak_memberships | sort(attribute='speltak.name') %}
+                {% for m in my_speltak_memberships | sort(attribute='speltak.name') | sort(attribute='speltak.speltak_type_order') | sort(attribute='speltak.group.name') %}
                 <li class="item-list-row">
                     <span>{{ m.speltak.name }} <span class="muted">— {{ m.speltak.group.name }}</span></span>
                     <span class="role-badge">{{ m.role }}</span>

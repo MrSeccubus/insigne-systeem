@@ -31,7 +31,7 @@
         </div>
         {% if group.speltakken %}
             <ul class="item-list">
-                {% for speltak in group.speltakken %}
+                {% for speltak in group.speltakken | sort(attribute='name') | sort(attribute='speltak_type_order') %}
                 {% set st = speltakken_meta | selectattr('slug', 'equalto', speltak.speltak_type) | first | default(None) %}
                 <li class="item-list-row">
                     <span>
@@ -58,7 +58,7 @@
                         <form method="post" action="/groups/{{ group.slug }}/members/{{ m.user_id }}/assign-speltak" style="display:contents;">
                             <select name="to_speltak_id" onchange="this.form.submit()" class="role-select">
                                 <option value="">Overvliegen naar…</option>
-                                {% for s in group.speltakken %}
+                                {% for s in group.speltakken | sort(attribute='name') | sort(attribute='speltak_type_order') %}
                                 <option value="{{ s.id }}">{{ s.name }}</option>
                                 {% endfor %}
                             </select>

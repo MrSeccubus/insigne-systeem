@@ -17,7 +17,8 @@ weer leeg gemaakt.
 
 ### Verbeteringen
 
-- **Auto-inklappen van het "Explorers"-blok op de homepage** (sluit #110) — ingelogde scouts die niet in een explorers-speltak zitten (welpen, scouts, roverscouts, plusscouts) zien het "Explorers"-blok op `/` nu standaard ingeklapt als `<details>`-element. Explorers zelf én anonieme bezoekers krijgen het blok zoals voorheen direct uitgeklapt onder een `<h2>`. Geen wijziging aan andere categorieën. `current_user_speltak_type` toegevoegd aan de homepage-template-context.
+- **Auto-inklappen / -uitklappen van categorieën op de homepage** (sluit #110) — elke insigne-categorie op `/` is nu een opklap-`<details>` met een `<summary class="section-header">` kop; iedereen kan zelf folden. Het "Explorers"-blok is de enige met conditionele standaardstand: ingeklapt voor ingelogde gebruikers zonder enige actieve `explorers`-typed speltak-lidmaatschap (scout óf speltakleider) én zonder gefavoriteerde Explorer-badge. Anonieme bezoekers en explorers (incl. dubbele lidmaatschappen) krijgen het blok uitgeklapt. Nieuwe `current_user_speltak_types: set[str]` in de homepage-context — toekomstige categorie-regels (bv. een bevers-blok) kunnen dezelfde set hergebruiken zonder extra wiring.
+- **Speltakken sorteren op groep → leeftijdsgroep → naam** (sluit #119) — overal waar speltakken in lijsten verschijnen (groep-detailpagina, speltak-overvliegopties, "Mijn speltakken", homepage-lidmaatschapspaneel, groep-voortgangspagina, aanmeldverzoeken) worden ze nu eerst gesorteerd op groepsnaam, dan op leeftijdsgroep (`bevers` → `welpen` → `scouts` → `explorers` → `roverscouts` → `plusscouts`), dan op naam. Nieuwe `Speltak.speltak_type_order`-property exposeert de leeftijds-volgorde als sort key voor Jinja's stabiele `sort`-filter; legacy speltakken zonder type sorteren achter de bekende types.
 
 ---
 

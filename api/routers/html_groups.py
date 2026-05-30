@@ -337,7 +337,10 @@ def groups_join(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/login", status_code=303)
     all_groups = [
         {"id": g.id, "name": g.name, "slug": g.slug,
-         "speltakken": [{"id": s.id, "name": s.name} for s in g.speltakken]}
+         "speltakken": [
+             {"id": s.id, "name": s.name}
+             for s in sorted(g.speltakken, key=lambda s: (s.speltak_type_order, s.name))
+         ]}
         for g in groups_svc.list_groups(db)
     ]
     my_group_memberships, my_speltak_memberships = groups_svc.list_active_memberships_for_user(db, user.id)
@@ -369,7 +372,10 @@ def groups_join_submit(
     def _join_ctx():
         all_groups = [
             {"id": g.id, "name": g.name, "slug": g.slug,
-             "speltakken": [{"id": s.id, "name": s.name} for s in g.speltakken]}
+             "speltakken": [
+                 {"id": s.id, "name": s.name}
+                 for s in sorted(g.speltakken, key=lambda s: (s.speltak_type_order, s.name))
+             ]}
             for g in groups_svc.list_groups(db)
         ]
         gm, sm = groups_svc.list_active_memberships_for_user(db, user.id)

@@ -1,0 +1,1 @@
+Uitgenodigd om af te tekenen: {{ badge_title }} — {{ scope_value }}

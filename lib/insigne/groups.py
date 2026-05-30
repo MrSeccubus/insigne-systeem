@@ -68,6 +68,8 @@ def is_active_member_of_speltak(db: Session, user_id: str, speltak_id: str) -> b
     ).first() is not None
 
 
+
+
 def filter_mentor_ids_sharing_speltak(
     db: Session, scout_id: str, mentor_ids: list[str],
 ) -> list[str]:

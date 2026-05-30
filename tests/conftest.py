@@ -52,6 +52,11 @@ def client(db):
         yield db
 
     app.dependency_overrides[get_db] = _override
-    with TestClient(app, raise_server_exceptions=True) as c:
+    # CSRF middleware (#99) requires Origin or Referer on state-changing
+    # requests to non-/api/ paths. Set a matching default Origin so individual
+    # tests don't have to. Tests that exercise the middleware itself override
+    # this on a per-request basis.
+    from insigne.config import config as _cfg
+    with TestClient(app, raise_server_exceptions=True, headers={"Origin": _cfg.base_url}) as c:
         yield c
     app.dependency_overrides.pop(get_db, None)

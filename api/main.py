@@ -2,7 +2,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
@@ -25,6 +25,55 @@ IMAGES_DIR = DATA_DIR / "images"
 _CATALOGUE = BadgeCatalogue(DATA_DIR)
 
 app = FastAPI()
+
+
+# ── CSRF defence-in-depth: Origin / Referer header check ──────────────────────
+#
+# Authenticated state-changing requests are primarily protected by the
+# access_token cookie's ``SameSite=Lax`` attribute. This middleware adds a
+# second layer per the OWASP CSRF Cheat Sheet ("Identifying the Source Origin
+# via Origin/Referer header"): any state-changing request whose Origin (or
+# Referer, as fallback) doesn't match ``config.base_url`` is rejected with 403.
+#
+# Rules:
+#  - GET / HEAD / OPTIONS are not checked (not state-changing).
+#  - Paths under ``/api/`` are exempt — the JSON API uses bearer-token auth,
+#    not cookies, so cross-site requests can't ride on the session.
+#  - If ``Origin`` is present, it must match ``config.base_url`` exactly.
+#  - If ``Origin`` is absent but ``Referer`` is present, ``Referer`` must
+#    start with ``config.base_url`` (same scheme + host + port).
+#  - If neither header is present, the request is rejected. Browsers always
+#    send at least one on POST/PUT/DELETE/PATCH; non-browser clients should
+#    use the bearer-token API under ``/api/``.
+#
+# Closes issue #99.
+
+_CSRF_STATE_CHANGING_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
+
+
+def _csrf_reject(detail: str):
+    return PlainTextResponse(
+        f"Aanvraag geweigerd: {detail} "
+        "Probeer opnieuw vanaf de oorspronkelijke pagina.",
+        status_code=403,
+    )
+
+
+@app.middleware("http")
+async def origin_csrf_check(request: Request, call_next):
+    if request.method in _CSRF_STATE_CHANGING_METHODS and not request.url.path.startswith("/api/"):
+        origin = request.headers.get("origin")
+        referer = request.headers.get("referer")
+        if origin:
+            if origin != config.base_url:
+                return _csrf_reject("ongeldige Origin-header.")
+        elif referer:
+            if not (referer == config.base_url or referer.startswith(config.base_url + "/")):
+                return _csrf_reject("ongeldige Referer-header.")
+        else:
+            return _csrf_reject("Origin- en Referer-header ontbreken.")
+    return await call_next(request)
+
 
 app.include_router(users.router)
 app.include_router(html_admin.router)

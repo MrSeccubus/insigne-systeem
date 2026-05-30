@@ -206,6 +206,31 @@ Applied to `_require_scout_access` in v1.0.0 (CodeQL #87) and to
 `py/reflective-xss` alerts from issue #100). Apply the same
 shape to any future auth helper.
 
+### State-changing HTML endpoints rely on two CSRF defences
+
+Cookie-authenticated state-changing browser requests (POST / PUT / DELETE /
+PATCH on routes outside `/api/`) are protected by two independent layers:
+
+1. **SameSite=Lax** on the `access_token` cookie. Set at every cookie-issuing
+   site in `api/routers/users.py`. Blocks the vast majority of cross-site
+   form submissions in modern browsers.
+2. **Origin / Referer check** in the middleware at `api/main.py:origin_csrf_check`,
+   following the OWASP CSRF Cheat Sheet "Identifying the Source Origin".
+   Rejects 403 if the browser-sent `Origin` differs from `config.base_url`;
+   if `Origin` is absent, falls back to `Referer` (must start with
+   `config.base_url`). Requests missing **both** headers are rejected —
+   browsers always send at least one on POST/PUT/DELETE/PATCH; non-browser
+   clients should use the bearer-token API under `/api/`. Skips paths under
+   `/api/` (bearer-token auth, not cookie-driven).
+
+Together these are layer-1 and layer-2 of the same CSRF defence. Adding a
+new state-changing HTML endpoint requires no per-route work — both layers
+apply automatically as soon as it's registered. **Don't add a state-changing
+GET endpoint** — it bypasses both layers. The two existing GET-mutating
+endpoints (`/register/confirm/{code}` and `/profile/email-change/confirm/{token}`)
+are e-mail-link confirmation flows whose one-shot secret tokens make them
+CSRF-resistant by design; they're a deliberate exception, not a precedent.
+
 ## Releases and the `releases` branch
 
 **Never push to the `releases` branch unless explicitly instructed by the user.**

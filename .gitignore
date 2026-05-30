@@ -3,6 +3,10 @@ venv/
 __pycache__/
 *.pyc
 *.pyo
+*.swp
+*.swo
+.*.swp
+.*.swo
 /config.yml
 api/data/insigne.db
 api/data/insigne.db-shm

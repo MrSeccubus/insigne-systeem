@@ -23,9 +23,15 @@ def _user_in_speltak(db, speltak_type: str, *, email: str | None = None):
     return u
 
 
-def _token(user):
+def _login_as(client, user):
+    """Set the access_token cookie on the client instance.
+
+    Set cookies on the client instance, not per-request — httpx deprecates
+    the per-request ``cookies=`` kwarg because the persistence semantics are
+    ambiguous (does it stick? does it merge? does the session jar see it?).
+    """
     token, _ = auth_svc.create_access_token(user.id)
-    return token
+    client.cookies.set("access_token", token)
 
 
 _EXPLORERS_H2 = re.compile(r'<h2 class="section-header">\s*Explorers\s*</h2>')
@@ -37,7 +43,8 @@ class TestExplorersCategoryAutoCollapse:
         """A user whose primary speltak is `explorers` sees the Explorers
         category as a plain `<h2>` heading (always open, no disclosure)."""
         u = _user_in_speltak(db, "explorers")
-        r = client.get("/", cookies={"access_token": _token(u)})
+        _login_as(client, u)
+        r = client.get("/")
         assert r.status_code == 200
         assert _EXPLORERS_H2.search(r.text), "Explorers section should render as <h2> for explorer users"
         assert not _EXPLORERS_SUMMARY.search(r.text), "Explorers section should not be wrapped in <details>"
@@ -46,7 +53,8 @@ class TestExplorersCategoryAutoCollapse:
         """A user in a non-explorers speltak sees the Explorers category
         wrapped in a `<details>` element (collapsed by default)."""
         u = _user_in_speltak(db, "welpen")
-        r = client.get("/", cookies={"access_token": _token(u)})
+        _login_as(client, u)
+        r = client.get("/")
         assert r.status_code == 200
         assert _EXPLORERS_SUMMARY.search(r.text), "Non-explorer should see <details><summary> for Explorers"
         assert not _EXPLORERS_H2.search(r.text), "Non-explorer should not see Explorers as plain <h2>"
@@ -64,6 +72,49 @@ class TestExplorersCategoryAutoCollapse:
         Gewone insignes / Buitengewone insignes sections still render as
         plain `<h2>` for everyone."""
         u = _user_in_speltak(db, "welpen")
-        r = client.get("/", cookies={"access_token": _token(u)})
+        _login_as(client, u)
+        r = client.get("/")
         # The exact label depends on category_labels; "Gewone" is a stable token.
         assert re.search(r'<h2 class="section-header">\s*Gewone insignes\s*</h2>', r.text)
+
+    def test_explorer_with_higher_age_band_membership_still_sees_open(self, client, db):
+        """A user who's an explorer AND a roverscout (parallel memberships)
+        should still see the Explorers section open. Rule: any active
+        explorers-typed membership wins, regardless of higher-age-band
+        memberships."""
+        u = _user_in_speltak(db, "roverscouts")  # primary speltak is roverscouts
+        # Also add an explorers membership.
+        g2 = groups_svc.create_group(db, name="G2", slug="g2")
+        s2 = groups_svc.create_speltak(db, group_id=g2.id, name="Explorers",
+                                       slug="explorers2", speltak_type="explorers")
+        db.add(GroupMembership(user_id=u.id, group_id=g2.id, role="member", approved=True))
+        db.add(SpeltakMembership(user_id=u.id, speltak_id=s2.id, role="scout", approved=True))
+        db.commit()
+
+        _login_as(client, u)
+        r = client.get("/")
+        assert r.status_code == 200
+        assert _EXPLORERS_H2.search(r.text), \
+            "User with parallel explorer membership should see Explorers open"
+        assert not _EXPLORERS_SUMMARY.search(r.text)
+
+    def test_speltakleider_of_explorers_sees_open(self, client, db):
+        """A user whose only explorer-related membership is as speltakleider
+        (no scout role anywhere) still counts as 'an explorer' for this UX."""
+        g = groups_svc.create_group(db, name="GL", slug="gl")
+        s = groups_svc.create_speltak(db, group_id=g.id, name="Explorers",
+                                      slug="explorers-leider", speltak_type="explorers")
+        u = User(email="leider@example.com", name="Leider", status="active", password_hash="x")
+        db.add(u); db.flush()
+        db.add(GroupMembership(user_id=u.id, group_id=g.id,
+                               role="groepsleider", approved=True))
+        db.add(SpeltakMembership(user_id=u.id, speltak_id=s.id,
+                                 role="speltakleider", approved=True))
+        db.commit()
+
+        _login_as(client, u)
+        r = client.get("/")
+        assert r.status_code == 200
+        assert _EXPLORERS_H2.search(r.text), \
+            "Speltakleider of an explorers speltak should see Explorers open"
+        assert not _EXPLORERS_SUMMARY.search(r.text)

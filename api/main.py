@@ -63,7 +63,7 @@ async def index(request: Request, only_favorites: int = 0, only_in_progress: int
     pending_request_count = 0
     my_group_memberships: list = []
     my_speltak_memberships: list = []
-    current_user_speltak_type = None
+    current_user_speltak_types: set[str] = set()
     if current_user:
         for entry in progress_svc.list_progress(db, current_user.id):
             all_progress.setdefault(entry.badge_slug, {})[(entry.level_index, entry.step_index)] = entry
@@ -74,7 +74,16 @@ async def index(request: Request, only_favorites: int = 0, only_in_progress: int
         my_group_memberships, my_speltak_memberships = groups_svc.list_active_memberships_for_user(db, current_user.id)
         user_favorite_slugs = users_svc.get_user_favorite_slugs(db, current_user.id)
         progress_slugs = set(all_progress.keys())
-        current_user_speltak_type = groups_svc.get_user_primary_speltak_type(db, current_user.id)
+        # All speltak types the current user has any active membership in,
+        # regardless of role. The home page uses this for category-section
+        # default-expand rules: ``"explorers" in current_user_speltak_types``
+        # tells the Explorers section to render uncollapsed. Future categories
+        # ("bevers", etc.) can reuse the same set without adding new context.
+        current_user_speltak_types = {
+            m.speltak.speltak_type
+            for m in my_speltak_memberships
+            if m.speltak and m.speltak.speltak_type
+        }
 
     # Enrich each badge with level cards
     for badges in all_badges.values():
@@ -203,7 +212,7 @@ async def index(request: Request, only_favorites: int = 0, only_in_progress: int
             "only_favorites": bool(only_favorites and current_user),
             "progress_slugs": progress_slugs,
             "only_in_progress": bool(only_in_progress and current_user),
-            "current_user_speltak_type": current_user_speltak_type,
+            "current_user_speltak_types": current_user_speltak_types,
         },
     )
     response.headers["Cache-Control"] = "no-store"

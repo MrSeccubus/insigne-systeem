@@ -201,7 +201,9 @@ if scout is None:
     return RedirectResponse("/login" if current_user is None else "/", status_code=303)
 ```
 
-Applied to `_require_scout_access` in v1.0.0 (CodeQL #87). Apply the same
+Applied to `_require_scout_access` in v1.0.0 (CodeQL #87) and to
+`_require_user` / `_require_admin` in v1.1.0 (cleared 46 dismissed
+`py/reflective-xss` alerts from issue #100). Apply the same
 shape to any future auth helper.
 
 ## Releases and the `releases` branch

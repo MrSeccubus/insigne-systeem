@@ -13,19 +13,30 @@ router = APIRouter()
 
 
 def _require_admin(request: Request, db: Session):
+    """Return ``(current_user, admin)``:
+
+    - ``(User, User)`` — caller may proceed (admin is the same user).
+    - ``(None, None)`` — unauthenticated; caller redirects to ``/login``.
+    - ``(User, None)`` — authenticated but not an admin; caller redirects to ``/``.
+
+    Returns data only (no ``RedirectResponse``) so that taint cannot flow
+    from request parameters into the response object via the helper. Same
+    shape as ``_require_scout_access`` after PR #116 (closes #100 noise
+    from ``return redirect`` flagged by CodeQL ``py/reflective-xss``).
+    """
     user = _get_current_user(request, db)
-    if not user:
-        return None, RedirectResponse("/login", status_code=303)
+    if user is None:
+        return None, None
     if not user.is_admin:
-        return None, RedirectResponse("/", status_code=303)
-    return user, None
+        return user, None
+    return user, user
 
 
 @router.get("/admin", response_class=HTMLResponse)
 def admin_dashboard(request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_admin(request, db)
-    if redirect:
-        return redirect
+    current_user, admin = _require_admin(request, db)
+    if admin is None:
+        return RedirectResponse("/login" if current_user is None else "/", status_code=303)
     stats = admin_svc.get_dashboard_stats(db)
     return _TEMPLATES.TemplateResponse(
         request=request,
@@ -40,9 +51,9 @@ def admin_find_user(
     email: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_admin(request, db)
-    if redirect:
-        return redirect
+    current_user, admin = _require_admin(request, db)
+    if admin is None:
+        return RedirectResponse("/login" if current_user is None else "/", status_code=303)
     found = admin_svc.find_user_by_email(db, email) if email.strip() else None
     return _TEMPLATES.TemplateResponse(
         request=request,
@@ -62,9 +73,9 @@ def admin_delete_user(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_admin(request, db)
-    if redirect:
-        return redirect
+    current_user, admin = _require_admin(request, db)
+    if admin is None:
+        return RedirectResponse("/login" if current_user is None else "/", status_code=303)
     target = db.get(UserModel, user_id)
     if target and target.is_admin:
         return _TEMPLATES.TemplateResponse(

@@ -68,6 +68,11 @@ async def origin_csrf_check(request: Request, call_next):
             if origin != config.base_url:
                 return _csrf_reject("ongeldige Origin-header.")
         elif referer:
+            # The ``+ "/"`` is what makes the prefix check safe against
+            # path-confusion (e.g. ``http://localhost:8000.evil.com/``):
+            # the byte after the port must be ``/``, not anything else.
+            # Relies on ``config.base_url`` being stripped of any trailing
+            # slash at parse time (see lib/insigne/config.py).
             if not (referer == config.base_url or referer.startswith(config.base_url + "/")):
                 return _csrf_reject("ongeldige Referer-header.")
         else:

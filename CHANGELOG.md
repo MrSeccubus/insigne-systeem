@@ -10,6 +10,11 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Beveiliging
+
+- **Strictere validatie op jaarinsigne-2026-inclusie-import** (sluit #124) — defence-in-depth op de import-tak die v1.0.1 toevoegde voor de jaarinsigne-2026-inclusies. Een handmatig bewerkte export-YAML met niet-int `level_index`/`step_index` of een `badge_slug` buiten de toegestane categorieën (`gewoon`/`buitengewoon`) leidde alleen tot self-inflicted 500's op latere pagina-aanroepen van de uploader zelf (geen cross-user impact, geen score-inflatie). De import valideert nu types via `int(...)` met `TypeError/ValueError` opvangen, en de `badge_slug` wordt gecontroleerd tegen `jaarinsigne_2026.get_eligible_badges()` — zelfde checks als de canonical `toggle_inclusion` write-path. 4 nieuwe tests.
+- **Auth-helpers retourneren alleen data — geen `RedirectResponse`** (sluit #100) — re-verificatie van de 46 gedismisste `py/reflective-xss` CodeQL-bevindingen wees uit dat ze allemaal hetzelfde patroon waren: `_require_user` / `_require_admin` retourneerden `(user, RedirectResponse | None)` en aanroepers deden `return redirect`. CodeQL's taint-analyse kon door de uniontype niet zien dat de redirect altijd een constante URL gebruikt, dus elke `return redirect` werd als reflective-XSS gemarkeerd. In plaats van de 46 dismissals te herbevestigen, is dezelfde refactor toegepast als in PR #116 (CodeQL #87): `_require_user` retourneert nu enkel `User | None`, `_require_admin` retourneert `(current_user, admin)` waar beide `User | None` zijn, en de 51 aanroeplocaties bouwen hun eigen `RedirectResponse` op uit string-literals (`"/login"` of `"/"`). CodeQL's volgende scan moet de dismissals naar "fixed" promoten of leeggemaakt achterlaten.
+
 ### Nieuw
 
 - **Batch-aftekenen per insigne-niveau** (sluit #102) — scouts kunnen nu in één klik aftekening vragen voor alle eisen van één niveau van een regulier insigne, in plaats van het per-eis te doen. Wanneer alle eisen van een niveau op `work_done` staan, verschijnt onder het eisen-raster een paneel "Je hebt alle eisen van {niveau_label} {N} gedaan. Vraag aftekening voor het hele niveau in één keer." met dezelfde mentor-keuze (speltakleiders / peer-leden / direct e-mail) als de bestaande per-eis flow. De per-eis "Aftekenen…"-knop blijft staan voor scouts die maar één eis afronden.

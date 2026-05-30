@@ -36,38 +36,44 @@ def _page(request: Request, name: str, db: Session, **ctx):
     return _TEMPLATES.TemplateResponse(request=request, name=name, context=ctx)
 
 
-def _require_user(request: Request, db: Session):
-    user = _get_current_user(request, db)
-    if not user:
-        return None, RedirectResponse("/login", status_code=303)
-    return user, None
+def _require_user(request: Request, db: Session) -> UserModel | None:
+    """Return the authenticated user, or None if the request is unauthenticated.
+
+    The helper deliberately returns data only (not a ``RedirectResponse``) so
+    that ``scout_id`` / form-field taint cannot flow into the response object
+    via the helper's return value — caller builds the redirect from a string
+    literal. Same shape as ``_require_scout_access`` after PR #116 (CodeQL #87)
+    and applied here for the same reason (closes #100 noise from 43 dismissed
+    ``py/reflective-xss`` alerts on ``return redirect``).
+    """
+    return _get_current_user(request, db)
 
 
 # ── Invitation accept / deny ──────────────────────────────────────────────────
 
 @router.post("/invitations/group/{group_id}/accept")
 def accept_group_invite(group_id: str, request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     groups_svc.accept_group_invite(db, user_id=user.id, group_id=group_id)
     return RedirectResponse("/", status_code=303)
 
 
 @router.post("/invitations/group/{group_id}/deny")
 def deny_group_invite(group_id: str, request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     groups_svc.deny_group_invite(db, user_id=user.id, group_id=group_id)
     return RedirectResponse("/", status_code=303)
 
 
 @router.post("/invitations/speltak/{speltak_id}/accept")
 def accept_speltak_invite(speltak_id: str, request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     m = db.query(SpeltakMembership).filter_by(
         user_id=user.id, speltak_id=speltak_id, approved=False, withdrawn=False
     ).first()
@@ -121,45 +127,45 @@ def accept_speltak_invite(speltak_id: str, request: Request, db: Session = Depen
 
 @router.post("/invitations/speltak/{speltak_id}/accept-with-merge")
 def accept_speltak_invite_with_merge(speltak_id: str, request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     groups_svc.accept_speltak_invite_with_merge(db, user_id=user.id, speltak_id=speltak_id)
     return RedirectResponse("/", status_code=303)
 
 
 @router.post("/invitations/speltak/{speltak_id}/accept-without-merge")
 def accept_speltak_invite_without_merge(speltak_id: str, request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     groups_svc.accept_speltak_invite_without_merge(db, user_id=user.id, speltak_id=speltak_id)
     return RedirectResponse("/", status_code=303)
 
 
 @router.post("/invitations/speltak/{speltak_id}/deny")
 def deny_speltak_invite(speltak_id: str, request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     groups_svc.deny_speltak_invite(db, user_id=user.id, speltak_id=speltak_id)
     return RedirectResponse("/", status_code=303)
 
 
 @router.post("/invitations/group/{group_id}/dismiss")
 def dismiss_group_invite(group_id: str, request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     groups_svc.dismiss_group_invite(db, user_id=user.id, group_id=group_id)
     return RedirectResponse("/", status_code=303)
 
 
 @router.post("/invitations/speltak/{speltak_id}/dismiss")
 def dismiss_speltak_invite(speltak_id: str, request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     groups_svc.dismiss_speltak_invite(db, user_id=user.id, speltak_id=speltak_id)
     return RedirectResponse("/", status_code=303)
 
@@ -168,9 +174,9 @@ def dismiss_speltak_invite(speltak_id: str, request: Request, db: Session = Depe
 
 @router.get("/groups", response_class=HTMLResponse)
 def groups_list(request: Request, db: Session = Depends(get_db)):
-    current_user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    current_user = _require_user(request, db)
+    if current_user is None:
+        return RedirectResponse("/login", status_code=303)
     groups = groups_svc.list_groups_for_user(db, current_user)
     can_create = current_user.is_admin or config.allow_any_user_to_create_groups
     pending_flat = groups_svc.list_all_pending_requests_for_leader(db, current_user.id)
@@ -183,9 +189,9 @@ def groups_list(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/groups/new", response_class=HTMLResponse)
 def group_new_form(request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     if not user.is_admin and not config.allow_any_user_to_create_groups:
         return RedirectResponse("/groups", status_code=303)
     return _page(request, "group_edit.html", db, group=None, error=None)
@@ -197,9 +203,9 @@ def group_create(
     name: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     if not user.is_admin and not config.allow_any_user_to_create_groups:
         return RedirectResponse("/groups", status_code=303)
     slug = groups_svc.unique_group_slug(db, groups_svc.name_to_slug(name))
@@ -219,27 +225,27 @@ def group_search(q: str = Query(""), db: Session = Depends(get_db)):
 
 @router.post("/my-requests/{req_id}/cancel", response_class=HTMLResponse)
 def cancel_my_request(req_id: str, request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     groups_svc.cancel_membership_request(db, request_id=req_id, user_id=user.id)
     return RedirectResponse("/", status_code=303)
 
 
 @router.post("/my-requests/cancel-all", response_class=HTMLResponse)
 def cancel_all_my_requests(request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     groups_svc.cancel_all_membership_requests(db, user_id=user.id)
     return RedirectResponse("/", status_code=303)
 
 
 @router.get("/requests", response_class=HTMLResponse)
 def all_requests(request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     pending_flat = groups_svc.list_all_pending_requests_for_leader(db, user.id)
     pending = groups_svc.group_pending_requests(pending_flat)
     return _page(request, "all_requests.html", db, pending=pending, can_manage=True)
@@ -255,9 +261,9 @@ def _back_url(request: Request, default: str = "/requests") -> str:
 
 @router.post("/requests/{req_id}/approve", response_class=HTMLResponse)
 def all_requests_approve(req_id: str, request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     try:
         req = groups_svc.approve_membership_request(db, request_id=req_id, reviewed_by_id=user.id)
         if req.user and req.user.email:
@@ -274,9 +280,9 @@ def all_requests_approve(req_id: str, request: Request, db: Session = Depends(ge
 
 @router.post("/requests/{req_id}/reject", response_class=HTMLResponse)
 def all_requests_reject(req_id: str, request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     try:
         req = groups_svc.reject_membership_request(db, request_id=req_id, reviewed_by_id=user.id)
         if req.user and req.user.email:
@@ -295,9 +301,9 @@ def all_requests_reject(req_id: str, request: Request, db: Session = Depends(get
 
 @router.get("/groups/invite-leader", response_class=HTMLResponse)
 def invite_leader_form(request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     if not config.allow_any_user_to_create_groups and not user.is_admin:
         return RedirectResponse("/groups/join", status_code=303)
     return _page(request, "invite_group_leader.html", db)
@@ -309,9 +315,9 @@ def invite_leader_submit(
     email: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     if not config.allow_any_user_to_create_groups and not user.is_admin:
         return RedirectResponse("/groups/join", status_code=303)
     email_svc.send_invite_group_leader_email(
@@ -326,9 +332,9 @@ def invite_leader_submit(
 
 @router.get("/groups/join", response_class=HTMLResponse)
 def groups_join(request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     all_groups = [
         {"id": g.id, "name": g.name, "slug": g.slug,
          "speltakken": [{"id": s.id, "name": s.name} for s in g.speltakken]}
@@ -356,9 +362,9 @@ def groups_join_submit(
     speltak_id: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
 
     def _join_ctx():
         all_groups = [
@@ -464,9 +470,9 @@ def _group_detail_ctx(db: Session, group, user):
 
 @router.get("/groups/{slug}", response_class=HTMLResponse)
 def group_detail(slug: str, request: Request, db: Session = Depends(get_db)):
-    current_user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    current_user = _require_user(request, db)
+    if current_user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, slug)
     if not group:
         return RedirectResponse("/groups", status_code=303)
@@ -486,9 +492,9 @@ def group_assign_speltak(
     request: Request = None,
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse("/groups", status_code=303)
@@ -498,9 +504,9 @@ def group_assign_speltak(
 
 @router.get("/groups/{slug}/edit", response_class=HTMLResponse)
 def group_edit_form(slug: str, request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse("/groups", status_code=303)
@@ -514,9 +520,9 @@ def group_edit(
     name: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse("/groups", status_code=303)
@@ -526,9 +532,9 @@ def group_edit(
 
 @router.post("/groups/{slug}/delete", response_class=HTMLResponse)
 def group_delete(slug: str, request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, slug)
     if group and groups_svc.can_manage_group(user, db, group.id):
         groups_svc.delete_group(db, group)
@@ -562,9 +568,9 @@ def group_add_member(
     email: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse("/groups", status_code=303)
@@ -584,9 +590,9 @@ def group_invite_member(
     email: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse("/groups", status_code=303)
@@ -647,9 +653,9 @@ def group_remove_member(
     slug: str, member_id: str,
     request: Request, db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, slug)
     if group and groups_svc.can_manage_group(user, db, group.id):
         groups_svc.remove_group_member(db, user_id=member_id, group_id=group.id)
@@ -661,9 +667,9 @@ def group_withdraw_invite(
     slug: str, member_id: str,
     request: Request, db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, slug)
     if group and groups_svc.can_manage_group(user, db, group.id):
         groups_svc.withdraw_group_invite(db, user_id=member_id, group_id=group.id)
@@ -674,9 +680,9 @@ def group_withdraw_invite(
 
 @router.get("/groups/{group_slug}/speltakken/new", response_class=HTMLResponse)
 def speltak_new_form(group_slug: str, request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
@@ -697,9 +703,9 @@ def speltak_create(
     jaarinsigne_2026_min_punten: int | None = Form(None),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
@@ -716,9 +722,9 @@ def speltak_create(
 def speltak_detail(
     group_slug: str, speltak_slug: str, request: Request, db: Session = Depends(get_db)
 ):
-    current_user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    current_user = _require_user(request, db)
+    if current_user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     if not group:
         return RedirectResponse("/groups", status_code=303)
@@ -747,9 +753,9 @@ def speltak_detail(
 def speltak_edit_form(
     group_slug: str, speltak_slug: str, request: Request, db: Session = Depends(get_db)
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_group(user, db, group.id):
@@ -769,9 +775,9 @@ def speltak_edit(
     jaarinsigne_2026_min_punten: int | None = Form(None),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_group(user, db, group.id):
@@ -788,9 +794,9 @@ def speltak_edit(
 def speltak_delete(
     group_slug: str, speltak_slug: str, request: Request, db: Session = Depends(get_db)
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if speltak and groups_svc.can_manage_group(user, db, group.id):
@@ -832,9 +838,9 @@ def speltak_invite_member(
     role: str = Form("scout"),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
@@ -917,9 +923,9 @@ def speltak_add_member(
     role: str = Form("scout"),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
@@ -948,9 +954,9 @@ def speltak_create_scout(
     name: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
@@ -968,9 +974,9 @@ def speltak_set_member_email(
     email: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
@@ -1029,9 +1035,9 @@ def speltak_remove_member(
     group_slug: str, speltak_slug: str, member_id: str,
     request: Request, db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if speltak and groups_svc.can_manage_speltak(user, db, speltak.id):
@@ -1044,9 +1050,9 @@ def speltak_withdraw_invite(
     group_slug: str, speltak_slug: str, member_id: str,
     request: Request, db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     reverted = False
@@ -1064,9 +1070,9 @@ def speltak_transfer_member(
     to_speltak_id: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if speltak and groups_svc.can_manage_speltak(user, db, speltak.id):
@@ -1083,9 +1089,9 @@ def speltak_set_role(
     role: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if speltak and groups_svc.can_manage_speltak(user, db, speltak.id):
@@ -1109,9 +1115,9 @@ _NEXT_STATUS = {
 
 @router.get("/my-speltakken", response_class=HTMLResponse)
 def my_speltakken(request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     pairs = groups_svc.list_my_speltakken(db, user.id)
     if len(pairs) == 1:
         group, speltak = pairs[0]
@@ -1129,9 +1135,9 @@ def my_speltakken(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/groups/{group_slug}/progress", response_class=HTMLResponse)
 def group_progress(group_slug: str, request: Request, db: Session = Depends(get_db)):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     if not group:
         return RedirectResponse("/groups", status_code=303)
@@ -1162,9 +1168,9 @@ def speltak_progress(
     db: Session = Depends(get_db),
 ):
     only_in_progress = lenient_int(only_in_progress) or 0
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     if not group:
         return RedirectResponse("/groups", status_code=303)
@@ -1234,9 +1240,9 @@ def speltak_set_scout_progress(
     message: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
-        return redirect
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak:
@@ -1321,8 +1327,8 @@ def speltak_toggle_favorite_badge(
     badge_slug: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user, redirect = _require_user(request, db)
-    if redirect:
+    user = _require_user(request, db)
+    if user is None:
         return HTMLResponse("", status_code=401)
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)

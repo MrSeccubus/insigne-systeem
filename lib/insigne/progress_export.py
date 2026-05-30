@@ -661,11 +661,21 @@ def import_progress(db: Session, user_id: str, data: dict) -> int:
 
     # ── jaarinsigne_2026 inclusions (added in export v3) ──────────────────────
     # Older exports (v1/v2) simply don't carry this key — the loop is a no-op.
+    # Defence-in-depth: a hand-edited YAML must not write rows that the rest of
+    # the jaarinsigne_2026 service can't interpret (non-int indices would 500
+    # the scout's own pages downstream; an ineligible badge_slug would surface
+    # in the inclusion list but never count toward the score). Mirror the
+    # checks of the canonical toggle_inclusion write path.
+    from . import jaarinsigne_2026 as _ji26
+    _eligible_slugs = {b["slug"] for b in _ji26.get_eligible_badges()}
     for inc in data.get("jaarinsigne_2026_inclusions", []) or []:
         badge_slug = inc.get("badge_slug")
-        level_index = inc.get("level_index")
-        step_index = inc.get("step_index")
-        if badge_slug is None or level_index is None or step_index is None:
+        if not isinstance(badge_slug, str) or badge_slug not in _eligible_slugs:
+            continue
+        try:
+            level_index = int(inc.get("level_index"))
+            step_index = int(inc.get("step_index"))
+        except (TypeError, ValueError):
             continue
         existing = (
             db.query(Jaarinsigne2026Inclusion)

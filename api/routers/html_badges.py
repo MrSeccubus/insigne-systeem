@@ -473,7 +473,7 @@ async def request_signoff(
     entry_id: str,
     background_tasks: BackgroundTasks,
     mentor_email: str = Form(...),
-    notes: str = Form(""),
+    notes: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     current_user = _get_current_user(request, db)
@@ -487,7 +487,11 @@ async def request_signoff(
     if entry is None:
         return RedirectResponse(url="/", status_code=303)
 
-    if entry.status not in ("pending_signoff", "signed_off"):
+    # Only overwrite notes when the form actually submitted the field. The
+    # batch-signoff panel (#102) loops over this endpoint without notes —
+    # any pre-existing scout remarks must survive that loop so the mentor
+    # sees them on the grouped card.
+    if notes is not None and entry.status not in ("pending_signoff", "signed_off"):
         entry.notes = notes.strip() or None
         db.commit()
 
@@ -942,7 +946,7 @@ async def request_signoff_speltak(
     entry_id: str,
     background_tasks: BackgroundTasks,
     speltak_id: str = Form(...),
-    notes: str = Form(""),
+    notes: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     current_user = _get_current_user(request, db)
@@ -956,7 +960,9 @@ async def request_signoff_speltak(
     if entry is None:
         return RedirectResponse(url="/", status_code=303)
 
-    if entry.status not in ("pending_signoff", "signed_off"):
+    # Only overwrite notes when the form actually submitted the field
+    # (batch-signoff panel #102 omits it; preserve existing scout remarks).
+    if notes is not None and entry.status not in ("pending_signoff", "signed_off"):
         entry.notes = notes.strip() or None
         db.commit()
 
@@ -1000,7 +1006,7 @@ async def request_signoff_members(
     entry_id: str,
     background_tasks: BackgroundTasks,
     mentor_ids: list[str] = Form(default=[]),
-    notes: str = Form(""),
+    notes: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     current_user = _get_current_user(request, db)
@@ -1014,7 +1020,9 @@ async def request_signoff_members(
     if entry is None:
         return RedirectResponse(url="/", status_code=303)
 
-    if entry.status not in ("pending_signoff", "signed_off"):
+    # Only overwrite notes when the form actually submitted the field
+    # (batch-signoff panel #102 omits it; preserve existing scout remarks).
+    if notes is not None and entry.status not in ("pending_signoff", "signed_off"):
         entry.notes = notes.strip() or None
         db.commit()
 

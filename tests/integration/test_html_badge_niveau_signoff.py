@@ -183,3 +183,45 @@ class TestSignoffRequestsPageGroup:
         # confirm/reject loop hits each.
         assert e1.id in r.text
         assert e2.id in r.text
+
+    def test_scout_notes_survive_batch_signoff_and_render_on_card(self, client, db):
+        """The batch-signoff JS loop POSTs the per-eis request-signoff-speltak
+        endpoint without a ``notes`` field. The endpoint used to overwrite
+        ``entry.notes`` to NULL unconditionally, wiping the scout's pre-typed
+        remarks. Notes the scout typed on the per-eis card MUST survive the
+        batch flow and show up on the mentor's grouped inbox card."""
+        scout = _user(db, "scout@x.com", "Scout")
+        leider = _user(db, "leider@x.com", "Leider")
+        _, speltak = _speltak_with_leider(db, leider, scout)
+
+        # Scout has typed notes on each eis (e.g. via the per-eis card),
+        # status is work_done, ready for batch sign-off.
+        e1 = _entry(db, scout.id, "kamperen", 0, 0, "work_done")
+        e2 = _entry(db, scout.id, "kamperen", 1, 0, "work_done")
+        e1.notes = "Heb dit met de groep gedaan op kamp"
+        e2.notes = "Hier had ik moeite mee"
+        db.commit()
+
+        # Mimic the batch panel: fire the per-eis request-signoff-speltak
+        # endpoint for each entry WITHOUT a ``notes`` field.
+        client.cookies.update(_login(client, scout))
+        for entry_id in (e1.id, e2.id):
+            r = client.post(
+                f"/progress/{entry_id}/request-signoff-speltak",
+                data={"speltak_id": speltak.id},
+                headers={"HX-Request": "true"},
+            )
+            assert r.status_code in (200, 303)
+
+        # Notes must still be on the entries.
+        db.expire_all()
+        from insigne.models import ProgressEntry
+        assert db.get(ProgressEntry, e1.id).notes == "Heb dit met de groep gedaan op kamp"
+        assert db.get(ProgressEntry, e2.id).notes == "Hier had ik moeite mee"
+
+        # And the mentor inbox card surfaces them.
+        client.cookies.update(_login(client, leider))
+        r = client.get("/signoff-requests")
+        assert r.status_code == 200
+        assert "Heb dit met de groep gedaan op kamp" in r.text
+        assert "Hier had ik moeite mee" in r.text

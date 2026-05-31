@@ -10,6 +10,8 @@ the per-entry endpoint URLs and entry IDs the JS loops over are present in
 the page source."""
 import re
 
+from insigne.email import html_to_text
+
 import insigne.auth as auth_svc
 from insigne.badges import BadgeCatalogue
 from insigne import groups as groups_svc
@@ -134,16 +136,16 @@ class TestBatchPanelOnBadgePage:
         # The Alpine attribute must call the helper, not embed a JS object.
         assert "x-data='batchSignoffPanelData(" in r.text
         # Sanity: the body of postEachEntry must NOT appear as DOM text.
-        # Strip every <script>...</script> block first, then look for a
-        # distinctive token from the function body. If we still see it,
-        # the x-data attribute is terminating on an inner double quote
-        # and the JS body is leaking into the DOM as text.
-        without_scripts = re.sub(
-            r"<script\b[^>]*>.*?</script>", "", r.text,
-            flags=re.DOTALL | re.IGNORECASE,
-        )
+        # ``html_to_text`` uses ``html.parser.HTMLParser`` to strip every
+        # ``<script>`` / ``<style>`` block (case-insensitively, tolerating
+        # whitespace inside the closing tag — which a regex-based strip
+        # would miss, per CodeQL py/bad-tag-filter). If the leaked token
+        # appears in the resulting plain text, the x-data attribute is
+        # terminating on an inner double quote and the JS body is leaking
+        # into the DOM.
+        dom_text = html_to_text(r.text)
         leaked_token = "if (Array.isArray(v)) v.forEach"
-        assert leaked_token not in without_scripts, (
+        assert leaked_token not in dom_text, (
             "JS function body leaks into DOM text — x-data attribute "
             "is being terminated by an inner double quote."
         )

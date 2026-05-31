@@ -139,7 +139,8 @@ class TestBatchPanelOnBadgePage:
         # the x-data attribute is terminating on an inner double quote
         # and the JS body is leaking into the DOM as text.
         without_scripts = re.sub(
-            r"<script\b[^>]*>.*?</script>", "", r.text, flags=re.DOTALL,
+            r"<script\b[^>]*>.*?</script>", "", r.text,
+            flags=re.DOTALL | re.IGNORECASE,
         )
         leaked_token = "if (Array.isArray(v)) v.forEach"
         assert leaked_token not in without_scripts, (

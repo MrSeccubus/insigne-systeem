@@ -119,6 +119,47 @@ class TestBatchPanelOnBadgePage:
         for e in entries:
             assert e.id in r.text
 
+    def test_x_data_attribute_is_well_formed(self, client, db):
+        """The ``entryIds`` JSON inside x-data must not break the attribute.
+        The original implementation used ``x-data="{...entryIds: {{ ... | tojson }}...}"``
+        — but tojson outputs ``["uuid","uuid"]`` and the inner ``"`` terminates
+        the surrounding double-quoted attribute, dumping the rest of the JS
+        as text content. The fix uses single-quoted ``x-data='funcName(...)'``
+        and a page-scope ``<script>`` defining the component."""
+        scout = _user(db, "s@x.com")
+        _mark_all_eisen_work_done(db, scout.id, "kamperen", 0)
+        client.cookies.update(_login(client, scout))
+        r = client.get("/badges/kamperen?niveau=1")
+        assert r.status_code == 200
+        # The Alpine attribute must call the helper, not embed a JS object.
+        assert "x-data='batchSignoffPanelData(" in r.text
+        # Sanity: the body of postEachEntry must NOT appear as DOM text.
+        # Strip every <script>...</script> block first, then look for a
+        # distinctive token from the function body. If we still see it,
+        # the x-data attribute is terminating on an inner double quote
+        # and the JS body is leaking into the DOM as text.
+        without_scripts = re.sub(
+            r"<script\b[^>]*>.*?</script>", "", r.text, flags=re.DOTALL,
+        )
+        leaked_token = "if (Array.isArray(v)) v.forEach"
+        assert leaked_token not in without_scripts, (
+            "JS function body leaks into DOM text — x-data attribute "
+            "is being terminated by an inner double quote."
+        )
+
+    def test_panel_wrapper_subscribes_to_niveau_updated(self, client, db):
+        """The panel wrapper must auto-refresh on the HX-Trigger event that
+        the per-eis log endpoint fires, so the panel appears in real time
+        when the scout marks the last eis work_done (no manual reload)."""
+        scout = _user(db, "s@x.com")
+        _mark_all_eisen_work_done(db, scout.id, "kamperen", 0)
+        client.cookies.update(_login(client, scout))
+        r = client.get("/badges/kamperen?niveau=1")
+        assert r.status_code == 200
+        assert 'id="batch-signoff-section"' in r.text
+        assert 'hx-trigger="niveau-updated from:body"' in r.text
+        assert 'hx-select="#batch-signoff-section"' in r.text
+
 
 class TestSignoffRequestsPageGroup:
     def test_inbox_renders_badge_niveau_group_card(self, client, db):

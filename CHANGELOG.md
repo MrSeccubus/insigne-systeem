@@ -21,7 +21,9 @@ weer leeg gemaakt.
   - **Pure client-side loop, geen nieuwe server-endpoints**: de batch-knop voert in de browser een JS-loop uit over de bestaande per-eis `/progress/{id}/request-signoff-*` endpoints (één fetch per eis). Compromis: iedere lus-iteratie genereert nog steeds een eigen e-mail; de winst zit in het wegnemen van handmatige clicks en de mentor-inbox grouping. Een toekomstige iteratie kan de loop server-side maken om e-mails te debouncen tot één per mentor per batch — zie de discussie op PR #131.
   - **Mentor-inbox auto-groepering**: `/signoff-requests` toont alle per-eis aanvragen voor dezelfde `(scout, badge, niveau)` als één kaart. Bij ≥ 2 siblings wordt een `badge_niveau_group` dict gerenderd via een nieuwe partial; bij 1 blijft de losse per-eis kaart zoals voorheen. De Aftekenen/Afwijzen-knoppen op de groepskaart doen ook een client-side JS-loop over de bestaande per-eis `/progress/{id}/{confirm,reject}-signoff` endpoints.
   - **Geen nieuwe service-functies, geen nieuwe e-mail-templates** — `list_signoff_requests_grouped` is uitgebreid met detectie van het nieuwe groepstype; verder geen server-side toevoegingen.
-  - 6 nieuwe tests (5 service-niveau voor de grouping detectie + 5 HTML-integratie voor paneel-rendering en inbox-card).
+  - **Paneel verschijnt en verdwijnt live** zonder dat de scout hoeft te refreshen: de wrapper-div abonneert via HTMX op het `niveau-updated`-event dat de bestaande per-eis log-endpoint al uitstuurt, en re-fetcht zichzelf met `hx-select="#batch-signoff-section"`. Geen nieuw endpoint nodig.
+  - **Inline Alpine-component verplaatst naar een page-scope `<script>`-functie** (`batchSignoffPanelData(entryIds)`); `x-data='batchSignoffPanelData({{ entry_ids | tojson }})'` met enkele aanhalingstekens. De eerdere inline `x-data="{ ... entryIds: {{ ... | tojson }} ... }"`-variant brak op de dubbele aanhalingstekens uit de JSON-output (`["uuid"]`) — het hele JS-blok lekte als tekst de pagina in.
+  - 8 nieuwe tests (5 service-niveau voor de grouping detectie + 3 nieuwe HTML-integratietests bovenop de bestaande 5 voor paneel-rendering en inbox-card).
 
 ---
 

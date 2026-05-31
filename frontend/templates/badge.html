@@ -3,6 +3,40 @@
 {% block title %}{{ badge.title }}{% if selected_niveaus | length == 1 %} — {{ badge.niveau_label }} {{ selected_niveaus[0] + 1 }}{% endif %} — Insigne Systeem{% endblock %}
 
 {% block content %}
+<script>
+// Alpine component for the per-niveau batch sign-off panel (#102).
+// Lives at page scope (not inside the HTMX-refreshed div) so re-renders
+// don't redefine it. Loops over the existing per-eis endpoints client-side.
+function batchSignoffPanelData(entryIds) {
+    return {
+        open: false,
+        signoffPath: '',
+        busy: false,
+        entryIds: entryIds,
+        async postEachEntry(pathFragment, body) {
+            this.busy = true;
+            try {
+                for (const id of this.entryIds) {
+                    const fd = new FormData();
+                    for (const [k, v] of Object.entries(body)) {
+                        if (Array.isArray(v)) v.forEach(x => fd.append(k, x));
+                        else fd.append(k, v);
+                    }
+                    const r = await fetch('/progress/' + encodeURIComponent(id) + pathFragment, {
+                        method: 'POST',
+                        body: fd,
+                        headers: { 'HX-Request': 'true' },
+                        credentials: 'same-origin',
+                    });
+                    if (!r.ok) break;
+                }
+            } finally {
+                location.reload();
+            }
+        }
+    };
+}
+</script>
 <main style="max-width:1100px;">
     <nav class="breadcrumb">
         <a href="/">Home</a> › {{ badge.title }}
@@ -186,9 +220,20 @@
        /progress/{id}/request-signoff-* endpoints on the client side, one
        fetch per eis. No new server endpoints; each loop iteration sends
        its own e-mail. The mentor inbox auto-groups the N invites into a
-       single card. #}
-    {% if current_user and niveau_batch_states %}
-    <div class="batch-signoff-section" style="margin-top:1.5rem;">
+       single card.
+
+       The outer wrapper re-fetches itself on every ``niveau-updated`` event
+       (fired by the per-eis log endpoint) so the panel appears / disappears
+       in real time as the scout toggles eis statuses, without a full page
+       reload. The Alpine component itself is defined in a <script> at the
+       top of the block so HTMX re-swaps don't redefine it. #}
+    <div id="batch-signoff-section" class="batch-signoff-section"
+         style="margin-top:1.5rem;"
+         hx-get="/badges/{{ badge.slug }}{% if request.query_params.get('niveau') %}?niveau={{ request.query_params.get('niveau') }}{% endif %}"
+         hx-trigger="niveau-updated from:body"
+         hx-select="#batch-signoff-section"
+         hx-swap="outerHTML">
+    {% if current_user %}
         {% for niveau_idx in selected_niveaus %}
         {% set state = niveau_batch_states.get(niveau_idx) %}
         {% if state in ("ready", "pending") %}
@@ -196,33 +241,7 @@
         {% set niveau_label = badge.niveau_label %}
         {% set entry_ids = niveau_batch_entry_ids.get(niveau_idx, []) %}
         <div class="batch-signoff-panel"
-             x-data="{
-                 open: false,
-                 signoffPath: '',
-                 busy: false,
-                 entryIds: {{ entry_ids | tojson }},
-                 async postEachEntry(pathFragment, body) {
-                     this.busy = true;
-                     try {
-                         for (const id of this.entryIds) {
-                             const fd = new FormData();
-                             for (const [k, v] of Object.entries(body)) {
-                                 if (Array.isArray(v)) v.forEach(x => fd.append(k, x));
-                                 else fd.append(k, v);
-                             }
-                             const r = await fetch('/progress/' + encodeURIComponent(id) + pathFragment, {
-                                 method: 'POST',
-                                 body: fd,
-                                 headers: { 'HX-Request': 'true' },
-                                 credentials: 'same-origin',
-                             });
-                             if (!r.ok) break;
-                         }
-                     } finally {
-                         location.reload();
-                     }
-                 }
-             }"
+             x-data='batchSignoffPanelData({{ entry_ids | tojson }})'
              style="margin:0.5rem 0;padding:0.75rem 1rem;background:#f3f4f6;border-radius:4px;">
             {% if state == "pending" %}
             <p style="margin:0 0 0.5rem;">
@@ -300,8 +319,8 @@
         </div>
         {% endif %}
         {% endfor %}
-    </div>
     {% endif %}
+    </div>
 
     {% if badge.afterword %}
     <div class="badge-afterword">{{ badge.afterword | render_eis }}</div>

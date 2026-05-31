@@ -77,9 +77,14 @@ class TestSendSmtp:
              patch.object(email_mod.config.email, "smtp_port", 587), \
              patch.object(email_mod.config.email, "security", "starttls"), \
              patch.object(email_mod.config.email, "username", ""), \
+             patch.object(email_mod.config.email, "from_address", "no-reply@insignesysteem.nl"), \
              patch("smtplib.SMTP", return_value=mock_conn) as mock_smtp_cls:
             email_mod._send_smtp("to@example.com", "Subject", "<p>body</p>")
-        mock_smtp_cls.assert_called_once_with("mail.example.com", 587, timeout=email_mod._SMTP_TIMEOUT)
+        mock_smtp_cls.assert_called_once_with(
+            "mail.example.com", 587,
+            local_hostname="insignesysteem.nl",
+            timeout=email_mod._SMTP_TIMEOUT,
+        )
         mock_conn.starttls.assert_called_once()
 
     def test_ssl_creates_smtp_ssl_and_skips_starttls(self):
@@ -88,10 +93,30 @@ class TestSendSmtp:
              patch.object(email_mod.config.email, "smtp_port", 465), \
              patch.object(email_mod.config.email, "security", "ssl"), \
              patch.object(email_mod.config.email, "username", ""), \
+             patch.object(email_mod.config.email, "from_address", "no-reply@insignesysteem.nl"), \
              patch("smtplib.SMTP_SSL", return_value=mock_conn) as mock_ssl_cls:
             email_mod._send_smtp("to@example.com", "Subject", "<p>body</p>")
-        mock_ssl_cls.assert_called_once_with("mail.example.com", 465, timeout=email_mod._SMTP_TIMEOUT)
+        mock_ssl_cls.assert_called_once_with(
+            "mail.example.com", 465,
+            local_hostname="insignesysteem.nl",
+            timeout=email_mod._SMTP_TIMEOUT,
+        )
         mock_conn.starttls.assert_not_called()
+
+    def test_helo_matches_from_address_domain(self):
+        """The HELO name must be the from_address domain so it aligns with
+        the DKIM-signing / From-header domain — without this, smtplib uses
+        socket.getfqdn() which can be ``127.0.0.1`` or an unrelated host."""
+        mock_conn = MagicMock()
+        with patch.object(email_mod.config.email, "smtp_host", "mail.example.com"), \
+             patch.object(email_mod.config.email, "smtp_port", 587), \
+             patch.object(email_mod.config.email, "security", "starttls"), \
+             patch.object(email_mod.config.email, "username", ""), \
+             patch.object(email_mod.config.email, "from_address", "noreply@scouting.nl"), \
+             patch("smtplib.SMTP", return_value=mock_conn) as mock_smtp_cls:
+            email_mod._send_smtp("to@example.com", "Subject", "<p>body</p>")
+        kwargs = mock_smtp_cls.call_args.kwargs
+        assert kwargs.get("local_hostname") == "scouting.nl"
 
     def test_login_called_when_username_set(self):
         mock_conn = MagicMock()

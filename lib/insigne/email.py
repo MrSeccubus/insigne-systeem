@@ -175,10 +175,19 @@ def _send_smtp(to: str, subject: str, html: str) -> None:
     cfg = config.email
     msg = _build_message(to, subject, html)
 
+    # HELO name = domain of the from_address. Without this, smtplib derives
+    # the HELO from ``socket.getfqdn()`` which can yield ``127.0.0.1`` or
+    # a hostname unrelated to the sending domain — scoring engines flag the
+    # mismatch between HELO and the From / DKIM-signing domain.
+    _, _, helo = cfg.from_address.rpartition("@")
+    helo = helo or None  # smtplib falls back to getfqdn() on None
+
     if cfg.security == "ssl":
-        smtp = smtplib.SMTP_SSL(cfg.smtp_host, cfg.smtp_port, timeout=_SMTP_TIMEOUT)
+        smtp = smtplib.SMTP_SSL(cfg.smtp_host, cfg.smtp_port,
+                                local_hostname=helo, timeout=_SMTP_TIMEOUT)
     else:
-        smtp = smtplib.SMTP(cfg.smtp_host, cfg.smtp_port, timeout=_SMTP_TIMEOUT)
+        smtp = smtplib.SMTP(cfg.smtp_host, cfg.smtp_port,
+                            local_hostname=helo, timeout=_SMTP_TIMEOUT)
         if cfg.security == "starttls":
             smtp.starttls()
         else:

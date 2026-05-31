@@ -32,7 +32,12 @@ _BLOCK_TAGS = {
     "p", "div", "br", "tr", "table", "h1", "h2", "h3", "h4", "h5", "h6",
     "li", "ul", "ol", "section", "article", "header", "footer", "blockquote",
 }
-_SKIP_TAGS = {"style", "script", "head", "meta", "title", "link"}
+# Only tags whose content should be dropped — and which have proper end tags.
+# Void elements (``<meta>``, ``<link>``, ``<br>``) must NOT live here because
+# HTMLParser never fires a matching ``handle_endtag`` for them, which would
+# leave ``_skip_depth`` stuck above zero and silently drop the rest of the
+# document. They have no text content anyway.
+_SKIP_TAGS = {"style", "script", "head", "title"}
 
 
 class _HtmlToText(HTMLParser):
@@ -64,14 +69,14 @@ class _HtmlToText(HTMLParser):
         if tag == "a":
             text = "".join(self._anchor_text).strip()
             href = (self._href or "").strip()
-            # Render "<a href=X>Y</a>" as "Y (X)" only when Y is meaningfully
-            # different from X — otherwise just emit the URL once.
-            if href and text and href != text:
-                self._out.append(f"{text} ({href})")
-            elif href:
-                self._out.append(href)
-            else:
-                self._out.append(text)
+            # Emit just the visible label (or the URL if the label is empty).
+            # The HTML→text similarity check rspamd runs (R_PARTS_DIFFER) is
+            # very strict: appending the href in parens after every anchor
+            # label adds enough text to drop similarity below threshold.
+            # Every transactional template that needs the URL surfaced for
+            # plain-text readers includes a fallback ``<a href=X>X</a>``
+            # pattern where label == href, so the URL still appears.
+            self._out.append(text or href)
             self._href = None
             self._anchor_text = []
             return
@@ -176,6 +181,15 @@ def _send_smtp(to: str, subject: str, html: str) -> None:
         smtp = smtplib.SMTP(cfg.smtp_host, cfg.smtp_port, timeout=_SMTP_TIMEOUT)
         if cfg.security == "starttls":
             smtp.starttls()
+        else:
+            # Submission without TLS makes the relay's Received header show
+            # a plaintext hop, which rspamd scores as RCVD_NO_TLS_LAST. Log
+            # once per send so operators can spot the configuration.
+            logger.warning(
+                "SMTP security is 'none' — submission is plaintext. "
+                "This will increase recipient spam-score (RCVD_NO_TLS_LAST). "
+                "Set email.security to 'starttls' or 'ssl' in config.yml."
+            )
 
     if cfg.username:
         smtp.login(cfg.username, cfg.password)

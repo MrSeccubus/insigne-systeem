@@ -191,9 +191,9 @@ class TestBuildMessage:
         body = text_part.get_content()
         assert "<h1>" not in body and "<p>" not in body
         assert "Hello" in body
-        # Anchor renders as "label (url)" when label differs from href.
+        # Anchor with label renders as just the label (rspamd R_PARTS_DIFFER
+        # fires if we append "(url)" to every link).
         assert "our site" in body
-        assert "https://example.com/x" in body
 
     def test_subject_from_and_to_headers_set(self):
         with patch.object(email_mod.config.email, "from_address", "noreply@x.test"), \
@@ -215,14 +215,34 @@ class TestHtmlToText:
         assert "Line 1" in out and "Line 2" in out
         assert out.index("Line 1") < out.index("Line 2")
 
-    def test_anchor_with_label_renders_label_and_url(self):
+    def test_anchor_renders_only_label(self):
+        """rspamd's R_PARTS_DIFFER similarity check compares our plain text
+        against the HTML's visible text. Emitting ``label (url)`` for every
+        anchor adds enough extra content to drop similarity below the
+        threshold. The fallback ``<a href=X>X</a>`` pattern in our templates
+        keeps the URL accessible to plain-text readers."""
         out = email_mod.html_to_text('<a href="https://x/y">click here</a>')
         assert "click here" in out
-        assert "https://x/y" in out
+        assert "https://x/y" not in out
 
     def test_anchor_with_url_label_emits_url_once(self):
         out = email_mod.html_to_text('<a href="https://x/y">https://x/y</a>')
         assert out.count("https://x/y") == 1
+
+    def test_void_tags_dont_suppress_following_content(self):
+        """Regression: ``<meta>``, ``<link>``, etc. are void elements with
+        no end tag. If we put them in _SKIP_TAGS, _skip_depth would never
+        decrement past them and the rest of the document would be silently
+        dropped."""
+        html = (
+            "<html><head>"
+            '<meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width">'
+            '<link rel="stylesheet" href="x.css">'
+            "</head><body><p>Hello world</p></body></html>"
+        )
+        out = email_mod.html_to_text(html)
+        assert "Hello world" in out
 
     def test_skips_style_and_script(self):
         out = email_mod.html_to_text(

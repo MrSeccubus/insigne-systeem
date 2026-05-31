@@ -428,6 +428,23 @@ button:hover {
     border-bottom: 2px solid #00A651;
 }
 
+/* When the section header doubles as a <summary>, keep the same look as the
+   <h2.section-header> but expose it as a clickable disclosure: cursor pointer,
+   and ensure the default disclosure triangle sits where it can be seen. */
+summary.section-header {
+    cursor: pointer;
+    list-style: revert;
+}
+
+/* Collapsed categories: same margin envelope as the surrounding sections */
+details.category-collapsible {
+    margin-bottom: 1rem;
+}
+
+details.category-collapsible[open] > summary.section-header {
+    margin-bottom: 1rem;
+}
+
 .badge-group-title {
     font-size: 1rem;
     font-weight: 600;

@@ -684,3 +684,22 @@ class TestScoutSetProgress:
         assert r.status_code == 200
         entry = db.query(ProgressEntry).filter_by(user_id=scout.id).first()
         assert entry.status == "signed_off"  # unchanged; message required
+
+
+class TestBadgeDetailDefensiveRender:
+    """Renderer must not crash if an entry is in an inconsistent state —
+    e.g. status='signed_off' but signed_off_at IS NULL. Legacy or
+    hand-edited rows can have this shape; the template guards against it."""
+
+    def test_signed_off_with_null_timestamp_renders_200(self, client, db):
+        user = _active_user(db)
+        _set_auth(client, user)
+        db.add(ProgressEntry(
+            user_id=user.id, badge_slug=_BADGE, level_index=0, step_index=0,
+            status="signed_off", signed_off_by_id=None, signed_off_at=None,
+        ))
+        db.commit()
+        r = client.get(f"/badges/{_BADGE}?niveau=1")
+        assert r.status_code == 200, f"500 on legacy signed_off row: {r.text[:300]}"
+        # Page still says "Afgetekend" even without date / signer.
+        assert "Afgetekend" in r.text

@@ -1,7 +1,10 @@
 import logging
+import re
 import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+from email.message import EmailMessage
+from email.utils import formatdate, make_msgid
+from html.parser import HTMLParser
+from html import unescape
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -14,6 +17,105 @@ from .config import config
 from .eis_render import render_eis_email
 
 _DEFAULT_TEMPLATES = Path(__file__).parent / "email_templates"
+
+
+# ── HTML → plain text ────────────────────────────────────────────────────────
+#
+# rspamd flags emails that declare ``multipart/alternative`` but contain only
+# an HTML part (MIME_MA_MISSING_TEXT, +2). We auto-generate a plain-text
+# alternative from the rendered HTML rather than maintain a parallel .txt
+# template for every email — the conversion is good-enough for transactional
+# email (login links, sign-off requests, etc.) and any client that prefers
+# plain text will get something legible.
+
+_BLOCK_TAGS = {
+    "p", "div", "br", "tr", "table", "h1", "h2", "h3", "h4", "h5", "h6",
+    "li", "ul", "ol", "section", "article", "header", "footer", "blockquote",
+}
+_SKIP_TAGS = {"style", "script", "head", "meta", "title", "link"}
+
+
+class _HtmlToText(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self._out: list[str] = []
+        self._skip_depth = 0
+        self._href: str | None = None
+        self._anchor_text: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs):
+        if tag in _SKIP_TAGS:
+            self._skip_depth += 1
+            return
+        if tag == "br":
+            self._out.append("\n")
+            return
+        if tag == "a":
+            self._href = dict(attrs).get("href")
+            self._anchor_text = []
+            return
+        if tag in _BLOCK_TAGS:
+            self._out.append("\n")
+
+    def handle_endtag(self, tag: str):
+        if tag in _SKIP_TAGS:
+            self._skip_depth = max(0, self._skip_depth - 1)
+            return
+        if tag == "a":
+            text = "".join(self._anchor_text).strip()
+            href = (self._href or "").strip()
+            # Render "<a href=X>Y</a>" as "Y (X)" only when Y is meaningfully
+            # different from X — otherwise just emit the URL once.
+            if href and text and href != text:
+                self._out.append(f"{text} ({href})")
+            elif href:
+                self._out.append(href)
+            else:
+                self._out.append(text)
+            self._href = None
+            self._anchor_text = []
+            return
+        if tag in _BLOCK_TAGS:
+            self._out.append("\n")
+
+    def handle_data(self, data: str):
+        if self._skip_depth:
+            return
+        if self._href is not None:
+            self._anchor_text.append(data)
+        else:
+            self._out.append(data)
+
+    def text(self) -> str:
+        raw = "".join(self._out)
+        # Collapse runs of spaces/tabs (but preserve newlines), trim each
+        # line, then collapse runs of blank lines to a single blank line.
+        raw = re.sub(r"[ \t]+", " ", raw)
+        lines = [ln.strip() for ln in raw.split("\n")]
+        # Drop leading / trailing empty lines.
+        while lines and not lines[0]:
+            lines.pop(0)
+        while lines and not lines[-1]:
+            lines.pop()
+        # Collapse multi-blank-line runs.
+        out: list[str] = []
+        prev_blank = False
+        for ln in lines:
+            if ln:
+                out.append(ln)
+                prev_blank = False
+            elif not prev_blank:
+                out.append("")
+                prev_blank = True
+        return unescape("\n".join(out))
+
+
+def html_to_text(html: str) -> str:
+    """Strip HTML to a plain-text fallback for ``multipart/alternative``."""
+    p = _HtmlToText()
+    p.feed(html)
+    p.close()
+    return p.text()
 
 
 def _nl2br(value: str) -> Markup:
@@ -34,13 +136,39 @@ def _env() -> Environment:
 _SMTP_TIMEOUT = 10  # seconds — prevents SMTP from blocking indefinitely
 
 
-def _send_smtp(to: str, subject: str, html: str) -> None:
+def _build_message(to: str, subject: str, html: str) -> EmailMessage:
+    """Construct an RFC 5322-compliant ``multipart/alternative`` message.
+
+    Sets ``Date`` and ``Message-ID`` headers explicitly (rspamd flags messages
+    missing these). Attaches a plain-text part auto-generated from the HTML so
+    the ``multipart/alternative`` wrapper actually has both renderings — a
+    multipart/alternative containing only HTML trips MIME_MA_MISSING_TEXT.
+    The text content uses quoted-printable encoding (EmailMessage default for
+    text/*), which avoids MIME_BASE64_TEXT_BOGUS on the HTML part.
+    """
     cfg = config.email
-    msg = MIMEMultipart("alternative")
+    msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = f"{cfg.from_name} <{cfg.from_address}>"
     msg["To"] = to
-    msg.attach(MIMEText(html, "html", "utf-8"))
+    msg["Date"] = formatdate(localtime=True)
+    # Use the from_address domain for the Message-ID so it matches the
+    # sending domain (good for DKIM-aligned consistency and trace logs).
+    _, _, msgid_domain = cfg.from_address.rpartition("@")
+    msg["Message-ID"] = make_msgid(domain=msgid_domain or None)
+
+    # set_content() emits text/plain as the root; add_alternative() then turns
+    # the message into multipart/alternative with text first, HTML second.
+    # Per RFC 2046 the "best" / richest representation should come last —
+    # mail clients pick the last part they support.
+    msg.set_content(html_to_text(html))
+    msg.add_alternative(html, subtype="html")
+    return msg
+
+
+def _send_smtp(to: str, subject: str, html: str) -> None:
+    cfg = config.email
+    msg = _build_message(to, subject, html)
 
     if cfg.security == "ssl":
         smtp = smtplib.SMTP_SSL(cfg.smtp_host, cfg.smtp_port, timeout=_SMTP_TIMEOUT)
@@ -52,7 +180,7 @@ def _send_smtp(to: str, subject: str, html: str) -> None:
     if cfg.username:
         smtp.login(cfg.username, cfg.password)
 
-    smtp.sendmail(cfg.from_address, [to], msg.as_string())
+    smtp.send_message(msg, from_addr=cfg.from_address, to_addrs=[to])
     smtp.quit()
 
 

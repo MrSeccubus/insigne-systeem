@@ -10,6 +10,15 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Opgelost
+
+- **E-mails komen niet meer in spam door RFC-5322-conformiteit** — de uitgaande e-mails werden door rspamd op +6.1 gescoord (`Message-ID`, `Date` ontbreken; `multipart/alternative` met alleen een HTML-deel; HTML in base64 ipv quoted-printable). Migratie van de hand-gerolde `MIMEMultipart` + `MIMEText` opbouw naar `email.message.EmailMessage`: `Date`-header via `formatdate(localtime=True)`, `Message-ID` via `make_msgid(domain=...)` afgeleid uit `from_address`, en een automatisch uit de HTML gegenereerd `text/plain`-alternatief via een stdlib-`HTMLParser`-based stripper (geen extra dependency). Verandering ook van `smtp.sendmail()` naar `smtp.send_message()` zodat de extra headers correct over de draad gaan.
+  - **Void elements fix in de HTML→tekst stripper**: `<meta>` en `<link>` zijn zelfsluitende elementen zonder einde-tag, dus mogen ze niet in `_SKIP_TAGS` staan — anders blijft `_skip_depth` op > 0 hangen en wordt de rest van de body stilzwijgend gedropt. Verwijderd uit de skip-lijst.
+  - **R_PARTS_DIFFER**: anchors worden nu gerenderd als alleen het label (geen `(url)`-suffix); rspamd's similariteitscheck tussen `text/plain` en gestripte HTML viel anders onder de drempel. De template-fallback `<a href="X">X</a>` houdt de URL nog steeds zichtbaar voor plain-text-lezers.
+  - **RCVD_NO_TLS_LAST waarschuwing**: `_send_smtp` logt nu een waarschuwing als `email.security == "none"`, omdat plaintext-submission de Received-header zonder TLS-info maakt en rspamd dat aanvinkt. Operators horen `starttls` of `ssl` te gebruiken.
+  - **HELO matched het verzendende domein** — `smtplib.SMTP(local_hostname=...)` krijgt nu het domein uit `from_address` (bv. `insignesysteem.nl`) door. Zonder dit valt smtplib terug op `socket.getfqdn()` wat regelmatig `127.0.0.1` of een onverwante hostname is, en spam-engines markeren HELO/From-mismatches. De Received-header `from [127.0.0.1]` op de SMTP-relay verandert hierdoor naar `from insignesysteem.nl`.
+  - 16 nieuwe tests (5 op `_build_message`-headers + 8 op de HTML→tekst conversie incl. void-elementen-regressie + 1 op `send_message` SMTP-call + 1 op anchor-label-only rendering + 1 op HELO-domein).
+
 ### Beveiliging
 
 - **Strictere validatie op jaarinsigne-2026-inclusie-import** (sluit #124) — defence-in-depth op de import-tak die v1.0.1 toevoegde voor de jaarinsigne-2026-inclusies. Een handmatig bewerkte export-YAML met niet-int `level_index`/`step_index` of een `badge_slug` buiten de toegestane categorieën (`gewoon`/`buitengewoon`) leidde alleen tot self-inflicted 500's op latere pagina-aanroepen van de uploader zelf (geen cross-user impact, geen score-inflatie). De import valideert nu types via `int(...)` met `TypeError/ValueError` opvangen, en de `badge_slug` wordt gecontroleerd tegen `jaarinsigne_2026.get_eligible_badges()` — zelfde checks als de canonical `toggle_inclusion` write-path. 4 nieuwe tests.

@@ -1,35 +1,16 @@
 {# Mentor inbox card for an auto-grouped (scout, badge, niveau) triple (#102).
-   The card shows N pending eisen as one item; confirming or rejecting loops
-   client-side over the existing per-entry /progress/{id}/{confirm,reject}-signoff
-   endpoints (one fetch per eis) and reloads. No batch confirm/reject endpoint
-   is needed server-side. #}
+
+   The card supports:
+   - Bulk actions ("Aftekenen alles" / "Afwijzen alles") for the common case
+     where every pending eis gets the same verdict.
+   - Per-eis actions so a leider can accept some eisen and reject others.
+
+   Both flows loop client-side over the existing per-entry
+   /progress/{id}/{confirm,reject}-signoff endpoints. After the last pending
+   eis is processed the page reloads. #}
 <div id="request-badge-niveau-{{ req.scout_id }}-{{ req.badge_slug }}-{{ req.niveau_index }}"
      class="signoff-card"
-     x-data="{
-         action: null,
-         busy: false,
-         entryIds: [{% for eis in req.eisen %}'{{ eis.entry_id }}'{% if not loop.last %},{% endif %}{% endfor %}],
-         comment: '',
-         message: '',
-         async submitAll(pathFragment, body) {
-             this.busy = true;
-             try {
-                 for (const id of this.entryIds) {
-                     const fd = new FormData();
-                     for (const [k, v] of Object.entries(body)) fd.append(k, v);
-                     const r = await fetch('/progress/' + encodeURIComponent(id) + pathFragment, {
-                         method: 'POST',
-                         body: fd,
-                         headers: { 'HX-Request': 'true' },
-                         credentials: 'same-origin',
-                     });
-                     if (!r.ok) break;
-                 }
-             } finally {
-                 location.reload();
-             }
-         }
-     }">
+     x-data='badgeNiveauCardData({{ req.eisen | map(attribute="entry_id") | list | tojson }})'>
     <div class="signoff-card-header">
         <span class="signoff-scout">{{ req.scout_name }}</span>
     </div>
@@ -38,10 +19,12 @@
     </p>
     <p class="signoff-requested-at">Aangevraagd op {{ req.requested_at }}</p>
 
+    {# ── Per-eis list with individual approve/reject controls ────────── #}
     <p style="font-size:0.9em;color:#555;margin:0.75rem 0 0.25rem;"><strong>Af te tekenen eisen:</strong></p>
     <ul class="signoff-jaarinsigne-eisen">
         {% for eis in req.eisen %}
-        <li>
+        <li x-data="{ subAction: null, comment: '', message: '' }"
+            x-show="!isProcessed('{{ eis.entry_id }}')">
             <strong>Eis {{ eis.level_index + 1 }}</strong>{% if eis.level_name %}: {{ eis.level_name }}{% endif %}
             {% if eis.step_text %}
             <div style="font-size:0.9em;color:#666;margin-top:0.15rem;">{{ eis.step_text | render_eis }}</div>
@@ -49,44 +32,85 @@
             {% if eis.notes %}
             <div style="font-size:0.85em;color:#92400e;margin-top:0.2rem;"><em>Notitie: {{ eis.notes }}</em></div>
             {% endif %}
+
+            {# Per-eis idle: show two small buttons. #}
+            <div x-show="subAction === null" class="step-actions" style="margin-top:0.4rem;">
+                <button type="button" class="btn-success btn-sm"
+                        :disabled="busy"
+                        @click="subAction = 'signoff'">Aftekenen</button>
+                <button type="button" class="btn-danger btn-sm"
+                        :disabled="busy"
+                        @click="subAction = 'reject'">Afwijzen</button>
+            </div>
+
+            {# Per-eis approve: optional comment, then submit. #}
+            <div x-show="subAction === 'signoff'" x-cloak class="inline-form" style="margin-top:0.4rem;">
+                <textarea x-model="comment" placeholder="Opmerking voor de scout (optioneel)"></textarea>
+                <div class="step-actions">
+                    <button type="button" class="btn-success btn-sm"
+                            :disabled="busy"
+                            @click="submitOne('{{ eis.entry_id }}', '/confirm-signoff', { comment: comment })">
+                        Bevestigen
+                    </button>
+                    <button type="button" class="btn-cancel btn-sm"
+                            :disabled="busy"
+                            @click="subAction = null; comment = ''">Annuleren</button>
+                </div>
+            </div>
+
+            {# Per-eis reject: required message, then submit. #}
+            <div x-show="subAction === 'reject'" x-cloak class="inline-form" style="margin-top:0.4rem;">
+                <textarea x-model="message" placeholder="Geef aan wat de scout nog moet doen" required></textarea>
+                <div class="step-actions">
+                    <button type="button" class="btn-danger btn-sm"
+                            :disabled="busy || !message"
+                            @click="submitOne('{{ eis.entry_id }}', '/reject-signoff', { message: message })">
+                        Versturen
+                    </button>
+                    <button type="button" class="btn-cancel btn-sm"
+                            :disabled="busy"
+                            @click="subAction = null; message = ''">Annuleren</button>
+                </div>
+            </div>
         </li>
         {% endfor %}
     </ul>
 
-    <div class="step-actions" x-show="action === null">
+    {# ── Bulk actions for the common "accept all" / "reject all" case ── #}
+    <div class="step-actions" x-show="bulkAction === null" style="margin-top:0.6rem;">
         <button type="button" class="btn-success btn-sm"
                 :disabled="busy"
-                @click="action = 'signoff'">Aftekenen</button>
+                @click="bulkAction = 'signoff'">Alles aftekenen</button>
         <button type="button" class="btn-danger btn-sm"
                 :disabled="busy"
-                @click="action = 'reject'">Afwijzen</button>
+                @click="bulkAction = 'reject'">Alles afwijzen</button>
     </div>
 
-    <div x-show="action === 'signoff'" x-cloak class="inline-form">
-        <textarea x-model="comment" placeholder="Opmerking voor de scout (optioneel)"></textarea>
+    <div x-show="bulkAction === 'signoff'" x-cloak class="inline-form">
+        <textarea x-model="bulkComment" placeholder="Opmerking voor de scout (optioneel)"></textarea>
         <div class="step-actions">
             <button type="button" class="btn-success btn-sm"
                     :disabled="busy"
-                    @click="submitAll('/confirm-signoff', { comment: comment })">
+                    @click="submitAll('/confirm-signoff', { comment: bulkComment })">
                 Bevestigen
             </button>
             <button type="button" class="btn-cancel btn-sm"
                     :disabled="busy"
-                    @click="action = null">Annuleren</button>
+                    @click="bulkAction = null">Annuleren</button>
         </div>
     </div>
 
-    <div x-show="action === 'reject'" x-cloak class="inline-form">
-        <textarea x-model="message" placeholder="Geef aan wat de scout nog moet doen" required></textarea>
+    <div x-show="bulkAction === 'reject'" x-cloak class="inline-form">
+        <textarea x-model="bulkMessage" placeholder="Geef aan wat de scout nog moet doen" required></textarea>
         <div class="step-actions">
             <button type="button" class="btn-danger btn-sm"
-                    :disabled="busy || !message"
-                    @click="submitAll('/reject-signoff', { message: message })">
+                    :disabled="busy || !bulkMessage"
+                    @click="submitAll('/reject-signoff', { message: bulkMessage })">
                 Versturen
             </button>
             <button type="button" class="btn-cancel btn-sm"
                     :disabled="busy"
-                    @click="action = null">Annuleren</button>
+                    @click="bulkAction = null">Annuleren</button>
         </div>
     </div>
 </div>

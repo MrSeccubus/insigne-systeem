@@ -184,6 +184,31 @@ class TestSignoffRequestsPageGroup:
         assert e1.id in r.text
         assert e2.id in r.text
 
+    def test_grouped_card_offers_per_eis_decisions(self, client, db):
+        """The grouped card must let a leider accept some eisen and reject
+        others (#102 follow-up). Each <li> inside the eisen list carries
+        its own subAction state and Aftekenen/Afwijzen buttons that call
+        submitOne with the eis's entry_id."""
+        scout = _user(db, "scout@x.com", "Scout")
+        leider = _user(db, "leider@x.com", "Leider")
+        _, speltak = _speltak_with_leider(db, leider, scout)
+        e1 = _entry(db, scout.id, "kamperen", 0, 0, "work_done")
+        e2 = _entry(db, scout.id, "kamperen", 1, 0, "work_done")
+        progress_svc.request_signoff_for_speltak(db, scout.id, e1.id, speltak.id)
+        progress_svc.request_signoff_for_speltak(db, scout.id, e2.id, speltak.id)
+
+        client.cookies.update(_login(client, leider))
+        r = client.get("/signoff-requests")
+        assert r.status_code == 200
+        # Both per-eis submit calls reference the entry's own UUID.
+        assert f"submitOne('{e1.id}', '/confirm-signoff'" in r.text
+        assert f"submitOne('{e1.id}', '/reject-signoff'" in r.text
+        assert f"submitOne('{e2.id}', '/confirm-signoff'" in r.text
+        assert f"submitOne('{e2.id}', '/reject-signoff'" in r.text
+        # Bulk buttons still exist as a shortcut.
+        assert "Alles aftekenen" in r.text
+        assert "Alles afwijzen" in r.text
+
     def test_scout_notes_survive_batch_signoff_and_render_on_card(self, client, db):
         """The batch-signoff JS loop POSTs the per-eis request-signoff-speltak
         endpoint without a ``notes`` field. The endpoint used to overwrite

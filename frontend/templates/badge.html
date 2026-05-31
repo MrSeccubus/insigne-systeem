@@ -228,7 +228,6 @@ function batchSignoffPanelData(entryIds) {
        reload. The Alpine component itself is defined in a <script> at the
        top of the block so HTMX re-swaps don't redefine it. #}
     <div id="batch-signoff-section" class="batch-signoff-section"
-         style="margin-top:1.5rem;"
          hx-get="/badges/{{ badge.slug }}{% if request.query_params.get('niveau') %}?niveau={{ request.query_params.get('niveau') }}{% endif %}"
          hx-trigger="niveau-updated from:body"
          hx-select="#batch-signoff-section"
@@ -241,8 +240,7 @@ function batchSignoffPanelData(entryIds) {
         {% set niveau_label = badge.niveau_label %}
         {% set entry_ids = niveau_batch_entry_ids.get(niveau_idx, []) %}
         <div class="batch-signoff-panel"
-             x-data='batchSignoffPanelData({{ entry_ids | tojson }})'
-             style="margin:0.5rem 0;padding:0.75rem 1rem;background:#f3f4f6;border-radius:4px;">
+             x-data='batchSignoffPanelData({{ entry_ids | tojson }})'>
             {% if state == "pending" %}
             <p style="margin:0 0 0.5rem;">
                 Aftekenverzoek voor <strong>{{ niveau_label }} {{ niveau_idx + 1 }}</strong> verstuurd.

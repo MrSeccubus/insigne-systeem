@@ -714,6 +714,25 @@ button:hover {
 .step-card.status-pending_signoff { border-left-color: #3b82f6; }
 .step-card.status-completed  { border-left-color: #00A651; background: #f0fdf4; }
 
+/* Batch sign-off panel (#102) — sits under the badge-overview-grid and
+   mirrors the step-card visuals (white background, same border, same
+   padding) so it reads as "another card in the eisen column". The
+   left-padding offset on the section aligns the panels with the niveau
+   columns rather than the 160px eis-row-header column. */
+.batch-signoff-section {
+    margin-top: 1rem;
+    padding-left: calc(160px + 0.5rem);
+}
+
+.batch-signoff-panel {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-left: 3px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 0.4rem;
+}
+
 .step-header {
     display: flex;
     gap: 0.7rem;
@@ -2121,6 +2140,12 @@ button:disabled, a[disabled] {
     .badge-overview-grid--single {
         grid-template-columns: 1fr !important;
         overflow-x: visible;
+    }
+
+    /* Mobile: grid collapses to a single column, so drop the desktop
+       left-padding that aligned the panel with the niveau column. */
+    .batch-signoff-section {
+        padding-left: 0;
     }
 
     .badge-overview-grid--single .eis-row-header {

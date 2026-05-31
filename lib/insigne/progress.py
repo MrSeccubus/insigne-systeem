@@ -619,37 +619,68 @@ def reject_jaarinsigne_2026_signoff(
 
 
 def list_signoff_requests_grouped(db: Session, mentor_id: str) -> list:
-    """Like ``list_signoff_requests`` but jaarinsigne_2026 invites are coalesced
-    per (scout, badge) into a single group item.
+    """Like ``list_signoff_requests`` but related invites are coalesced into
+    a single group item.
 
-    Returns a heterogeneous list where each item is either a plain
-    ``SignoffRequest`` (regular badges) or a dict::
+    Returns a heterogeneous list where each item is one of:
 
-        {"type": "jaarinsigne_2026_group", "scout": User, "requests": [SignoffRequest, ...]}
-
-    The dict's ``requests`` list contains one SignoffRequest per eis the mentor
-    was invited to.
+    - ``SignoffRequest`` — a regular per-eis request with no batchable siblings.
+    - ``{"type": "jaarinsigne_2026_group", "scout": User, "requests": [...]}``
+      — every jaarinsigne_2026 invite the mentor has for one scout (always
+      grouped, even with a single request).
+    - ``{"type": "badge_niveau_group", "scout": User, "badge_slug": str,
+      "niveau_index": int, "requests": [...]}`` — per-eis invites for the
+      same ``(scout, badge_slug, step_index)`` triple where there are at
+      least 2 siblings (#102). Singletons render as plain ``SignoffRequest``
+      to keep the existing per-eis card behaviour.
     """
     raw = list_signoff_requests(db, mentor_id)
-    groups: dict[str, dict] = {}
+    ji_groups: dict[str, dict] = {}
+    # Detect badge-niveau groups in two passes: first count siblings per
+    # (scout, badge, niveau) triple, then group only those with >=2.
+    triple_counts: dict[tuple[str, str, int], int] = {}
+    for sr in raw:
+        pe = sr.progress_entry
+        if pe.badge_slug != _JAARINSIGNE_2026_SLUG:
+            triple_counts[(pe.user_id, pe.badge_slug, pe.step_index)] = (
+                triple_counts.get((pe.user_id, pe.badge_slug, pe.step_index), 0) + 1
+            )
+    badge_groups: dict[tuple[str, str, int], dict] = {}
+
     out: list = []
     for sr in raw:
         pe = sr.progress_entry
         if pe.badge_slug == _JAARINSIGNE_2026_SLUG:
             key = pe.user_id
-            if key not in groups:
+            if key not in ji_groups:
                 group = {
                     "type": "jaarinsigne_2026_group",
                     "scout": pe.user,
                     "requests": [sr],
                 }
-                groups[key] = group
+                ji_groups[key] = group
                 out.append(group)
             else:
-                groups[key]["requests"].append(sr)
-        else:
-            out.append(sr)
+                ji_groups[key]["requests"].append(sr)
+            continue
+        triple = (pe.user_id, pe.badge_slug, pe.step_index)
+        if triple_counts.get(triple, 0) >= 2:
+            if triple not in badge_groups:
+                group = {
+                    "type": "badge_niveau_group",
+                    "scout": pe.user,
+                    "badge_slug": pe.badge_slug,
+                    "niveau_index": pe.step_index,
+                    "requests": [sr],
+                }
+                badge_groups[triple] = group
+                out.append(group)
+            else:
+                badge_groups[triple]["requests"].append(sr)
+            continue
+        out.append(sr)
     return out
+
 
 
 def get_jaarinsigne_level(db: Session, user_id: str, badge_slug: str) -> JaarinsigneLevel | None:

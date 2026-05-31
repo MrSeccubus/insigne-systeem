@@ -3,6 +3,62 @@
 {% block title %}Aftekeningen — Insigne Systeem{% endblock %}
 
 {% block content %}
+<script>
+// Alpine component for the auto-grouped (scout, badge, niveau) mentor inbox
+// card (#102). Defined at page scope so HTMX swaps don't redefine it.
+// Supports both bulk actions (approve/reject all remaining) and per-eis
+// decisions — a leider can accept some eisen and reject others.
+function badgeNiveauCardData(entryIds) {
+    return {
+        entryIds: entryIds,
+        processedIds: [],
+        bulkAction: null,
+        bulkComment: '',
+        bulkMessage: '',
+        busy: false,
+        isProcessed(id) {
+            return this.processedIds.includes(id);
+        },
+        async _post(id, pathFragment, body) {
+            const fd = new FormData();
+            for (const [k, v] of Object.entries(body)) fd.append(k, v);
+            return fetch('/progress/' + encodeURIComponent(id) + pathFragment, {
+                method: 'POST',
+                body: fd,
+                headers: { 'HX-Request': 'true' },
+                credentials: 'same-origin',
+            });
+        },
+        async submitOne(id, pathFragment, body) {
+            this.busy = true;
+            try {
+                const r = await this._post(id, pathFragment, body);
+                if (!r.ok) return false;
+                this.processedIds = [...this.processedIds, id];
+                if (this.processedIds.length === this.entryIds.length) {
+                    location.reload();
+                }
+                return true;
+            } finally {
+                this.busy = false;
+            }
+        },
+        async submitAll(pathFragment, body) {
+            this.busy = true;
+            try {
+                for (const id of this.entryIds) {
+                    if (this.processedIds.includes(id)) continue;
+                    const r = await this._post(id, pathFragment, body);
+                    if (!r.ok) break;
+                    this.processedIds = [...this.processedIds, id];
+                }
+            } finally {
+                location.reload();
+            }
+        }
+    };
+}
+</script>
 <main>
     <h1>Aftekeningen</h1>
     <p style="color:#555;margin-bottom:1.5rem;">Scouts die jouw aftekening hebben aangevraagd.</p>
@@ -12,6 +68,8 @@
             {% for req in requests %}
             {% if req.type == "jaarinsigne_2026_group" %}
             {% include "partials/signoff_request_jaarinsigne_2026_item.html" %}
+            {% elif req.type == "badge_niveau_group" %}
+            {% include "partials/signoff_request_badge_niveau_item.html" %}
             {% else %}
             {% include "partials/signoff_request_item.html" %}
             {% endif %}

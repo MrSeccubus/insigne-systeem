@@ -354,6 +354,49 @@ async def badge_detail(
         for niveau_idx in range(3)
     ]
 
+    # Per-niveau batch-signoff state (#102). Drives the "Vraag aftekening van
+    # heel Niveau N" panel below the eisen grid. The panel does a client-side
+    # JS loop over the existing per-entry /progress/{id}/request-signoff-*
+    # endpoints (one HTTP call per eis), so we also pass the entry IDs.
+    #   "ready"   — at least one eis is work_done; nothing is in_progress.
+    #   "pending" — at least one eis is pending_signoff; nothing is in_progress.
+    #   "done"    — every eis with text is signed_off.
+    #   "not_ready" — otherwise (some eisen are in_progress or absent).
+    niveau_batch_states: dict[int, str] = {}
+    niveau_batch_entry_ids: dict[int, list[str]] = {}
+    if current_user:
+        for niveau_idx in range(3):
+            text_eis_indices = [
+                ei for ei, level in enumerate(badge["levels"])
+                if level["steps"][niveau_idx]["text"].strip()
+            ]
+            if not text_eis_indices:
+                continue
+            entries = [
+                progress_map.get((ei, niveau_idx)) for ei in text_eis_indices
+            ]
+            statuses = [e.status if e else None for e in entries]
+            if all(s == "signed_off" for s in statuses):
+                niveau_batch_states[niveau_idx] = "done"
+            elif any(s == "pending_signoff" for s in statuses) and \
+                    all(s in ("pending_signoff", "signed_off", "work_done") for s in statuses):
+                niveau_batch_states[niveau_idx] = "pending"
+            elif any(s == "work_done" for s in statuses) and \
+                    all(s in ("work_done", "signed_off") for s in statuses):
+                niveau_batch_states[niveau_idx] = "ready"
+            else:
+                niveau_batch_states[niveau_idx] = "not_ready"
+            # The IDs the client-side loop will iterate. For "ready" we want
+            # only the work_done entries (already signed_off don't need a new
+            # request). For "pending" we want everything pending so cancel
+            # hits each entry exactly once.
+            wanted = {"ready": {"work_done"}, "pending": {"pending_signoff"}}.get(
+                niveau_batch_states[niveau_idx], set(),
+            )
+            niveau_batch_entry_ids[niveau_idx] = [
+                e.id for e in entries if e and e.status in wanted
+            ]
+
     return _TEMPLATES.TemplateResponse(
         request=request,
         name="badge.html",
@@ -365,6 +408,8 @@ async def badge_detail(
             "scout_signoff_options": scout_signoff_options,
             "level_stats": level_stats,
             "niveau_stats": niveau_stats,
+            "niveau_batch_states": niveau_batch_states,
+            "niveau_batch_entry_ids": niveau_batch_entry_ids,
             "selected_niveaus": [niveau - 1] if niveau in (1, 2, 3) else [0, 1, 2],
             "mobile_default_niveau": _mobile_default_niveau(progress_map, badge),
         },
@@ -428,7 +473,7 @@ async def request_signoff(
     entry_id: str,
     background_tasks: BackgroundTasks,
     mentor_email: str = Form(...),
-    notes: str = Form(""),
+    notes: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     current_user = _get_current_user(request, db)
@@ -442,7 +487,11 @@ async def request_signoff(
     if entry is None:
         return RedirectResponse(url="/", status_code=303)
 
-    if entry.status not in ("pending_signoff", "signed_off"):
+    # Only overwrite notes when the form actually submitted the field. The
+    # batch-signoff panel (#102) loops over this endpoint without notes —
+    # any pre-existing scout remarks must survive that loop so the mentor
+    # sees them on the grouped card.
+    if notes is not None and entry.status not in ("pending_signoff", "signed_off"):
         entry.notes = notes.strip() or None
         db.commit()
 
@@ -626,6 +675,43 @@ async def signoff_requests_page(request: Request, db: Session = Depends(get_db))
                 "speltak_leeftijd": speltak_level.get("leeftijd", ""),
                 "eisen": eisen,
                 "included_details": included_details,
+                "requested_at": _fmt_date(requests[0].created_at),
+            })
+        elif isinstance(item, dict) and item.get("type") == "badge_niveau_group":
+            scout = item["scout"]
+            badge_slug = item["badge_slug"]
+            niveau_index = item["niveau_index"]
+            requests = item["requests"]
+            requests.sort(key=lambda sr: sr.created_at)
+            badge = _CATALOGUE.get(badge_slug)
+            if badge is None:
+                continue
+            niveau_label = badge.get("niveau_label", "Niveau")
+            eisen = []
+            for sr in requests:
+                pe = sr.progress_entry
+                if pe.level_index >= len(badge["levels"]):
+                    continue
+                level = badge["levels"][pe.level_index]
+                step = level["steps"][niveau_index] if niveau_index < len(level["steps"]) else {}
+                eisen.append({
+                    "entry_id": pe.id,
+                    "level_index": pe.level_index,
+                    "level_name": level.get("name", ""),
+                    "step_text": step.get("text", "") if step else "",
+                    "notes": pe.notes,
+                })
+            eisen.sort(key=lambda e: e["level_index"])
+            enriched.append({
+                "type": "badge_niveau_group",
+                "scout_id": scout.id,
+                "scout_name": scout.name or scout.email,
+                "badge_slug": badge_slug,
+                "badge_title": badge["title"],
+                "niveau_index": niveau_index,
+                "niveau_label": niveau_label,
+                "niveau_number": niveau_index + 1,
+                "eisen": eisen,
                 "requested_at": _fmt_date(requests[0].created_at),
             })
         else:
@@ -860,7 +946,7 @@ async def request_signoff_speltak(
     entry_id: str,
     background_tasks: BackgroundTasks,
     speltak_id: str = Form(...),
-    notes: str = Form(""),
+    notes: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     current_user = _get_current_user(request, db)
@@ -874,7 +960,9 @@ async def request_signoff_speltak(
     if entry is None:
         return RedirectResponse(url="/", status_code=303)
 
-    if entry.status not in ("pending_signoff", "signed_off"):
+    # Only overwrite notes when the form actually submitted the field
+    # (batch-signoff panel #102 omits it; preserve existing scout remarks).
+    if notes is not None and entry.status not in ("pending_signoff", "signed_off"):
         entry.notes = notes.strip() or None
         db.commit()
 
@@ -918,7 +1006,7 @@ async def request_signoff_members(
     entry_id: str,
     background_tasks: BackgroundTasks,
     mentor_ids: list[str] = Form(default=[]),
-    notes: str = Form(""),
+    notes: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     current_user = _get_current_user(request, db)
@@ -932,7 +1020,9 @@ async def request_signoff_members(
     if entry is None:
         return RedirectResponse(url="/", status_code=303)
 
-    if entry.status not in ("pending_signoff", "signed_off"):
+    # Only overwrite notes when the form actually submitted the field
+    # (batch-signoff panel #102 omits it; preserve existing scout remarks).
+    if notes is not None and entry.status not in ("pending_signoff", "signed_off"):
         entry.notes = notes.strip() or None
         db.commit()
 

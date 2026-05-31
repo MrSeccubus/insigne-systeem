@@ -1458,7 +1458,9 @@ These endpoints serve the HTMX frontend. Full pages are returned on direct navig
 | `POST` | `/scouts/{scout_id}/jaarinsigne_2026/confirm-signoff` | Mentor confirms every jaarinsigne_2026 eis the scout invited them for; all entries → `signed_off` (auth required) |
 | `POST` | `/scouts/{scout_id}/jaarinsigne_2026/reject-signoff` | Mentor rejects this scout's jaarinsigne_2026 sign-off; entries revert to `work_done` when no other mentor is still pending (auth required) |
 
-The mentor inbox at `GET /signoff-requests` groups all jaarinsigne_2026 invites from the same scout into a single card.
+The mentor inbox at `GET /signoff-requests` groups all jaarinsigne_2026 invites from the same scout into a single card. It also groups any per-eis invites that share a `(scout, badge_slug, step_index)` triple — i.e. ≥ 2 pending eisen at the same badge+niveau (always auto-group, #102). Singleton per-eis invites still render as individual cards.
+
+**Per-niveau batch sign-off (#102)** uses no new endpoints. The badge detail page renders a panel below the eisen grid when all eisen at a niveau are `work_done`; clicking "Aftekenen…" runs a client-side JavaScript loop that POSTs to the existing per-eis `/progress/{id}/request-signoff-{speltak,members}` / `/progress/{id}/request-signoff` endpoints, one fetch per eis. The mentor's grouped inbox card likewise loops over `/progress/{id}/{confirm,reject}-signoff` on click. Each loop iteration still triggers its own e-mail (one per mentor per eis); the visible UX consolidates them into a single card on the mentor side. A future iteration could move the loop server-side to debounce e-mails into one per mentor per batch — see issue discussion on #131 for the trade-off.
 
 ### Groups HTML pages
 

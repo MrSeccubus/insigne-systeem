@@ -32,7 +32,8 @@ class TestGroupDetailSpeltakOrder:
                                role="groepsleider", approved=True))
         db.commit()
         token, _ = auth_svc.create_access_token(leider.id)
-        r = client.get(f"/groups/{g.slug}", cookies={"access_token": token})
+        client.cookies.set("access_token", token)
+        r = client.get(f"/groups/{g.slug}")
         assert r.status_code == 200
 
         # Extract the order of speltak names as they appear in the speltakken list.
@@ -99,7 +100,8 @@ class TestHomePageSpeltakOrder:
         db.commit()
 
         token, _ = auth_svc.create_access_token(u.id)
-        r = client.get("/", cookies={"access_token": token})
+        client.cookies.set("access_token", token)
+        r = client.get("/")
         assert r.status_code == 200
 
         # Speltakken appear in the panel as: <span>{name} <span>— {group}</span></span>

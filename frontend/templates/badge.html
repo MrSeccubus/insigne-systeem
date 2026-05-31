@@ -3,6 +3,40 @@
 {% block title %}{{ badge.title }}{% if selected_niveaus | length == 1 %} — {{ badge.niveau_label }} {{ selected_niveaus[0] + 1 }}{% endif %} — Insigne Systeem{% endblock %}
 
 {% block content %}
+<script>
+// Alpine component for the per-niveau batch sign-off panel (#102).
+// Lives at page scope (not inside the HTMX-refreshed div) so re-renders
+// don't redefine it. Loops over the existing per-eis endpoints client-side.
+function batchSignoffPanelData(entryIds) {
+    return {
+        open: false,
+        signoffPath: '',
+        busy: false,
+        entryIds: entryIds,
+        async postEachEntry(pathFragment, body) {
+            this.busy = true;
+            try {
+                for (const id of this.entryIds) {
+                    const fd = new FormData();
+                    for (const [k, v] of Object.entries(body)) {
+                        if (Array.isArray(v)) v.forEach(x => fd.append(k, x));
+                        else fd.append(k, v);
+                    }
+                    const r = await fetch('/progress/' + encodeURIComponent(id) + pathFragment, {
+                        method: 'POST',
+                        body: fd,
+                        headers: { 'HX-Request': 'true' },
+                        credentials: 'same-origin',
+                    });
+                    if (!r.ok) break;
+                }
+            } finally {
+                location.reload();
+            }
+        }
+    };
+}
+</script>
 <main style="max-width:1100px;">
     <nav class="breadcrumb">
         <a href="/">Home</a> › {{ badge.title }}
@@ -179,6 +213,111 @@
 
         {% endfor %}
     </div>
+    </div>
+
+    {# ── Per-niveau batch sign-off panels (#102) ─────────────────────────────
+       Pure UI sugar: the panel loops over the existing per-entry
+       /progress/{id}/request-signoff-* endpoints on the client side, one
+       fetch per eis. No new server endpoints; each loop iteration sends
+       its own e-mail. The mentor inbox auto-groups the N invites into a
+       single card.
+
+       The outer wrapper re-fetches itself on every ``niveau-updated`` event
+       (fired by the per-eis log endpoint) so the panel appears / disappears
+       in real time as the scout toggles eis statuses, without a full page
+       reload. The Alpine component itself is defined in a <script> at the
+       top of the block so HTMX re-swaps don't redefine it. #}
+    <div id="batch-signoff-section" class="batch-signoff-section"
+         hx-get="/badges/{{ badge.slug }}{% if request.query_params.get('niveau') %}?niveau={{ request.query_params.get('niveau') }}{% endif %}"
+         hx-trigger="niveau-updated from:body"
+         hx-select="#batch-signoff-section"
+         hx-swap="outerHTML">
+    {% if current_user %}
+        {% for niveau_idx in selected_niveaus %}
+        {% set state = niveau_batch_states.get(niveau_idx) %}
+        {% if state in ("ready", "pending") %}
+        {% set slug = badge.slug %}
+        {% set niveau_label = badge.niveau_label %}
+        {% set entry_ids = niveau_batch_entry_ids.get(niveau_idx, []) %}
+        <div class="batch-signoff-panel"
+             x-data='batchSignoffPanelData({{ entry_ids | tojson }})'>
+            {% if state == "pending" %}
+            <p style="margin:0 0 0.5rem;">
+                Aftekenverzoek voor <strong>{{ niveau_label }} {{ niveau_idx + 1 }}</strong> verstuurd.
+            </p>
+            <button type="button" class="btn-secondary btn-sm"
+                    :disabled="busy"
+                    @click="postEachEntry('/cancel-signoff', {})">
+                Verzoek intrekken
+            </button>
+            {% else %}
+            <p style="margin:0 0 0.5rem;">
+                Je hebt alle eisen van <strong>{{ niveau_label }} {{ niveau_idx + 1 }}</strong> gedaan. Vraag aftekening voor het hele niveau in één keer.
+            </p>
+            <button type="button" class="btn-secondary btn-sm"
+                    @click="open = !open" :disabled="busy">
+                Aftekenen…
+            </button>
+            <div x-show="open" x-cloak class="inline-form" style="margin-top:0.5rem;">
+                {% for opt in scout_signoff_options if opt.type == "speltak_leiders" %}
+                <button type="button" class="btn-path" :disabled="busy"
+                        @click="postEachEntry('/request-signoff-speltak', { speltak_id: '{{ opt.speltak_id }}' })">
+                    {{ opt.label_prefix }} <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong>
+                </button>
+                {% endfor %}
+
+                {% for opt in scout_signoff_options if opt.type == "speltak_members" %}
+                <button type="button"
+                        :class="signoffPath === '{{ opt.speltak_id }}_speltak_members_{{ niveau_idx }}' ? 'btn-path btn-path-active' : 'btn-path'"
+                        @click="signoffPath = '{{ opt.speltak_id }}_speltak_members_{{ niveau_idx }}'">
+                    {{ opt.label_prefix }} <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong> {{ opt.label_suffix }}
+                </button>
+                {% endfor %}
+
+                <button type="button"
+                        :class="signoffPath === 'direct_{{ niveau_idx }}' ? 'btn-path btn-path-active' : 'btn-path'"
+                        @click="signoffPath = 'direct_{{ niveau_idx }}'">
+                    Vraag direct aan iemand om af te tekenen
+                </button>
+
+                {% for opt in scout_signoff_options if opt.type == "speltak_members" %}
+                <div x-show="signoffPath === '{{ opt.speltak_id }}_speltak_members_{{ niveau_idx }}'" x-cloak
+                     x-data="{ memberIds: [] }">
+                    <p class="signoff-member-prompt">Wie van de <strong>{{ opt.speltak_name }}</strong> van <strong>{{ opt.group_name }}</strong> wil je laten aftekenen?</p>
+                    <div class="signoff-member-list">
+                        {% for member in opt.members %}
+                        <label class="signoff-member-label">
+                            <input type="checkbox" value="{{ member.id }}" x-model="memberIds">
+                            {{ member.name or '(onbekend)' }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <button type="button" class="btn-secondary btn-sm"
+                            :disabled="busy || memberIds.length === 0"
+                            @click="postEachEntry('/request-signoff-members', { mentor_ids: memberIds })">
+                        Versturen
+                    </button>
+                </div>
+                {% endfor %}
+
+                <div x-show="signoffPath === 'direct_{{ niveau_idx }}'" x-cloak
+                     x-data="{ mentorEmail: '' }">
+                    <input type="text" x-model="mentorEmail"
+                           placeholder="naam of e-mail van (bege-)leider" required>
+                    <button type="button" class="btn-secondary btn-sm"
+                            :disabled="busy || !mentorEmail"
+                            @click="postEachEntry('/request-signoff', { mentor_email: mentorEmail })">
+                        Versturen
+                    </button>
+                </div>
+
+                <button type="button" class="btn-cancel btn-sm" @click="open = false">Annuleren</button>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+    {% endif %}
     </div>
 
     {% if badge.afterword %}

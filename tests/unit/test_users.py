@@ -319,6 +319,42 @@ class TestAuthenticate:
         assert user is not None
 
 
+class TestLogFailedLoginAttempt:
+    """The helper emits a WARNING in a stable, fail2ban-friendly format
+    (#130). A filter such as ``failed login attempt for email=\\S+ from
+    <HOST>`` should match every line it produces."""
+
+    def test_emits_warning_with_email_and_ip(self, caplog):
+        import logging
+        caplog.set_level(logging.WARNING, logger="insigne.users")
+        user_svc.log_failed_login_attempt("attacker@example.com", "203.0.113.42")
+        msgs = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+        assert any(
+            "failed login attempt for email=attacker@example.com from 203.0.113.42" in m
+            for m in msgs
+        ), msgs
+
+    def test_normalises_email(self, caplog):
+        import logging
+        caplog.set_level(logging.WARNING, logger="insigne.users")
+        user_svc.log_failed_login_attempt("  Foo@Example.COM  ", "10.0.0.1")
+        assert any(
+            "email=foo@example.com" in r.getMessage() for r in caplog.records
+        )
+
+    def test_handles_missing_ip(self, caplog):
+        import logging
+        caplog.set_level(logging.WARNING, logger="insigne.users")
+        user_svc.log_failed_login_attempt("x@y", None)
+        assert any("from (unknown)" in r.getMessage() for r in caplog.records)
+
+    def test_handles_empty_email(self, caplog):
+        import logging
+        caplog.set_level(logging.WARNING, logger="insigne.users")
+        user_svc.log_failed_login_attempt("", "10.0.0.1")
+        assert any("email=(empty)" in r.getMessage() for r in caplog.records)
+
+
 # ── forgot_password ───────────────────────────────────────────────────────────
 
 class TestForgotPassword:

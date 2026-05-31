@@ -1,3 +1,4 @@
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -6,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from .auth import hash_password, verify_password
 from .models import ConfirmationToken, EmailChangeRequest, GroupMembership, SpeltakMembership, User, UserFavoriteBadge
+
+logger = logging.getLogger(__name__)
 
 _TOKEN_EXPIRE_HOURS = 1
 _EMAIL_CHANGE_CONFIRM_HOURS = 24
@@ -175,6 +178,27 @@ def authenticate(db: Session, email: str, password: str) -> User | None:
     if user is None or not verify_password(password, user.password_hash):
         return None
     return user
+
+
+def log_failed_login_attempt(email: str, ip: str | None) -> None:
+    """Emit a WARNING when an authentication attempt fails.
+
+    The message format is stable so fail2ban can match it. Sample filter:
+
+        failregex = failed login attempt for email=\\S+ from <HOST>
+
+    Args:
+        email: the e-mail address the client submitted (echoed back verbatim
+            for filter accounting; it may be malformed or a username
+            harvesting probe).
+        ip: the request source IP (``request.client.host``), or ``None`` if
+            unavailable (e.g. test harness without a Request object).
+    """
+    logger.warning(
+        "failed login attempt for email=%s from %s",
+        (email or "").strip().lower() or "(empty)",
+        ip or "(unknown)",
+    )
 
 
 def forgot_password(db: Session, email: str) -> str | None:

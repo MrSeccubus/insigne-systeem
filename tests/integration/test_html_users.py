@@ -46,6 +46,27 @@ class TestLogin:
         assert r.status_code == 200
         assert "Ongeldig" in r.text
 
+    def test_failed_login_emits_warning_with_ip(self, client, db, caplog):
+        """#130: failed authentication must produce a parseable WARNING so
+        fail2ban can match it."""
+        import logging
+        caplog.set_level(logging.WARNING, logger="insigne.users")
+        client.post("/login", data={"email": "nobody@example.com", "password": "x"})
+        msgs = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+        assert any("failed login attempt" in m and "email=nobody@example.com" in m
+                   for m in msgs), msgs
+
+    def test_successful_login_does_not_warn(self, client, db, caplog):
+        """Healthy logins must not pollute the WARNING-stream that fail2ban
+        is watching."""
+        import logging
+        caplog.set_level(logging.WARNING, logger="insigne.users")
+        _register_and_activate(db)
+        client.post("/login", data={"email": "jan@example.com", "password": "validpass1"})
+        msgs = [r.getMessage() for r in caplog.records
+                if r.levelname == "WARNING" and "failed login attempt" in r.getMessage()]
+        assert msgs == []
+
 
 # ── logout ────────────────────────────────────────────────────────────────────
 

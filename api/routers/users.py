@@ -295,6 +295,9 @@ async def login(
 ):
     user = user_svc.authenticate(db, email, password)
     if user is None:
+        user_svc.log_failed_login_attempt(
+            email, request.client.host if request.client else None,
+        )
         return _partial(request, "login_form.html", email=email,
                         error="Ongeldig e-mailadres of wachtwoord.")
     access_token, _ = create_access_token(user.id)

@@ -29,8 +29,8 @@
     {# ── signed_off — server-rendered ── #}
     {% if _status == "signed_off" %}
     <p class="step-signoff-info">
-        ✓ Afgetekend door {{ entry.signed_off_by.name or '(onbekend)' }}
-        op {{ entry.signed_off_at.strftime("%d-%m-%Y") }}
+        ✓ Afgetekend{% if entry.signed_off_by %} door {{ entry.signed_off_by.name or '(onbekend)' }}{% endif %}
+        {% if entry.signed_off_at %}op {{ entry.signed_off_at.strftime("%d-%m-%Y") }}{% endif %}
     </p>
     {% if entry.mentor_comment %}
     <div class="step-mentor-comment">

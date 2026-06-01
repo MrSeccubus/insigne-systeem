@@ -32,8 +32,7 @@ from insigne import users as users_svc
 from insigne.badges import BadgeCatalogue, jaarinsigne_levels_for_scout
 from insigne.config import config
 from insigne.database import get_db
-from routers import api_admin, api_auth, api_badges, api_contact, api_groups, api_progress, api_users, api_version, html_admin, html_badges, html_contact, html_groups, users
-from routers.api_groups import invitations_router, pending_requests_router
+from routers import html_admin, html_badges, html_contact, html_groups, users
 from routers.users import _get_current_user
 from templates import templates
 
@@ -104,16 +103,6 @@ app.include_router(html_admin.router)
 app.include_router(html_badges.router)
 app.include_router(html_groups.router)
 app.include_router(html_contact.router)
-app.include_router(api_users.router, prefix="/api")
-app.include_router(api_contact.router, prefix="/api")
-app.include_router(api_auth.router, prefix="/api")
-app.include_router(api_progress.router, prefix="/api")
-app.include_router(api_badges.router, prefix="/api")
-app.include_router(api_version.router, prefix="/api")
-app.include_router(api_admin.router, prefix="/api")
-app.include_router(api_groups.router, prefix="/api")
-app.include_router(invitations_router, prefix="/api")
-app.include_router(pending_requests_router, prefix="/api")
 
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="static")

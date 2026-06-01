@@ -130,10 +130,6 @@ SPA, no JS bundler, no build step. All three libraries are loaded from a CDN in
   by both a full page render and an HTMX swap into a partial so both paths
   render identical HTML.
 
-## API specification
-
-The full API spec lives at `api/spec.md`. **Keep it up to date** whenever you add, change, or remove endpoints — both the JSON API (`/api/…`) and the HTML layer.
-
 ## Security conventions
 
 ### Redirects must use server-derived values, not raw URL parameters
@@ -265,9 +261,21 @@ When a new release is made:
    so the tag is reachable from both `releases` and `main`.
 6. Create the GitHub release.
 
-## Keeping the JSON API in sync with the library
+## JSON API — removed in v1.2.0
 
-Every public function added to `lib/insigne/` must have a corresponding JSON API
-endpoint in `api/routers/` and at least one API-layer test in `tests/test_api_*.py`.
-The unit tests verify correctness of what exists but do not detect missing endpoints,
-so this is enforced by convention in code review.
+The JSON API mirror of `lib/insigne/` was removed in v1.2.0 (issue #117).
+The `api/routers/api_*.py` files, the `api/schemas.py` schemas, and
+`api/spec.md` no longer exist on `main`; the matching `tests/integration/test_api_*.py`
+test files are gone too.
+
+If a future need arises (mobile app, external integration), the last
+commit containing the API is reachable via the `json-api-final` tag:
+
+```
+git checkout -b restore-json-api json-api-final
+# cherry-pick the routers you need onto a feature branch
+```
+
+The library functions in `lib/insigne/` were the source of truth for
+the API and are still tested directly via the unit suite — rebuilding
+endpoints over them is mechanical.

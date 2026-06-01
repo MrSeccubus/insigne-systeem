@@ -2,6 +2,7 @@
     "name": "Insigne Systeem",
     "short_name": "Insigne",
     "description": "Houd voortgang op scoutinginsignes bij en laat eisen aftekenen door je leiding.",
+    "id": "/",
     "start_url": "/?source=pwa",
     "scope": "/",
     "display": "standalone",

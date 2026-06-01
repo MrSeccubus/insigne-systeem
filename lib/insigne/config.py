@@ -27,6 +27,11 @@ class Config:
     server_host: str = "127.0.0.1"
     server_port: int = 8000
     server_keepalive: int = 2
+    # Comma-separated list of trusted proxy IPs (uvicorn ``--forwarded-allow-ips``).
+    # Empty string disables proxy-header parsing entirely; the safe default
+    # because trusting unrelated upstreams lets clients spoof their source IP.
+    # Set to e.g. ``"127.0.0.1"`` when running behind nginx on the same host.
+    server_forwarded_allow_ips: str = ""
     admins: list = field(default_factory=list)
     allow_any_user_to_create_groups: bool = True
     email: EmailConfig = field(default_factory=EmailConfig)
@@ -52,6 +57,7 @@ def _load() -> Config:
         server_host=data.get("server", {}).get("host", "127.0.0.1"),
         server_port=int(data.get("server", {}).get("port", 8000)),
         server_keepalive=int(data.get("server", {}).get("keepalive", 2)),
+        server_forwarded_allow_ips=str(data.get("server", {}).get("forwarded_allow_ips", "")).strip(),
         admins=[str(e).lower() for e in data.get("admins", [])],
         allow_any_user_to_create_groups=bool(data.get("allow_any_user_to_create_groups", True)),
         email=EmailConfig(

@@ -19,6 +19,12 @@ server:
   host: 127.0.0.1   # bind address for run_prod.sh (default: 127.0.0.1)
   port: 8000        # bind port for run_prod.sh (default: 8000)
   keepalive: 2      # uvicorn --timeout-keep-alive in seconds (default: 2; set low behind a proxy)
+  # Trusted proxy IPs (uvicorn --forwarded-allow-ips). Empty = ignore
+  # X-Forwarded-* (default; safe when no proxy in front). Set to the
+  # proxy's IP (e.g. "127.0.0.1") when running behind nginx / Apache
+  # so the app sees the real client IP — required for the failed-login
+  # WARNING (issue #130) to be useful to fail2ban.
+  forwarded_allow_ips: ""
 
 base_url: "http://localhost:8000"  # public URL used in emails and links
 

@@ -150,6 +150,7 @@
                     <div class="nav-user-dropdown" x-show="open" x-transition.duration.150ms @click="open = false">
                         <a href="/profile" class="nav-user-item">Profiel bewerken</a>
                         <a href="/export" class="nav-user-item">Importeren/exporteren</a>
+                        <a href="/install" class="nav-user-item">App installeren</a>
                         <form method="post" action="/logout" style="margin:0;">
                             <button type="submit" class="nav-user-item nav-user-item--btn">Uitloggen</button>
                         </form>
@@ -165,8 +166,6 @@
     {% block scripts %}{% endblock %}
     <footer class="site-footer">
         <a href="/contact">Contact</a>
-        <span class="footer-sep" aria-hidden="true">|</span>
-        <a href="/install">App installeren</a>
         <span class="footer-sep" aria-hidden="true">|</span>
         <a href="/privacy">Privacybeleid</a>
         <span class="footer-sep" aria-hidden="true">|</span>

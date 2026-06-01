@@ -110,10 +110,27 @@ class TestInstallPage:
         r = client.get("/install", follow_redirects=False)
         assert r.status_code == 200
 
-    def test_footer_links_to_install(self, client, db):
-        """The install link must be reachable from every page."""
+    def test_user_menu_links_to_install(self, client, db):
+        """The install link sits in the authenticated user dropdown
+        (below Importeren/exporteren) — anonymous users hit /install
+        directly via the URL or via instructions we hand them."""
+        from insigne.models import User
+        from insigne.auth import create_access_token
+        u = User(email="u@example.com", name="U", status="active", password_hash="x")
+        db.add(u); db.commit()
+        token, _ = create_access_token(u.id)
+        client.cookies.set("access_token", token)
+        r = client.get("/")
+        assert r.status_code == 200
+        assert 'class="nav-user-item">App installeren' in r.text or \
+               '"nav-user-item">App installeren' in r.text
+
+    def test_anonymous_user_does_not_see_install_link(self, client, db):
+        """Logged-out users have no dropdown menu, so no install link
+        is rendered in the chrome. The /install page itself is still
+        reachable directly."""
         r = client.get("/login")
-        assert 'href="/install"' in r.text
+        assert "App installeren" not in r.text
 
 
 class TestOfflinePage:

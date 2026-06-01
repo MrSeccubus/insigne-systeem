@@ -44,6 +44,15 @@ main {
     padding: 2rem;
 }
 
+/* The global ``*`` reset zeroes padding everywhere, which removes the
+   default browser indent that holds bullets / numbers inside the
+   element. Restore an indent for prose lists inside ``main`` so markers
+   don't render outside the page padding. */
+main ul,
+main ol {
+    padding-left: 1.5rem;
+}
+
 h1 {
     margin-bottom: 2rem;
 }

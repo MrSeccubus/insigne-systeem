@@ -320,9 +320,13 @@ class TestAuthenticate:
 
 
 class TestLogFailedLoginAttempt:
-    """The helper emits a WARNING in a stable, fail2ban-friendly format
-    (#130). A filter such as ``failed login attempt for email=\\S+ from
-    <HOST>`` should match every line it produces."""
+    """The helper emits a WARNING in a uvicorn-access-log-shaped format
+    (#130) so it reads as part of the same stream. Example:
+
+        WARNING:  127.0.0.1 - "POST /login HTTP/1.1" 401 invalid credentials email=…
+
+    A fail2ban filter such as ``^WARNING:\\s+<HOST> - "POST /login HTTP/[^"]+" 401``
+    matches the line."""
 
     def test_emits_warning_with_email_and_ip(self, caplog):
         import logging
@@ -330,7 +334,7 @@ class TestLogFailedLoginAttempt:
         user_svc.log_failed_login_attempt("attacker@example.com", "203.0.113.42")
         msgs = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
         assert any(
-            "failed login attempt for email=attacker@example.com from 203.0.113.42" in m
+            '203.0.113.42 - "POST /login HTTP/1.1" 401 invalid credentials email=attacker@example.com' in m
             for m in msgs
         ), msgs
 
@@ -346,7 +350,7 @@ class TestLogFailedLoginAttempt:
         import logging
         caplog.set_level(logging.WARNING, logger="insigne.users")
         user_svc.log_failed_login_attempt("x@y", None)
-        assert any("from (unknown)" in r.getMessage() for r in caplog.records)
+        assert any("(unknown) -" in r.getMessage() for r in caplog.records)
 
     def test_handles_empty_email(self, caplog):
         import logging

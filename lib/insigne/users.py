@@ -183,21 +183,30 @@ def authenticate(db: Session, email: str, password: str) -> User | None:
 def log_failed_login_attempt(email: str, ip: str | None) -> None:
     """Emit a WARNING when an authentication attempt fails.
 
-    The message format is stable so fail2ban can match it. Sample filter:
+    The message mirrors uvicorn's access-log structure so it reads as part
+    of the same stream — for the same reason ``api/main.py`` attaches
+    uvicorn's ``DefaultFormatter`` to the ``insigne`` logger. Example:
 
-        failregex = failed login attempt for email=\\S+ from <HOST>
+        WARNING:  127.0.0.1 - "POST /login HTTP/1.1" 401 invalid credentials email=bla@bla.nl
+
+    Stable enough for fail2ban; sample filter:
+
+        failregex = ^WARNING:\\s+<HOST> - "POST /login HTTP/[^"]+" 401
+
+    (or match the uvicorn-access INFO line for the same request — both
+    are present in the log stream once the handler is failing).
 
     Args:
-        email: the e-mail address the client submitted (echoed back verbatim
-            for filter accounting; it may be malformed or a username
+        email: the e-mail address the client submitted (echoed back for
+            filter accounting; it may be malformed or a username
             harvesting probe).
         ip: the request source IP (``request.client.host``), or ``None`` if
             unavailable (e.g. test harness without a Request object).
     """
     logger.warning(
-        "failed login attempt for email=%s from %s",
-        (email or "").strip().lower() or "(empty)",
+        '%s - "POST /login HTTP/1.1" 401 invalid credentials email=%s',
         ip or "(unknown)",
+        (email or "").strip().lower() or "(empty)",
     )
 
 

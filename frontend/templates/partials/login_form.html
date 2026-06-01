@@ -1,7 +1,8 @@
 {% if error %}
 <p class="form-error">{{ error }}</p>
 {% endif %}
-<form hx-post="/login" hx-target="#form-area" hx-swap="innerHTML">
+<form hx-post="/login" hx-target="#form-area" hx-swap="innerHTML"
+      hx-on::before-swap="if (event.detail.xhr.status === 401) { event.detail.shouldSwap = true; event.detail.isError = false; }">
     <div class="field">
         <label for="email">E-mailadres</label>
         <input type="email" id="email" name="email" required autofocus placeholder="jij@voorbeeld.nl"

@@ -35,15 +35,17 @@ class TestLogin:
         assert r.headers.get("HX-Redirect") == "/"
         assert "access_token" in r.cookies
 
-    def test_wrong_password_returns_200_with_error(self, client, db):
+    def test_wrong_password_returns_401_with_error(self, client, db):
+        """#130: failed login returns 401 so the reverse proxy access log
+        records it as an auth error (fail2ban can match on the status)."""
         _register_and_activate(db)
         r = client.post("/login", data={"email": "jan@example.com", "password": "wrongpass"})
-        assert r.status_code == 200
+        assert r.status_code == 401
         assert "Ongeldig" in r.text
 
-    def test_unknown_email_returns_error(self, client, db):
+    def test_unknown_email_returns_401_with_error(self, client, db):
         r = client.post("/login", data={"email": "nobody@example.com", "password": "any"})
-        assert r.status_code == 200
+        assert r.status_code == 401
         assert "Ongeldig" in r.text
 
     def test_failed_login_emits_warning_with_ip(self, client, db, caplog):

@@ -29,8 +29,11 @@ _CATALOGUE = BadgeCatalogue(Path(__file__).parent.parent / "data")
 router = APIRouter()
 
 
-def _partial(request: Request, name: str, **ctx):
-    return _TEMPLATES.TemplateResponse(request=request, name=f"partials/{name}", context=ctx)
+def _partial(request: Request, name: str, *, status_code: int = 200, **ctx):
+    return _TEMPLATES.TemplateResponse(
+        request=request, name=f"partials/{name}", context=ctx,
+        status_code=status_code,
+    )
 
 
 def _page(request: Request, name: str, db: Session, **ctx):
@@ -298,8 +301,15 @@ async def login(
         user_svc.log_failed_login_attempt(
             email, request.client.host if request.client else None,
         )
-        return _partial(request, "login_form.html", email=email,
-                        error="Ongeldig e-mailadres of wachtwoord.")
+        # Return 401 so the reverse-proxy access log records failed logins
+        # as auth errors (fail2ban filter matches "POST /login HTTP/* 401").
+        # The login form has an HTMX before-swap hook that still swaps the
+        # partial on 401 so the browser UX is unchanged.
+        return _partial(
+            request, "login_form.html",
+            email=email, error="Ongeldig e-mailadres of wachtwoord.",
+            status_code=401,
+        )
     access_token, _ = create_access_token(user.id)
     response = HTMLResponse(content="")
     response.headers["HX-Redirect"] = "/"

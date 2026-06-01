@@ -17,7 +17,13 @@ alembic_config = context.config
 alembic_config.set_main_option("sqlalchemy.url", app_config.database_url)
 
 if alembic_config.config_file_name is not None:
-    fileConfig(alembic_config.config_file_name)
+    # ``disable_existing_loggers`` defaults to True, which sets ``disabled``
+    # on every logger that exists at the moment of the call — including the
+    # app's ``insigne.*`` loggers when alembic runs in-process during tests
+    # or under ``run_prod.sh``. Application warnings (e.g. the failed-login
+    # log from #130) would then silently disappear. Keep existing loggers
+    # alive.
+    fileConfig(alembic_config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 

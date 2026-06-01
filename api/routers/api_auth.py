@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from insigne import users as user_svc
@@ -13,9 +13,12 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/token", response_model=TokenResponse)
-async def login(body: LoginRequest, db: Session = Depends(get_db)):
+async def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     user = user_svc.authenticate(db, body.email, body.password)
     if user is None:
+        user_svc.log_failed_login_attempt(
+            body.email, request.client.host if request.client else None,
+        )
         raise HTTPException(status_code=401, detail="Invalid credentials.")
     access_token, expires_at = create_access_token(user.id)
     return TokenResponse(access_token=access_token, expires_at=expires_at)

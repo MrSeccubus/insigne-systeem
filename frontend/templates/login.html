@@ -3,6 +3,20 @@
 {% block title %}Inloggen — Insigne Systeem{% endblock %}
 
 {% block content %}
+{# HTMX 2.x default behaviour: 4xx responses do not swap. The login POST
+   returns 401 on failed credentials (so the reverse-proxy access log
+   records the auth error for fail2ban — see #130), but we still want
+   the inline error partial to render. Force a swap on 401 only, on
+   this page only. #}
+<script>
+document.addEventListener('htmx:beforeSwap', function(evt) {
+    if (evt.detail.xhr && evt.detail.xhr.status === 401 &&
+        evt.detail.requestConfig && evt.detail.requestConfig.path === '/login') {
+        evt.detail.shouldSwap = true;
+        evt.detail.isError = false;
+    }
+});
+</script>
 <main class="auth-page">
     <div class="auth-card">
         <h1>Inloggen</h1>

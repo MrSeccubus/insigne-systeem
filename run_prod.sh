@@ -26,10 +26,22 @@ venv/bin/python api/migrate.py
 HOST="${INSIGNE_HOST:-$(venv/bin/python -c "from insigne.config import config; print(config.server_host)")}"
 PORT="${INSIGNE_PORT:-$(venv/bin/python -c "from insigne.config import config; print(config.server_port)")}"
 KEEPALIVE="${INSIGNE_KEEPALIVE:-$(venv/bin/python -c "from insigne.config import config; print(config.server_keepalive)")}"
+FORWARDED_ALLOW_IPS="${INSIGNE_FORWARDED_ALLOW_IPS:-$(venv/bin/python -c "from insigne.config import config; print(config.server_forwarded_allow_ips)")}"
+
+# When server.forwarded_allow_ips is set, ask uvicorn to parse
+# X-Forwarded-For / X-Forwarded-Proto from the listed proxy IPs so the
+# app sees the real client IP (used by the fail2ban login log).
+# Empty value = no parsing, app sees the proxy's IP — safe default when
+# not running behind a reverse proxy.
+PROXY_FLAGS=()
+if [ -n "$FORWARDED_ALLOW_IPS" ]; then
+    PROXY_FLAGS=(--proxy-headers --forwarded-allow-ips "$FORWARDED_ALLOW_IPS")
+fi
 
 exec venv/bin/uvicorn main:app \
     --app-dir api \
     --host "$HOST" \
     --port "$PORT" \
     --workers 1 \
-    --timeout-keep-alive "$KEEPALIVE"
+    --timeout-keep-alive "$KEEPALIVE" \
+    "${PROXY_FLAGS[@]}"

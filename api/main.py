@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from pathlib import Path
 
@@ -5,8 +6,26 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from uvicorn.logging import DefaultFormatter
 
 import insigne.models  # noqa: F401 — registers all ORM classes on Base.metadata
+
+# Route ``insigne.*`` log records through uvicorn's DefaultFormatter so they
+# show up in the same stream and format as uvicorn's access / error log:
+#
+#     INFO:     127.0.0.1:62389 - "GET /login HTTP/1.1" 200 OK
+#     WARNING:  127.0.0.1 - "POST /login HTTP/1.1" 401 invalid credentials …
+#
+# Without this, ``insigne.*`` records fall through to Python's lastResort
+# StreamHandler which prints just the bare message — the user sees uvicorn
+# lines and bare app messages side-by-side. Idempotent: guard with the
+# handler-list check so re-imports under tests don't pile up handlers.
+_insigne_logger = logging.getLogger("insigne")
+if not any(isinstance(h.formatter, DefaultFormatter) for h in _insigne_logger.handlers):
+    _h = logging.StreamHandler()
+    _h.setFormatter(DefaultFormatter("%(levelprefix)s %(message)s"))
+    _insigne_logger.addHandler(_h)
+    _insigne_logger.setLevel(logging.INFO)
 from insigne import groups as groups_svc
 from insigne import progress as progress_svc
 from insigne import users as users_svc

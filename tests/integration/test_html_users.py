@@ -35,16 +35,40 @@ class TestLogin:
         assert r.headers.get("HX-Redirect") == "/"
         assert "access_token" in r.cookies
 
-    def test_wrong_password_returns_200_with_error(self, client, db):
+    def test_wrong_password_returns_401_with_error(self, client, db):
+        """#130: failed login returns 401 so the reverse proxy access log
+        records it as an auth error (fail2ban can match on the status)."""
         _register_and_activate(db)
         r = client.post("/login", data={"email": "jan@example.com", "password": "wrongpass"})
-        assert r.status_code == 200
+        assert r.status_code == 401
         assert "Ongeldig" in r.text
 
-    def test_unknown_email_returns_error(self, client, db):
+    def test_unknown_email_returns_401_with_error(self, client, db):
         r = client.post("/login", data={"email": "nobody@example.com", "password": "any"})
-        assert r.status_code == 200
+        assert r.status_code == 401
         assert "Ongeldig" in r.text
+
+    def test_failed_login_emits_warning_with_ip(self, client, db, caplog):
+        """#130: failed authentication must produce a parseable WARNING so
+        fail2ban can match it. The message mirrors uvicorn's access-log
+        line shape."""
+        import logging
+        caplog.set_level(logging.WARNING, logger="insigne.users")
+        client.post("/login", data={"email": "nobody@example.com", "password": "x"})
+        msgs = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+        assert any('"POST /login HTTP/1.1" 401 invalid credentials' in m
+                   and "email=nobody@example.com" in m for m in msgs), msgs
+
+    def test_successful_login_does_not_warn(self, client, db, caplog):
+        """Healthy logins must not pollute the WARNING-stream that fail2ban
+        is watching."""
+        import logging
+        caplog.set_level(logging.WARNING, logger="insigne.users")
+        _register_and_activate(db)
+        client.post("/login", data={"email": "jan@example.com", "password": "validpass1"})
+        msgs = [r.getMessage() for r in caplog.records
+                if r.levelname == "WARNING" and "401 invalid credentials" in r.getMessage()]
+        assert msgs == []
 
 
 # ── logout ────────────────────────────────────────────────────────────────────

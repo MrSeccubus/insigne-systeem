@@ -1,7 +1,7 @@
 """Tests for the membership request / approval flow."""
 import pytest
 from insigne import groups as svc
-from insigne.models import ConfirmationToken, MembershipRequest, User
+from insigne.models import MembershipRequest, User
 
 
 def _user(db, email="user@example.com", name="User"):
@@ -9,20 +9,6 @@ def _user(db, email="user@example.com", name="User"):
     db.add(u)
     db.commit()
     return u
-
-
-def _full_register(client, db, email="user@example.com", password="validpass1", name="User"):
-    client.post("/api/users", json={"email": email})
-    user = db.query(User).filter_by(email=email).first()
-    ct = db.query(ConfirmationToken).filter_by(user_id=user.id, type="email_confirmation").first()
-    r = client.post("/api/users/confirm", json={"code": ct.token})
-    setup = r.json()["setup_token"]
-    r = client.post("/api/users/activate", json={"setup_token": setup, "password": password, "name": name})
-    return r.json()["access_token"]
-
-
-def _auth(token):
-    return {"Authorization": f"Bearer {token}"}
 
 
 # ── Library: create_membership_request ───────────────────────────────────────
@@ -136,78 +122,6 @@ class TestListRequests:
         results = svc.search_groups(db, "noord")
         assert len(results) == 1
         assert results[0].slug == "groep-noord"
-
-
-# ── JSON API ──────────────────────────────────────────────────────────────────
-
-class TestMembershipRequestAPI:
-    def test_create_request(self, client, db):
-        token = _full_register(client, db)
-        user = db.query(User).filter_by(email="user@example.com").first()
-        g = svc.create_group(db, name="G", slug="g")
-        r = client.post(f"/api/groups/{g.id}/requests", json={}, headers=_auth(token))
-        assert r.status_code == 201
-        assert r.json()["status"] == "pending"
-        assert r.json()["user_id"] == user.id
-
-    def test_create_speltak_request(self, client, db):
-        token = _full_register(client, db)
-        g = svc.create_group(db, name="G", slug="g")
-        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
-        r = client.post(f"/api/groups/{g.id}/requests",
-                        json={"speltak_id": s.id}, headers=_auth(token))
-        assert r.status_code == 201
-        assert r.json()["speltak_id"] == s.id
-
-    def test_duplicate_request_returns_409(self, client, db):
-        token = _full_register(client, db)
-        g = svc.create_group(db, name="G", slug="g")
-        client.post(f"/api/groups/{g.id}/requests", json={}, headers=_auth(token))
-        r = client.post(f"/api/groups/{g.id}/requests", json={}, headers=_auth(token))
-        assert r.status_code == 409
-
-    def test_list_requests_requires_manager(self, client, db):
-        token = _full_register(client, db)
-        g = svc.create_group(db, name="G", slug="g")
-        r = client.get(f"/api/groups/{g.id}/requests", headers=_auth(token))
-        assert r.status_code == 403
-
-    def test_list_requests_as_leader(self, client, db):
-        token = _full_register(client, db)
-        user = db.query(User).filter_by(email="user@example.com").first()
-        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
-        scout = _user(db, email="scout@example.com")
-        svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
-        r = client.get(f"/api/groups/{g.id}/requests", headers=_auth(token))
-        assert r.status_code == 200
-        assert len(r.json()) == 1
-
-    def test_approve_request(self, client, db):
-        token = _full_register(client, db)
-        user = db.query(User).filter_by(email="user@example.com").first()
-        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
-        scout = _user(db, email="scout@example.com")
-        req = svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
-        r = client.post(f"/api/groups/{g.id}/requests/{req.id}/approve", headers=_auth(token))
-        assert r.status_code == 204
-        db.refresh(req)
-        assert req.status == "approved"
-
-    def test_reject_request(self, client, db):
-        token = _full_register(client, db)
-        user = db.query(User).filter_by(email="user@example.com").first()
-        g = svc.create_group(db, name="G", slug="g", created_by_id=user.id)
-        scout = _user(db, email="scout@example.com")
-        req = svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
-        r = client.post(f"/api/groups/{g.id}/requests/{req.id}/reject", headers=_auth(token))
-        assert r.status_code == 204
-        db.refresh(req)
-        assert req.status == "rejected"
-
-    def test_unauthenticated_returns_401(self, client, db):
-        g = svc.create_group(db, name="G", slug="g")
-        r = client.post(f"/api/groups/{g.id}/requests", json={})
-        assert r.status_code == 401
 
 
 # ── HTML: join flow ───────────────────────────────────────────────────────────

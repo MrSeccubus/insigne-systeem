@@ -6,6 +6,21 @@
     <title>{% block title %}Insigne Systeem{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/style.css">
+    {# ── PWA (#101) ───────────────────────────────────────────────────── #}
+    <link rel="manifest" href="/static/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <meta name="theme-color" content="#00A651">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Insigne">
+    <script>
+    if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+            navigator.serviceWorker.register("/static/sw.js", { scope: "/" })
+                .catch((err) => console.warn("SW registration failed:", err));
+        });
+    }
+    </script>
     <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
     <script>
     document.addEventListener('alpine:init', () => {
@@ -150,6 +165,8 @@
     {% block scripts %}{% endblock %}
     <footer class="site-footer">
         <a href="/contact">Contact</a>
+        <span class="footer-sep" aria-hidden="true">|</span>
+        <a href="/install">App installeren</a>
         <span class="footer-sep" aria-hidden="true">|</span>
         <a href="/privacy">Privacybeleid</a>
         <span class="footer-sep" aria-hidden="true">|</span>

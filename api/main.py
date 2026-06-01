@@ -109,6 +109,28 @@ app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="stati
 app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
 
+# ── PWA pages (#101) ──────────────────────────────────────────────────────────
+
+@app.get("/install", response_class=HTMLResponse)
+async def install_instructions(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        request=request, name="install.html",
+        context={
+            "current_user": _get_current_user(request, db),
+            "install_url": config.base_url,
+        },
+    )
+
+
+@app.get("/offline", response_class=HTMLResponse)
+async def offline_fallback(request: Request, db: Session = Depends(get_db)):
+    """Served by the service worker when no cached entry is available."""
+    return templates.TemplateResponse(
+        request=request, name="offline.html",
+        context={"current_user": _get_current_user(request, db)},
+    )
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, only_favorites: int = 0, only_in_progress: int = 0, db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)

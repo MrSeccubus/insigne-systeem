@@ -10,6 +10,10 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Nieuw
+
+- **PWA-wrapper: installeer Insigne Systeem als app** (sluit #101) — een dunne PWA-laag op de bestaande HTMX/Jinja-UI: Web App Manifest (`/static/manifest.webmanifest`) met Scouting-groene `theme_color`, 192/512/512-maskable icons, een service worker (`/static/sw.js`) die de statische shell pre-cacht (CSS, icons, manifest) en HTML-responses network-first behandelt, plus iOS-meta-tags (`apple-touch-icon`, `apple-mobile-web-app-capable`). Op Android (Chrome/Edge) krijgt de gebruiker de "App installeren"-prompt; op iOS Safari het standaard *Voeg toe aan beginscherm*-pad. Een nieuwe `/install`-pagina geeft platform-specifieke instructies (bereikbaar vanuit de footer); `/offline` is de fallback wanneer het netwerk weg is. POST/PUT/DELETE wordt nooit gecached, en `/api/*` (toekomst-proof, ook al is de JSON-API in #117 verwijderd) staat op de network-only allowlist. 19 nieuwe integratietests rond manifest-velden, SW-content, icon-PNG-headers, base.html-meta-tags, install- en offline-pagina.
+
 ### Onderhoud
 
 - **JSON API verwijderd** (sluit #117) — de `api/routers/api_*.py` mirror van `lib/insigne/` (8 routers, ~2k LoC, 90 endpoints) plus `api/schemas.py` en `api/spec.md` zijn weg, samen met de bijbehorende `tests/integration/test_api_*.py` (~2,6k LoC, 243 tests) en API-only test-klassen in `tests/unit/test_progress_export.py` en `tests/unit/test_membership_requests.py`. Motivatie: geen consumer, geen mobile app op de roadmap (PWA hangt op de HTML-laag), en de "in-sync"-regel uit `CLAUDE.md` kostte ~30 min per feature-PR. De `lib/insigne/`-bibliotheek blijft staan en is via de unit-tests gedekt — een nieuwe API erover bouwen is mechanisch. Het laatste commit met de API is bereikbaar via de git-tag `json-api-final`. `CLAUDE.md` bijgewerkt: "API specification"-sectie weg, "Keeping the JSON API in sync"-sectie vervangen door een korte verwijzing naar de tag. Suite: 1070 tests passen (was 1331; 261 API-tests weg).

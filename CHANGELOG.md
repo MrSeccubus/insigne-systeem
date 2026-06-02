@@ -10,6 +10,10 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Opgelost
+
+- **Admin-dashboard gaf 500** (sluit #139) — `/admin` crashte voor élke ingelogde beheerder met `NameError: name 'user' is not defined`. De `_require_admin`-helper is bij de CodeQL-opschoning (#100) omgezet naar `(current_user, admin)`, maar de template-context op `html_admin.py:44` verwees nog naar de oude variabelenaam `user`. Eén woord (`user` → `current_user`). Drie integratietests toegevoegd (`tests/integration/test_html_admin.py`) die de render-, niet-beheerder- en anonieme-paden afdekken — de succes-render was nergens getest, waardoor de fout door de mazen glipte.
+
 ### Onderhoud
 
 - **JSON API verwijderd** (sluit #117) — de `api/routers/api_*.py` mirror van `lib/insigne/` (8 routers, ~2k LoC, 90 endpoints) plus `api/schemas.py` en `api/spec.md` zijn weg, samen met de bijbehorende `tests/integration/test_api_*.py` (~2,6k LoC, 243 tests) en API-only test-klassen in `tests/unit/test_progress_export.py` en `tests/unit/test_membership_requests.py`. Motivatie: geen consumer, geen mobile app op de roadmap (PWA hangt op de HTML-laag), en de "in-sync"-regel uit `CLAUDE.md` kostte ~30 min per feature-PR. De `lib/insigne/`-bibliotheek blijft staan en is via de unit-tests gedekt — een nieuwe API erover bouwen is mechanisch. Het laatste commit met de API is bereikbaar via de git-tag `json-api-final`. `CLAUDE.md` bijgewerkt: "API specification"-sectie weg, "Keeping the JSON API in sync"-sectie vervangen door een korte verwijzing naar de tag. Suite: 1070 tests passen (was 1331; 261 API-tests weg).

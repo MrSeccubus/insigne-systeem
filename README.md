@@ -25,17 +25,16 @@ venv/bin/pip install -r requirements.txt
 venv/bin/pip install -e lib/
 ```
 
-Create a `config.yml` in the project root (never commit it):
+Create your `config.yml` from the documented example (the real file is
+gitignored — never commit it):
 
-```yaml
-database:
-  url: sqlite:///api/data/insigne.db
-
-jwt:
-  secret_key: "<any long random string>"
-
-base_url: "http://localhost:8000"
+```bash
+cp config.example.yml config.yml
 ```
+
+Then edit `config.yml`: set a long random `jwt.secret_key`, your `base_url`,
+and the `email`/SMTP and `admins` settings. Every option is documented inline
+in [`config.example.yml`](config.example.yml).
 
 Run the development server from the **project root**:
 

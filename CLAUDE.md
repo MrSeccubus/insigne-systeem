@@ -5,38 +5,27 @@
 - Install dependencies: `venv/bin/pip install -r requirements.txt`
 
 ## Configuration
-Create a `config.yml` file in the project root (never commit it — it is gitignored):
-```yaml
-database:
-  url: sqlite:///api/data/insigne.db
-
-jwt:
-  secret_key: "<any long random string>"
-  algorithm: HS256
-  expire_days: 30
-
-server:
-  host: 127.0.0.1   # bind address for run_prod.sh (default: 127.0.0.1)
-  port: 8000        # bind port for run_prod.sh (default: 8000)
-  keepalive: 2      # uvicorn --timeout-keep-alive in seconds (default: 2; set low behind a proxy)
-  # Trusted proxy IPs (uvicorn --forwarded-allow-ips). Empty = ignore
-  # X-Forwarded-* (default; safe when no proxy in front). Set to the
-  # proxy's IP (e.g. "127.0.0.1") when running behind nginx / Apache
-  # so the app sees the real client IP — required for the failed-login
-  # WARNING (issue #130) to be useful to fail2ban.
-  forwarded_allow_ips: ""
-
-base_url: "http://localhost:8000"  # public URL used in emails and links
-
-# System administrators (by email address — config is the source of truth, not the DB)
-admins:
-  - admin@example.com
-
-# Whether any authenticated user may create a group (false = only admins)
-allow_any_user_to_create_groups: true
+Create `config.yml` from the documented template (never commit it — it is
+gitignored):
 ```
-The app reads `config.yml` from the working directory on startup.
-Override the path with the `INSIGNE_CONFIG` environment variable.
+cp config.example.yml config.yml
+```
+**`config.example.yml` is the single source of truth for configuration** —
+every option (database, jwt, `server`, `base_url`, `email`/SMTP, `admins`,
+`allow_any_user_to_create_groups`) is listed and commented there. When you add
+or change a config key in `lib/insigne/config.py`, update `config.example.yml`
+in the same change.
+
+The app reads `config.yml` from the working directory on startup. Override the
+path with the `INSIGNE_CONFIG` environment variable.
+
+**`base_url` must exactly match the browser's origin** (scheme + host, no
+trailing slash, no `:443`) — it is the trusted origin for the CSRF
+Origin/Referer check (`api/main.py:origin_csrf_check`), so a mismatch returns
+403 *before* the handler runs (a failed POST then also sends no e-mail). Pick
+one canonical host and 301-redirect the other at the proxy (the classic trap is
+`www` vs the bare apex), and force http → https. `server.forwarded_allow_ips`
+governs only real-client-IP logging — it does **not** affect this check.
 
 ## Running the app
 

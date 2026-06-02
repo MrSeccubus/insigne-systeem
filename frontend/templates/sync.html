@@ -19,15 +19,20 @@ function offlineDownload() {
             }
             this.status = 'running';
             this.done = 0;
+            // ``cache: 'reload'`` forces a fresh network fetch (bypassing the
+            // HTTP cache); the service worker's network-first handler then
+            // overwrites its runtime-cache entry, so a re-sync always refreshes
+            // — never served a stale page.
+            const opts = { credentials: 'same-origin', cache: 'reload' };
             try {
-                const resp = await fetch('/offline/manifest.json', { credentials: 'same-origin' });
+                const resp = await fetch('/offline/manifest.json', opts);
                 if (!resp.ok) throw new Error('manifest');
                 const urls = (await resp.json()).urls || [];
                 this.total = urls.length;
                 for (const u of urls) {
                     // A single missing asset (e.g. a badge without artwork)
                     // shouldn't abort the whole download.
-                    try { await fetch(u, { credentials: 'same-origin' }); } catch (e) { /* keep going */ }
+                    try { await fetch(u, opts); } catch (e) { /* keep going */ }
                     this.done++;
                 }
                 this.status = 'done';

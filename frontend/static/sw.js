@@ -18,7 +18,7 @@
 // Updates: ``skipWaiting`` + ``clients.claim`` so a new deploy applies on
 // the next reload without forcing the user to close all tabs.
 
-const VERSION = "v3";
+const VERSION = "v4";
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 

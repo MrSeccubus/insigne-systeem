@@ -51,20 +51,15 @@
         });
     })();
     </script>
-    {# Mark ``body.standalone`` when launched as an installed PWA (display-mode
-       standalone / iOS home-screen), so app-only UI like the "Data
-       synchroniseren" menu item stays hidden in a normal browser tab. #}
+    {# Mark ``html.pwa-capable`` when the browser supports the PWA offline cache
+       (service worker + Cache Storage, which also implies a secure context).
+       Used to show offline-only UI like the "Data synchroniseren" menu item —
+       installation is NOT required, so it appears in any capable browser
+       (incl. desktop Chrome), but stays hidden where caching can't work. #}
     <script>
-    (function () {
-        function isStandalone() {
-            return (window.matchMedia && (window.matchMedia("(display-mode: standalone)").matches
-                || window.matchMedia("(display-mode: minimal-ui)").matches))
-                || window.navigator.standalone === true;
-        }
-        function apply() { document.body.classList.toggle("standalone", isStandalone()); }
-        document.addEventListener("DOMContentLoaded", apply);
-        try { window.matchMedia("(display-mode: standalone)").addEventListener("change", apply); } catch (e) {}
-    })();
+    if ("serviceWorker" in navigator && "caches" in window) {
+        document.documentElement.classList.add("pwa-capable");
+    }
     </script>
     <script src="/static/vendor/htmx.min.js" defer></script>
     <script>
@@ -197,7 +192,7 @@
                         <a href="/profile" class="nav-user-item offline-disabled">Profiel bewerken</a>
                         <a href="/export" class="nav-user-item offline-disabled">Importeren/exporteren</a>
                         <a href="/install" class="nav-user-item">App installeren</a>
-                        <a href="/sync" class="nav-user-item standalone-only offline-disabled">Data synchroniseren</a>
+                        <a href="/sync" class="nav-user-item pwa-only offline-disabled">Data synchroniseren</a>
                         <form method="post" action="/logout" style="margin:0;">
                             <button type="submit" class="nav-user-item nav-user-item--btn offline-disabled">Uitloggen</button>
                         </form>

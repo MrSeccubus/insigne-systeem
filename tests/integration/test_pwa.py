@@ -310,9 +310,10 @@ class TestSyncScreen:
         r = client.get("/install")
         assert "offlineDownload" not in r.text
 
-    def test_sync_menu_item_is_standalone_only(self, client, db):
-        """The 'Data synchroniseren' menu item is shown only when launched as an
-        installed PWA (standalone), so it's hidden in a normal browser tab."""
+    def test_sync_menu_item_is_pwa_gated(self, client, db):
+        """The 'Data synchroniseren' menu item is gated to browsers that support
+        the PWA cache (pwa-only, hidden by default) — not to installed PWAs, so
+        it's available in any capable browser incl. desktop Chrome."""
         from insigne.models import User
         from insigne.auth import create_access_token
         u = User(email="s@example.com", name="S", status="active", password_hash="x")
@@ -321,12 +322,12 @@ class TestSyncScreen:
         client.cookies.set("access_token", token)
         r = client.get("/")
         assert 'href="/sync"' in r.text
-        assert "standalone-only" in r.text  # gated, hidden by default
+        assert "pwa-only" in r.text  # gated, hidden by default
 
-    def test_base_html_detects_standalone(self, client, db):
+    def test_base_html_detects_pwa_capability(self, client, db):
         r = client.get("/login")
-        assert 'classList.toggle("standalone"' in r.text
-        assert "display-mode: standalone" in r.text
+        assert '"serviceWorker" in navigator' in r.text
+        assert 'classList.add("pwa-capable")' in r.text
 
 
 class TestBadgeNiveausClientSide:

@@ -69,9 +69,11 @@ body.offline .offline-banner { display: block; }
 body.offline .online-only { display: none; }
 body:not(.offline) .offline-only { display: none; }
 
-/* App-only UI: hidden in a normal browser tab; shown (with its natural display)
-   only when launched as an installed PWA (body.standalone, set client-side). */
-body:not(.standalone) .standalone-only { display: none; }
+/* Offline-cache UI (e.g. "Data synchroniseren"): hidden unless the browser
+   supports the PWA cache (html.pwa-capable, set client-side). Installation is
+   not required — any service-worker-capable browser shows it; browsers that
+   can't cache keep it hidden. */
+html:not(.pwa-capable) .pwa-only { display: none; }
 
 /* Offline = read-only: grey out and disable every edit affordance so cached
    controls look inert and can't be triggered. Read-only content (status

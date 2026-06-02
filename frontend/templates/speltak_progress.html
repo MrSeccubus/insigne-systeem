@@ -58,7 +58,7 @@
         {% set badge_slug = badge.slug %}
         {% if badge.type == "jaarinsigne" %}
         <div class="badge-progress-card" style="padding:0.75rem 1rem;">
-            <strong><a href="/badges/{{ badge.slug }}">{{ badge.title }}</a></strong>
+            <strong><a href="/badges/{{ badge.slug }}" class="offline-plainlink">{{ badge.title }}</a></strong>
             <p style="margin:0.4rem 0 0;font-size:0.85rem;color:#555;">
                 Jaarinsigne — bekijk voortgang per scout op de individuele voortgangspagina.
             </p>
@@ -124,7 +124,7 @@
                     {% set scout_id = m.user_id %}
                     <tr>
                         <td class="badge-progress-name" title="{{ m.user.name or m.user.email or '(onbekend)' }}">
-                            <a href="/scouts/{{ m.user_id }}" class="scout-name-link">{{ m.user.name or m.user.email or '(onbekend)' }}</a>
+                            <a href="/scouts/{{ m.user_id }}" class="scout-name-link offline-plainlink">{{ m.user.name or m.user.email or '(onbekend)' }}</a>
                         </td>
                         {% for step_index in range(3) %}
                         <td>

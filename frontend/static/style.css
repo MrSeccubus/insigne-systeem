@@ -87,6 +87,21 @@ body.offline .offline-disabled {
     pointer-events: none;
 }
 
+/* Leider progress-grid checkboxes: disable interaction offline but keep them
+   at full opacity — the leader still needs to read the statuses (the summary
+   shows ✓/?/colour). No greying so the read-only overview stays legible. */
+body.offline .step-check-wrapper { pointer-events: none; }
+
+/* Links that become plain, unclickable text offline (their target isn't a
+   read-only snapshot, e.g. a scout's page or a jaarinsigne detail). The name
+   stays readable; it just isn't a working link. */
+body.offline .offline-plainlink {
+    color: inherit;
+    text-decoration: none;
+    pointer-events: none;
+    cursor: default;
+}
+
 main {
     max-width: 800px;
     margin: 0 auto;

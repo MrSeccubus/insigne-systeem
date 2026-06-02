@@ -232,6 +232,30 @@ class TestOfflineManifest:
         urls = client.get("/offline/manifest.json").json()["urls"]
         assert not any("?" in u for u in urls)
 
+    def test_manifest_anonymous_has_no_user_pages(self, client, db):
+        urls = client.get("/offline/manifest.json").json()["urls"]
+        assert "/my-speltakken" not in urls
+
+    def test_manifest_includes_leader_speltak_progress(self, client, db):
+        """A logged-in leader's home + speltak progress overviews are warmed too,
+        so they're available offline (the original leader-offline goal)."""
+        from insigne import groups as groups_svc
+        from insigne.models import User, SpeltakMembership
+        from insigne.auth import create_access_token
+        leider = User(email="l@example.com", name="L", status="active", password_hash="x")
+        db.add(leider); db.commit()
+        g = groups_svc.create_group(db, name="G", slug="g-pwa", created_by_id=leider.id)
+        s = groups_svc.create_speltak(db, group_id=g.id, name="S", slug="s-pwa")
+        db.add(SpeltakMembership(user_id=leider.id, speltak_id=s.id,
+                                 role="speltakleider", approved=True))
+        db.commit()
+        token, _ = create_access_token(leider.id)
+        client.cookies.set("access_token", token)
+        urls = client.get("/offline/manifest.json").json()["urls"]
+        assert "/" in urls
+        assert "/my-speltakken" in urls
+        assert "/groups/g-pwa/speltakken/s-pwa/progress" in urls
+
 
 class TestOfflineReadOnlyMode:
     """Offline = read-only: a banner appears and edit controls are greyed out

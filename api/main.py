@@ -184,16 +184,28 @@ async def offline_disabled(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/offline/manifest.json")
-async def offline_manifest():
-    """URLs the 'Maak offline beschikbaar' button warms into the cache so the
-    whole badge catalogue (every eis on every niveau) is browsable offline.
-    One detail URL per badge — niveau selection is client-side — plus the
-    badge artwork. No per-user data, so this is safe to serve unauthenticated."""
+async def offline_manifest(request: Request, db: Session = Depends(get_db)):
+    """URLs the 'Data synchroniseren' button warms into the cache. Always the
+    whole badge catalogue (every eis on every niveau, niveau selection being
+    client-side) plus artwork. For a logged-in user we also add their own home
+    page and the speltak progress overviews they lead, so a leader can review
+    their speltak offline (the catalogue badge pages already render the user's
+    own progress, so a scout's own progress is covered too). All URLs are
+    server-derived (catalogue dict / ORM slugs), never request input."""
     urls: list[str] = []
     for badges in _CATALOGUE.list().values():
         for badge in badges:
             urls.append(f"/badges/{badge['slug']}")
             urls.extend(badge.get("images", []))
+
+    current_user = _get_current_user(request, db)
+    if current_user is not None:
+        urls.append("/")
+        led = groups_svc.list_my_speltakken(db, current_user.id)
+        if led:
+            urls.append("/my-speltakken")
+            for group, speltak in led:
+                urls.append(f"/groups/{group.slug}/speltakken/{speltak.slug}/progress")
     return JSONResponse({"urls": urls})
 
 

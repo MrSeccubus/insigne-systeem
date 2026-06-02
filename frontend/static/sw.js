@@ -95,7 +95,9 @@ self.addEventListener("fetch", (event) => {
     // Network-first for HTML / everything else, with a cache fallback.
     event.respondWith(
         fetch(req).then((resp) => {
-            if (resp.ok && resp.headers.get("content-type")?.includes("text/html")) {
+            // Skip redirected responses: Cache.put() throws on them (e.g.
+            // /my-speltakken 303s to a single speltak's progress page).
+            if (resp.ok && !resp.redirected && resp.headers.get("content-type")?.includes("text/html")) {
                 const copy = resp.clone();
                 caches.open(RUNTIME_CACHE).then((c) => c.put(req, copy));
             }

@@ -35,6 +35,12 @@ jwt:
 #   - If you prefer www, set base_url to `https://www.insignesysteem.nl` and
 #     redirect the apex → www instead.
 # Also force http → https at the proxy, or an http Origin won't match.
+#
+# Deploy at the ROOT of a (sub)domain — e.g. `https://insigne.scouting.nl` —
+# NOT under a sub-path like `https://scouting.nl/insigne/`. The app uses
+# root-absolute URLs throughout (links, redirects, the service-worker scope and
+# its cached asset list), so a path prefix is not supported. Use a subdomain
+# and point the reverse proxy at the app's root.
 # ─────────────────────────────────────────────────────────────────────────────
 base_url: "https://insignesysteem.nl"
 

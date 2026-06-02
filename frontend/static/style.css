@@ -38,6 +38,35 @@ body {
     text-decoration: underline;
 }
 
+/* ── Offline read-only mode (#101) ──────────────────────────────────────── */
+.offline-banner {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: #fef3c7;
+    border-bottom: 1px solid #fcd34d;
+    color: #92400e;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+}
+body.offline .offline-banner { display: block; }
+
+/* Offline = read-only: grey out and disable every edit affordance so cached
+   controls look inert and can't be triggered. Read-only content (status
+   checks, notes display, sign-off info) stays fully visible. */
+body.offline .step-actions,
+body.offline .inline-form,
+body.offline .batch-signoff-section,
+body.offline form[action*="set-level"],
+body.offline button[hx-post*="favorite-badge"],
+body.offline .step-notes .btn-icon {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
 main {
     max-width: 800px;
     margin: 0 auto;
@@ -624,6 +653,25 @@ details.category-collapsible[open] > summary.section-header {
     gap: 0.5rem;
     margin-bottom: 2rem;
     align-items: stretch;
+}
+
+/* Client-side niveau switching (#101): all three niveaus are always in the
+   DOM (one cacheable URL). The grid focuses a single niveau, or shows all
+   three for side-by-side compare (data-niveau="all"). Visibility is keyed on
+   data-niveau so it works at every width — desktop included. */
+.badge-overview-grid--switch {
+    grid-template-columns: 160px 1fr;
+}
+.badge-overview-grid--switch[data-niveau="all"] {
+    grid-template-columns: 160px repeat(3, 1fr);
+}
+.badge-overview-grid--switch[data-niveau="1"] .niveau-cell--2,
+.badge-overview-grid--switch[data-niveau="1"] .niveau-cell--3,
+.badge-overview-grid--switch[data-niveau="2"] .niveau-cell--1,
+.badge-overview-grid--switch[data-niveau="2"] .niveau-cell--3,
+.badge-overview-grid--switch[data-niveau="3"] .niveau-cell--1,
+.badge-overview-grid--switch[data-niveau="3"] .niveau-cell--2 {
+    display: none;
 }
 
 .niveau-col-header {

@@ -21,7 +21,25 @@
         });
     }
     </script>
-    <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
+    {# ── Offline read-only mode (#101) ─────────────────────────────────────
+       Toggle ``body.offline`` from connectivity events; CSS greys out edit
+       controls and reveals the banner. As a safety net, cancel any
+       state-changing HTMX request while offline so a cached edit control
+       can't fire a doomed POST. #}
+    <script>
+    (function () {
+        function syncOffline() { document.body.classList.toggle("offline", !navigator.onLine); }
+        window.addEventListener("online", syncOffline);
+        window.addEventListener("offline", syncOffline);
+        document.addEventListener("DOMContentLoaded", syncOffline);
+        document.addEventListener("htmx:beforeRequest", function (evt) {
+            var cfg = evt.detail && evt.detail.requestConfig;
+            var verb = (cfg && cfg.verb ? cfg.verb : "get").toLowerCase();
+            if (!navigator.onLine && verb !== "get") evt.preventDefault();
+        });
+    })();
+    </script>
+    <script src="/static/vendor/htmx.min.js" defer></script>
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('stepCard', (initStatus, initNotes, initEntryId, slug, levelIndex, stepIndex) => ({
@@ -109,7 +127,7 @@
         }));
     });
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+    <script src="/static/vendor/alpine.min.js" defer></script>
     <script>window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });</script>
     <script>
     document.addEventListener('click', (e) => {
@@ -124,6 +142,7 @@
     </script>
 </head>
 <body{% if dev %} class="dev"{% endif %}>
+    <div class="offline-banner" role="status">Je bent offline — alleen-lezen modus. Gegevens kunnen verouderd zijn.</div>
     {% if dev %}<div class="dev-banner">Development</div>{% endif %}
     {% if current_user and current_user.is_admin and privacy_policy_is_default() %}
     <div class="privacy-warning-banner">

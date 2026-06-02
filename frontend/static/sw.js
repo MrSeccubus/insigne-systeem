@@ -18,7 +18,7 @@
 // Updates: ``skipWaiting`` + ``clients.claim`` so a new deploy applies on
 // the next reload without forcing the user to close all tabs.
 
-const VERSION = "v1";
+const VERSION = "v3";
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
@@ -30,7 +30,24 @@ const SHELL_ASSETS = [
     "/static/icons/icon-512-maskable.png",
     "/static/icons/apple-touch-icon.png",
     "/static/manifest.webmanifest",
+    "/static/vendor/htmx.min.js",
+    "/static/vendor/alpine.min.js",
+    "/offline",
+    "/offline/disabled",
 ];
+
+// Paths whose screens can't work offline (aftekeningen, groepsbeheer, admin):
+// when the network is gone we serve the "werkt niet offline" page instead of a
+// stale cached copy. ``/groups/**/progress`` is the read-only leader overview
+// and stays available, so it's excluded. ``/my-speltakken`` is not under
+// ``/groups`` and stays cacheable too.
+function isOfflineDisabledPath(pathname) {
+    if (pathname.startsWith("/admin")) return true;
+    if (pathname.startsWith("/signoff-requests")) return true;
+    if (pathname.startsWith("/requests")) return true;
+    if (pathname.startsWith("/groups") && !pathname.endsWith("/progress")) return true;
+    return false;
+}
 
 self.addEventListener("install", (event) => {
     event.waitUntil(
@@ -81,13 +98,19 @@ self.addEventListener("fetch", (event) => {
                 caches.open(RUNTIME_CACHE).then((c) => c.put(req, copy));
             }
             return resp;
-        }).catch(() =>
-            caches.match(req).then((cached) =>
+        }).catch(() => {
+            // Offline. Screens that can't work offline get the disabled page —
+            // checked BEFORE the cache, since these pages may also have been
+            // runtime-cached while online.
+            if (isOfflineDisabledPath(url.pathname)) {
+                return caches.match("/offline/disabled").then((d) => d || caches.match("/offline"));
+            }
+            return caches.match(req).then((cached) =>
                 cached || caches.match("/offline").then((off) => off || new Response(
                     "Geen verbinding.",
                     { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } }
                 ))
-            )
-        )
+            );
+        })
     );
 });

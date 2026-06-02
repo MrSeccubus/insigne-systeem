@@ -2,7 +2,7 @@
 {% set _peer_options = scout_signoff_options | selectattr('type', 'equalto', 'speltak_members') | list %}
 <div id="step-{{ slug }}-{{ level_index }}-{{ step_index }}"
      data-entry-id="{{ entry.id if entry else '' }}"
-     class="step-card"
+     class="step-card {{ cell_class | default('') }}"
      :class="'status-' + status"
      x-data='stepCard(
          {{ _status | tojson }},

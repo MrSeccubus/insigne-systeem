@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from uvicorn.logging import DefaultFormatter
@@ -129,6 +129,30 @@ async def offline_fallback(request: Request, db: Session = Depends(get_db)):
         request=request, name="offline.html",
         context={"current_user": _get_current_user(request, db)},
     )
+
+
+@app.get("/offline/disabled", response_class=HTMLResponse)
+async def offline_disabled(request: Request, db: Session = Depends(get_db)):
+    """Served by the service worker for screens that can't work offline
+    (aftekeningen, groepsbeheer, admin). Pre-cached as part of the SW shell."""
+    return templates.TemplateResponse(
+        request=request, name="offline_disabled.html",
+        context={"current_user": _get_current_user(request, db)},
+    )
+
+
+@app.get("/offline/manifest.json")
+async def offline_manifest():
+    """URLs the 'Maak offline beschikbaar' button warms into the cache so the
+    whole badge catalogue (every eis on every niveau) is browsable offline.
+    One detail URL per badge — niveau selection is client-side — plus the
+    badge artwork. No per-user data, so this is safe to serve unauthenticated."""
+    urls: list[str] = []
+    for badges in _CATALOGUE.list().values():
+        for badge in badges:
+            urls.append(f"/badges/{badge['slug']}")
+            urls.extend(badge.get("images", []))
+    return JSONResponse({"urls": urls})
 
 
 @app.get("/", response_class=HTMLResponse)

@@ -47,6 +47,38 @@ class TestServiceWorker:
         r = client.get("/static/sw.js")
         assert 'req.method !== "GET"' in r.text
 
+    def test_sw_pre_caches_vendored_js(self, client, db):
+        """HTMX and Alpine are vendored locally and pre-cached so the app
+        stays interactive offline — the SW skips cross-origin requests, so
+        these must be same-origin and in the shell list."""
+        r = client.get("/static/sw.js")
+        assert "/static/vendor/htmx.min.js" in r.text
+        assert "/static/vendor/alpine.min.js" in r.text
+
+
+class TestVendoredJs:
+    """HTMX and Alpine must be served same-origin (not from a CDN) so the
+    service worker can cache them — see TestServiceWorker."""
+
+    def test_htmx_served_locally(self, client, db):
+        r = client.get("/static/vendor/htmx.min.js")
+        assert r.status_code == 200
+        assert "javascript" in r.headers.get("content-type", "").lower()
+
+    def test_alpine_served_locally(self, client, db):
+        r = client.get("/static/vendor/alpine.min.js")
+        assert r.status_code == 200
+        assert "javascript" in r.headers.get("content-type", "").lower()
+
+    def test_base_html_references_local_not_cdn(self, client, db):
+        """No CDN <script src> for the core libraries — they must point at
+        /static/vendor/ so they work offline and behind CDN-blocking networks."""
+        r = client.get("/login")
+        assert '<script src="/static/vendor/htmx.min.js"' in r.text
+        assert '<script src="/static/vendor/alpine.min.js"' in r.text
+        assert "unpkg.com" not in r.text
+        assert "alpinejs@" not in r.text
+
 
 class TestIcons:
     def test_icon_192_is_a_png(self, client, db):
@@ -138,3 +170,113 @@ class TestOfflinePage:
         r = client.get("/offline")
         assert r.status_code == 200
         assert "Geen verbinding" in r.text
+
+
+class TestOfflineDisabledPage:
+    """Aftekeningen / Groepsbeheer / Admin fall back to this page offline."""
+
+    def test_disabled_page_renders(self, client, db):
+        r = client.get("/offline/disabled")
+        assert r.status_code == 200
+        assert "Werkt niet offline" in r.text
+
+    def test_sw_pre_caches_disabled_page(self, client, db):
+        r = client.get("/static/sw.js")
+        assert "/offline/disabled" in r.text
+
+    def test_sw_routes_disabled_paths_offline(self, client, db):
+        """The SW must recognise the screens that can't work offline, and must
+        keep the leader progress overview (.../progress) available."""
+        r = client.get("/static/sw.js")
+        for marker in ('"/admin"', '"/signoff-requests"', '"/requests"', '"/groups"'):
+            assert marker in r.text
+        assert 'endsWith("/progress")' in r.text
+
+
+class TestOfflineManifest:
+    """The 'Maak offline beschikbaar' button warms these URLs into the cache."""
+
+    def test_manifest_served(self, client, db):
+        r = client.get("/offline/manifest.json")
+        assert r.status_code == 200
+        assert r.json()["urls"]
+
+    def test_manifest_covers_every_badge(self, client, db):
+        from insigne.badges import BadgeCatalogue
+        from pathlib import Path
+        cat = BadgeCatalogue(Path(__file__).parent.parent.parent / "api" / "data")
+        urls = set(client.get("/offline/manifest.json").json()["urls"])
+        for badges in cat.list().values():
+            for badge in badges:
+                assert f"/badges/{badge['slug']}" in urls, badge["slug"]
+                for img in badge.get("images", []):
+                    assert img in urls
+
+    def test_manifest_is_one_url_per_badge_no_niveau_variants(self, client, db):
+        """Niveau switching is client-side, so the manifest needs only the bare
+        /badges/{slug} URL — no ?niveau= / ?speltak= query variants."""
+        urls = client.get("/offline/manifest.json").json()["urls"]
+        assert not any("?" in u for u in urls)
+
+
+class TestOfflineReadOnlyMode:
+    """Offline = read-only: a banner appears and edit controls are greyed out
+    (body.offline), driven by online/offline events."""
+
+    def test_base_html_has_offline_banner(self, client, db):
+        r = client.get("/login")
+        assert 'class="offline-banner"' in r.text
+
+    def test_base_html_toggles_offline_class(self, client, db):
+        r = client.get("/login")
+        assert 'addEventListener("offline"' in r.text
+        assert 'classList.toggle("offline"' in r.text
+
+    def test_base_html_blocks_offline_mutations(self, client, db):
+        """State-changing HTMX requests are cancelled while offline."""
+        r = client.get("/login")
+        assert "htmx:beforeRequest" in r.text
+
+
+class TestInstallOfflineDownload:
+    def test_install_page_has_download_button(self, client, db):
+        r = client.get("/install")
+        assert "Maak offline beschikbaar" in r.text
+        assert "offlineDownload" in r.text
+
+
+class TestBadgeNiveausClientSide:
+    """All three niveaus render at /badges/{slug} (one cacheable URL) and niveau
+    selection is client-side — no server redirect to ?niveau=N."""
+
+    def _a_regular_slug(self):
+        from insigne.badges import BadgeCatalogue
+        from pathlib import Path
+        cat = BadgeCatalogue(Path(__file__).parent.parent.parent / "api" / "data")
+        return next(
+            b["slug"] for badges in cat.list().values()
+            for b in badges if b.get("type") != "jaarinsigne"
+        )
+
+    def test_all_niveaus_rendered(self, client, db):
+        r = client.get(f"/badges/{self._a_regular_slug()}")
+        assert r.status_code == 200
+        assert "niveau-cell--1" in r.text
+        assert "niveau-cell--2" in r.text
+        assert "niveau-cell--3" in r.text
+
+    def test_no_mobile_redirect_script(self, client, db):
+        r = client.get(f"/badges/{self._a_regular_slug()}")
+        assert "location.replace" not in r.text
+
+    def test_bare_url_shows_all_niveaus(self, client, db):
+        """No ?niveau= → the compare view (all three columns)."""
+        r = client.get(f"/badges/{self._a_regular_slug()}")
+        assert 'data-niveau="all"' in r.text
+
+    def test_niveau_param_focuses_single_niveau(self, client, db):
+        """?niveau=N (e.g. from the home page) → that niveau is focused, not all."""
+        slug = self._a_regular_slug()
+        r = client.get(f"/badges/{slug}?niveau=2")
+        assert 'data-niveau="2"' in r.text
+        assert 'data-niveau="all"' not in r.text

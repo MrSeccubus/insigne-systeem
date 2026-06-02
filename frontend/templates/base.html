@@ -16,16 +16,18 @@
     <script>
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-            navigator.serviceWorker.register("/static/sw.js", { scope: "/" })
+            navigator.serviceWorker.register("/sw.js", { scope: "/" })
                 .catch((err) => console.warn("SW registration failed:", err));
         });
     }
     </script>
     {# ── Offline read-only mode (#101) ─────────────────────────────────────
        Toggle ``body.offline`` from connectivity events; CSS greys out edit
-       controls and reveals the banner. As a safety net, cancel any
-       state-changing HTMX request while offline so a cached edit control
-       can't fire a doomed POST. #}
+       controls and reveals the banner. Offline is strictly read-only, so
+       cancel every HTMX request: state-changing ones would fire a doomed POST,
+       and live partials (e.g. the sign-off counter poll) would only error at
+       the network and spam the console. Full-page navigation still works —
+       that's the browser/service-worker, not HTMX. #}
     <script>
     (function () {
         function syncOffline() { document.body.classList.toggle("offline", !navigator.onLine); }
@@ -33,9 +35,7 @@
         window.addEventListener("offline", syncOffline);
         document.addEventListener("DOMContentLoaded", syncOffline);
         document.addEventListener("htmx:beforeRequest", function (evt) {
-            var cfg = evt.detail && evt.detail.requestConfig;
-            var verb = (cfg && cfg.verb ? cfg.verb : "get").toLowerCase();
-            if (!navigator.onLine && verb !== "get") evt.preventDefault();
+            if (!navigator.onLine) evt.preventDefault();
         });
     })();
     </script>

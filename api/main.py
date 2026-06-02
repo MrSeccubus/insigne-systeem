@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from uvicorn.logging import DefaultFormatter
@@ -110,6 +110,22 @@ app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
 
 # ── PWA pages (#101) ──────────────────────────────────────────────────────────
+
+@app.get("/sw.js", include_in_schema=False)
+async def service_worker():
+    """Serve the service worker from the ROOT path so it can claim ``scope: /``.
+
+    A worker served from ``/static/sw.js`` may, by default, only control
+    ``/static/`` — registering it with ``scope: "/"`` is rejected by the browser
+    unless the response carries ``Service-Worker-Allowed: /``. Serving it from
+    the root sidesteps that (its max scope is ``/``); the header is added too as
+    belt-and-suspenders. ``no-cache`` so a new deploy's worker is picked up."""
+    return FileResponse(
+        FRONTEND_DIR / "static" / "sw.js",
+        media_type="text/javascript",
+        headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache"},
+    )
+
 
 @app.get("/install", response_class=HTMLResponse)
 async def install_instructions(request: Request, db: Session = Depends(get_db)):

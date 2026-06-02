@@ -99,18 +99,28 @@ self.addEventListener("fetch", (event) => {
             }
             return resp;
         }).catch(() => {
-            // Offline. Screens that can't work offline get the disabled page —
-            // checked BEFORE the cache, since these pages may also have been
-            // runtime-cached while online.
-            if (isOfflineDisabledPath(url.pathname)) {
+            // Offline. The HTML fallback pages are only appropriate for full
+            // page navigations — never for sub-resource / HTMX-partial GETs
+            // (e.g. the sign-off counter), or we'd inject a whole page into a
+            // tiny element. ``req.mode === "navigate"`` distinguishes the two.
+            const isNavigation = req.mode === "navigate";
+            // Screens that can't work offline get the disabled page — checked
+            // BEFORE the cache, since they may also be runtime-cached.
+            if (isNavigation && isOfflineDisabledPath(url.pathname)) {
                 return caches.match("/offline/disabled").then((d) => d || caches.match("/offline"));
             }
-            return caches.match(req).then((cached) =>
-                cached || caches.match("/offline").then((off) => off || new Response(
-                    "Geen verbinding.",
-                    { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } }
-                ))
-            );
+            return caches.match(req).then((cached) => {
+                if (cached) return cached;
+                if (isNavigation) {
+                    return caches.match("/offline").then((off) => off || new Response(
+                        "Geen verbinding.",
+                        { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } }
+                    ));
+                }
+                // Sub-resource / partial with no cache entry: fail quietly so
+                // it can't inject an HTML page into the DOM.
+                return new Response("", { status: 503 });
+            });
         })
     );
 });

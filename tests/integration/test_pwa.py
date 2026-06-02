@@ -31,27 +31,36 @@ class TestManifest:
 
 class TestServiceWorker:
     def test_sw_served_at_root_path(self, client, db):
-        """The service worker must be reachable from its registration URL
-        so its scope can be the whole app."""
-        r = client.get("/static/sw.js")
+        """The service worker must be served from the ROOT (/sw.js), not
+        /static/, so it can register with ``scope: /``. A worker under /static/
+        may only control /static/ unless the response sends
+        Service-Worker-Allowed — serving it at the root avoids that footgun."""
+        r = client.get("/sw.js")
         assert r.status_code == 200
         assert "javascript" in r.headers.get("content-type", "").lower()
 
+    def test_sw_allows_root_scope(self, client, db):
+        """Belt-and-suspenders header so the root-scope registration can never
+        be rejected with a SecurityError (the bug that left the SW unregistered
+        and offline navigation showing the browser error page)."""
+        r = client.get("/sw.js")
+        assert r.headers.get("service-worker-allowed") == "/"
+
     def test_sw_pre_caches_static_shell(self, client, db):
-        r = client.get("/static/sw.js")
+        r = client.get("/sw.js")
         assert "/static/style.css" in r.text
         assert "/static/manifest.webmanifest" in r.text
 
     def test_sw_ignores_state_changing_requests(self, client, db):
         """GET-only caching — POST/PUT/DELETE must never be served from cache."""
-        r = client.get("/static/sw.js")
+        r = client.get("/sw.js")
         assert 'req.method !== "GET"' in r.text
 
     def test_sw_pre_caches_vendored_js(self, client, db):
         """HTMX and Alpine are vendored locally and pre-cached so the app
         stays interactive offline — the SW skips cross-origin requests, so
         these must be same-origin and in the shell list."""
-        r = client.get("/static/sw.js")
+        r = client.get("/sw.js")
         assert "/static/vendor/htmx.min.js" in r.text
         assert "/static/vendor/alpine.min.js" in r.text
 
@@ -122,7 +131,7 @@ class TestBaseHtmlPwaTags:
         # The SW is registered on the ``load`` event so it doesn't compete
         # with the page rendering. Just check the registration call is
         # present in the page source.
-        assert 'navigator.serviceWorker.register("/static/sw.js"' in r.text
+        assert 'navigator.serviceWorker.register("/sw.js"' in r.text
 
 
 class TestInstallPage:
@@ -181,13 +190,13 @@ class TestOfflineDisabledPage:
         assert "Werkt niet offline" in r.text
 
     def test_sw_pre_caches_disabled_page(self, client, db):
-        r = client.get("/static/sw.js")
+        r = client.get("/sw.js")
         assert "/offline/disabled" in r.text
 
     def test_sw_routes_disabled_paths_offline(self, client, db):
         """The SW must recognise the screens that can't work offline, and must
         keep the leader progress overview (.../progress) available."""
-        r = client.get("/static/sw.js")
+        r = client.get("/sw.js")
         for marker in ('"/admin"', '"/signoff-requests"', '"/requests"', '"/groups"'):
             assert marker in r.text
         assert 'endsWith("/progress")' in r.text

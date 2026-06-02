@@ -197,9 +197,14 @@ class TestOfflineDisabledPage:
         """The SW must recognise the screens that can't work offline, and must
         keep the leader progress overview (.../progress) available."""
         r = client.get("/sw.js")
-        for marker in ('"/admin"', '"/signoff-requests"', '"/requests"', '"/groups"'):
+        for marker in ('"/admin"', '"/signoff-requests"', '"/requests"', '"/contact"', '"/groups"'):
             assert marker in r.text
         assert 'endsWith("/progress")' in r.text
+
+    def test_contact_link_disabled_offline(self, client, db):
+        """The contact form needs the network, so its footer link greys out."""
+        r = client.get("/login")
+        assert '<a href="/contact" class="offline-disabled"' in r.text
 
 
 class TestOfflineManifest:
@@ -252,6 +257,13 @@ class TestOfflineReadOnlyMode:
         r = client.get("/login")
         assert '/ping' in r.text
 
+    def test_offline_banner_has_retry_link(self, client, db):
+        """Reconnecting is user-driven: the banner offers a reload link rather
+        than auto-clearing (a single ping may pass on a spotty link)."""
+        r = client.get("/login")
+        assert "offline-banner-retry" in r.text
+        assert "Opnieuw proberen" in r.text
+
     def test_ping_endpoint_is_204(self, client, db):
         r = client.get("/ping")
         assert r.status_code == 204
@@ -262,11 +274,35 @@ class TestOfflineReadOnlyMode:
         assert '/ping' in r.text  # referenced in the bypass guard
 
 
-class TestInstallOfflineDownload:
-    def test_install_page_has_download_button(self, client, db):
-        r = client.get("/install")
-        assert "Maak offline beschikbaar" in r.text
+class TestSyncScreen:
+    def test_sync_page_has_download_button(self, client, db):
+        r = client.get("/sync")
+        assert r.status_code == 200
+        assert "Nu synchroniseren" in r.text
         assert "offlineDownload" in r.text
+
+    def test_install_page_no_longer_has_download_button(self, client, db):
+        """The sync button moved to its own /sync screen."""
+        r = client.get("/install")
+        assert "offlineDownload" not in r.text
+
+    def test_sync_menu_item_is_standalone_only(self, client, db):
+        """The 'Data synchroniseren' menu item is shown only when launched as an
+        installed PWA (standalone), so it's hidden in a normal browser tab."""
+        from insigne.models import User
+        from insigne.auth import create_access_token
+        u = User(email="s@example.com", name="S", status="active", password_hash="x")
+        db.add(u); db.commit()
+        token, _ = create_access_token(u.id)
+        client.cookies.set("access_token", token)
+        r = client.get("/")
+        assert 'href="/sync"' in r.text
+        assert "standalone-only" in r.text  # gated, hidden by default
+
+    def test_base_html_detects_standalone(self, client, db):
+        r = client.get("/login")
+        assert 'classList.toggle("standalone"' in r.text
+        assert "display-mode: standalone" in r.text
 
 
 class TestBadgeNiveausClientSide:

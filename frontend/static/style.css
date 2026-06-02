@@ -53,13 +53,25 @@ body {
     padding: 0.5rem 1rem;
 }
 body.offline .offline-banner { display: block; }
+.offline-banner-retry {
+    color: inherit;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+    margin-left: 0.25rem;
+}
 
 /* Show one variant of an element online, another offline — e.g. a hint whose
-   link points at a screen that doesn't work offline. Hide the offline variant
-   by default; flip both when body.offline. */
-.offline-only { display: none; }
+   link points at a screen that doesn't work offline. We hide the variant that
+   doesn't apply via the OPPOSITE body state, and never set display on the
+   visible one, so it keeps its own display (block for <p>, inline for
+   <span>/<a>) and isn't beaten by an equally-specific component rule. */
 body.offline .online-only { display: none; }
-body.offline .offline-only { display: revert; }
+body:not(.offline) .offline-only { display: none; }
+
+/* App-only UI: hidden in a normal browser tab; shown (with its natural display)
+   only when launched as an installed PWA (body.standalone, set client-side). */
+body:not(.standalone) .standalone-only { display: none; }
 
 /* Offline = read-only: grey out and disable every edit affordance so cached
    controls look inert and can't be triggered. Read-only content (status

@@ -153,6 +153,17 @@ async def install_instructions(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@app.get("/sync", response_class=HTMLResponse)
+async def sync_page(request: Request, db: Session = Depends(get_db)):
+    """Pre-download the badge catalogue into the offline cache. Reachable from
+    the 'Data synchroniseren' menu item, which is only shown when running as an
+    installed PWA (client-side, see base.html)."""
+    return templates.TemplateResponse(
+        request=request, name="sync.html",
+        context={"current_user": _get_current_user(request, db)},
+    )
+
+
 @app.get("/offline", response_class=HTMLResponse)
 async def offline_fallback(request: Request, db: Session = Depends(get_db)):
     """Served by the service worker when no cached entry is available."""

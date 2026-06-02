@@ -3,41 +3,6 @@
 {% block title %}App installeren — Insigne Systeem{% endblock %}
 
 {% block content %}
-<script>
-// Warms the whole badge catalogue into the service-worker cache so it's
-// browsable offline. Fetches the URL manifest, then fetches each URL — the
-// service worker transparently caches every response via its fetch handler.
-function offlineDownload() {
-    return {
-        status: 'idle',  // idle | running | done | error | unsupported
-        total: 0,
-        done: 0,
-        async run() {
-            if (!('serviceWorker' in navigator) || !('caches' in window)) {
-                this.status = 'unsupported';
-                return;
-            }
-            this.status = 'running';
-            this.done = 0;
-            try {
-                const resp = await fetch('/offline/manifest.json', { credentials: 'same-origin' });
-                if (!resp.ok) throw new Error('manifest');
-                const urls = (await resp.json()).urls || [];
-                this.total = urls.length;
-                for (const u of urls) {
-                    // A single missing asset (e.g. a badge without artwork)
-                    // shouldn't abort the whole download.
-                    try { await fetch(u, { credentials: 'same-origin' }); } catch (e) { /* keep going */ }
-                    this.done++;
-                }
-                this.status = 'done';
-            } catch (e) {
-                this.status = 'error';
-            }
-        }
-    };
-}
-</script>
 <main>
     <nav class="breadcrumb"><a href="/">Home</a> › App installeren</nav>
 
@@ -74,37 +39,12 @@ function offlineDownload() {
         </ol>
     </section>
 
-    <section style="margin-bottom:2rem;"
-             x-data="offlineDownload()">
-        <h2 style="margin-bottom:0.75rem;">Offline beschikbaar maken</h2>
-        <p style="color:#555;margin:0 0 0.75rem;">
-            Ga je naar een kamp of plek zonder internet? Download dan alle
-            insignes vooraf, dan kun je ze offline bekijken (alleen-lezen — eisen
-            aftekenen lukt pas weer met verbinding).
-        </p>
-        <button type="button" class="btn-primary"
-                @click="run()" :disabled="status === 'running'"
-                x-text="status === 'running' ? ('Bezig… ' + done + ' / ' + total)
-                      : (status === 'done' ? 'Opnieuw downloaden' : 'Maak offline beschikbaar')">
-            Maak offline beschikbaar
-        </button>
-        <p x-show="status === 'done'" x-cloak class="form-hint" style="margin-top:0.5rem;color:#2e7d32;">
-            Klaar — alle insignes zijn nu offline beschikbaar.
-        </p>
-        <p x-show="status === 'error'" x-cloak class="form-error" style="margin-top:0.5rem;">
-            Er ging iets mis bij het downloaden. Controleer je verbinding en probeer het opnieuw.
-        </p>
-        <p x-show="status === 'unsupported'" x-cloak class="form-hint" style="margin-top:0.5rem;">
-            Offline opslag werkt alleen in de geïnstalleerde app of een moderne browser.
-        </p>
-    </section>
-
     <section>
         <h2 style="margin-bottom:0.75rem;">Wat krijg je ervoor?</h2>
         <ul style="line-height:1.7;color:#333;">
             <li>Eén tik vanaf je startscherm — geen browser-tab meer zoeken.</li>
             <li>Volledig scherm zonder adresbalk.</li>
-            <li>Offline alle insignes en je laatst bekeken voortgang inzien (alleen-lezen).</li>
+            <li>Als je offline bent, kun je toch alle insignes en je laatst bekeken voortgang zien (maar niet aanpassen).</li>
         </ul>
         <p style="margin-top:1rem;color:#555;">
             De web-app gebruikt geen extra rechten op je telefoon. Je voortgang

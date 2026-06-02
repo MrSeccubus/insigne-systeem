@@ -45,6 +45,7 @@ function isOfflineDisabledPath(pathname) {
     if (pathname.startsWith("/admin")) return true;
     if (pathname.startsWith("/signoff-requests")) return true;
     if (pathname.startsWith("/requests")) return true;
+    if (pathname.startsWith("/contact")) return true;  // contact form needs the network
     if (pathname.startsWith("/groups") && !pathname.endsWith("/progress")) return true;
     return false;
 }

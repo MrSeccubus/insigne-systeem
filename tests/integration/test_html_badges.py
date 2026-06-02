@@ -641,6 +641,37 @@ class TestScoutBadgeDetail:
         assert r.status_code == 200
         assert "alleen bekijken" in r.text
 
+    def test_renders_all_niveaus_client_side(self, client, db):
+        """Niveau selection is client-side here too (#101): all three niveaus
+        render in one cacheable response, no ?niveau= server redirect."""
+        leider, scout, g, s = _make_speltak_with_leider_and_scout(db)
+        _set_auth(client, leider)
+        r = client.get(f"/scouts/{scout.id}/badges/{_BADGE}")
+        assert "niveau-cell--1" in r.text
+        assert "niveau-cell--2" in r.text
+        assert "niveau-cell--3" in r.text
+        assert "location.replace" not in r.text
+        assert 'data-niveau="all"' in r.text
+
+    def test_niveau_param_focuses_single_niveau(self, client, db):
+        leider, scout, g, s = _make_speltak_with_leider_and_scout(db)
+        _set_auth(client, leider)
+        r = client.get(f"/scouts/{scout.id}/badges/{_BADGE}?niveau=2")
+        assert 'data-niveau="2"' in r.text
+        assert 'data-niveau="all"' not in r.text
+
+    def test_jaarinsigne_renders_with_client_side_speltak_tabs(self, client, db):
+        """The jaarinsigne branch of scout_badge.html: all speltak levels render
+        with client-side <details> tabs (#101), no ?speltak= navigation."""
+        leider, scout, g, s = _make_speltak_with_leider_and_scout(db)
+        _set_auth(client, leider)
+        r = client.get(f"/scouts/{scout.id}/badges/jaarinsigne_2026")
+        assert r.status_code == 200
+        assert "jaarinsigne-details-" in r.text
+        assert "speltakIdx" in r.text
+        # Tabs switch client-side (history.replaceState), not via <a href> nav.
+        assert f'href="/scouts/{scout.id}/badges/jaarinsigne_2026?speltak=' not in r.text
+
 
 class TestScoutSetProgress:
     def test_speltakleider_can_set_progress(self, client, db):

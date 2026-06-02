@@ -41,7 +41,7 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     return _TEMPLATES.TemplateResponse(
         request=request,
         name="admin_dashboard.html",
-        context={"current_user": user, "stats": stats},
+        context={"current_user": current_user, "stats": stats},
     )
 
 

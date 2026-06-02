@@ -246,6 +246,21 @@ class TestOfflineReadOnlyMode:
         r = client.get("/login")
         assert "htmx:beforeRequest" in r.text
 
+    def test_offline_detection_probes_ping(self, client, db):
+        """navigator.onLine is unreliable (stays true on reload under
+        throttling / no-internet), so offline detection also probes /ping."""
+        r = client.get("/login")
+        assert '/ping' in r.text
+
+    def test_ping_endpoint_is_204(self, client, db):
+        r = client.get("/ping")
+        assert r.status_code == 204
+
+    def test_sw_does_not_intercept_ping(self, client, db):
+        """The probe must hit the real network, so the SW bypasses /ping."""
+        r = client.get("/sw.js")
+        assert '/ping' in r.text  # referenced in the bypass guard
+
 
 class TestInstallOfflineDownload:
     def test_install_page_has_download_button(self, client, db):

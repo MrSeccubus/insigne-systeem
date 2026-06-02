@@ -75,6 +75,7 @@ self.addEventListener("fetch", (event) => {
     const url = new URL(req.url);
     if (url.origin !== self.location.origin) return;
     if (url.pathname.startsWith("/api/")) return;  // future-proof: don't cache API
+    if (url.pathname === "/ping") return;  // connectivity probe must hit the real network
 
     // Cache-first for static + images (URLs that never change content).
     if (url.pathname.startsWith("/static/") || url.pathname.startsWith("/images/")) {

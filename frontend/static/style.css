@@ -54,6 +54,13 @@ body {
 }
 body.offline .offline-banner { display: block; }
 
+/* Show one variant of an element online, another offline — e.g. a hint whose
+   link points at a screen that doesn't work offline. Hide the offline variant
+   by default; flip both when body.offline. */
+.offline-only { display: none; }
+body.offline .online-only { display: none; }
+body.offline .offline-only { display: revert; }
+
 /* Offline = read-only: grey out and disable every edit affordance so cached
    controls look inert and can't be triggered. Read-only content (status
    checks, notes display, sign-off info) stays fully visible. */
@@ -62,7 +69,8 @@ body.offline .inline-form,
 body.offline .batch-signoff-section,
 body.offline form[action*="set-level"],
 body.offline button[hx-post*="favorite-badge"],
-body.offline .step-notes .btn-icon {
+body.offline .step-notes .btn-icon,
+body.offline .offline-disabled {
     opacity: 0.5;
     pointer-events: none;
 }

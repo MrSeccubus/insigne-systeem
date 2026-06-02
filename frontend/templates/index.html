@@ -30,8 +30,11 @@
                 {% endfor %}
             </ul>
             {% if allow_invite_leader %}
-            <p class="join-invite-hint">
+            <p class="join-invite-hint online-only">
                 Mist je een groep/speltak? Zoek hem <a href="/groups/join">hier</a> en wordt lid...
+            </p>
+            <p class="join-invite-hint offline-only">
+                Mist je een groep/speltak? Ga online om er een te zoeken en lid te worden.
             </p>
             {% endif %}
         </details>
@@ -44,7 +47,8 @@
         {% if signoff_count > 0 %}
         <div class="notification-bar">
             Je hebt <strong>{{ signoff_count }} afteken{{ 'verzoek' if signoff_count == 1 else 'verzoeken' }}</strong> die op je wachten.
-            <a href="/signoff-requests">Bekijken →</a>
+            <a href="/signoff-requests" class="online-only">Bekijken →</a>
+            <span class="offline-only">Ga online om deze te bekijken en af te tekenen.</span>
         </div>
         {% endif %}
 

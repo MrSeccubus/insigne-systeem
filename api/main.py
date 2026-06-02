@@ -3,7 +3,13 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+)
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from uvicorn.logging import DefaultFormatter
@@ -110,6 +116,15 @@ app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
 
 # ── PWA pages (#101) ──────────────────────────────────────────────────────────
+
+@app.get("/ping", include_in_schema=False)
+async def ping():
+    """Tiny connectivity probe for the client's offline detection. The service
+    worker never intercepts it, so a failed fetch means the client is truly
+    offline — more reliable than ``navigator.onLine``, which doesn't flip on
+    reload under throttling or on a network with no real internet."""
+    return Response(status_code=204)
+
 
 @app.get("/sw.js", include_in_schema=False)
 async def service_worker():

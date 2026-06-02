@@ -22,20 +22,31 @@
     }
     </script>
     {# ── Offline read-only mode (#101) ─────────────────────────────────────
-       Toggle ``body.offline`` from connectivity events; CSS greys out edit
-       controls and reveals the banner. Offline is strictly read-only, so
-       cancel every HTMX request: state-changing ones would fire a doomed POST,
-       and live partials (e.g. the sign-off counter poll) would only error at
-       the network and spam the console. Full-page navigation still works —
-       that's the browser/service-worker, not HTMX. #}
+       Toggle ``body.offline`` (CSS greys out edit controls and reveals the
+       banner). ``navigator.onLine`` reacts instantly to connectivity events
+       but is unreliable: it reports the machine's link state, not whether
+       requests actually reach the server, so it stays ``true`` on reload under
+       throttling and on "connected but no internet". So we also probe ``/ping``
+       (which the service worker never intercepts) — a failed fetch means truly
+       offline. Offline is strictly read-only, so we cancel every HTMX request:
+       edit POSTs and live partials (e.g. the sign-off counter) would only fire
+       doomed requests. Full-page navigation still works — that's the
+       browser/service-worker, not HTMX. #}
     <script>
     (function () {
-        function syncOffline() { document.body.classList.toggle("offline", !navigator.onLine); }
-        window.addEventListener("online", syncOffline);
-        window.addEventListener("offline", syncOffline);
-        document.addEventListener("DOMContentLoaded", syncOffline);
+        var navOffline = !navigator.onLine;
+        var probeOffline = false;
+        function apply() { document.body.classList.toggle("offline", navOffline || probeOffline); }
+        function probe() {
+            fetch("/ping", { cache: "no-store" })
+                .then(function (r) { probeOffline = !r.ok; apply(); })
+                .catch(function () { probeOffline = true; apply(); });
+        }
+        window.addEventListener("online", function () { navOffline = false; apply(); probe(); });
+        window.addEventListener("offline", function () { navOffline = true; apply(); });
+        document.addEventListener("DOMContentLoaded", function () { apply(); probe(); });
         document.addEventListener("htmx:beforeRequest", function (evt) {
-            if (!navigator.onLine) evt.preventDefault();
+            if (navOffline || probeOffline) evt.preventDefault();
         });
     })();
     </script>
@@ -157,21 +168,21 @@
         </button>
         <nav class="site-nav" :class="navOpen ? 'site-nav--open' : ''">
             {% if current_user %}
-                <a href="/signoff-requests">Aftekeningen <span hx-get="/signoff-requests/count" hx-trigger="load, signoff-updated from:body" hx-swap="innerHTML"></span></a>
+                <a href="/signoff-requests" class="offline-disabled">Aftekeningen <span hx-get="/signoff-requests/count" hx-trigger="load, signoff-updated from:body" hx-swap="innerHTML"></span></a>
                 {% set my_speltakken_count = current_user.speltak_memberships | selectattr("role","eq","speltakleider") | selectattr("approved") | selectattr("withdrawn","eq",false) | list | length %}
                 {% if my_speltakken_count > 0 %}<a href="/my-speltakken">Mijn speltakken</a>{% endif %}
-                {% if current_user.is_admin or current_user.is_leader %}<a href="/groups">Groepsbeheer</a>{% endif %}
-                {% if current_user.is_admin %}<a href="/admin">Admin</a>{% endif %}
+                {% if current_user.is_admin or current_user.is_leader %}<a href="/groups" class="offline-disabled">Groepsbeheer</a>{% endif %}
+                {% if current_user.is_admin %}<a href="/admin" class="offline-disabled">Admin</a>{% endif %}
                 <div class="nav-user-menu" x-data="{ open: false }" @click.outside="open = false">
                     <button class="nav-user-btn" @click="open = !open" :aria-expanded="open">
                         {{ current_user.name or current_user.email }}<span class="nav-user-caret" :class="open ? 'nav-user-caret--open' : ''">▾</span>
                     </button>
                     <div class="nav-user-dropdown" x-show="open" x-transition.duration.150ms @click="open = false">
-                        <a href="/profile" class="nav-user-item">Profiel bewerken</a>
-                        <a href="/export" class="nav-user-item">Importeren/exporteren</a>
+                        <a href="/profile" class="nav-user-item offline-disabled">Profiel bewerken</a>
+                        <a href="/export" class="nav-user-item offline-disabled">Importeren/exporteren</a>
                         <a href="/install" class="nav-user-item">App installeren</a>
                         <form method="post" action="/logout" style="margin:0;">
-                            <button type="submit" class="nav-user-item nav-user-item--btn">Uitloggen</button>
+                            <button type="submit" class="nav-user-item nav-user-item--btn offline-disabled">Uitloggen</button>
                         </form>
                     </div>
                 </div>

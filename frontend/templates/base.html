@@ -51,16 +51,6 @@
         });
     })();
     </script>
-    {# Mark ``html.pwa-capable`` when the browser supports the PWA offline cache
-       (service worker + Cache Storage, which also implies a secure context).
-       Used to show offline-only UI like the "Data synchroniseren" menu item —
-       installation is NOT required, so it appears in any capable browser
-       (incl. desktop Chrome), but stays hidden where caching can't work. #}
-    <script>
-    if ("serviceWorker" in navigator && "caches" in window) {
-        document.documentElement.classList.add("pwa-capable");
-    }
-    </script>
     <script src="/static/vendor/htmx.min.js" defer></script>
     <script>
     document.addEventListener('alpine:init', () => {
@@ -193,7 +183,7 @@
                         <a href="/profile" class="nav-user-item offline-disabled">Profiel bewerken</a>
                         <a href="/export" class="nav-user-item offline-disabled">Importeren/exporteren</a>
                         <a href="/install" class="nav-user-item">App installeren</a>
-                        <a href="/sync" class="nav-user-item pwa-only offline-disabled">Data synchroniseren</a>
+                        <a href="/sync" class="nav-user-item offline-disabled">Data synchroniseren</a>
                         <form method="post" action="/logout" style="margin:0;">
                             <button type="submit" class="nav-user-item nav-user-item--btn offline-disabled">Uitloggen</button>
                         </form>

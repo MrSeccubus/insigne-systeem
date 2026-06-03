@@ -366,10 +366,10 @@ class TestSyncScreen:
         r = client.get("/install")
         assert "offlineDownload" not in r.text
 
-    def test_sync_menu_item_is_pwa_gated(self, client, db):
-        """The 'Data synchroniseren' menu item is gated to browsers that support
-        the PWA cache (pwa-only, hidden by default) — not to installed PWAs, so
-        it's available in any capable browser incl. desktop Chrome."""
+    def test_sync_menu_item_always_shown_to_users(self, client, db):
+        """The 'Data synchroniseren' menu item is shown to any logged-in user
+        (not gated on PWA support) so an unsupported browser can still reach
+        /sync and see why offline isn't available."""
         from insigne.models import User
         from insigne.auth import create_access_token
         u = User(email="s@example.com", name="S", status="active", password_hash="x")
@@ -378,12 +378,16 @@ class TestSyncScreen:
         client.cookies.set("access_token", token)
         r = client.get("/")
         assert 'href="/sync"' in r.text
-        assert "pwa-only" in r.text  # gated, hidden by default
+        assert "pwa-only" not in r.text  # no longer gated
 
-    def test_base_html_detects_pwa_capability(self, client, db):
-        r = client.get("/login")
-        assert '"serviceWorker" in navigator' in r.text
-        assert 'classList.add("pwa-capable")' in r.text
+    def test_sync_page_explains_when_unsupported(self, client, db):
+        """/sync detects a browser without the PWA cache on load and shows an
+        explanation of the feature + how to enable it (not only after a click)."""
+        r = client.get("/sync")
+        assert "serviceWorker" in r.text and "caches" in r.text  # x-init capability check
+        assert "ondersteunt offline gebruik" in r.text  # the unsupported notice
+        assert "Waarvoor is dit?" in r.text and "Hoe krijg je het werkend?" in r.text
+        assert 'href="/install"' in r.text  # link to install instructions
 
 
 class TestBadgeNiveausClientSide:

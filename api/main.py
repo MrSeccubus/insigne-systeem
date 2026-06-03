@@ -210,7 +210,7 @@ async def offline_manifest(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request, only_favorites: int = 0, only_in_progress: int = 0, db: Session = Depends(get_db)):
+async def index(request: Request, db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)
 
     all_badges = _CATALOGUE.list()
@@ -371,9 +371,7 @@ async def index(request: Request, only_favorites: int = 0, only_in_progress: int
             "allow_invite_leader": current_user and (config.allow_any_user_to_create_groups or current_user.is_admin),
             "signed_off_niveaus": signed_off_niveaus,
             "user_favorite_slugs": user_favorite_slugs,
-            "only_favorites": bool(only_favorites and current_user),
             "progress_slugs": progress_slugs,
-            "only_in_progress": bool(only_in_progress and current_user),
             "current_user_speltak_types": current_user_speltak_types,
         },
     )

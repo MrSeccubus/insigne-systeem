@@ -18,7 +18,7 @@
 // Updates: ``skipWaiting`` + ``clients.claim`` so a new deploy applies on
 // the next reload without forcing the user to close all tabs.
 
-const VERSION = "v4";
+const VERSION = "v5";
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
@@ -32,6 +32,7 @@ const SHELL_ASSETS = [
     "/static/manifest.webmanifest",
     "/static/vendor/htmx.min.js",
     "/static/vendor/alpine.min.js",
+    "/static/badge_filters.js",
     "/offline",
     "/offline/disabled",
 ];

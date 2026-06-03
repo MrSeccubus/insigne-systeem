@@ -3,6 +3,62 @@ offline fallback, and the PWA meta tags in base.html."""
 import json
 
 
+def _auth(client, db, *, email="u@example.com", admin=False):
+    from insigne.config import config
+    from insigne.models import User
+    from insigne.auth import create_access_token
+    if admin:
+        config.admins = [email]
+    u = User(email=email, name="U", status="active", password_hash="x")
+    db.add(u); db.commit()
+    token, _ = create_access_token(u.id)
+    client.cookies.set("access_token", token)
+    return u
+
+
+class TestClientSideFilters:
+    """Favorites / in-progress filters are client-side (badge_filters.js) so they
+    work offline and instantly — no ?only_favorites server round-trip."""
+
+    def test_script_served_and_pre_cached(self, client, db):
+        r = client.get("/static/badge_filters.js")
+        assert r.status_code == 200
+        assert "javascript" in r.headers.get("content-type", "").lower()
+        sw = client.get("/sw.js").text
+        assert "/static/badge_filters.js" in sw  # in the offline shell
+
+    def test_home_has_filter_root_and_data_attrs(self, client, db):
+        _auth(client, db)
+        r = client.get("/")
+        assert "data-badge-filter" in r.text
+        assert "badge-filter-fav" in r.text and "badge-filter-prog" in r.text
+        assert "badge-item" in r.text and "data-fav=" in r.text and "data-prog=" in r.text
+
+    def test_home_renders_all_badges_regardless_of_query(self, client, db):
+        """Server no longer filters — ?only_favorites=1 still renders every
+        badge (the client filters); the old param is harmless."""
+        _auth(client, db)
+        all_items = client.get("/").text.count('class="badge-item"')
+        filtered = client.get("/?only_favorites=1&only_in_progress=1").text.count('class="badge-item"')
+        assert all_items > 0
+        assert filtered == all_items
+
+    def test_speltak_progress_filter_root_with_init(self, client, db):
+        from insigne import groups as groups_svc
+        from insigne.models import SpeltakMembership
+        leider = _auth(client, db, email="l@example.com")
+        g = groups_svc.create_group(db, name="G", slug="g-flt", created_by_id=leider.id)
+        s = groups_svc.create_speltak(db, group_id=g.id, name="S", slug="s-flt")
+        db.add(SpeltakMembership(user_id=leider.id, speltak_id=s.id,
+                                 role="speltakleider", approved=True))
+        db.commit()
+        r = client.get("/groups/g-flt/speltakken/s-flt/progress")
+        assert r.status_code == 200
+        assert "data-badge-filter" in r.text
+        assert "badge-filter-fav" in r.text
+        assert 'data-init-fav="0"' in r.text  # no favourites set → default off
+
+
 class TestManifest:
     def test_manifest_served(self, client, db):
         r = client.get("/static/manifest.webmanifest")

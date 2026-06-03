@@ -13,7 +13,6 @@ from insigne.badges import BadgeCatalogue
 from insigne.config import config
 from insigne.database import get_db
 from insigne.models import GroupMembership, ProgressEntry, Speltak, SpeltakMembership, User as UserModel
-from routers._query import lenient_int
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
 
@@ -1169,11 +1168,8 @@ def group_progress(group_slug: str, request: Request, db: Session = Depends(get_
 def speltak_progress(
     group_slug: str, speltak_slug: str,
     request: Request,
-    only_favorites: bool | None = Query(None),
-    only_in_progress: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    only_in_progress = lenient_int(only_in_progress) or 0
     user = _require_user(request, db)
     if user is None:
         return RedirectResponse("/login", status_code=303)
@@ -1202,8 +1198,10 @@ def speltak_progress(
         if p.source_scout_id and p.user_id in progress_by_scout:
             progress_by_scout[p.user_id].update(progress_by_scout.pop(p.source_scout_id, {}))
     favorite_slugs = groups_svc.get_speltak_favorite_slugs(db, speltak.id)
-    if only_favorites is None:
-        only_favorites = bool(favorite_slugs)
+    # Filtering is client-side (badge_filters.js). Preserve the historical
+    # default — show favourites first when the speltak has any — as the initial
+    # client state; the URL (?only_favorites=) overrides it.
+    init_only_favorites = bool(favorite_slugs)
     can_edit = not speltak.peer_signoff
 
     all_badges_raw = _CATALOGUE.list()
@@ -1226,9 +1224,8 @@ def speltak_progress(
                  favorite_slugs=favorite_slugs,
                  all_badges=all_badges,
                  can_edit=can_edit,
-                 only_favorites=only_favorites,
+                 init_only_favorites=init_only_favorites,
                  progress_slugs=progress_slugs,
-                 only_in_progress=bool(only_in_progress),
                  leider_id=user.id,
                  category_labels=_CATALOGUE.category_labels)
 

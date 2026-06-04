@@ -18,7 +18,7 @@
 // Updates: ``skipWaiting`` + ``clients.claim`` so a new deploy applies on
 // the next reload without forcing the user to close all tabs.
 
-const VERSION = "v5";
+const VERSION = "v6";
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
@@ -54,7 +54,12 @@ function isOfflineDisabledPath(pathname) {
 self.addEventListener("install", (event) => {
     event.waitUntil(
         caches.open(SHELL_CACHE)
-            .then((cache) => cache.addAll(SHELL_ASSETS))
+            // ``cache: "reload"`` bypasses the HTTP cache so a new VERSION always
+            // re-precaches fresh shell assets, even though /static is served with
+            // an immutable Cache-Control.
+            .then((cache) => cache.addAll(
+                SHELL_ASSETS.map((u) => new Request(u, { cache: "reload" }))
+            ))
             .then(() => self.skipWaiting())
     );
 });
@@ -80,9 +85,12 @@ self.addEventListener("fetch", (event) => {
     if (url.pathname === "/ping") return;  // connectivity probe must hit the real network
 
     // Cache-first for static + images (URLs that never change content).
+    // ``ignoreSearch`` so cache-busting query strings (style.css?v=…) still
+    // match the pre-cached/runtime entry — the shell is refreshed on a VERSION
+    // bump, so it can't go stale.
     if (url.pathname.startsWith("/static/") || url.pathname.startsWith("/images/")) {
         event.respondWith(
-            caches.match(req).then((cached) => cached || fetch(req).then((resp) => {
+            caches.match(req, { ignoreSearch: true }).then((cached) => cached || fetch(req).then((resp) => {
                 if (resp.ok) {
                     const copy = resp.clone();
                     caches.open(RUNTIME_CACHE).then((c) => c.put(req, copy));

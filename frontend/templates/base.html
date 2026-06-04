@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Insigne Systeem{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v={{ app_version() }}">
     {# ── PWA (#101) ───────────────────────────────────────────────────── #}
     <link rel="manifest" href="/static/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
@@ -140,7 +140,7 @@
     });
     </script>
     <script src="/static/vendor/alpine.min.js" defer></script>
-    <script src="/static/badge_filters.js" defer></script>
+    <script src="/static/badge_filters.js?v={{ app_version() }}" defer></script>
     <script>window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });</script>
     <script>
     document.addEventListener('click', (e) => {

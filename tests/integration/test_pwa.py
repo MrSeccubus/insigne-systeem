@@ -145,6 +145,31 @@ class TestVendoredJs:
         assert "alpinejs@" not in r.text
 
 
+class TestStaticCaching:
+    def test_static_assets_immutable(self, client, db):
+        """/static is immutably cached (Lighthouse efficient-cache-policy)."""
+        for path in ("/static/style.css", "/static/vendor/htmx.min.js",
+                     "/static/manifest.webmanifest"):
+            cc = client.get(path).headers.get("cache-control", "")
+            assert "max-age=31536000" in cc and "immutable" in cc, path
+
+    def test_changing_assets_are_version_busted(self, client, db):
+        """style.css / badge_filters.js carry ?v={app_version} so the immutable
+        cache busts on each release."""
+        r = client.get("/login")
+        assert "/static/style.css?v=" in r.text
+        assert "/static/badge_filters.js?v=" in r.text
+
+    def test_service_worker_not_immutably_cached(self, client, db):
+        """The worker itself must stay bustable, or deploys never reach clients."""
+        cc = client.get("/sw.js").headers.get("cache-control", "")
+        assert "immutable" not in cc
+
+    def test_sw_ignores_search_for_static(self, client, db):
+        """The SW matches /static cache-first ignoring the ?v= query."""
+        assert "ignoreSearch" in client.get("/sw.js").text
+
+
 class TestImageCaching:
     def test_badge_images_have_immutable_cache(self, client, db):
         """Badge artwork never changes under the same URL, so /images carries a

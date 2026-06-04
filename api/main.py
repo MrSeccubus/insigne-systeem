@@ -111,11 +111,14 @@ app.include_router(html_groups.router)
 app.include_router(html_contact.router)
 
 class _ImmutableStaticFiles(StaticFiles):
-    """StaticFiles with a long-lived, immutable Cache-Control. Used for /images:
-    badge artwork never changes under the same URL (the service worker already
-    treats /images cache-first for that reason), so a 1-year immutable cache is
-    safe and satisfies Lighthouse's 'efficient cache policy' audit. Applies to
-    both the 200 and the 304 response (both expose ``.headers``)."""
+    """StaticFiles with a 1-year immutable Cache-Control (Lighthouse "efficient
+    cache policy"). Safe for /images (badge artwork never changes per URL) and
+    for /static: the assets that change per deploy — style.css, badge_filters.js
+    — are cache-busted with a ``?v={app_version}`` query in base.html (a new URL
+    on each release), and stable assets (vendored JS, icons, manifest, favicon)
+    only change on a deliberate edit. Applies to both 200 and 304 (both expose
+    ``.headers``). Note: ``/sw.js`` is served by its own route with no-cache, so
+    the worker itself is never immutably cached."""
 
     def file_response(self, *args, **kwargs):
         resp = super().file_response(*args, **kwargs)
@@ -124,7 +127,7 @@ class _ImmutableStaticFiles(StaticFiles):
 
 
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="static")
+app.mount("/static", _ImmutableStaticFiles(directory=FRONTEND_DIR / "static"), name="static")
 app.mount("/images", _ImmutableStaticFiles(directory=IMAGES_DIR), name="images")
 
 

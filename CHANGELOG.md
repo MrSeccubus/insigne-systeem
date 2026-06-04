@@ -14,6 +14,14 @@ weer leeg gemaakt.
 
 - **Meta-description toegevoegd** (sluit #145) — de `<head>` bevat nu een `<meta name="description">` (per pagina overschrijfbaar via een Jinja-block) met een korte omschrijving van het Insigne Systeem, voor betere weergave in zoekmachines en link-previews.
 
+### Opgelost
+
+- **Jaarinsigne-link in het speltak-overzicht wees naar de eigen pagina** (sluit #143) — op de speltak-voortgangspagina linkte een jaarinsigne naar `/badges/{slug}` (de jaarinsigne-pagina van de ingelogde leider zelf), niet naar de speltak. De titel is nu platte tekst (net als bij gewone insignes) en de kaart toont een lijst met de scouts van de speltak, elk met een link naar de jaarinsigne-voortgang van díe scout (`/scouts/{id}/badges/{slug}`). Die per-scout-pagina's worden niet vooraf gecacht, dus offline verbergt de kaart de lijst en toont in plaats daarvan de melding dat de voortgang per scout offline niet beschikbaar is.
+
+### Onderhoud
+
+- **httpx → httpx2** — Starlette 1.2 gebruikt voortaan `httpx2` voor zijn test-client (plain `httpx` is deprecated). De test-client én de release-check in `version.py` gebruiken nu `httpx2`, waarmee de `StarletteDeprecationWarning` uit de testsuite verdwijnt. `httpx2` is de opvolger van `httpx` (zelfde requests-compatibele API, door dezelfde maker).
+
 ---
 
 ## [v1.2.0] — 2026-06-04

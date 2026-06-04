@@ -54,10 +54,22 @@
         {% set badge_item_attrs %} data-fav="{{ 1 if badge.slug in favorite_slugs else 0 }}" data-prog="{{ 1 if badge.slug in progress_slugs else 0 }}"{% if init_only_favorites and badge.slug not in favorite_slugs %} hidden{% endif %}{% endset %}
         {% if badge.type == "jaarinsigne" %}
         <div class="badge-progress-card badge-item"{{ badge_item_attrs }} style="padding:0.75rem 1rem;">
-            <strong><a href="/badges/{{ badge.slug }}" class="offline-plainlink">{{ badge.title }}</a></strong>
-            <p style="margin:0.4rem 0 0;font-size:0.85rem;color:#555;">
-                Jaarinsigne — bekijk voortgang per scout op de individuele voortgangspagina.
+            <strong>{{ badge.title }}</strong>
+            {% if members %}
+            <p class="online-only" style="margin:0.4rem 0 0.5rem;font-size:0.85rem;color:#555;">
+                Jaarinsigne — bekijk de voortgang per scout:
             </p>
+            <ul class="online-only" style="margin:0;padding-left:1.2rem;line-height:1.8;">
+                {% for m in members %}
+                <li><a href="/scouts/{{ m.user_id }}/badges/{{ badge.slug }}" class="offline-plainlink">{{ m.user.name or m.user.email or '(onbekend)' }}</a></li>
+                {% endfor %}
+            </ul>
+            <p class="offline-only" style="margin:0.4rem 0 0;font-size:0.85rem;color:#888;">
+                De voortgang per scout op een jaarinsigne is offline niet beschikbaar.
+            </p>
+            {% else %}
+            <p style="margin:0.4rem 0 0;font-size:0.85rem;color:#888;">Geen scouts.</p>
+            {% endif %}
         </div>
         {% else %}
         <details class="badge-progress-card badge-item"{{ badge_item_attrs }} open>

@@ -67,7 +67,7 @@ def _refresh_in_background() -> None:
     def _fetch():
         global _refreshing
         try:
-            import httpx
+            import httpx2 as httpx
 
             new_version = _compute_version()
 

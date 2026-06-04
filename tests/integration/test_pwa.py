@@ -217,6 +217,11 @@ class TestIcons:
 
 
 class TestBaseHtmlPwaTags:
+    def test_meta_description_in_head(self, client, db):
+        """#145: every page has a meta description for SEO / link previews."""
+        r = client.get("/login")
+        assert '<meta name="description" content="' in r.text
+
     def test_manifest_link_in_head(self, client, db):
         r = client.get("/login")
         assert '<link rel="manifest" href="/static/manifest.webmanifest">' in r.text

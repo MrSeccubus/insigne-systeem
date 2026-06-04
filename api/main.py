@@ -113,10 +113,12 @@ app.include_router(html_contact.router)
 class _ImmutableStaticFiles(StaticFiles):
     """StaticFiles with a 1-year immutable Cache-Control (Lighthouse "efficient
     cache policy"). Safe for /images (badge artwork never changes per URL) and
-    for /static: the assets that change per deploy — style.css, badge_filters.js
-    — are cache-busted with a ``?v={app_version}`` query in base.html (a new URL
-    on each release), and stable assets (vendored JS, icons, manifest, favicon)
-    only change on a deliberate edit. Applies to both 200 and 304 (both expose
+    for /static: assets that can change — style.css, badge_filters.js, and the
+    vendored JS (which must be patchable, e.g. for a security fix) — are
+    cache-busted with a ``?v={app_version}`` query in base.html (a new URL on
+    each release, so a patched file reaches clients immediately despite
+    ``immutable``); icons/manifest/favicon are stable. Applies to both 200 and
+    304 (both expose
     ``.headers``). Note: ``/sw.js`` is served by its own route with no-cache, so
     the worker itself is never immutably cached."""
 

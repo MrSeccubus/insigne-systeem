@@ -139,8 +139,8 @@ class TestVendoredJs:
         """No CDN <script src> for the core libraries — they must point at
         /static/vendor/ so they work offline and behind CDN-blocking networks."""
         r = client.get("/login")
-        assert '<script src="/static/vendor/htmx.min.js"' in r.text
-        assert '<script src="/static/vendor/alpine.min.js"' in r.text
+        assert '<script src="/static/vendor/htmx.min.js?v=' in r.text
+        assert '<script src="/static/vendor/alpine.min.js?v=' in r.text
         assert "unpkg.com" not in r.text
         assert "alpinejs@" not in r.text
 
@@ -159,6 +159,10 @@ class TestStaticCaching:
         r = client.get("/login")
         assert "/static/style.css?v=" in r.text
         assert "/static/badge_filters.js?v=" in r.text
+        # Vendored libs are version-busted too, so a security patch reaches
+        # clients despite the immutable cache.
+        assert "/static/vendor/htmx.min.js?v=" in r.text
+        assert "/static/vendor/alpine.min.js?v=" in r.text
 
     def test_service_worker_not_immutably_cached(self, client, db):
         """The worker itself must stay bustable, or deploys never reach clients."""

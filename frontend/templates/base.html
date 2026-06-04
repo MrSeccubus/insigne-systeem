@@ -51,7 +51,7 @@
         });
     })();
     </script>
-    <script src="/static/vendor/htmx.min.js" defer></script>
+    <script src="/static/vendor/htmx.min.js?v={{ app_version() }}" defer></script>
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('stepCard', (initStatus, initNotes, initEntryId, slug, levelIndex, stepIndex) => ({
@@ -139,7 +139,7 @@
         }));
     });
     </script>
-    <script src="/static/vendor/alpine.min.js" defer></script>
+    <script src="/static/vendor/alpine.min.js?v={{ app_version() }}" defer></script>
     <script src="/static/badge_filters.js?v={{ app_version() }}" defer></script>
     <script>window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });</script>
     <script>

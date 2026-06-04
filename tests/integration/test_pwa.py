@@ -145,6 +145,25 @@ class TestVendoredJs:
         assert "alpinejs@" not in r.text
 
 
+class TestImageCaching:
+    def test_badge_images_have_immutable_cache(self, client, db):
+        """Badge artwork never changes under the same URL, so /images carries a
+        1-year immutable Cache-Control (Lighthouse efficient-cache-policy)."""
+        from insigne.badges import BadgeCatalogue
+        from pathlib import Path
+        cat = BadgeCatalogue(Path(__file__).parent.parent.parent / "api" / "data")
+        img = next(
+            (b["images"][0] for badges in cat.list().values()
+             for b in badges if b.get("images")),
+            None,
+        )
+        assert img, "no catalogue image to test"
+        r = client.get(img)
+        assert r.status_code == 200
+        cc = r.headers.get("cache-control", "")
+        assert "max-age=31536000" in cc and "immutable" in cc
+
+
 class TestIcons:
     def test_icon_192_is_a_png(self, client, db):
         r = client.get("/static/icons/icon-192.png")

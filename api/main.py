@@ -110,9 +110,22 @@ app.include_router(html_badges.router)
 app.include_router(html_groups.router)
 app.include_router(html_contact.router)
 
+class _ImmutableStaticFiles(StaticFiles):
+    """StaticFiles with a long-lived, immutable Cache-Control. Used for /images:
+    badge artwork never changes under the same URL (the service worker already
+    treats /images cache-first for that reason), so a 1-year immutable cache is
+    safe and satisfies Lighthouse's 'efficient cache policy' audit. Applies to
+    both the 200 and the 304 response (both expose ``.headers``)."""
+
+    def file_response(self, *args, **kwargs):
+        resp = super().file_response(*args, **kwargs)
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return resp
+
+
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="static")
-app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
+app.mount("/images", _ImmutableStaticFiles(directory=IMAGES_DIR), name="images")
 
 
 # ── PWA pages (#101) ──────────────────────────────────────────────────────────

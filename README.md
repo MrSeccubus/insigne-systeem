@@ -25,17 +25,16 @@ venv/bin/pip install -r requirements.txt
 venv/bin/pip install -e lib/
 ```
 
-Create a `config.yml` in the project root (never commit it):
+Create your `config.yml` from the documented example (the real file is
+gitignored — never commit it):
 
-```yaml
-database:
-  url: sqlite:///api/data/insigne.db
-
-jwt:
-  secret_key: "<any long random string>"
-
-base_url: "http://localhost:8000"
+```bash
+cp config.example.yml config.yml
 ```
+
+Then edit `config.yml`: set a long random `jwt.secret_key`, your `base_url`,
+and the `email`/SMTP and `admins` settings. Every option is documented inline
+in [`config.example.yml`](config.example.yml).
 
 Run the development server from the **project root**:
 
@@ -58,6 +57,14 @@ Then open [http://localhost:8000](http://localhost:8000).
 ```
 
 Binds to `127.0.0.1:8000` by default. Override with env vars or `server:` config in `config.yml`. See [CLAUDE.md](CLAUDE.md) for full configuration options and the systemd service setup.
+
+> **Behind a reverse proxy:** deploy at the **root of a (sub)domain**
+> (e.g. `https://insigne.scouting.nl`), **not** under a sub-path like
+> `https://scouting.nl/insigne/`. The app uses root-absolute URLs throughout
+> (links, redirects, and the service-worker scope), so a path prefix is not
+> supported. Also make sure `base_url` exactly matches the public origin and
+> pick one canonical host (301-redirect `www` ↔ apex), or the CSRF check
+> rejects form posts with a 403 — see [`config.example.yml`](config.example.yml).
 
 ## Running tests
 

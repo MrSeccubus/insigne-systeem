@@ -45,14 +45,23 @@
     </div>
     {% endif %}
 
+    {# All speltak levels are rendered server-side (single cacheable URL);
+       the tabs switch which <details> is open client-side instead of
+       navigating to ?speltak=, so it works offline too. #}
+    <div x-data="{ speltakIdx: {{ selected_level_index if selected_level_index is not none else -1 }} }">
     {# ── Speltak tab selector ── #}
     <div class="mobile-niveau-selector">
         <span class="mobile-niveau-label">Speltak:</span>
         {% for level in badge.levels %}
-        <a href="/scouts/{{ scout.id }}/badges/{{ badge.slug }}?speltak={{ level.slug }}"
-           class="mobile-niveau-tab{% if level.level_index == selected_level_index %} mobile-niveau-tab--active{% endif %}">
+        <button type="button"
+           class="mobile-niveau-tab"
+           :class="speltakIdx === {{ level.level_index }} ? 'mobile-niveau-tab--active' : ''"
+           @click="speltakIdx = {{ level.level_index }};
+                   document.querySelectorAll('.jaarinsigne-speltak-details').forEach(d => d.open = false);
+                   document.getElementById('jaarinsigne-details-{{ level.level_index }}').open = true;
+                   history.replaceState(null, '', '/scouts/{{ scout.id }}/badges/{{ badge.slug }}?speltak={{ level.slug }}')">
             {{ level.name }}{% if level.leeftijd %} <span class="muted" style="font-size:0.8em;">({{ level.leeftijd }})</span>{% endif %}
-        </a>
+        </button>
         {% endfor %}
     </div>
 
@@ -60,7 +69,7 @@
     {% for level in badge.levels %}
     {% set is_selected = level.level_index == selected_level_index %}
     {% set is_editable = level.level_index == resolved_level_index %}
-    <details{% if is_selected %} open{% endif %} class="jaarinsigne-speltak-details" style="margin-bottom:1rem;">
+    <details id="jaarinsigne-details-{{ level.level_index }}"{% if is_selected %} open{% endif %} class="jaarinsigne-speltak-details" style="margin-bottom:1rem;">
         <summary style="cursor:pointer;font-weight:600;padding:0.5rem 0;">
             {{ level.name }}{% if level.leeftijd %} <span style="font-size:0.8em;color:#888;">({{ level.leeftijd }})</span>{% endif %}{% if is_editable %} <span style="font-size:0.8em;color:#888;">— niveau van {{ scout.name or 'deze scout' }}</span>{% endif %}
             {% if can_edit and not is_editable %}
@@ -91,6 +100,7 @@
         </div>
     </details>
     {% endfor %}
+    </div>{# /x-data speltak wrapper #}
 
     {% if badge.afterword %}
     <div class="badge-afterword">{{ badge.afterword | render_eis }}</div>
@@ -98,26 +108,30 @@
 
     {% else %}
 
-    <div class="mobile-niveau-selector"
-         x-data
-         x-init="if (window.innerWidth <= 640 && !new URLSearchParams(location.search).has('niveau')) {
-             location.replace('/scouts/{{ scout.id }}/badges/{{ badge.slug }}?niveau={{ mobile_default_niveau }}');
-         }">
+    {# All three niveaus are always rendered (single cacheable URL); niveau
+       selection is client-side. ?niveau=N focuses a single niveau; without it
+       desktop shows all three side by side while mobile collapses to one. #}
+    <div x-data="{ niveau: {{ initial_niveau if initial_niveau else "'all'" }} }"
+         x-init="if (niveau === 'all' && window.innerWidth <= 640) niveau = {{ mobile_default_niveau }}">
+    <div class="mobile-niveau-selector">
         <span class="mobile-niveau-label">{{ badge.niveau_label }}:</span>
         {% for i in [0, 1, 2] %}
-        <a href="/scouts/{{ scout.id }}/badges/{{ badge.slug }}?niveau={{ i + 1 }}"
-           class="mobile-niveau-tab{% if selected_niveaus | length == 1 and selected_niveaus[0] == i %} mobile-niveau-tab--active{% endif %}">{{ i + 1 }}</a>
+        <button type="button"
+           class="mobile-niveau-tab"
+           :class="niveau === {{ i + 1 }} ? 'mobile-niveau-tab--active' : ''"
+           @click="niveau = {{ i + 1 }}; history.replaceState(null, '', '/scouts/{{ scout.id }}/badges/{{ badge.slug }}?niveau={{ i + 1 }}')">{{ i + 1 }}</button>
         {% endfor %}
     </div>
 
     <div class="scroll-x">
-    <div class="badge-overview-grid {% if selected_niveaus | length == 1 %}badge-overview-grid--single{% endif %}"
-         style="grid-template-columns: 160px repeat({{ selected_niveaus | length }}, 1fr);">
+    <div class="badge-overview-grid badge-overview-grid--switch badge-overview-grid--single"
+         data-niveau="{{ initial_niveau or 'all' }}"
+         :data-niveau="niveau">
 
         {% if selected_niveaus | length > 1 %}
         <div></div>
         {% for i in selected_niveaus %}
-        <div class="niveau-col-header">
+        <div class="niveau-col-header niveau-cell--{{ i + 1 }}">
             <img src="/images/{{ badge.slug }}.{{ i + 1 }}.png"
                  alt="{{ badge.niveau_label }} {{ i + 1 }}"
                  class="niveau-header-image"
@@ -150,7 +164,7 @@
         {% set badge_slug = badge.slug %}
         {% set can_edit_cell = can_edit and entry_status != "pending_signoff" %}
         {% set can_review_cell = can_edit and entry_status == "pending_signoff" %}
-        <div class="step-card">
+        <div class="step-card niveau-cell--{{ step.index + 1 }}">
             <div class="step-header">
                 <span class="step-number">{{ badge.niveau_label_kort }}{{ step_index + 1 }}</span>
                 <div class="step-text">{{ step.text | render_eis }}</div>
@@ -160,13 +174,14 @@
             </div>
         </div>
         {% else %}
-        <div></div>
+        <div class="niveau-cell--{{ step.index + 1 }}"></div>
         {% endif %}
         {% endfor %}
 
         {% endfor %}
     </div>
     </div>
+    </div>{# /x-data niveau wrapper #}
 
     {% if badge.afterword %}
     <div class="badge-afterword">{{ badge.afterword | render_eis }}</div>

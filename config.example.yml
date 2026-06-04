@@ -1,0 +1,76 @@
+# Insigne Systeem — example configuration.
+#
+# Copy this file to `config.yml` (the real file is gitignored) and fill in
+# your own values:
+#
+#     cp config.example.yml config.yml
+#
+# The app reads `config.yml` from the working directory on startup. Override
+# the path with the INSIGNE_CONFIG environment variable.
+
+database:
+  # SQLite is created automatically on first run; schema is managed by Alembic.
+  url: sqlite:///api/data/insigne.db
+
+jwt:
+  secret_key: "CHANGE-ME-to-any-long-random-string"
+  algorithm: HS256
+  expire_days: 30
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Public URL of the site. Used in outgoing e-mail links AND as the trusted
+# origin for the CSRF Origin/Referer check (api/main.py:origin_csrf_check).
+#
+# IMPORTANT — must EXACTLY match the origin the browser shows in the address
+# bar: scheme + host, no trailing slash, no port for 443. The CSRF check
+# compares the browser's `Origin` header against this string byte-for-byte; any
+# mismatch is rejected with 403 *before* the handler runs (so e.g. a failed
+# registration also sends no e-mail).
+#
+# Pick ONE canonical host and redirect the other at your proxy. The classic
+# trap behind a reverse proxy is www vs the bare apex:
+#   - base_url here is the apex `https://insignesysteem.nl`, so the proxy must
+#     301-redirect `www.insignesysteem.nl` → the apex. Otherwise visitors on
+#     `https://www.insignesysteem.nl` send a non-matching Origin and get 403.
+#   - If you prefer www, set base_url to `https://www.insignesysteem.nl` and
+#     redirect the apex → www instead.
+# Also force http → https at the proxy, or an http Origin won't match.
+#
+# Deploy at the ROOT of a (sub)domain — e.g. `https://insigne.scouting.nl` —
+# NOT under a sub-path like `https://scouting.nl/insigne/`. The app uses
+# root-absolute URLs throughout (links, redirects, the service-worker scope and
+# its cached asset list), so a path prefix is not supported. Use a subdomain
+# and point the reverse proxy at the app's root.
+# ─────────────────────────────────────────────────────────────────────────────
+base_url: "https://insignesysteem.nl"
+
+server:
+  host: 127.0.0.1   # bind address for run_prod.sh (default: 127.0.0.1)
+  port: 8000        # bind port for run_prod.sh (default: 8000)
+  keepalive: 2      # uvicorn --timeout-keep-alive seconds (set low behind a proxy)
+  # Trusted proxy IPs (uvicorn --forwarded-allow-ips). Empty = ignore
+  # X-Forwarded-* (safe default when nothing is in front). Set to the proxy's
+  # IP (e.g. "127.0.0.1") when behind nginx / Apache so the app logs the real
+  # client IP — required for the failed-login WARNING (issue #130) to be useful
+  # to fail2ban. NOTE: this does NOT affect the CSRF check above.
+  forwarded_allow_ips: ""
+
+# Outgoing e-mail (registration confirmations, password resets, sign-off
+# notifications). Leave smtp_host empty to disable sending.
+email:
+  smtp_host: "smtp.example.com"
+  smtp_port: 587
+  username: "noreply@insignesysteem.nl"
+  password: "CHANGE-ME"
+  from_address: "noreply@insignesysteem.nl"
+  from_name: "Insigne Systeem"
+  security: "starttls"   # starttls | ssl | none
+  templates_dir: ""      # optional: path to custom e-mail templates
+
+# System administrators (by e-mail address — config is the source of truth,
+# not the database).
+admins:
+  - admin@example.com
+
+# Whether any authenticated user may create a group (false = only admins).
+allow_any_user_to_create_groups: true

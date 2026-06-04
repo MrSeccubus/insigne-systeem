@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Geen verbinding — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main class="auth-page">
+    <div class="auth-card" style="text-align:center;">
+        <h1>Geen verbinding</h1>
+        <p style="margin:1rem 0;color:#555;">
+            We konden de pagina niet laden. Controleer je internetverbinding
+            en probeer het opnieuw.
+        </p>
+        <button type="button" class="btn-primary" onclick="location.reload()">
+            Opnieuw proberen
+        </button>
+    </div>
+</main>
+{% endblock %}

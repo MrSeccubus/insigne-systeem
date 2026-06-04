@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}App installeren — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main>
+    <nav class="breadcrumb"><a href="/">Home</a> › App installeren</nav>
+
+    <h1>Insigne Systeem op je telefoon</h1>
+    <p style="color:#555;margin:0 0 1.5rem;">
+        Het Insigne Systeem werkt als &ldquo;web-app&rdquo;: je kunt het op
+        je telefoon installeren en als gewone app gebruiken. Je hebt geen
+        account in de App&nbsp;Store of Play&nbsp;Store nodig.
+    </p>
+
+    <section style="margin-bottom:2rem;">
+        <h2 style="margin-bottom:0.75rem;">Android (Chrome of Edge)</h2>
+        <ol style="line-height:1.7;">
+            <li>Open <strong>{{ install_url }}</strong> in Chrome.</li>
+            <li>Tik op de menu-knop (drie puntjes, rechts boven).</li>
+            <li>Kies <strong>App installeren</strong> of <strong>Toevoegen aan startscherm</strong>.</li>
+            <li>Bevestig de installatie.</li>
+            <li>Het Insigne-icoon staat nu in je app-overzicht.</li>
+        </ol>
+    </section>
+
+    <section style="margin-bottom:2rem;">
+        <h2 style="margin-bottom:0.75rem;">iPhone &amp; iPad (Safari)</h2>
+        <ol style="line-height:1.7;">
+            <li>Open <strong>{{ install_url }}</strong> in <strong>Safari</strong>.
+                <br>
+                <span class="form-hint" style="display:inline;">
+                    Let op: in Chrome op iOS werkt het installeren niet — dat is een beperking van Apple.
+                </span>
+            </li>
+            <li>Tik op het deel-icoon onderaan het scherm (vierkantje met pijl omhoog).</li>
+            <li>Scroll naar beneden en kies <strong>Voeg toe aan beginscherm</strong>.</li>
+            <li>Tik rechts boven op <strong>Voeg toe</strong>.</li>
+        </ol>
+    </section>
+
+    <section>
+        <h2 style="margin-bottom:0.75rem;">Wat krijg je ervoor?</h2>
+        <ul style="line-height:1.7;color:#333;">
+            <li>Eén tik vanaf je startscherm — geen browser-tab meer zoeken.</li>
+            <li>Volledig scherm zonder adresbalk.</li>
+            <li>Als je offline bent, kun je toch alle insignes en je laatst bekeken voortgang zien (maar niet aanpassen).</li>
+        </ul>
+        <p style="margin-top:1rem;color:#555;">
+            De web-app gebruikt geen extra rechten op je telefoon. Je voortgang
+            staat — zoals altijd — op het Insigne Systeem zelf, niet lokaal.
+        </p>
+    </section>
+</main>
+{% endblock %}

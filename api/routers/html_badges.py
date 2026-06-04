@@ -410,7 +410,11 @@ async def badge_detail(
             "niveau_stats": niveau_stats,
             "niveau_batch_states": niveau_batch_states,
             "niveau_batch_entry_ids": niveau_batch_entry_ids,
-            "selected_niveaus": [niveau - 1] if niveau in (1, 2, 3) else [0, 1, 2],
+            # Always render all three niveaus so /badges/{slug} is a single
+            # cacheable response (every eis on every niveau). Niveau selection
+            # is client-side; ?niveau= only seeds the initial mobile view.
+            "selected_niveaus": [0, 1, 2],
+            "initial_niveau": niveau if niveau in (1, 2, 3) else None,
             "mobile_default_niveau": _mobile_default_niveau(progress_map, badge),
         },
     )
@@ -1308,7 +1312,10 @@ async def scout_badge_detail(
             "can_edit": can_edit,
             "edit_speltak_id": edit_speltak_id,
             "niveau_stats": niveau_stats,
-            "selected_niveaus": [niveau - 1] if niveau in (1, 2, 3) else [0, 1, 2],
+            # All niveaus always rendered (single cacheable URL); niveau
+            # selection is client-side. ?niveau= only seeds the initial view.
+            "selected_niveaus": [0, 1, 2],
+            "initial_niveau": niveau if niveau in (1, 2, 3) else None,
             "mobile_default_niveau": _mobile_default_niveau(progress_map, badge),
             "_post_url": f"/scouts/{scout.id}/set-progress",
         },

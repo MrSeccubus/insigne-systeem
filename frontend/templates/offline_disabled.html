@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Werkt niet offline — Insigne Systeem{% endblock %}
+
+{% block content %}
+<main class="auth-page">
+    <div class="auth-card" style="text-align:center;">
+        <h1>Werkt niet offline</h1>
+        <p style="margin:1rem 0;color:#555;">
+            Deze functie werkt niet offline. Maak verbinding met internet om
+            aftekeningen, groepsbeheer of beheer te gebruiken.
+        </p>
+        <button type="button" class="btn-primary" onclick="location.reload()">
+            Opnieuw proberen
+        </button>
+    </div>
+</main>
+{% endblock %}

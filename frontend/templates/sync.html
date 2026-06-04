@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Data synchroniseren — Insigne Systeem{% endblock %}
+
+{% block content %}
+<script>
+// Warms the whole badge catalogue into the service-worker cache so it's
+// browsable offline. Fetches the URL manifest, then fetches each URL — the
+// service worker transparently caches every response via its fetch handler.
+function offlineDownload() {
+    return {
+        status: 'idle',  // idle | running | done | error | unsupported
+        total: 0,
+        done: 0,
+        async run() {
+            if (!('serviceWorker' in navigator) || !('caches' in window)) {
+                this.status = 'unsupported';
+                return;
+            }
+            this.status = 'running';
+            this.done = 0;
+            // ``cache: 'reload'`` forces a fresh network fetch (bypassing the
+            // HTTP cache); the service worker's network-first handler then
+            // overwrites its runtime-cache entry, so a re-sync always refreshes
+            // — never served a stale page.
+            const opts = { credentials: 'same-origin', cache: 'reload' };
+            try {
+                const resp = await fetch('/offline/manifest.json', opts);
+                if (!resp.ok) throw new Error('manifest');
+                const urls = (await resp.json()).urls || [];
+                this.total = urls.length;
+                for (const u of urls) {
+                    // A single missing asset (e.g. a badge without artwork)
+                    // shouldn't abort the whole download.
+                    try { await fetch(u, opts); } catch (e) { /* keep going */ }
+                    this.done++;
+                }
+                this.status = 'done';
+            } catch (e) {
+                this.status = 'error';
+            }
+        }
+    };
+}
+</script>
+<main>
+    <nav class="breadcrumb"><a href="/">Home</a> › Data synchroniseren</nav>
+
+    <h1>Data synchroniseren</h1>
+
+    <section x-data="offlineDownload()"
+             x-init="if (!('serviceWorker' in navigator) || !('caches' in window)) status = 'unsupported'">
+
+        {# ── Supported: the normal sync UI ── #}
+        <div x-show="status !== 'unsupported'" x-cloak>
+            <p style="color:#555;margin:0 0 1.5rem;">
+                Ga je naar een kamp of plek zonder internet? Synchroniseer dan alle
+                insignes nu, dan kun je ze straks offline bekijken (alleen-lezen —
+                eisen aftekenen lukt pas weer met verbinding). Doe dit terwijl je
+                nog een goede verbinding hebt.
+            </p>
+            <button type="button" class="btn-primary offline-disabled"
+                    @click="run()" :disabled="status === 'running'"
+                    x-text="status === 'running' ? ('Bezig… ' + done + ' / ' + total)
+                          : (status === 'done' ? 'Opnieuw synchroniseren' : 'Nu synchroniseren')">
+                Nu synchroniseren
+            </button>
+            <p x-show="status === 'done'" x-cloak class="form-hint" style="margin-top:0.5rem;color:#2e7d32;">
+                Klaar — alle insignes zijn nu offline beschikbaar.
+            </p>
+            <p x-show="status === 'error'" x-cloak class="form-error" style="margin-top:0.5rem;">
+                Er ging iets mis bij het synchroniseren. Controleer je verbinding en probeer het opnieuw.
+            </p>
+        </div>
+
+        {# ── Unsupported: explain the feature and how to enable it ── #}
+        <div x-show="status === 'unsupported'" x-cloak>
+            <div class="notification-bar" style="margin-bottom:1.5rem;">
+                Dit apparaat of deze browser ondersteunt offline gebruik (nog) niet,
+                dus synchroniseren is hier niet mogelijk.
+            </div>
+
+            <h2 style="margin-bottom:0.5rem;">Waarvoor is dit?</h2>
+            <p style="color:#555;margin:0 0 1.5rem;">
+                Met &ldquo;Data synchroniseren&rdquo; download je alle insignes en je
+                laatst bekeken voortgang naar je apparaat. Daarna kun je ze ook zonder
+                internet bekijken — handig op een kamp of plek zonder bereik. Het is
+                alleen-lezen: eisen aftekenen lukt pas weer met een verbinding.
+            </p>
+
+            <h2 style="margin-bottom:0.5rem;">Hoe krijg je het werkend?</h2>
+            <ul style="line-height:1.7;color:#333;">
+                <li>Gebruik een moderne browser: <strong>Chrome</strong> of
+                    <strong>Edge</strong> (Android/desktop), of <strong>Safari</strong>
+                    (iPhone/iPad).</li>
+                <li>Open de site via een beveiligd <strong>https://</strong>-adres —
+                    offline opslag werkt niet op een onbeveiligd http-adres.</li>
+                <li>Installeer het Insigne Systeem als app op je startscherm voor de
+                    beste offline-ervaring.</li>
+            </ul>
+            <p style="margin-top:1rem;">
+                <a class="btn-secondary" href="/install"
+                   style="text-decoration:none;display:inline-block;">Zo installeer je de app →</a>
+            </p>
+        </div>
+    </section>
+</main>
+{% endblock %}

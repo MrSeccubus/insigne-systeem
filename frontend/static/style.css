@@ -38,10 +38,83 @@ body {
     text-decoration: underline;
 }
 
+/* ── Offline read-only mode (#101) ──────────────────────────────────────── */
+.offline-banner {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: #fef3c7;
+    border-bottom: 1px solid #fcd34d;
+    color: #92400e;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+}
+body.offline .offline-banner { display: block; }
+.offline-banner-retry {
+    color: inherit;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+    margin-left: 0.25rem;
+}
+
+/* Show one variant of an element online, another offline — e.g. a hint whose
+   link points at a screen that doesn't work offline. We hide the variant that
+   doesn't apply via the OPPOSITE body state, and never set display on the
+   visible one, so it keeps its own display (block for <p>, inline for
+   <span>/<a>) and isn't beaten by an equally-specific component rule. */
+body.offline .online-only { display: none; }
+body:not(.offline) .offline-only { display: none; }
+
+/* Client-side badge filters (badge_filters.js) hide items/categories/messages
+   via the ``hidden`` attribute; force it to win over any class display. */
+.badge-item[hidden], .badge-cat[hidden], .badge-empty[hidden] { display: none !important; }
+
+/* Offline = read-only: grey out and disable every edit affordance so cached
+   controls look inert and can't be triggered. Read-only content (status
+   checks, notes display, sign-off info) stays fully visible. */
+body.offline .step-actions,
+body.offline .inline-form,
+body.offline .batch-signoff-section,
+body.offline form[action*="set-level"],
+body.offline button[hx-post*="favorite-badge"],
+body.offline .step-notes .btn-icon,
+body.offline .offline-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Leider progress-grid checkboxes: disable interaction offline but keep them
+   at full opacity — the leader still needs to read the statuses (the summary
+   shows ✓/?/colour). No greying so the read-only overview stays legible. */
+body.offline .step-check-wrapper { pointer-events: none; }
+
+/* Links that become plain, unclickable text offline (their target isn't a
+   read-only snapshot, e.g. a scout's page or a jaarinsigne detail). The name
+   stays readable; it just isn't a working link. */
+body.offline .offline-plainlink {
+    color: inherit;
+    text-decoration: none;
+    pointer-events: none;
+    cursor: default;
+}
+
 main {
     max-width: 800px;
     margin: 0 auto;
     padding: 2rem;
+}
+
+/* The global ``*`` reset zeroes padding everywhere, which removes the
+   default browser indent that holds bullets / numbers inside the
+   element. Restore an indent for prose lists inside ``main`` so markers
+   don't render outside the page padding. */
+main ul,
+main ol {
+    padding-left: 1.5rem;
 }
 
 h1 {
@@ -501,6 +574,17 @@ details.category-collapsible[open] > summary.section-header {
     display: block;
 }
 
+/* Reserve space for badge artwork (all ~400×347) so it can't shift layout
+   before loading — fixes Lighthouse CLS / "unsized images". The ratio matches
+   the images' real aspect, so rendering (incl. the mobile honeycomb) is
+   unchanged; only pre-load space reservation improves. */
+.badge-card-image,
+.badge-mobile-img,
+.niveau-header-image,
+.ribbon__item img {
+    aspect-ratio: 400 / 347;
+}
+
 .badge-card-level {
     font-size: 0.82rem;
     font-weight: 600;
@@ -615,6 +699,25 @@ details.category-collapsible[open] > summary.section-header {
     gap: 0.5rem;
     margin-bottom: 2rem;
     align-items: stretch;
+}
+
+/* Client-side niveau switching (#101): all three niveaus are always in the
+   DOM (one cacheable URL). The grid focuses a single niveau, or shows all
+   three for side-by-side compare (data-niveau="all"). Visibility is keyed on
+   data-niveau so it works at every width — desktop included. */
+.badge-overview-grid--switch {
+    grid-template-columns: 160px 1fr;
+}
+.badge-overview-grid--switch[data-niveau="all"] {
+    grid-template-columns: 160px repeat(3, 1fr);
+}
+.badge-overview-grid--switch[data-niveau="1"] .niveau-cell--2,
+.badge-overview-grid--switch[data-niveau="1"] .niveau-cell--3,
+.badge-overview-grid--switch[data-niveau="2"] .niveau-cell--1,
+.badge-overview-grid--switch[data-niveau="2"] .niveau-cell--3,
+.badge-overview-grid--switch[data-niveau="3"] .niveau-cell--1,
+.badge-overview-grid--switch[data-niveau="3"] .niveau-cell--2 {
+    display: none;
 }
 
 .niveau-col-header {

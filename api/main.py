@@ -1,9 +1,16 @@
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+)
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from uvicorn.logging import DefaultFormatter
@@ -41,6 +48,7 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 DATA_DIR = Path(__file__).parent / "data"
 IMAGES_DIR = DATA_DIR / "images"
 _CATALOGUE = BadgeCatalogue(DATA_DIR)
+_DEV = os.environ.get("INSIGNE_DEV") == "1"  # set by serve_dev.sh
 
 app = FastAPI()
 
@@ -104,13 +112,129 @@ app.include_router(html_badges.router)
 app.include_router(html_groups.router)
 app.include_router(html_contact.router)
 
+class _ImmutableStaticFiles(StaticFiles):
+    """StaticFiles with a 1-year immutable Cache-Control (Lighthouse "efficient
+    cache policy"). Safe for /images (badge artwork never changes per URL) and
+    for /static: assets that can change — style.css, badge_filters.js, and the
+    vendored JS (which must be patchable, e.g. for a security fix) — are
+    cache-busted with a ``?v={app_version}`` query in base.html (a new URL on
+    each release, so a patched file reaches clients immediately despite
+    ``immutable``); icons/manifest/favicon are stable. Applies to both 200 and
+    304 (both expose
+    ``.headers``). Note: ``/sw.js`` is served by its own route with no-cache, so
+    the worker itself is never immutably cached."""
+
+    def file_response(self, *args, **kwargs):
+        resp = super().file_response(*args, **kwargs)
+        # In dev (serve_dev.sh sets INSIGNE_DEV=1) don't cache, so edits to
+        # static assets show on reload without cache-busting or hard-reloads.
+        resp.headers["Cache-Control"] = (
+            "no-cache" if _DEV else "public, max-age=31536000, immutable"
+        )
+        return resp
+
+
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="static")
-app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
+app.mount("/static", _ImmutableStaticFiles(directory=FRONTEND_DIR / "static"), name="static")
+app.mount("/images", _ImmutableStaticFiles(directory=IMAGES_DIR), name="images")
+
+
+# ── PWA pages (#101) ──────────────────────────────────────────────────────────
+
+@app.get("/ping", include_in_schema=False)
+async def ping():
+    """Tiny connectivity probe for the client's offline detection. The service
+    worker never intercepts it, so a failed fetch means the client is truly
+    offline — more reliable than ``navigator.onLine``, which doesn't flip on
+    reload under throttling or on a network with no real internet."""
+    return Response(status_code=204)
+
+
+@app.get("/sw.js", include_in_schema=False)
+async def service_worker():
+    """Serve the service worker from the ROOT path so it can claim ``scope: /``.
+
+    A worker served from ``/static/sw.js`` may, by default, only control
+    ``/static/`` — registering it with ``scope: "/"`` is rejected by the browser
+    unless the response carries ``Service-Worker-Allowed: /``. Serving it from
+    the root sidesteps that (its max scope is ``/``); the header is added too as
+    belt-and-suspenders. ``no-cache`` so a new deploy's worker is picked up."""
+    return FileResponse(
+        FRONTEND_DIR / "static" / "sw.js",
+        media_type="text/javascript",
+        headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache"},
+    )
+
+
+@app.get("/install", response_class=HTMLResponse)
+async def install_instructions(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        request=request, name="install.html",
+        context={
+            "current_user": _get_current_user(request, db),
+            "install_url": config.base_url,
+        },
+    )
+
+
+@app.get("/sync", response_class=HTMLResponse)
+async def sync_page(request: Request, db: Session = Depends(get_db)):
+    """Pre-download the badge catalogue into the offline cache. Reachable from
+    the 'Data synchroniseren' menu item, which is only shown when running as an
+    installed PWA (client-side, see base.html)."""
+    return templates.TemplateResponse(
+        request=request, name="sync.html",
+        context={"current_user": _get_current_user(request, db)},
+    )
+
+
+@app.get("/offline", response_class=HTMLResponse)
+async def offline_fallback(request: Request, db: Session = Depends(get_db)):
+    """Served by the service worker when no cached entry is available."""
+    return templates.TemplateResponse(
+        request=request, name="offline.html",
+        context={"current_user": _get_current_user(request, db)},
+    )
+
+
+@app.get("/offline/disabled", response_class=HTMLResponse)
+async def offline_disabled(request: Request, db: Session = Depends(get_db)):
+    """Served by the service worker for screens that can't work offline
+    (aftekeningen, groepsbeheer, admin). Pre-cached as part of the SW shell."""
+    return templates.TemplateResponse(
+        request=request, name="offline_disabled.html",
+        context={"current_user": _get_current_user(request, db)},
+    )
+
+
+@app.get("/offline/manifest.json")
+async def offline_manifest(request: Request, db: Session = Depends(get_db)):
+    """URLs the 'Data synchroniseren' button warms into the cache. Always the
+    whole badge catalogue (every eis on every niveau, niveau selection being
+    client-side) plus artwork. For a logged-in user we also add their own home
+    page and the speltak progress overviews they lead, so a leader can review
+    their speltak offline (the catalogue badge pages already render the user's
+    own progress, so a scout's own progress is covered too). All URLs are
+    server-derived (catalogue dict / ORM slugs), never request input."""
+    urls: list[str] = []
+    for badges in _CATALOGUE.list().values():
+        for badge in badges:
+            urls.append(f"/badges/{badge['slug']}")
+            urls.extend(badge.get("images", []))
+
+    current_user = _get_current_user(request, db)
+    if current_user is not None:
+        urls.append("/")
+        led = groups_svc.list_my_speltakken(db, current_user.id)
+        if led:
+            urls.append("/my-speltakken")
+            for group, speltak in led:
+                urls.append(f"/groups/{group.slug}/speltakken/{speltak.slug}/progress")
+    return JSONResponse({"urls": urls})
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request, only_favorites: int = 0, only_in_progress: int = 0, db: Session = Depends(get_db)):
+async def index(request: Request, db: Session = Depends(get_db)):
     current_user = _get_current_user(request, db)
 
     all_badges = _CATALOGUE.list()
@@ -271,9 +395,7 @@ async def index(request: Request, only_favorites: int = 0, only_in_progress: int
             "allow_invite_leader": current_user and (config.allow_any_user_to_create_groups or current_user.is_admin),
             "signed_off_niveaus": signed_off_niveaus,
             "user_favorite_slugs": user_favorite_slugs,
-            "only_favorites": bool(only_favorites and current_user),
             "progress_slugs": progress_slugs,
-            "only_in_progress": bool(only_in_progress and current_user),
             "current_user_speltak_types": current_user_speltak_types,
         },
     )

@@ -30,8 +30,11 @@
                 {% endfor %}
             </ul>
             {% if allow_invite_leader %}
-            <p class="join-invite-hint">
+            <p class="join-invite-hint online-only">
                 Mist je een groep/speltak? Zoek hem <a href="/groups/join">hier</a> en wordt lid...
+            </p>
+            <p class="join-invite-hint offline-only">
+                Mist je een groep/speltak? Ga online om er een te zoeken en lid te worden.
             </p>
             {% endif %}
         </details>
@@ -44,7 +47,8 @@
         {% if signoff_count > 0 %}
         <div class="notification-bar">
             Je hebt <strong>{{ signoff_count }} afteken{{ 'verzoek' if signoff_count == 1 else 'verzoeken' }}</strong> die op je wachten.
-            <a href="/signoff-requests">Bekijken →</a>
+            <a href="/signoff-requests" class="online-only">Bekijken →</a>
+            <span class="offline-only">Ga online om deze te bekijken en af te tekenen.</span>
         </div>
         {% endif %}
 
@@ -149,7 +153,7 @@
                 <a href="/badges/{{ n.slug }}?niveau={{ n.niveau_number }}"
                    class="ribbon__item"
                    title="{{ n.title }} — Niveau {{ n.niveau_number }}">
-                    <img src="{{ n.image }}" alt="{{ n.title }} Niveau {{ n.niveau_number }}">
+                    <img src="{{ n.image }}" alt="{{ n.title }} Niveau {{ n.niveau_number }}" width="400" height="347">
                 </a>
                 {% if loop.index0 % 2 == 1 or loop.last %}</div>{% endif %}
                 {% endfor %}
@@ -161,38 +165,31 @@
         <p style="color:#555;margin-bottom:2rem;">Volg je voortgang voor Scouting insignes en vraag aftekening aan bij je (bege-)leiders.</p>
     {% endif %}
 
+    <div{% if current_user %} data-badge-filter data-has-fav="{{ 1 if user_favorite_slugs else 0 }}" data-init-fav="0" data-init-prog="0"{% endif %}>
     {% if current_user %}
     <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
-        <a href="?only_favorites={% if only_favorites %}0{% else %}1{% endif %}&only_in_progress={{ 1 if only_in_progress else 0 }}"
-           class="btn-sm {% if only_favorites %}btn-star-active{% else %}btn-neutral{% endif %}"
-           style="text-decoration:none;font-size:1rem;padding:0 0.5rem;line-height:1.6;"
-           title="{% if only_favorites %}Alle badges tonen{% else %}Alleen favorieten tonen{% endif %}">{% if only_favorites %}★{% else %}☆{% endif %}</a>
-        <a href="?only_favorites={{ 1 if only_favorites else 0 }}&only_in_progress={% if only_in_progress %}0{% else %}1{% endif %}"
-           class="btn-sm {% if only_in_progress %}btn-star-active{% else %}btn-neutral{% endif %}"
-           style="text-decoration:none;font-size:1rem;padding:0 0.5rem;line-height:1.6;"
-           title="{% if only_in_progress %}Alle badges tonen{% else %}Alleen badges met voortgang tonen{% endif %}">{% include "partials/icon_running.html" %}</a>
+        <button type="button" class="badge-filter-fav btn-sm btn-neutral"
+                style="font-size:1rem;padding:0 0.5rem;line-height:1.6;"
+                title="Alleen favorieten tonen">★</button>
+        <button type="button" class="badge-filter-prog btn-sm btn-neutral"
+                style="font-size:1rem;padding:0 0.5rem;line-height:1.6;"
+                title="Alleen badges met voortgang tonen">{% include "partials/icon_running.html" %}</button>
     </div>
     {% endif %}
 
-    {% set page_ns = namespace(any_visible=false) %}
     {% for category, badges in all_badges.items() %}
-    {% set visible_badges = badges %}
-    {% if only_favorites %}{% set visible_badges = visible_badges | selectattr("slug", "in", user_favorite_slugs) | list %}{% endif %}
-    {% if only_in_progress %}{% set visible_badges = visible_badges | selectattr("slug", "in", progress_slugs) | list %}{% endif %}
-    {% if visible_badges %}{% set page_ns.any_visible = true %}{% endif %}
-    {% if visible_badges %}
     {% set category_has_user_favorite = (badges | selectattr("slug", "in", user_favorite_slugs) | list | length) > 0 %}
     {% set collapse_category = category == "explorers" and current_user and "explorers" not in current_user_speltak_types and not category_has_user_favorite %}
-    <details class="category-collapsible"{% if not collapse_category %} open{% endif %}>
+    <details class="category-collapsible badge-cat"{% if not collapse_category %} open{% endif %}>
         <summary class="section-header">{{ category_labels.get(category, category ~ ' insignes') }}</summary>
 
     {% if category == "jaarinsignes" %}
     {# ── Flat jaarinsigne layout: one card per insigne+level, all in one grid ── #}
     {# Desktop #}
     <div class="badge-grid">
-        {% for badge in visible_badges %}
+        {% for badge in badges %}
         {% for card in badge.level_cards %}
-        <div class="badge-card-wrapper">
+        <div class="badge-card-wrapper badge-item" data-fav="{{ 1 if badge.slug in user_favorite_slugs else 0 }}" data-prog="{{ 1 if badge.slug in progress_slugs else 0 }}">
             <a href="/badges/{{ badge.slug }}" class="badge-card">
                 <img src="{{ card.image }}"
                      alt="{{ badge.title }}"
@@ -233,9 +230,9 @@
     </div>
 
     {# Mobile #}
-    {% for badge in visible_badges %}
+    {% for badge in badges %}
     {% for card in badge.level_cards %}
-    <div class="badge-mobile-card-wrapper">
+    <div class="badge-mobile-card-wrapper badge-item" data-fav="{{ 1 if badge.slug in user_favorite_slugs else 0 }}" data-prog="{{ 1 if badge.slug in progress_slugs else 0 }}">
         <a href="/badges/{{ badge.slug }}" class="badge-mobile-card">
             <div class="badge-mobile-honeycomb">
                 <img src="{{ card.image }}"
@@ -282,7 +279,8 @@
 
     {% else %}
     {# ── Regular layout: per-insigne header + grid of niveau cards ── #}
-    {% for badge in visible_badges %}
+    {% for badge in badges %}
+    <div class="badge-item" data-fav="{{ 1 if badge.slug in user_favorite_slugs else 0 }}" data-prog="{{ 1 if badge.slug in progress_slugs else 0 }}">
     <h3 class="badge-group-title">
         <a href="/badges/{{ badge.slug }}">{{ badge.title }}</a>
         {% if current_user %}
@@ -412,27 +410,22 @@
         </div>
     </a>
     {% endif %}
+    </div>{# /badge-item #}
 
     {% endfor %}
     {% endif %}{# end if category == "jaarinsignes" / else #}
 
     </details>
-    {% endif %}
     {% endfor %}
 
-    {% if not page_ns.any_visible and (only_favorites or only_in_progress) %}
-        {% if only_favorites and only_in_progress %}
-    <p class="empty-state">Geen favoriete badges met voortgang gevonden.</p>
-        {% elif only_favorites %}
-            {% if not user_favorite_slugs %}
-    <p class="empty-state">Je hebt nog geen favorieten. Klik op ☆ bij een badge om hem toe te voegen.</p>
-            {% else %}
-    <p class="empty-state">Geen favoriete badges gevonden.</p>
-            {% endif %}
-        {% else %}
-    <p class="empty-state">Je hebt nog geen voortgang op een badge.</p>
-        {% endif %}
+    {# Empty-state variants — JS reveals the one matching the active filters. #}
+    {% if current_user %}
+    <p class="empty-state badge-empty" data-empty="favprog" hidden>Geen favoriete badges met voortgang gevonden.</p>
+    <p class="empty-state badge-empty" data-empty="fav-none" hidden>Je hebt nog geen favorieten. Klik op ★ bij een badge om hem toe te voegen.</p>
+    <p class="empty-state badge-empty" data-empty="fav" hidden>Geen favoriete badges gevonden.</p>
+    <p class="empty-state badge-empty" data-empty="prog" hidden>Je hebt nog geen voortgang op een badge.</p>
     {% endif %}
+    </div>{# /badge-filter root #}
 
     {% if not current_user %}
     <div style="margin-top:2rem;display:flex;gap:1rem;">

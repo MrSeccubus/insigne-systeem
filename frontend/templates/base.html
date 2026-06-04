@@ -5,8 +5,64 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Insigne Systeem{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
+    <link rel="stylesheet" href="/static/style.css?v={{ app_version() }}">
+    {# ── PWA (#101) ───────────────────────────────────────────────────── #}
+    <link rel="manifest" href="/static/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <meta name="theme-color" content="#00A651">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Insigne">
+    <script>
+    {% if dev %}
+    // Dev (INSIGNE_DEV=1, set by serve_dev.sh): no service worker, so edits to
+    // static assets show on reload without cache-busting. Also unregister any
+    // worker + clear its caches left over from earlier PWA testing on the same
+    // origin. Test the PWA / offline behaviour with run_prod.sh instead.
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister()));
+        if (window.caches) caches.keys().then((ks) => ks.forEach((k) => caches.delete(k)));
+    }
+    {% else %}
+    if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+            navigator.serviceWorker.register("/sw.js", { scope: "/" })
+                .catch((err) => console.warn("SW registration failed:", err));
+        });
+    }
+    {% endif %}
+    </script>
+    {# ── Offline read-only mode (#101) ─────────────────────────────────────
+       Toggle ``body.offline`` (CSS greys out edit controls and reveals the
+       banner). We set offline on load (``navigator.onLine`` is unreliable —
+       stays true on reload under throttling / no internet — so we confirm with
+       one ``/ping`` probe, which the SW never intercepts) and on the ``offline``
+       event. We deliberately do NOT auto-clear: a single ping getting through
+       doesn't mean the app loads reliably on a spotty link, and the page is
+       still showing stale cached data. Reconnecting is the user's choice via
+       the banner's "Opnieuw proberen" link, which reloads (re-tests the app and
+       fetches fresh data). Offline is strictly read-only, so we cancel every
+       HTMX request: edit POSTs and live partials (e.g. the sign-off counter)
+       would only fire doomed requests. Full-page navigation still works — the
+       browser/service-worker handles that, not HTMX. #}
+    <script>
+    (function () {
+        var offline = !navigator.onLine;
+        function render() { document.body.classList.toggle("offline", offline); }
+        function goOffline() { offline = true; render(); }
+        window.addEventListener("offline", goOffline);
+        document.addEventListener("DOMContentLoaded", function () {
+            render();
+            fetch("/ping", { cache: "no-store" })
+                .then(function (r) { if (!r.ok) goOffline(); })
+                .catch(goOffline);
+        });
+        document.addEventListener("htmx:beforeRequest", function (evt) {
+            if (offline) evt.preventDefault();
+        });
+    })();
+    </script>
+    <script src="/static/vendor/htmx.min.js?v={{ app_version() }}" defer></script>
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('stepCard', (initStatus, initNotes, initEntryId, slug, levelIndex, stepIndex) => ({
@@ -94,7 +150,8 @@
         }));
     });
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+    <script src="/static/vendor/alpine.min.js?v={{ app_version() }}" defer></script>
+    <script src="/static/badge_filters.js?v={{ app_version() }}" defer></script>
     <script>window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });</script>
     <script>
     document.addEventListener('click', (e) => {
@@ -109,6 +166,7 @@
     </script>
 </head>
 <body{% if dev %} class="dev"{% endif %}>
+    <div class="offline-banner" role="status">Je bent offline — alleen-lezen modus. Gegevens kunnen verouderd zijn. <a href="#" class="offline-banner-retry" onclick="location.reload(); return false;">Opnieuw proberen</a></div>
     {% if dev %}<div class="dev-banner">Development</div>{% endif %}
     {% if current_user and current_user.is_admin and privacy_policy_is_default() %}
     <div class="privacy-warning-banner">
@@ -123,20 +181,22 @@
         </button>
         <nav class="site-nav" :class="navOpen ? 'site-nav--open' : ''">
             {% if current_user %}
-                <a href="/signoff-requests">Aftekeningen <span hx-get="/signoff-requests/count" hx-trigger="load, signoff-updated from:body" hx-swap="innerHTML"></span></a>
+                <a href="/signoff-requests" class="offline-disabled">Aftekeningen <span hx-get="/signoff-requests/count" hx-trigger="load, signoff-updated from:body" hx-swap="innerHTML"></span></a>
                 {% set my_speltakken_count = current_user.speltak_memberships | selectattr("role","eq","speltakleider") | selectattr("approved") | selectattr("withdrawn","eq",false) | list | length %}
                 {% if my_speltakken_count > 0 %}<a href="/my-speltakken">Mijn speltakken</a>{% endif %}
-                {% if current_user.is_admin or current_user.is_leader %}<a href="/groups">Groepsbeheer</a>{% endif %}
-                {% if current_user.is_admin %}<a href="/admin">Admin</a>{% endif %}
+                {% if current_user.is_admin or current_user.is_leader %}<a href="/groups" class="offline-disabled">Groepsbeheer</a>{% endif %}
+                {% if current_user.is_admin %}<a href="/admin" class="offline-disabled">Admin</a>{% endif %}
                 <div class="nav-user-menu" x-data="{ open: false }" @click.outside="open = false">
                     <button class="nav-user-btn" @click="open = !open" :aria-expanded="open">
                         {{ current_user.name or current_user.email }}<span class="nav-user-caret" :class="open ? 'nav-user-caret--open' : ''">▾</span>
                     </button>
                     <div class="nav-user-dropdown" x-show="open" x-transition.duration.150ms @click="open = false">
-                        <a href="/profile" class="nav-user-item">Profiel bewerken</a>
-                        <a href="/export" class="nav-user-item">Importeren/exporteren</a>
+                        <a href="/profile" class="nav-user-item offline-disabled">Profiel bewerken</a>
+                        <a href="/export" class="nav-user-item offline-disabled">Importeren/exporteren</a>
+                        <a href="/install" class="nav-user-item">App installeren</a>
+                        <a href="/sync" class="nav-user-item offline-disabled">Data synchroniseren</a>
                         <form method="post" action="/logout" style="margin:0;">
-                            <button type="submit" class="nav-user-item nav-user-item--btn">Uitloggen</button>
+                            <button type="submit" class="nav-user-item nav-user-item--btn offline-disabled">Uitloggen</button>
                         </form>
                     </div>
                 </div>
@@ -149,7 +209,7 @@
     {% block content %}{% endblock %}
     {% block scripts %}{% endblock %}
     <footer class="site-footer">
-        <a href="/contact">Contact</a>
+        <a href="/contact" class="offline-disabled">Contact</a>
         <span class="footer-sep" aria-hidden="true">|</span>
         <a href="/privacy">Privacybeleid</a>
         <span class="footer-sep" aria-hidden="true">|</span>

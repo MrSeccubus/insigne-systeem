@@ -34,14 +34,14 @@ def _login_as(client, user):
 # heading. The `open` attribute on the <details> tag drives the default state.
 def _section_open(html: str, label: str) -> bool:
     return bool(re.search(
-        rf'<details class="category-collapsible" open>\s*<summary class="section-header">\s*{re.escape(label)}\s*</summary>',
+        rf'<details class="category-collapsible badge-cat" open>\s*<summary class="section-header">\s*{re.escape(label)}\s*</summary>',
         html,
     ))
 
 
 def _section_collapsed(html: str, label: str) -> bool:
     return bool(re.search(
-        rf'<details class="category-collapsible">\s*<summary class="section-header">\s*{re.escape(label)}\s*</summary>',
+        rf'<details class="category-collapsible badge-cat">\s*<summary class="section-header">\s*{re.escape(label)}\s*</summary>',
         html,
     ))
 

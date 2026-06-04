@@ -6,6 +6,20 @@
     <title>{% block title %}Insigne Systeem{% endblock %}</title>
     <meta name="description" content="{% block meta_description %}Houd voortgang op scoutinginsignes bij en laat eisen aftekenen door je leiding.{% endblock %}">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    {# ── Social link previews (#140) ───────────────────────────────────────
+       WhatsApp/Slack/Facebook/Twitter render a card from these tags. The
+       favicon is an SVG, which most scrapers (notably WhatsApp) won't render,
+       so og:image points at an absolute-URL raster (the 512×512 PNG icon).
+       URLs must be absolute — scrapers don't resolve root-relative paths —
+       hence base_url (config.base_url, the canonical public URL). #}
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Insigne Systeem">
+    <meta property="og:title" content="{% block og_title %}Insigne Systeem{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Houd voortgang op scoutinginsignes bij en laat eisen aftekenen door je leiding.{% endblock %}">
+    <meta property="og:image" content="{{ base_url }}/static/icons/icon-512.png">
+    <meta property="og:url" content="{{ base_url }}{{ request.url.path }}">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:image" content="{{ base_url }}/static/icons/icon-512.png">
     <link rel="stylesheet" href="/static/style.css?v={{ app_version() }}">
     {# ── PWA (#101) ───────────────────────────────────────────────────── #}
     <link rel="manifest" href="/static/manifest.webmanifest">

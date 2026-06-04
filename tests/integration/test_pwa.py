@@ -235,6 +235,18 @@ class TestBaseHtmlPwaTags:
         assert '<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">' in r.text
         assert '<meta name="apple-mobile-web-app-capable" content="yes">' in r.text
 
+    def test_open_graph_tags_in_head(self, client, db):
+        """#140: social scrapers (WhatsApp/Slack/Facebook) render a card from
+        Open Graph tags; og:image must be an absolute-URL raster (not the SVG
+        favicon) so WhatsApp shows a thumbnail."""
+        from insigne.config import config
+        r = client.get("/login")
+        assert '<meta property="og:title"' in r.text
+        assert '<meta property="og:description"' in r.text
+        # og:image is absolute and a PNG (WhatsApp can't render the SVG favicon).
+        assert f'<meta property="og:image" content="{config.base_url}/static/icons/icon-512.png">' in r.text
+        assert '<meta name="twitter:card" content="summary">' in r.text
+
     def test_service_worker_registered(self, client, db):
         r = client.get("/login")
         # The SW is registered on the ``load`` event so it doesn't compete

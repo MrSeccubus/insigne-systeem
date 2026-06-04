@@ -12,6 +12,11 @@ weer leeg gemaakt.
 
 ### Verbeteringen
 
+- **Linkvoorbeelden bij delen** (sluit #140) — Open Graph- en Twitter-cardtags
+  toegevoegd zodat een gedeelde link in WhatsApp/Slack/Facebook een nette kaart
+  met titel, omschrijving en logo toont. `og:image` wijst naar het 512×512-PNG-
+  icon met absolute URL (`base_url`), omdat scrapers het SVG-favicon niet
+  renderen.
 - **Meta-description toegevoegd** (sluit #145) — de `<head>` bevat nu een `<meta name="description">` (per pagina overschrijfbaar via een Jinja-block) met een korte omschrijving van het Insigne Systeem, voor betere weergave in zoekmachines en link-previews.
 
 ### Opgelost

@@ -98,6 +98,7 @@ templates.env.filters["render_eis"] = _render_eis
 templates.env.filters["render_eis_compact"] = _render_eis_compact
 templates.env.filters["eis_needs_expand"] = _eis_needs_expand
 templates.env.globals["dev"] = os.environ.get("INSIGNE_DEV") == "1"
+templates.env.globals["base_url"] = config.base_url
 templates.env.globals["allow_any_user_to_create_groups"] = config.allow_any_user_to_create_groups
 templates.env.globals["app_version"] = get_app_version
 templates.env.globals["privacy_policy_is_default"] = lambda: not _CUSTOM_POLICY.exists()

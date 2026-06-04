@@ -56,14 +56,17 @@
         <div class="badge-progress-card badge-item"{{ badge_item_attrs }} style="padding:0.75rem 1rem;">
             <strong>{{ badge.title }}</strong>
             {% if members %}
-            <p style="margin:0.4rem 0 0.5rem;font-size:0.85rem;color:#555;">
+            <p class="online-only" style="margin:0.4rem 0 0.5rem;font-size:0.85rem;color:#555;">
                 Jaarinsigne — bekijk de voortgang per scout:
             </p>
-            <ul style="margin:0;padding-left:1.2rem;line-height:1.8;">
+            <ul class="online-only" style="margin:0;padding-left:1.2rem;line-height:1.8;">
                 {% for m in members %}
                 <li><a href="/scouts/{{ m.user_id }}/badges/{{ badge.slug }}" class="offline-plainlink">{{ m.user.name or m.user.email or '(onbekend)' }}</a></li>
                 {% endfor %}
             </ul>
+            <p class="offline-only" style="margin:0.4rem 0 0;font-size:0.85rem;color:#888;">
+                De voortgang per scout op een jaarinsigne is offline niet beschikbaar.
+            </p>
             {% else %}
             <p style="margin:0.4rem 0 0;font-size:0.85rem;color:#888;">Geen scouts.</p>
             {% endif %}

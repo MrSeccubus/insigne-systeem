@@ -10,6 +10,14 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Verbeteringen
+
+- **Linkvoorbeelden bij delen** (sluit #140) — Open Graph- en Twitter-cardtags
+  toegevoegd zodat een gedeelde link in WhatsApp/Slack/Facebook een nette kaart
+  met titel, omschrijving en logo toont. `og:image` wijst naar het 512×512-PNG-
+  icon met absolute URL (`base_url`), omdat scrapers het SVG-favicon niet
+  renderen.
+
 ---
 
 ## [v1.2.0] — 2026-06-04

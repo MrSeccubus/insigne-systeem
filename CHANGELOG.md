@@ -10,6 +10,10 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Opgelost
+
+- **Jaarinsigne-link in het speltak-overzicht wees naar de eigen pagina** (sluit #143) — op de speltak-voortgangspagina linkte een jaarinsigne naar `/badges/{slug}` (de jaarinsigne-pagina van de ingelogde leider zelf), niet naar de speltak. De titel is nu platte tekst (net als bij gewone insignes) en de kaart toont een lijst met de scouts van de speltak, elk met een link naar de jaarinsigne-voortgang van díe scout (`/scouts/{id}/badges/{slug}`).
+
 ---
 
 ## [v1.2.0] — 2026-06-04

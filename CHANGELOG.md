@@ -10,6 +10,10 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Verbeteringen
+
+- **Meta-description toegevoegd** (sluit #145) — de `<head>` bevat nu een `<meta name="description">` (per pagina overschrijfbaar via een Jinja-block) met een korte omschrijving van het Insigne Systeem, voor betere weergave in zoekmachines en link-previews.
+
 ---
 
 ## [v1.2.0] — 2026-06-04

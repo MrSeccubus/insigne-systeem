@@ -393,6 +393,25 @@ class TestSpeltakProgressPage:
         r = client.get(f"/groups/g/speltakken/s/progress")
         assert r.status_code == 200
 
+    def test_jaarinsigne_links_to_scout_not_user(self, client, db):
+        """#143: a jaarinsigne in the speltak overview must link to each scout's
+        jaarinsigne (speltak context), not the leader's own /badges page."""
+        g, s, leider, scout = self._setup(db)
+        _login(client, leider)
+        r = client.get("/groups/g/speltakken/s/progress")
+        assert r.status_code == 200
+        assert 'href="/badges/jaarinsigne_2026"' not in r.text
+        assert f"/scouts/{scout.id}/badges/jaarinsigne_2026" in r.text
+
+    def test_jaarinsigne_card_explains_offline_unavailable(self, client, db):
+        """The per-scout jaarinsigne pages aren't pre-cached, so offline the
+        list is hidden (online-only) and an offline-only note explains why."""
+        g, s, leider, scout = self._setup(db)
+        _login(client, leider)
+        r = client.get("/groups/g/speltakken/s/progress")
+        assert 'class="offline-only"' in r.text
+        assert "offline niet beschikbaar" in r.text
+
     def test_scout_cannot_access(self, client, db):
         g, s, leider, scout = self._setup(db)
         _login(client, scout)

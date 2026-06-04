@@ -10,20 +10,25 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
-### Verbeteringen
+---
 
-- **Linkvoorbeelden bij delen** (sluit #140) — Open Graph- en Twitter-cardtags
-  toegevoegd zodat een gedeelde link in WhatsApp/Slack/Facebook een nette kaart
-  met titel, omschrijving en logo toont. `og:image` wijst naar het 512×512-PNG-
-  icon met absolute URL (`base_url`), omdat scrapers het SVG-favicon niet
-  renderen.
+## [v1.2.1] — 2026-06-04
+
+### Kleine verbeteringen en opschoning
+
+Een onderhoudsrelease met losse verbeteringen na v1.2.0: betere weergave bij het delen van links (meta-description + Open Graph/Twitter-cards), een correcte jaarinsigne-link in het speltak-overzicht, en de overstap van `httpx` naar `httpx2` voor de test-client.
+
+#### Verbeteringen
+
+- **Linkvoorbeelden bij delen** (sluit #140) — Open Graph- en Twitter-cardtags toegevoegd zodat een gedeelde link in WhatsApp/Slack/Facebook een nette kaart met titel, omschrijving en logo toont. `og:image` wijst naar het 512×512-PNG-icon met absolute URL (`base_url`), omdat scrapers het SVG-favicon niet renderen.
+
 - **Meta-description toegevoegd** (sluit #145) — de `<head>` bevat nu een `<meta name="description">` (per pagina overschrijfbaar via een Jinja-block) met een korte omschrijving van het Insigne Systeem, voor betere weergave in zoekmachines en link-previews.
 
-### Opgelost
+#### Opgelost
 
 - **Jaarinsigne-link in het speltak-overzicht wees naar de eigen pagina** (sluit #143) — op de speltak-voortgangspagina linkte een jaarinsigne naar `/badges/{slug}` (de jaarinsigne-pagina van de ingelogde leider zelf), niet naar de speltak. De titel is nu platte tekst (net als bij gewone insignes) en de kaart toont een lijst met de scouts van de speltak, elk met een link naar de jaarinsigne-voortgang van díe scout (`/scouts/{id}/badges/{slug}`). Die per-scout-pagina's worden niet vooraf gecacht, dus offline verbergt de kaart de lijst en toont in plaats daarvan de melding dat de voortgang per scout offline niet beschikbaar is.
 
-### Onderhoud
+#### Onderhoud
 
 - **httpx → httpx2** — Starlette 1.2 gebruikt voortaan `httpx2` voor zijn test-client (plain `httpx` is deprecated). De test-client én de release-check in `version.py` gebruiken nu `httpx2`, waarmee de `StarletteDeprecationWarning` uit de testsuite verdwijnt. `httpx2` is de opvolger van `httpx` (zelfde requests-compatibele API, door dezelfde maker).
 

@@ -574,6 +574,17 @@ details.category-collapsible[open] > summary.section-header {
     display: block;
 }
 
+/* Reserve space for badge artwork (all ~400×347) so it can't shift layout
+   before loading — fixes Lighthouse CLS / "unsized images". The ratio matches
+   the images' real aspect, so rendering (incl. the mobile honeycomb) is
+   unchanged; only pre-load space reservation improves. */
+.badge-card-image,
+.badge-mobile-img,
+.niveau-header-image,
+.ribbon__item img {
+    aspect-ratio: 400 / 347;
+}
+
 .badge-card-level {
     font-size: 0.82rem;
     font-weight: 600;

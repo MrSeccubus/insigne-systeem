@@ -153,7 +153,7 @@
                 <a href="/badges/{{ n.slug }}?niveau={{ n.niveau_number }}"
                    class="ribbon__item"
                    title="{{ n.title }} — Niveau {{ n.niveau_number }}">
-                    <img src="{{ n.image }}" alt="{{ n.title }} Niveau {{ n.niveau_number }}">
+                    <img src="{{ n.image }}" alt="{{ n.title }} Niveau {{ n.niveau_number }}" width="400" height="347">
                 </a>
                 {% if loop.index0 % 2 == 1 or loop.last %}</div>{% endif %}
                 {% endfor %}

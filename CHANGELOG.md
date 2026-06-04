@@ -10,6 +10,10 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Onderhoud
+
+- **httpx → httpx2** — Starlette 1.2 gebruikt voortaan `httpx2` voor zijn test-client (plain `httpx` is deprecated). De test-client én de release-check in `version.py` gebruiken nu `httpx2`, waarmee de `StarletteDeprecationWarning` uit de testsuite verdwijnt. `httpx2` is de opvolger van `httpx` (zelfde requests-compatibele API, door dezelfde maker).
+
 ---
 
 ## [v1.2.0] — 2026-06-04

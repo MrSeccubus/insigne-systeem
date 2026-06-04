@@ -14,12 +14,23 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Insigne">
     <script>
+    {% if dev %}
+    // Dev (INSIGNE_DEV=1, set by serve_dev.sh): no service worker, so edits to
+    // static assets show on reload without cache-busting. Also unregister any
+    // worker + clear its caches left over from earlier PWA testing on the same
+    // origin. Test the PWA / offline behaviour with run_prod.sh instead.
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister()));
+        if (window.caches) caches.keys().then((ks) => ks.forEach((k) => caches.delete(k)));
+    }
+    {% else %}
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
             navigator.serviceWorker.register("/sw.js", { scope: "/" })
                 .catch((err) => console.warn("SW registration failed:", err));
         });
     }
+    {% endif %}
     </script>
     {# ── Offline read-only mode (#101) ─────────────────────────────────────
        Toggle ``body.offline`` (CSS greys out edit controls and reveals the

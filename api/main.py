@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -47,6 +48,7 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 DATA_DIR = Path(__file__).parent / "data"
 IMAGES_DIR = DATA_DIR / "images"
 _CATALOGUE = BadgeCatalogue(DATA_DIR)
+_DEV = os.environ.get("INSIGNE_DEV") == "1"  # set by serve_dev.sh
 
 app = FastAPI()
 
@@ -124,7 +126,11 @@ class _ImmutableStaticFiles(StaticFiles):
 
     def file_response(self, *args, **kwargs):
         resp = super().file_response(*args, **kwargs)
-        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        # In dev (serve_dev.sh sets INSIGNE_DEV=1) don't cache, so edits to
+        # static assets show on reload without cache-busting or hard-reloads.
+        resp.headers["Cache-Control"] = (
+            "no-cache" if _DEV else "public, max-age=31536000, immutable"
+        )
         return resp
 
 

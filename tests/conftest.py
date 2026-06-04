@@ -4,6 +4,9 @@ from pathlib import Path
 
 # Must be set before any insigne module is imported (config.py reads it at module level)
 os.environ["INSIGNE_CONFIG"] = str(Path(__file__).parent / "fixtures" / "config.yml")
+# Tests assert production behaviour (immutable static cache, SW registration);
+# make sure a dev shell's INSIGNE_DEV doesn't flip the app into dev mode.
+os.environ.pop("INSIGNE_DEV", None)
 
 # Make api/ importable for TestClient tests
 sys.path.insert(0, str(Path(__file__).parent.parent / "api"))

@@ -39,7 +39,7 @@ from insigne import users as users_svc
 from insigne.badges import BadgeCatalogue, jaarinsigne_levels_for_scout
 from insigne.config import config
 from insigne.database import get_db
-from routers import html_admin, html_badges, html_contact, html_groups, users
+from routers import html_admin, html_badges, html_contact, html_groups, html_posters, users
 from routers.users import _get_current_user
 from templates import templates
 
@@ -111,6 +111,7 @@ app.include_router(html_admin.router)
 app.include_router(html_badges.router)
 app.include_router(html_groups.router)
 app.include_router(html_contact.router)
+app.include_router(html_posters.router)
 
 class _ImmutableStaticFiles(StaticFiles):
     """StaticFiles with a 1-year immutable Cache-Control (Lighthouse "efficient

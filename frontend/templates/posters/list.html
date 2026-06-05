@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Posters — Insigne Systeem{% endblock %}
+{% block content %}
+<main style="max-width:760px;">
+    <h1>Posters</h1>
+    <p style="font-size:0.9rem;color:#555;margin-bottom:1.5rem;">
+        Maak een printbare insigneposter. Begin met een van de standaardposters en
+        pas hem aan. Werkt op desktop of tablet (liggend).
+    </p>
+
+    <section style="margin-bottom:2rem;">
+        <h2 style="font-size:1.1rem;margin-bottom:0.5rem;">Nieuwe poster</h2>
+        <div class="poster-new-grid">
+            {% for key, label in poster_types.items() %}
+            <a href="/posters/new?type={{ key }}" class="btn-neutral poster-new-btn">{{ label }}</a>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% set scope_labels = {"personal": "Persoonlijk", "speltak": "Speltak", "group": "Groep"} %}
+    {% set any = visible.personal or visible.speltak or visible.group %}
+    {% if any %}
+    {% for scope_key in ["personal", "speltak", "group"] %}
+        {% set items = visible[scope_key] %}
+        {% if items %}
+        <section style="margin-bottom:1.5rem;">
+            <h2 style="font-size:1.1rem;margin-bottom:0.5rem;">{{ scope_labels[scope_key] }}</h2>
+            <ul class="poster-list">
+                {% for p in items %}
+                <li class="poster-list-row">
+                    <a href="/posters/{{ p.id }}" class="poster-list-link">
+                        <span class="poster-list-name">{{ p.name }}</span>
+                        <span class="poster-list-meta">{{ poster_types.get(p.poster_type, p.poster_type) }} · {{ p.paper_size }} {{ 'staand' if p.orientation == 'portrait' else 'liggend' }}</span>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+    {% endfor %}
+    {% else %}
+    <p class="empty-state">Je hebt nog geen posters. Maak er hierboven een.</p>
+    {% endif %}
+</main>
+{% endblock %}

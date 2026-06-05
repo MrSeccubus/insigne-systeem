@@ -2854,3 +2854,100 @@ button:disabled, a[disabled] {
     padding: 0 0.4rem;
     line-height: 1.6;
 }
+
+/* ── Poster designer (#132) ─────────────────────────────────────────────── */
+.poster-designer-main {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Desktop/tablet only: below 1024px show the warning, hide the designer. */
+.poster-toosmall { display: none; }
+.poster-designer {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 0;
+    height: calc(100vh - 60px);
+}
+
+@media (max-width: 1024px) {
+    .poster-designer { display: none; }
+    .poster-toosmall {
+        display: block;
+        max-width: 560px;
+        margin: 3rem auto;
+        padding: 0 1rem;
+        text-align: center;
+    }
+}
+
+.poster-params {
+    border-right: 1px solid #e5e7eb;
+    padding: 1rem 1.25rem 2rem;
+    overflow-y: auto;
+}
+
+.poster-params-head { margin-bottom: 1rem; }
+.poster-back { font-size: 0.85rem; color: #00A651; text-decoration: none; }
+.poster-params-title { font-size: 1.2rem; margin: 0.25rem 0 0; }
+
+.poster-form .field { display: block; margin-bottom: 0.75rem; }
+.poster-form .field > span {
+    display: block;
+    font-size: 0.8rem;
+    color: #555;
+    margin-bottom: 0.2rem;
+}
+.poster-form .field input,
+.poster-form .field select {
+    width: 100%;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.poster-params-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem 0.75rem;
+}
+
+.poster-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+.poster-delete-form { margin-top: 1rem; }
+
+.poster-preview-pane {
+    background: #e5e7eb;
+    overflow: hidden;
+}
+.poster-preview-frame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #e5e7eb;
+}
+
+.poster-new-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.75rem;
+}
+.poster-new-btn { text-decoration: none; text-align: center; }
+
+.poster-list { list-style: none; margin: 0; padding: 0; }
+.poster-list-row { border-bottom: 1px solid #eee; }
+.poster-list-link {
+    display: flex;
+    flex-direction: column;
+    padding: 0.6rem 0.25rem;
+    text-decoration: none;
+    color: inherit;
+}
+.poster-list-link:hover { background: #f9fafb; }
+.poster-list-name { font-weight: 600; }
+.poster-list-meta { font-size: 0.8rem; color: #888; }

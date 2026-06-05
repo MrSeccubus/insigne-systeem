@@ -1,0 +1,55 @@
+/* Poster designer (#132, Phase 1).
+ *
+ * Alpine component driving the param panel + live preview iframe. The preview
+ * loads /posters/render?preview=1&… (same render as print, so preview == print);
+ * paged.js inside the iframe paginates into exact A-series pages. Param changes
+ * debounce-reload the iframe (full server render keeps pagination correct).
+ * "Print" opens the same render URL (without preview) in its own window, where
+ * paged.js auto-prints after layout.
+ */
+document.addEventListener('alpine:init', () => {
+    Alpine.data('posterDesigner', (cfg) => ({
+        posterType: cfg.posterType,
+        paperSize: cfg.paperSize,
+        orientation: cfg.orientation,
+        name: cfg.name || '',
+        params: cfg.params || {},
+        posterId: cfg.posterId || '',
+        editable: !!cfg.editable,
+        scopeSel: 'user',
+
+        // Min designer width — below this we don't build the preview (the CSS
+        // shows the "te klein scherm" warning instead).
+        get tooSmall() { return window.innerWidth < 1024; },
+
+        init() {
+            if (!this.tooSmall) this.updatePreview();
+            window.addEventListener('resize', () => {
+                if (!this.tooSmall && this.$refs.preview && !this.$refs.preview.src) {
+                    this.updatePreview();
+                }
+            });
+        },
+
+        renderUrl(preview) {
+            const p = new URLSearchParams();
+            p.set('type', this.posterType);
+            p.set('paper_size', this.paperSize);
+            p.set('orientation', this.orientation);
+            for (const [k, v] of Object.entries(this.params)) {
+                p.set(k, v === null || v === undefined ? '' : v);
+            }
+            if (preview) p.set('preview', '1');
+            return '/posters/render?' + p.toString();
+        },
+
+        updatePreview() {
+            if (this.tooSmall) return;
+            if (this.$refs.preview) this.$refs.preview.src = this.renderUrl(true);
+        },
+
+        printPoster() {
+            window.open(this.renderUrl(false), '_blank');
+        },
+    }));
+});

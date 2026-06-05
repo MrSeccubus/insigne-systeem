@@ -1,0 +1,36 @@
+{# Poster content — shared by the live preview iframe and the print window so
+   preview == print. All values are autoescaped (no raw HTML). Phase 1 (#152)
+   renders only the chrome + a placeholder body; the real per-type bodies arrive
+   in #153–#155. Receives: poster_type, params (dict). #}
+<div class="poster"
+     style="--title-pt:{{ params.title_font_pt }}pt;--subtitle-pt:{{ params.subtitle_font_pt }}pt;--body-pt:{{ params.body_font_pt }}pt;">
+    {% if params.header or params.group_name or params.speltak_name %}
+    <div class="poster-running-header">
+        <span class="poster-header-left">{{ params.header }}</span>
+        <span class="poster-header-right">
+            {{ params.group_name }}{% if params.group_name and params.speltak_name %} — {% endif %}{{ params.speltak_name }}
+        </span>
+    </div>
+    {% endif %}
+
+    {% if params.title %}<h1 class="poster-title">{{ params.title }}</h1>{% endif %}
+    {% if params.subtitle %}<p class="poster-subtitle">{{ params.subtitle }}</p>{% endif %}
+
+    <div class="poster-content">
+        {# ── Placeholder body (Phase 1 only) ─────────────────────────────────
+           Proves the mechanism — chrome, font sizes, paper size, and multi-page
+           pagination — before the real poster bodies exist. The "voorbeeldblokken"
+           param lets you force overflow to verify pagination. #}
+        <p class="poster-placeholder-note">
+            Voorbeeldinhoud — postertype: <strong>{{ poster_type }}</strong>.
+            De echte posterinhoud volgt in een volgende fase.
+        </p>
+        <div class="poster-demo-grid">
+            {% for i in range(params.demo_blocks) %}
+            <div class="poster-demo-block">{{ i + 1 }}</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if params.footer %}<div class="poster-running-footer">{{ params.footer }}</div>{% endif %}
+</div>

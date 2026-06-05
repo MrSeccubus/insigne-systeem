@@ -1,0 +1,102 @@
+/* Standalone poster document styles (#132).
+ *
+ * Loaded only by /posters/render (the preview iframe + the print window) — NOT
+ * by the app's normal pages. The @page size/margin is emitted inline per poster
+ * (paper size varies); this file styles the poster body that paged.js paginates.
+ */
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background: #e5e7eb;            /* visible "desk" behind the pages (preview) */
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    color: #1a1a1a;
+}
+
+/* paged.js wraps each page in .pagedjs_page; give pages a white sheet + shadow
+   in the preview so the page edges are visible. Print drops the shadow. */
+.pagedjs_page {
+    background: #fff;
+    margin: 0 auto 12px;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+}
+
+.poster {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.poster-running-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 11pt;
+    color: #555;
+    border-bottom: 1px solid #d1d5db;
+    padding-bottom: 4pt;
+    margin-bottom: 8pt;
+}
+
+.poster-title {
+    font-size: var(--title-pt, 48pt);
+    line-height: 1.05;
+    margin: 0 0 4pt;
+    color: #00A651;                 /* Scouting green */
+}
+
+.poster-subtitle {
+    font-size: var(--subtitle-pt, 24pt);
+    line-height: 1.1;
+    margin: 0 0 12pt;
+    color: #333;
+}
+
+.poster-content {
+    font-size: var(--body-pt, 12pt);
+    flex: 1 1 auto;
+}
+
+.poster-placeholder-note {
+    color: #777;
+    font-style: italic;
+    margin: 0 0 12pt;
+}
+
+/* Placeholder demo blocks (Phase 1) — a simple grid that overflows onto more
+   pages so multi-page pagination can be verified before the real bodies exist. */
+.poster-demo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(28mm, 1fr));
+    gap: 6mm;
+}
+
+.poster-demo-block {
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1pt solid #9ca3af;
+    border-radius: 4pt;
+    background: #f3f4f6;
+    color: #6b7280;
+    /* Keep a block whole rather than split across a page break. */
+    break-inside: avoid;
+}
+
+.poster-running-footer {
+    margin-top: 8pt;
+    padding-top: 4pt;
+    border-top: 1px solid #d1d5db;
+    font-size: 10pt;
+    color: #777;
+    text-align: center;
+}
+
+@media print {
+    html, body { background: #fff; }
+    .pagedjs_page { box-shadow: none; margin: 0 auto; }
+}

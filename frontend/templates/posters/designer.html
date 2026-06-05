@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Poster-ontwerper — Insigne Systeem{% endblock %}
+{% block content %}
+<main class="poster-designer-main"
+      x-data="posterDesigner({
+          posterType: {{ poster_type|tojson }},
+          paperSize: {{ paper_size|tojson }},
+          orientation: {{ orientation|tojson }},
+          name: {{ poster_name|tojson }},
+          params: {{ params|tojson }},
+          posterId: {{ (poster.id if poster else '')|tojson }},
+          editable: {{ editable|tojson }}
+      })">
+
+    {# Desktop/tablet only — refuse on a too-small viewport. #}
+    <div class="poster-toosmall">
+        <h1>Te klein scherm</h1>
+        <p>De poster-ontwerper heeft een breder scherm nodig — gebruik een desktop
+           of een tablet in liggende stand.</p>
+        <a href="/posters" class="btn-neutral" style="text-decoration:none;">Terug naar posters</a>
+    </div>
+
+    <div class="poster-designer">
+        <aside class="poster-params">
+            <div class="poster-params-head">
+                <a href="/posters" class="poster-back">← Posters</a>
+                <h1 class="poster-params-title">
+                    {% if poster %}{{ 'Poster bewerken' if editable else 'Poster bekijken' }}{% else %}Nieuwe poster{% endif %}
+                </h1>
+            </div>
+
+            <form method="post"
+                  :action="(posterId && editable) ? ('/posters/' + posterId) : '/posters'"
+                  @input.debounce.400ms="updatePreview()"
+                  @change.debounce.400ms="updatePreview()"
+                  class="poster-form">
+                <input type="hidden" name="poster_type" :value="posterType">
+
+                <label class="field">
+                    <span>Naam</span>
+                    <input type="text" name="name" x-model="name" maxlength="120"
+                           placeholder="Naam van deze poster">
+                </label>
+
+                {% if not poster %}
+                {# Scope picker only when creating. scopeSel = "user" | "speltak:<id>" | "group:<id>". #}
+                <label class="field">
+                    <span>Opslaan als</span>
+                    <select x-model="scopeSel">
+                        <option value="user">Persoonlijk (alleen ik)</option>
+                        {% if scopes.speltakken %}
+                        <optgroup label="Speltak (zichtbaar voor leden)">
+                            {% for group, speltak in scopes.speltakken %}
+                            <option value="speltak:{{ speltak.id }}">{{ group.name }} — {{ speltak.name }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+                        {% if scopes.groups %}
+                        <optgroup label="Groep (zichtbaar voor leden)">
+                            {% for group in scopes.groups %}
+                            <option value="group:{{ group.id }}">{{ group.name }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+                    </select>
+                </label>
+                <input type="hidden" name="scope" :value="scopeSel.split(':')[0]">
+                <input type="hidden" name="scope_id" :value="scopeSel.split(':')[1] || ''">
+                {% elif not editable %}
+                <p class="field-hint">Je bekijkt een gedeelde poster. Opslaan maakt een persoonlijke kopie.</p>
+                {% endif %}
+
+                <div class="poster-params-grid">
+                    <label class="field">
+                        <span>Papierformaat</span>
+                        <select name="paper_size" x-model="paperSize">
+                            {% for ps in paper_sizes %}<option value="{{ ps }}">{{ ps }}</option>{% endfor %}
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Oriëntatie</span>
+                        <select name="orientation" x-model="orientation">
+                            <option value="portrait">Staand</option>
+                            <option value="landscape">Liggend</option>
+                        </select>
+                    </label>
+                </div>
+
+                <label class="field">
+                    <span>Titel</span>
+                    <input type="text" name="title" x-model="params.title" maxlength="120">
+                </label>
+                <label class="field">
+                    <span>Subtitel</span>
+                    <input type="text" name="subtitle" x-model="params.subtitle" maxlength="200">
+                </label>
+
+                <div class="poster-params-grid">
+                    <label class="field">
+                        <span>Koptekst</span>
+                        <input type="text" name="header" x-model="params.header" maxlength="120">
+                    </label>
+                    <label class="field">
+                        <span>Voettekst</span>
+                        <input type="text" name="footer" x-model="params.footer" maxlength="120">
+                    </label>
+                    <label class="field">
+                        <span>Groep</span>
+                        <input type="text" name="group_name" x-model="params.group_name" maxlength="120">
+                    </label>
+                    <label class="field">
+                        <span>Speltak</span>
+                        <input type="text" name="speltak_name" x-model="params.speltak_name" maxlength="120">
+                    </label>
+                </div>
+
+                <div class="poster-params-grid">
+                    <label class="field">
+                        <span>Titel (pt)</span>
+                        <input type="number" name="title_font_pt" x-model.number="params.title_font_pt" min="8" max="200">
+                    </label>
+                    <label class="field">
+                        <span>Subtitel (pt)</span>
+                        <input type="number" name="subtitle_font_pt" x-model.number="params.subtitle_font_pt" min="6" max="120">
+                    </label>
+                    <label class="field">
+                        <span>Tekst (pt)</span>
+                        <input type="number" name="body_font_pt" x-model.number="params.body_font_pt" min="6" max="72">
+                    </label>
+                    <label class="field">
+                        <span>Voorbeeldblokken</span>
+                        <input type="number" name="demo_blocks" x-model.number="params.demo_blocks" min="0" max="400">
+                    </label>
+                </div>
+
+                <div class="poster-actions">
+                    <button type="submit" class="btn-primary"
+                            x-text="(posterId && editable) ? 'Opslaan' : (posterId ? 'Opslaan als kopie' : 'Opslaan')"></button>
+                    <button type="button" class="btn-neutral" @click="printPoster()">Printen</button>
+                </div>
+            </form>
+
+            {% if poster and editable %}
+            <form method="post" action="/posters/{{ poster.id }}/delete"
+                  @submit="if (!confirm('Deze poster verwijderen?')) $event.preventDefault()"
+                  class="poster-delete-form">
+                <button type="submit" class="btn-danger btn-sm">Verwijderen</button>
+            </form>
+            {% endif %}
+        </aside>
+
+        <section class="poster-preview-pane">
+            <iframe x-ref="preview" class="poster-preview-frame" title="Voorbeeld"></iframe>
+        </section>
+    </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script src="/static/poster_designer.js?v={{ app_version() }}"></script>
+{% endblock %}

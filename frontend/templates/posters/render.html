@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Poster</title>
+    <link rel="stylesheet" href="/static/poster.css?v={{ app_version() }}">
+    {# Exact paper size drives both the preview pages and the print output.
+       A2/A1/A0 aren't valid CSS `size` keywords, so we always emit mm. #}
+    <style>
+        @page { size: {{ page_w_mm }}mm {{ page_h_mm }}mm; margin: {{ page_margin_mm }}mm; }
+        :root { --page-w-mm: {{ page_w_mm }}; --page-h-mm: {{ page_h_mm }}; }
+    </style>
+    <script>
+    // paged.js config must be set before the polyfill script loads.
+    window.PagedConfig = {
+        auto: true,
+        after: function () {
+            {% if preview %}
+            // Scale the rendered A-pages down to fit the preview iframe width.
+            try {
+                var page = document.querySelector(".pagedjs_page");
+                var pages = document.querySelector(".pagedjs_pages");
+                if (page && pages && page.offsetWidth) {
+                    var scale = (document.documentElement.clientWidth - 24) / page.offsetWidth;
+                    if (scale > 0 && scale < 1) {
+                        pages.style.transformOrigin = "top left";
+                        pages.style.transform = "scale(" + scale + ")";
+                        // Reserve the post-scale height so the iframe scrolls correctly.
+                        pages.style.height = (pages.scrollHeight * scale) + "px";
+                    }
+                }
+            } catch (e) { /* preview scaling is best-effort */ }
+            {% else %}
+            window.focus();
+            window.print();
+            {% endif %}
+        }
+    };
+    </script>
+    <script src="/static/vendor/paged.polyfill.js?v={{ app_version() }}"></script>
+</head>
+<body class="poster-doc{% if preview %} poster-preview{% endif %}">
+    {% include "partials/poster_body.html" %}
+</body>
+</html>

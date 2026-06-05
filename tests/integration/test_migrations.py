@@ -29,6 +29,7 @@ EXPECTED_TABLES = {
     "email_change_requests",
     "jaarinsigne_levels",
     "jaarinsigne_2026_inclusions",
+    "poster_templates",
 }
 
 

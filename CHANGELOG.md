@@ -10,6 +10,10 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Onderhoud
+
+- **Smoke-testdekking voor alle HTML-pagina's** (sluit #142) — een geparametriseerde test rendert nu elke template-renderende GET-route (`/`, `/admin`, alle `/groups/...`- en `/scouts/...`-pagina's, enz.) als ingelogde admin + groepsleider + speltakleider met een echte scout-fixture, en faalt bij elke 5xx. Dit dekt de klasse fout waardoor #139 (de admin-500 door een verouderde `user`-verwijzing in de template-context) destijds **ongemerkt** kon doorglippen: er was simpelweg geen test die `/admin` als beheerder rendert. Een bewakingstest faalt bovendien zodra een nieuwe pagina-route niet aan de smoke-lijst is toegevoegd, zodat de dekking niet stilletjes achterloopt.
+
 ---
 
 ## [v1.2.1] — 2026-06-04

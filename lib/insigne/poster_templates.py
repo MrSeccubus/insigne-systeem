@@ -53,6 +53,52 @@ CHROME_PARAMS: dict[str, object] = {
 
 _INT_PARAMS = {"title_font_pt", "subtitle_font_pt", "body_font_pt", "demo_blocks"}
 
+# Type-specific params (merged into ``params`` on top of the chrome params).
+# Phase 2 adds the badge-grid type ("badges"); speltak/signoff bodies follow.
+TYPE_PARAM_DEFAULTS: dict[str, dict] = {
+    "badges": {
+        "badge_slugs": [],   # ordered list of selected badge slugs
+        "columns": 4,        # grid columns
+        "image_mm": 35,      # badge image width in mm
+        "niveau": 1,         # which niveau image (1–3) for regular badges
+        "show_titles": True, # caption each badge with its title
+    },
+    "speltak": {},
+    "signoff": {},
+}
+
+_TYPE_INT_PARAMS = {"columns", "image_mm", "niveau"}
+_TYPE_BOOL_PARAMS = {"show_titles"}
+_TYPE_LIST_PARAMS = {"badge_slugs"}
+
+
+def parse_type_params(poster_type: str, mapping) -> dict:
+    """Extract the type-specific params for a poster type from a form/query
+    mapping (allowlisted by ``TYPE_PARAM_DEFAULTS``). Lists are comma-separated
+    in the wire format; ints/bools are coerced; unknown keys are dropped."""
+    out: dict = {}
+    for key, default in TYPE_PARAM_DEFAULTS.get(poster_type, {}).items():
+        raw = mapping.get(key)
+        if key in _TYPE_LIST_PARAMS:
+            out[key] = [s for s in str(raw).split(",") if s] if raw else []
+        elif raw is None or raw == "":
+            out[key] = default
+        elif key in _TYPE_INT_PARAMS:
+            try:
+                out[key] = max(1, int(float(raw)))
+            except (TypeError, ValueError):
+                out[key] = default
+        elif key in _TYPE_BOOL_PARAMS:
+            out[key] = str(raw).lower() in ("1", "true", "on", "yes")
+        else:
+            out[key] = str(raw)
+    return out
+
+
+def parse_all_params(poster_type: str, mapping) -> dict:
+    """Chrome params + the poster type's own params, from one mapping."""
+    return {**parse_params(mapping), **parse_type_params(poster_type, mapping)}
+
 
 def page_dimensions_mm(paper_size: str, orientation: str) -> tuple[int, int]:
     """Return (width_mm, height_mm) for a paper size + orientation."""
@@ -89,7 +135,7 @@ _BASE_TEMPLATES: dict[str, dict] = {
         "poster_type": "badges",
         "paper_size": "A3",
         "orientation": "portrait",
-        "params": {**CHROME_PARAMS, "title": "Insignes"},
+        "params": {**CHROME_PARAMS, "title": "Insignes", **TYPE_PARAM_DEFAULTS["badges"]},
     },
     "speltak": {
         "poster_type": "speltak",

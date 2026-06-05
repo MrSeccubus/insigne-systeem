@@ -27,6 +27,7 @@
                 params: cfg.params || {},
                 posterId: cfg.posterId || '',
                 editable: !!cfg.editable,
+                filterSets: cfg.filterSets || {},
                 scopeSel: 'user',
 
                 // Min designer width — below this we don't build the preview
@@ -61,6 +62,16 @@
 
                 printPoster() {
                     window.open(this.renderUrl(false), '_blank');
+                },
+
+                // Badge-grid quick selects (poster type 1).
+                selectSet(name) {
+                    this.params.badge_slugs = [...(this.filterSets[name] || [])];
+                    this.updatePreview();
+                },
+                selectNone() {
+                    this.params.badge_slugs = [];
+                    this.updatePreview();
                 },
             };
         });

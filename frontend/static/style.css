@@ -2951,3 +2951,46 @@ button:disabled, a[disabled] {
 .poster-list-link:hover { background: #f9fafb; }
 .poster-list-name { font-weight: 600; }
 .poster-list-meta { font-size: 0.8rem; color: #888; }
+
+/* Badge picker (poster type 1) */
+.poster-badge-picker { margin-top: 0.5rem; }
+.poster-check { flex-direction: row !important; align-items: center; gap: 0.4rem; }
+.poster-check input { width: auto !important; }
+
+.poster-quick-selects {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0.5rem 0;
+    font-size: 0.8rem;
+    color: #555;
+}
+
+.poster-badge-list {
+    max-height: 320px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 0.5rem;
+}
+.poster-badge-cat h3 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #888;
+    margin: 0.5rem 0 0.25rem;
+}
+.poster-badge-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.2rem 0.25rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-radius: 4px;
+}
+.poster-badge-option:hover { background: #f9fafb; }
+.poster-badge-option input { width: auto; flex: 0 0 auto; }
+.poster-badge-option img { width: 28px; height: 28px; object-fit: contain; flex: 0 0 auto; }
+.poster-badge-option span { line-height: 1.2; }

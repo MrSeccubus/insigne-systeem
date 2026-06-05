@@ -87,6 +87,32 @@ html, body {
     break-inside: avoid;
 }
 
+/* Type 1 — badge grid. */
+.poster-badge-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--poster-cols, 4), 1fr);
+    gap: 8mm 6mm;
+    justify-items: center;
+    align-items: start;
+}
+.poster-badge {
+    margin: 0;
+    width: 100%;
+    text-align: center;
+    break-inside: avoid;        /* keep a badge whole across page breaks */
+}
+.poster-badge img {
+    width: var(--poster-img-mm, 35mm);
+    max-width: 100%;
+    height: auto;
+}
+.poster-badge figcaption {
+    margin-top: 2mm;
+    font-size: 9pt;
+    line-height: 1.1;
+    color: #333;
+}
+
 .poster-running-footer {
     margin-top: 8pt;
     padding-top: 4pt;

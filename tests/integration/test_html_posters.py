@@ -173,6 +173,68 @@ class TestPosterCrud:
 
 # ── Scope + IDOR ────────────────────────────────────────────────────────────
 
+class TestBadgePoster:
+    """Type 1 — Insigneposter algemeen (badge grid)."""
+
+    def test_render_shows_selected_badge_images(self, client, db):
+        _login(client, _user(db))
+        r = client.get("/posters/render", params={
+            "type": "badges", "paper_size": "A3", "orientation": "portrait",
+            "badge_slugs": "vredeslicht", "niveau": "1", "columns": "4",
+            "image_mm": "35", "show_titles": "1",
+        })
+        assert r.status_code == 200
+        assert 'src="/images/vredeslicht.1.png"' in r.text
+        assert "poster-badge-grid" in r.text
+
+    def test_render_niveau_selects_image(self, client, db):
+        _login(client, _user(db))
+        r = client.get("/posters/render", params={
+            "type": "badges", "paper_size": "A3", "orientation": "portrait",
+            "badge_slugs": "vredeslicht", "niveau": "2",
+        })
+        assert 'src="/images/vredeslicht.2.png"' in r.text
+
+    def test_render_ignores_unknown_slug(self, client, db):
+        _login(client, _user(db))
+        r = client.get("/posters/render", params={
+            "type": "badges", "paper_size": "A3", "orientation": "portrait",
+            "badge_slugs": "vredeslicht,not-a-real-badge",
+        })
+        assert "/images/vredeslicht" in r.text
+        assert "not-a-real-badge" not in r.text
+
+    def test_create_persists_cleaned_type_params(self, client, db):
+        u = _user(db)
+        _login(client, u)
+        r = client.post("/posters", data={
+            "poster_type": "badges", "scope": "user", "paper_size": "A3",
+            "orientation": "portrait", "name": "Grid",
+            "badge_slugs": "vredeslicht,bogus", "columns": "5", "image_mm": "40",
+            "niveau": "2", "show_titles": "0",
+        }, follow_redirects=False)
+        assert r.status_code == 303
+        row = db.query(PosterTemplate).filter_by(name="Grid").first()
+        assert row.params["badge_slugs"] == ["vredeslicht"]   # bogus dropped
+        assert row.params["columns"] == 5 and row.params["niveau"] == 2
+        assert row.params["show_titles"] is False
+
+    def test_designer_has_badge_picker(self, client, db):
+        _login(client, _user(db))
+        r = client.get("/posters/new?type=badges")
+        assert "poster-badge-list" in r.text
+        assert 'value="vredeslicht"' in r.text          # a real badge checkbox
+        assert "filterSets" in r.text                    # quick-select sets in config
+
+    def test_designer_config_includes_favorites_set(self, client, db):
+        from insigne import users as users_svc
+        u = _user(db)
+        _login(client, u)
+        users_svc.toggle_user_favorite_badge(db, u.id, "vredeslicht")
+        r = client.get("/posters/new?type=badges")
+        assert "favorites" in r.text and "vredeslicht" in r.text
+
+
 class TestPosterScope:
     def test_leader_can_create_speltak_scoped(self, client, db):
         leider, g, s = _speltakleider(db, email="leider@example.com")

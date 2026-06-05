@@ -17,10 +17,25 @@
     {% if params.subtitle %}<p class="poster-subtitle">{{ params.subtitle }}</p>{% endif %}
 
     <div class="poster-content">
-        {# ── Placeholder body (Phase 1 only) ─────────────────────────────────
-           Proves the mechanism — chrome, font sizes, paper size, and multi-page
-           pagination — before the real poster bodies exist. The "voorbeeldblokken"
-           param lets you force overflow to verify pagination. #}
+        {% if poster_type == "badges" %}
+        {# ── Type 1: Insigneposter algemeen — grid of selected badge images. #}
+        {% if poster_badges %}
+        <div class="poster-badge-grid"
+             style="--poster-cols:{{ params.columns }};--poster-img-mm:{{ params.image_mm }}mm;">
+            {% for b in poster_badges %}
+            <figure class="poster-badge">
+                {% if b.image %}<img src="{{ b.image }}" alt="{{ b.title }}" loading="eager">{% endif %}
+                {% if params.show_titles %}<figcaption>{{ b.title }}</figcaption>{% endif %}
+            </figure>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="poster-placeholder-note">Nog geen insignes geselecteerd — kies ze in het paneel links.</p>
+        {% endif %}
+
+        {% else %}
+        {# ── Placeholder body for types not yet built (#154, #155). The
+             "voorbeeldblokken" param forces overflow to verify pagination. #}
         <p class="poster-placeholder-note">
             Voorbeeldinhoud — postertype: <strong>{{ poster_type }}</strong>.
             De echte posterinhoud volgt in een volgende fase.
@@ -30,6 +45,7 @@
             <div class="poster-demo-block">{{ i + 1 }}</div>
             {% endfor %}
         </div>
+        {% endif %}
     </div>
 
     {% if params.footer %}<div class="poster-running-footer">{{ params.footer }}</div>{% endif %}

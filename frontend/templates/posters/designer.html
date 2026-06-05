@@ -13,7 +13,8 @@
         "name": poster_name,
         "params": params,
         "posterId": (poster.id if poster else ""),
-        "editable": editable
+        "editable": editable,
+        "filterSets": filter_sets
     } | tojson }}</script>
 
     {# Desktop/tablet only — refuse on a too-small viewport. #}
@@ -131,10 +132,61 @@
                         <span>Tekst (pt)</span>
                         <input type="number" name="body_font_pt" x-model.number="params.body_font_pt" min="6" max="72">
                     </label>
-                    <label class="field">
+                    <label class="field" x-show="posterType !== 'badges'">
                         <span>Voorbeeldblokken</span>
                         <input type="number" name="demo_blocks" x-model.number="params.demo_blocks" min="0" max="400">
                     </label>
+                </div>
+
+                {# ── Badge-grid options + picker (poster type 1) ───────────── #}
+                <div x-show="posterType === 'badges'" class="poster-badge-picker">
+                    <div class="poster-params-grid">
+                        <label class="field">
+                            <span>Kolommen</span>
+                            <input type="number" name="columns" x-model.number="params.columns" min="1" max="12">
+                        </label>
+                        <label class="field">
+                            <span>Afbeelding (mm)</span>
+                            <input type="number" name="image_mm" x-model.number="params.image_mm" min="10" max="120">
+                        </label>
+                        <label class="field">
+                            <span>Niveau</span>
+                            <select name="niveau" x-model.number="params.niveau">
+                                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                            </select>
+                        </label>
+                        <label class="field poster-check">
+                            <input type="checkbox" x-model="params.show_titles"><span>Titels tonen</span>
+                        </label>
+                    </div>
+                    <input type="hidden" name="show_titles" :value="params.show_titles ? '1' : '0'">
+                    <input type="hidden" name="badge_slugs" :value="(params.badge_slugs || []).join(',')">
+
+                    <div class="poster-quick-selects">
+                        <span>Snel kiezen:</span>
+                        <button type="button" class="btn-sm btn-neutral" @click="selectSet('all')">Alles</button>
+                        <button type="button" class="btn-sm btn-neutral" @click="selectNone()">Geen</button>
+                        <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.favorites||[]).length" @click="selectSet('favorites')">Mijn favorieten</button>
+                        <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.progress||[]).length" @click="selectSet('progress')">Mijn voortgang</button>
+                        <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.speltak_favorites||[]).length" @click="selectSet('speltak_favorites')">Speltak-favorieten</button>
+                        <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.speltak_progress||[]).length" @click="selectSet('speltak_progress')">Speltak-voortgang</button>
+                    </div>
+
+                    <div class="poster-badge-list">
+                        {% for category, items in badge_catalogue.items() %}
+                        <div class="poster-badge-cat">
+                            <h3>{{ category_labels.get(category, category) }}</h3>
+                            {% for info in items %}
+                            <label class="poster-badge-option">
+                                <input type="checkbox" value="{{ info.slug }}" x-model="params.badge_slugs">
+                                {% if info.images %}<img src="{{ info.images[0] }}" alt="" loading="lazy">{% endif %}
+                                <span>{{ info.title }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <p class="field-hint"><span x-text="(params.badge_slugs || []).length"></span> insigne(s) geselecteerd</p>
                 </div>
 
                 <div class="poster-actions">

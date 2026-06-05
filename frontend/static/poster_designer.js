@@ -29,6 +29,7 @@
                 editable: !!cfg.editable,
                 filterSets: cfg.filterSets || {},
                 scopeSel: 'user',
+                step: 1,
 
                 // Min designer width — below this we don't build the preview
                 // (the CSS shows the "te klein scherm" warning instead).
@@ -73,6 +74,10 @@
                     this.params.badge_slugs = [];
                     this.updatePreview();
                 },
+
+                // Wizard navigation (Inhoud → Opmaak → Opslaan).
+                nextStep() { if (this.step < 3) this.step++; },
+                prevStep() { if (this.step > 1) this.step--; },
             };
         });
     }

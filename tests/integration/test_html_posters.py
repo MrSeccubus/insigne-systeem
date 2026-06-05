@@ -83,6 +83,12 @@ class TestPosterNew:
         r = client.get("/posters/new?type=badges")
         assert "poster-toosmall" in r.text and "Te klein scherm" in r.text
 
+    def test_designer_is_stepped_wizard(self, client, db):
+        _login(client, _user(db))
+        r = client.get("/posters/new?type=badges")
+        assert "poster-steps" in r.text
+        assert "1. Inhoud" in r.text and "2. Opmaak" in r.text and "3. Opslaan" in r.text
+
     def test_designer_config_is_xss_safe(self, client, db):
         """The designer config goes in a JSON <script> block (|tojson escapes
         < > &), not an x-data attribute — so a malicious saved title can't break

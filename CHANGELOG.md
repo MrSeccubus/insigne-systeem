@@ -16,6 +16,8 @@ weer leeg gemaakt.
 
 - **Poster-ontwerper — insigneposter** (#132, fase 2, sluit #153) — het eerste echte postertype: een **insigneposter** met een raster van insigne-afbeeldingen die je zelf kiest. In het ontwerpscherm kies je insignes via een doorzoekbare lijst (per categorie, met miniaturen) en met snelkeuzes — **Alles**, **Geen**, **Mijn favorieten**, **Mijn voortgang**, en (bij een speltakposter) **Speltak-favorieten** / **Speltak-voortgang**. Instelbaar: aantal kolommen, afbeeldingsgrootte (mm), welk niveau van de insigne-afbeelding, en of de titels worden getoond. Het raster stroomt automatisch over meerdere pagina's.
 
+- **Poster-ontwerper — stapsgewijze wizard** (#132) — `/posters` begint nu met **"Wat wil je doen?"** (algemene insigneposter / speltak-overzicht / aftekenposter / een bestaande openen). Het ontwerpscherm zelf is opgedeeld in stappen — **Inhoud → Opmaak → Opslaan** — met het live voorbeeld altijd in beeld; naam en opslaglocatie (persoonlijk / speltak / groep) staan in de laatste stap.
+
 ### Onderhoud
 
 - **Smoke-testdekking voor alle HTML-pagina's** (sluit #142) — een geparametriseerde test rendert nu elke template-renderende GET-route (`/`, `/admin`, alle `/groups/...`- en `/scouts/...`-pagina's, enz.) als ingelogde admin + groepsleider + speltakleider met een echte scout-fixture, en faalt bij elke 5xx. Dit dekt de klasse fout waardoor #139 (de admin-500 door een verouderde `user`-verwijzing in de template-context) destijds **ongemerkt** kon doorglippen: er was simpelweg geen test die `/admin` als beheerder rendert. Een bewakingstest faalt bovendien zodra een nieuwe pagina-route niet aan de smoke-lijst is toegevoegd, zodat de dekking niet stilletjes achterloopt.

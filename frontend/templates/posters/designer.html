@@ -2,10 +2,9 @@
 {% block title %}Poster-ontwerper — Insigne Systeem{% endblock %}
 {% block content %}
 <main class="poster-designer-main" x-data="posterDesigner()">
-    {# Config goes in a JSON script block, not an x-data attribute: |tojson does
-       NOT escape double quotes (so user-controlled title/name/etc. could break
-       out of a double-quoted x-data attribute → stored XSS), but it DOES escape
-       <, > and & — making it safe inside <script type="application/json">. #}
+    {# Config in a JSON script block (NOT an x-data attribute): |tojson doesn't
+       escape double quotes, so user strings in a double-quoted attribute would
+       be stored XSS + break the markup. It DOES escape < > & here. #}
     <script type="application/json" id="poster-designer-config">{{ {
         "posterType": poster_type,
         "paperSize": paper_size,
@@ -32,6 +31,11 @@
                 <h1 class="poster-params-title">
                     {% if poster %}{{ 'Poster bewerken' if editable else 'Poster bekijken' }}{% else %}Nieuwe poster{% endif %}
                 </h1>
+                <ol class="poster-steps">
+                    <li :class="step === 1 ? 'active' : ''" @click="step = 1">1. Inhoud</li>
+                    <li :class="step === 2 ? 'active' : ''" @click="step = 2">2. Opmaak</li>
+                    <li :class="step === 3 ? 'active' : ''" @click="step = 3">3. Opslaan</li>
+                </ol>
             </div>
 
             <form method="post"
@@ -41,163 +45,154 @@
                   class="poster-form">
                 <input type="hidden" name="poster_type" :value="posterType">
 
-                <label class="field">
-                    <span>Naam</span>
-                    <input type="text" name="name" x-model="name" maxlength="120"
-                           placeholder="Naam van deze poster">
-                </label>
-
-                {% if not poster %}
-                {# Scope picker only when creating. scopeSel = "user" | "speltak:<id>" | "group:<id>". #}
-                <label class="field">
-                    <span>Opslaan als</span>
-                    <select x-model="scopeSel">
-                        <option value="user">Persoonlijk (alleen ik)</option>
-                        {% if scopes.speltakken %}
-                        <optgroup label="Speltak (zichtbaar voor leden)">
-                            {% for group, speltak in scopes.speltakken %}
-                            <option value="speltak:{{ speltak.id }}">{{ group.name }} — {{ speltak.name }}</option>
-                            {% endfor %}
-                        </optgroup>
-                        {% endif %}
-                        {% if scopes.groups %}
-                        <optgroup label="Groep (zichtbaar voor leden)">
-                            {% for group in scopes.groups %}
-                            <option value="group:{{ group.id }}">{{ group.name }}</option>
-                            {% endfor %}
-                        </optgroup>
-                        {% endif %}
-                    </select>
-                </label>
-                <input type="hidden" name="scope" :value="scopeSel.split(':')[0]">
-                <input type="hidden" name="scope_id" :value="scopeSel.split(':')[1] || ''">
-                {% elif not editable %}
-                <p class="field-hint">Je bekijkt een gedeelde poster. Opslaan maakt een persoonlijke kopie.</p>
-                {% endif %}
-
-                <div class="poster-params-grid">
+                {# ── Step 1: Inhoud ───────────────────────────────────────── #}
+                <div x-show="step === 1">
                     <label class="field">
-                        <span>Papierformaat</span>
-                        <select name="paper_size" x-model="paperSize">
-                            {% for ps in paper_sizes %}<option value="{{ ps }}">{{ ps }}</option>{% endfor %}
-                        </select>
+                        <span>Titel</span>
+                        <input type="text" name="title" x-model="params.title" maxlength="120">
                     </label>
                     <label class="field">
-                        <span>Oriëntatie</span>
-                        <select name="orientation" x-model="orientation">
-                            <option value="portrait">Staand</option>
-                            <option value="landscape">Liggend</option>
-                        </select>
+                        <span>Subtitel</span>
+                        <input type="text" name="subtitle" x-model="params.subtitle" maxlength="200">
                     </label>
-                </div>
-
-                <label class="field">
-                    <span>Titel</span>
-                    <input type="text" name="title" x-model="params.title" maxlength="120">
-                </label>
-                <label class="field">
-                    <span>Subtitel</span>
-                    <input type="text" name="subtitle" x-model="params.subtitle" maxlength="200">
-                </label>
-
-                <div class="poster-params-grid">
-                    <label class="field">
-                        <span>Koptekst</span>
-                        <input type="text" name="header" x-model="params.header" maxlength="120">
-                    </label>
-                    <label class="field">
-                        <span>Voettekst</span>
-                        <input type="text" name="footer" x-model="params.footer" maxlength="120">
-                    </label>
-                    <label class="field">
-                        <span>Groep</span>
-                        <input type="text" name="group_name" x-model="params.group_name" maxlength="120">
-                    </label>
-                    <label class="field">
-                        <span>Speltak</span>
-                        <input type="text" name="speltak_name" x-model="params.speltak_name" maxlength="120">
-                    </label>
-                </div>
-
-                <div class="poster-params-grid">
-                    <label class="field">
-                        <span>Titel (pt)</span>
-                        <input type="number" name="title_font_pt" x-model.number="params.title_font_pt" min="8" max="200">
-                    </label>
-                    <label class="field">
-                        <span>Subtitel (pt)</span>
-                        <input type="number" name="subtitle_font_pt" x-model.number="params.subtitle_font_pt" min="6" max="120">
-                    </label>
-                    <label class="field">
-                        <span>Tekst (pt)</span>
-                        <input type="number" name="body_font_pt" x-model.number="params.body_font_pt" min="6" max="72">
-                    </label>
-                    <label class="field" x-show="posterType !== 'badges'">
-                        <span>Voorbeeldblokken</span>
-                        <input type="number" name="demo_blocks" x-model.number="params.demo_blocks" min="0" max="400">
-                    </label>
-                </div>
-
-                {# ── Badge-grid options + picker (poster type 1) ───────────── #}
-                <div x-show="posterType === 'badges'" class="poster-badge-picker">
                     <div class="poster-params-grid">
-                        <label class="field">
-                            <span>Kolommen</span>
-                            <input type="number" name="columns" x-model.number="params.columns" min="1" max="12">
-                        </label>
-                        <label class="field">
-                            <span>Afbeelding (mm)</span>
-                            <input type="number" name="image_mm" x-model.number="params.image_mm" min="10" max="120">
-                        </label>
-                        <label class="field">
-                            <span>Niveau</span>
-                            <select name="niveau" x-model.number="params.niveau">
-                                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-                            </select>
-                        </label>
-                        <label class="field poster-check">
-                            <input type="checkbox" x-model="params.show_titles"><span>Titels tonen</span>
-                        </label>
-                    </div>
-                    <input type="hidden" name="show_titles" :value="params.show_titles ? '1' : '0'">
-                    <input type="hidden" name="badge_slugs" :value="(params.badge_slugs || []).join(',')">
-
-                    <div class="poster-quick-selects">
-                        <span>Snel kiezen:</span>
-                        <button type="button" class="btn-sm btn-neutral" @click="selectSet('all')">Alles</button>
-                        <button type="button" class="btn-sm btn-neutral" @click="selectNone()">Geen</button>
-                        <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.favorites||[]).length" @click="selectSet('favorites')">Mijn favorieten</button>
-                        <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.progress||[]).length" @click="selectSet('progress')">Mijn voortgang</button>
-                        <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.speltak_favorites||[]).length" @click="selectSet('speltak_favorites')">Speltak-favorieten</button>
-                        <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.speltak_progress||[]).length" @click="selectSet('speltak_progress')">Speltak-voortgang</button>
+                        <label class="field"><span>Koptekst</span>
+                            <input type="text" name="header" x-model="params.header" maxlength="120"></label>
+                        <label class="field"><span>Voettekst</span>
+                            <input type="text" name="footer" x-model="params.footer" maxlength="120"></label>
+                        <label class="field"><span>Groep</span>
+                            <input type="text" name="group_name" x-model="params.group_name" maxlength="120"></label>
+                        <label class="field"><span>Speltak</span>
+                            <input type="text" name="speltak_name" x-model="params.speltak_name" maxlength="120"></label>
                     </div>
 
-                    <div class="poster-badge-list">
-                        {% for category, items in badge_catalogue.items() %}
-                        <div class="poster-badge-cat">
-                            <h3>{{ category_labels.get(category, category) }}</h3>
-                            {% for info in items %}
-                            <label class="poster-badge-option">
-                                <input type="checkbox" value="{{ info.slug }}" x-model="params.badge_slugs">
-                                {% if info.images %}<img src="{{ info.images[0] }}" alt="" loading="lazy">{% endif %}
-                                <span>{{ info.title }}</span>
-                            </label>
+                    {# Badge picker (poster type 1). #}
+                    <div x-show="posterType === 'badges'" class="poster-badge-picker">
+                        <input type="hidden" name="badge_slugs" :value="(params.badge_slugs || []).join(',')">
+                        <div class="poster-quick-selects">
+                            <span>Snel kiezen:</span>
+                            <button type="button" class="btn-sm btn-neutral" @click="selectSet('all')">Alles</button>
+                            <button type="button" class="btn-sm btn-neutral" @click="selectNone()">Geen</button>
+                            <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.favorites||[]).length" @click="selectSet('favorites')">Mijn favorieten</button>
+                            <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.progress||[]).length" @click="selectSet('progress')">Mijn voortgang</button>
+                            <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.speltak_favorites||[]).length" @click="selectSet('speltak_favorites')">Speltak-favorieten</button>
+                            <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.speltak_progress||[]).length" @click="selectSet('speltak_progress')">Speltak-voortgang</button>
+                        </div>
+                        <div class="poster-badge-list">
+                            {% for category, items in badge_catalogue.items() %}
+                            <div class="poster-badge-cat">
+                                <h3>{{ category_labels.get(category, category) }}</h3>
+                                {% for info in items %}
+                                <label class="poster-badge-option">
+                                    <input type="checkbox" value="{{ info.slug }}" x-model="params.badge_slugs">
+                                    {% if info.images %}<img src="{{ info.images[0] }}" alt="" loading="lazy">{% endif %}
+                                    <span>{{ info.title }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
                             {% endfor %}
                         </div>
-                        {% endfor %}
+                        <p class="field-hint"><span x-text="(params.badge_slugs || []).length"></span> insigne(s) geselecteerd</p>
                     </div>
-                    <p class="field-hint"><span x-text="(params.badge_slugs || []).length"></span> insigne(s) geselecteerd</p>
+
+                    <p x-show="posterType !== 'badges'" class="field-hint">
+                        Inhoudsopties voor dit postertype volgen binnenkort.
+                    </p>
                 </div>
 
-                <div class="poster-actions">
-                    <button type="submit" class="btn-primary"
-                            x-text="(posterId && editable) ? 'Opslaan' : (posterId ? 'Opslaan als kopie' : 'Opslaan')"></button>
-                    <button type="button" class="btn-neutral" @click="printPoster()">Printen</button>
+                {# ── Step 2: Opmaak ───────────────────────────────────────── #}
+                <div x-show="step === 2">
+                    <div class="poster-params-grid">
+                        <label class="field"><span>Papierformaat</span>
+                            <select name="paper_size" x-model="paperSize">
+                                {% for ps in paper_sizes %}<option value="{{ ps }}">{{ ps }}</option>{% endfor %}
+                            </select></label>
+                        <label class="field"><span>Oriëntatie</span>
+                            <select name="orientation" x-model="orientation">
+                                <option value="portrait">Staand</option>
+                                <option value="landscape">Liggend</option>
+                            </select></label>
+                    </div>
+                    <div class="poster-params-grid">
+                        <label class="field"><span>Titel (pt)</span>
+                            <input type="number" name="title_font_pt" x-model.number="params.title_font_pt" min="8" max="200"></label>
+                        <label class="field"><span>Subtitel (pt)</span>
+                            <input type="number" name="subtitle_font_pt" x-model.number="params.subtitle_font_pt" min="6" max="120"></label>
+                        <label class="field"><span>Tekst (pt)</span>
+                            <input type="number" name="body_font_pt" x-model.number="params.body_font_pt" min="6" max="72"></label>
+                        <label class="field" x-show="posterType !== 'badges'"><span>Voorbeeldblokken</span>
+                            <input type="number" name="demo_blocks" x-model.number="params.demo_blocks" min="0" max="400"></label>
+                    </div>
+
+                    {# Badge-grid layout (poster type 1). #}
+                    <div x-show="posterType === 'badges'">
+                        <input type="hidden" name="show_titles" :value="params.show_titles ? '1' : '0'">
+                        <div class="poster-params-grid">
+                            <label class="field"><span>Kolommen</span>
+                                <input type="number" name="columns" x-model.number="params.columns" min="1" max="12"></label>
+                            <label class="field"><span>Afbeelding (mm)</span>
+                                <input type="number" name="image_mm" x-model.number="params.image_mm" min="10" max="120"></label>
+                            <label class="field"><span>Niveau</span>
+                                <select name="niveau" x-model.number="params.niveau">
+                                    <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                                </select></label>
+                            <label class="field poster-check">
+                                <input type="checkbox" x-model="params.show_titles"><span>Titels tonen</span></label>
+                        </div>
+                    </div>
+                </div>
+
+                {# ── Step 3: Opslaan & printen ────────────────────────────── #}
+                <div x-show="step === 3">
+                    <label class="field">
+                        <span>Naam</span>
+                        <input type="text" name="name" x-model="name" maxlength="120" placeholder="Naam van deze poster">
+                    </label>
+                    {% if not poster %}
+                    <label class="field">
+                        <span>Opslaan als</span>
+                        <select x-model="scopeSel">
+                            <option value="user">Persoonlijk (alleen ik)</option>
+                            {% if scopes.speltakken %}
+                            <optgroup label="Speltak (zichtbaar voor leden)">
+                                {% for group, speltak in scopes.speltakken %}
+                                <option value="speltak:{{ speltak.id }}">{{ group.name }} — {{ speltak.name }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endif %}
+                            {% if scopes.groups %}
+                            <optgroup label="Groep (zichtbaar voor leden)">
+                                {% for group in scopes.groups %}
+                                <option value="group:{{ group.id }}">{{ group.name }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endif %}
+                        </select>
+                    </label>
+                    <input type="hidden" name="scope" :value="scopeSel.split(':')[0]">
+                    <input type="hidden" name="scope_id" :value="scopeSel.split(':')[1] || ''">
+                    {% elif not editable %}
+                    <p class="field-hint">Je bekijkt een gedeelde poster. Opslaan maakt een persoonlijke kopie.</p>
+                    {% endif %}
+
+                    <div class="poster-actions">
+                        <button type="submit" class="btn-primary"
+                                x-text="(posterId && editable) ? 'Opslaan' : (posterId ? 'Opslaan als kopie' : 'Opslaan')"></button>
+                        <button type="button" class="btn-neutral" @click="printPoster()">Printen</button>
+                    </div>
+                </div>
+
+                {# Wizard navigation. #}
+                <div class="poster-wizard-nav">
+                    <button type="button" class="btn-neutral btn-sm" @click="prevStep()" x-show="step > 1">‹ Vorige</button>
+                    <span class="poster-step-count" x-text="'Stap ' + step + ' van 3'"></span>
+                    <button type="button" class="btn-primary btn-sm" @click="nextStep()" x-show="step < 3">Volgende ›</button>
                 </div>
             </form>
 
             {% if poster and editable %}
             <form method="post" action="/posters/{{ poster.id }}/delete"
+                  x-show="step === 3"
                   @submit="if (!confirm('Deze poster verwijderen?')) $event.preventDefault()"
                   class="poster-delete-form">
                 <button type="submit" class="btn-danger btn-sm">Verwijderen</button>

@@ -2890,7 +2890,41 @@ button:disabled, a[disabled] {
 
 .poster-params-head { margin-bottom: 1rem; }
 .poster-back { font-size: 0.85rem; color: #00A651; text-decoration: none; }
-.poster-params-title { font-size: 1.2rem; margin: 0.25rem 0 0; }
+.poster-params-title { font-size: 1.2rem; margin: 0.25rem 0 0.5rem; }
+
+/* Wizard stepper + nav */
+.poster-steps {
+    display: flex;
+    gap: 0.4rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 0.8rem;
+}
+.poster-steps li {
+    flex: 1;
+    text-align: center;
+    padding: 0.3rem 0.2rem;
+    border-bottom: 2px solid #e5e7eb;
+    color: #999;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.poster-steps li.active {
+    color: #00A651;
+    border-bottom-color: #00A651;
+    font-weight: 600;
+}
+.poster-wizard-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #eee;
+}
+.poster-step-count { font-size: 0.8rem; color: #888; }
 
 .poster-form .field { display: block; margin-bottom: 0.75rem; }
 .poster-form .field > span {

@@ -39,12 +39,27 @@ class TestPostersList:
         assert r.status_code == 303
         assert r.headers["location"] == "/login"
 
-    def test_authenticated_200_with_type_buttons(self, client, db):
+    def test_authenticated_shows_wizard_chooser(self, client, db):
         _login(client, _user(db))
         r = client.get("/posters")
         assert r.status_code == 200
+        assert "Wat wil je doen?" in r.text
+        # The three "new" options + the "open existing" step.
         assert "/posters/new?type=badges" in r.text
         assert "/posters/new?type=speltak" in r.text
+        assert "/posters/new?type=signoff" in r.text
+        assert "poster-wizard-card" in r.text
+
+    def test_existing_posters_listed_in_open_step(self, client, db):
+        from insigne import posters as posters_svc
+        from insigne import poster_templates as pt
+        u = _user(db)
+        _login(client, u)
+        posters_svc.create(db, created_by_id=u.id, name="Bestaande", poster_type="badges",
+                           paper_size="A4", orientation="portrait",
+                           params=pt.parse_params({}), scope="user", scope_id=None)
+        r = client.get("/posters")
+        assert "Bestaande" in r.text and "/posters/" in r.text
 
 
 # ── New / designer ──────────────────────────────────────────────────────────

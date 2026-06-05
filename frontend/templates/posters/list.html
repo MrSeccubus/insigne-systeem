@@ -1,45 +1,75 @@
 {% extends "base.html" %}
 {% block title %}Posters — Insigne Systeem{% endblock %}
 {% block content %}
-<main style="max-width:760px;">
+{% set any = visible.personal or visible.speltak or visible.group %}
+<main style="max-width:760px;" x-data="{ step: 'choose' }">
     <h1>Posters</h1>
-    <p style="font-size:0.9rem;color:#555;margin-bottom:1.5rem;">
-        Maak een printbare insigneposter. Begin met een van de standaardposters en
-        pas hem aan. Werkt op desktop of tablet (liggend).
-    </p>
 
-    <section style="margin-bottom:2rem;">
-        <h2 style="font-size:1.1rem;margin-bottom:0.5rem;">Nieuwe poster</h2>
-        <div class="poster-new-grid">
-            {% for key, label in poster_types.items() %}
-            <a href="/posters/new?type={{ key }}" class="btn-neutral poster-new-btn">{{ label }}</a>
-            {% endfor %}
+    {# ── Wizard step 1: Wat wil je doen? ────────────────────────────────── #}
+    <div x-show="step === 'choose'">
+        <p class="poster-wizard-q">Wat wil je doen?</p>
+        <div class="poster-wizard-options">
+            <a href="/posters/new?type=badges" class="poster-wizard-card">
+                <span class="poster-wizard-num">1</span>
+                <span class="poster-wizard-text">
+                    <span class="poster-wizard-label">Een algemeen insigneposter maken</span>
+                    <span class="poster-wizard-desc">Een raster van insignes die je zelf kiest.</span>
+                </span>
+            </a>
+            <a href="/posters/new?type=speltak" class="poster-wizard-card">
+                <span class="poster-wizard-num">2</span>
+                <span class="poster-wizard-text">
+                    <span class="poster-wizard-label">Een persoonlijk / speltak-overzicht maken</span>
+                    <span class="poster-wizard-desc">De voortgang van een speltak op een poster.</span>
+                </span>
+            </a>
+            <a href="/posters/new?type=signoff" class="poster-wizard-card">
+                <span class="poster-wizard-num">3</span>
+                <span class="poster-wizard-text">
+                    <span class="poster-wizard-label">Een aftekenposter maken</span>
+                    <span class="poster-wizard-desc">Eisen per insigne met ruimte om af te tekenen.</span>
+                </span>
+            </a>
+            <button type="button" class="poster-wizard-card" @click="step = 'list'">
+                <span class="poster-wizard-num">4</span>
+                <span class="poster-wizard-text">
+                    <span class="poster-wizard-label">Een bestaande poster openen of wijzigen</span>
+                    <span class="poster-wizard-desc">
+                        {% if any %}Kies uit je opgeslagen posters.{% else %}Je hebt er nog geen.{% endif %}
+                    </span>
+                </span>
+            </button>
         </div>
-    </section>
+    </div>
 
-    {% set scope_labels = {"personal": "Persoonlijk", "speltak": "Speltak", "group": "Groep"} %}
-    {% set any = visible.personal or visible.speltak or visible.group %}
-    {% if any %}
-    {% for scope_key in ["personal", "speltak", "group"] %}
-        {% set items = visible[scope_key] %}
-        {% if items %}
-        <section style="margin-bottom:1.5rem;">
-            <h2 style="font-size:1.1rem;margin-bottom:0.5rem;">{{ scope_labels[scope_key] }}</h2>
-            <ul class="poster-list">
-                {% for p in items %}
-                <li class="poster-list-row">
-                    <a href="/posters/{{ p.id }}" class="poster-list-link">
-                        <span class="poster-list-name">{{ p.name }}</span>
-                        <span class="poster-list-meta">{{ poster_types.get(p.poster_type, p.poster_type) }} · {{ p.paper_size }} {{ 'staand' if p.orientation == 'portrait' else 'liggend' }}</span>
-                    </a>
-                </li>
-                {% endfor %}
-            </ul>
-        </section>
+    {# ── Wizard step (option 4): existing posters ───────────────────────── #}
+    <div x-show="step === 'list'" style="display:none;">
+        <button type="button" class="poster-back" @click="step = 'choose'">← Terug</button>
+        <h2 style="font-size:1.1rem;margin:0.5rem 0 1rem;">Bestaande posters</h2>
+
+        {% set scope_labels = {"personal": "Persoonlijk", "speltak": "Speltak", "group": "Groep"} %}
+        {% if any %}
+        {% for scope_key in ["personal", "speltak", "group"] %}
+            {% set items = visible[scope_key] %}
+            {% if items %}
+            <section style="margin-bottom:1.5rem;">
+                <h3 style="font-size:0.95rem;margin-bottom:0.5rem;">{{ scope_labels[scope_key] }}</h3>
+                <ul class="poster-list">
+                    {% for p in items %}
+                    <li class="poster-list-row">
+                        <a href="/posters/{{ p.id }}" class="poster-list-link">
+                            <span class="poster-list-name">{{ p.name }}</span>
+                            <span class="poster-list-meta">{{ poster_types.get(p.poster_type, p.poster_type) }} · {{ p.paper_size }} {{ 'staand' if p.orientation == 'portrait' else 'liggend' }}</span>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+        {% endfor %}
+        {% else %}
+        <p class="empty-state">Je hebt nog geen posters. Maak er een via de vorige stap.</p>
         {% endif %}
-    {% endfor %}
-    {% else %}
-    <p class="empty-state">Je hebt nog geen posters. Maak er hierboven een.</p>
-    {% endif %}
+    </div>
 </main>
 {% endblock %}

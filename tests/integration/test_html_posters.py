@@ -68,6 +68,27 @@ class TestPosterNew:
         r = client.get("/posters/new?type=badges")
         assert "poster-toosmall" in r.text and "Te klein scherm" in r.text
 
+    def test_designer_config_is_xss_safe(self, client, db):
+        """The designer config goes in a JSON <script> block (|tojson escapes
+        < > &), not an x-data attribute — so a malicious saved title can't break
+        out into live markup (regression for the PR #158 review finding)."""
+        from insigne import posters as posters_svc
+        from insigne import poster_templates as pt
+        u = _user(db)
+        _login(client, u)
+        payload = '"></script><img src=x onerror=alert(1)>'
+        p = posters_svc.create(
+            db, created_by_id=u.id, name=payload, poster_type="badges",
+            paper_size="A4", orientation="portrait",
+            params=pt.parse_params({"title": payload}), scope="user", scope_id=None,
+        )
+        r = client.get(f"/posters/{p.id}")
+        assert r.status_code == 200
+        assert 'x-data="posterDesigner()"' in r.text
+        # The payload must not appear as live markup anywhere.
+        assert "<img src=x onerror" not in r.text
+        assert "</script><img" not in r.text
+
 
 # ── Render (standalone) ───────────────────────────────────────────────────────
 

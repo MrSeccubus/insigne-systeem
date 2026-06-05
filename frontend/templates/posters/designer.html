@@ -1,16 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Poster-ontwerper — Insigne Systeem{% endblock %}
 {% block content %}
-<main class="poster-designer-main"
-      x-data="posterDesigner({
-          posterType: {{ poster_type|tojson }},
-          paperSize: {{ paper_size|tojson }},
-          orientation: {{ orientation|tojson }},
-          name: {{ poster_name|tojson }},
-          params: {{ params|tojson }},
-          posterId: {{ (poster.id if poster else '')|tojson }},
-          editable: {{ editable|tojson }}
-      })">
+<main class="poster-designer-main" x-data="posterDesigner()">
+    {# Config goes in a JSON script block, not an x-data attribute: |tojson does
+       NOT escape double quotes (so user-controlled title/name/etc. could break
+       out of a double-quoted x-data attribute → stored XSS), but it DOES escape
+       <, > and & — making it safe inside <script type="application/json">. #}
+    <script type="application/json" id="poster-designer-config">{{ {
+        "posterType": poster_type,
+        "paperSize": paper_size,
+        "orientation": orientation,
+        "name": poster_name,
+        "params": params,
+        "posterId": (poster.id if poster else ""),
+        "editable": editable
+    } | tojson }}</script>
 
     {# Desktop/tablet only — refuse on a too-small viewport. #}
     <div class="poster-toosmall">

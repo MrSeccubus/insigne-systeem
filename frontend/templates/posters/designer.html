@@ -32,6 +32,17 @@
         <button type="button" class="btn-sm btn-neutral" @click="def.elements.{{ el }}.color=''; updatePreview()">Standaard</button>
     </span></label>
 {% endmacro %}
+{% macro template_fields_help() %}
+<details class="poster-fields-help">
+    <summary>Sjabloonvelden gebruiken</summary>
+    <ul>
+        <li><code>{{ '{{ user.name }}' }}</code> — naam van de ingelogde gebruiker</li>
+        <li><code>{{ '{{ datum }}' }}</code> — datum van vandaag</li>
+        <li><code>{{ '{{ tijd }}' }}</code> — huidige tijd</li>
+        <li><code>{{ '{{ url }}' }}</code> — adres van het systeem</li>
+    </ul>
+</details>
+{% endmacro %}
 <datalist id="poster-huisstijl">
     <option value="#003f87">Scouting blauw</option>
     <option value="#00a651">Scouting groen</option>
@@ -124,6 +135,7 @@
                         <label class="field"><span>Tekst</span><input type="text" x-model="def.title" maxlength="200"></label>
                         <label class="field"><span>Lettergrootte (pt)</span><input type="number" x-model.number="def.elements.title.font_size_pt" min="8" max="200"></label>
                         {{ font_controls('title') }}
+                        {{ template_fields_help() }}
                     </div>
 
                     {# Subtitel #}
@@ -132,6 +144,7 @@
                         <label class="field"><span>Tekst</span><input type="text" x-model="def.subtitle" maxlength="300"></label>
                         <label class="field"><span>Lettergrootte (pt)</span><input type="number" x-model.number="def.elements.subtitle.font_size_pt" min="6" max="120"></label>
                         {{ font_controls('subtitle') }}
+                        {{ template_fields_help() }}
                     </div>
 
                     {# Koptekst #}
@@ -144,6 +157,7 @@
                         </div>
                         <label class="field"><span>Lettergrootte (pt)</span><input type="number" x-model.number="def.elements.header.font_size_pt" min="6" max="72"></label>
                         {{ font_controls('header') }}
+                        {{ template_fields_help() }}
                     </div>
 
                     {# Voettekst #}
@@ -152,7 +166,7 @@
                         <label class="field"><span>Tekst</span><input type="text" x-model="def.footer" maxlength="200"></label>
                         <label class="field"><span>Lettergrootte (pt)</span><input type="number" x-model.number="def.elements.footer.font_size_pt" min="6" max="72"></label>
                         {{ font_controls('footer') }}
-                        <p class="field-hint">Tip: gebruik <code>{{ '{{ datum }}' }}</code>, <code>{{ '{{ url }}' }}</code> of <code>{{ '{{ user.name }}' }}</code>.</p>
+                        {{ template_fields_help() }}
                     </div>
 
                     {# Insigne-blok #}

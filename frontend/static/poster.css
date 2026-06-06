@@ -115,9 +115,12 @@ html, body {
     column-count: var(--poster-cols, 4);
     column-gap: 12mm;
 }
+/* The badge cell shrinks to its content and is centred in the column, so the
+   caption can be exactly as wide as the row of level images above it. */
 .poster-badge {
-    margin: 0 0 8mm;
-    width: 100%;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto 8mm;
     text-align: center;
     break-inside: avoid;            /* keep a badge whole within a column/page */
     -webkit-column-break-inside: avoid;
@@ -129,15 +132,15 @@ html, body {
     justify-content: center;
     align-items: flex-end;
 }
-.poster-badge-levels img { height: auto; max-width: 100%; }
-/* auto (badge_size_mm 0): the levels share the cell equally */
-.poster-badge-grid:not([style*="img-mm"]) .poster-badge-levels img { flex: 1 1 0; min-width: 0; }
-/* fixed size per level image */
-.poster-badge-grid[style*="img-mm"] .poster-badge-levels img { width: var(--poster-img-mm); flex: 0 0 auto; }
+.poster-badge-levels img {
+    width: var(--poster-img-mm, 20mm);   /* badge_size_mm, or 20mm when auto */
+    height: auto;
+}
 .poster-badge figcaption {
-    width: fit-content;             /* band wraps the title, not the whole row */
-    max-width: 100%;
-    margin: 2mm auto 0;            /* centred under the badge */
+    display: block;
+    width: 100%;                    /* a rectangle as wide as the badge row above */
+    box-sizing: border-box;
+    margin: 2mm 0 0;
     padding: 0.8mm 2mm;
     font-size: var(--body-pt, 9pt);
     line-height: 1.15;

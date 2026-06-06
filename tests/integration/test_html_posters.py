@@ -104,6 +104,13 @@ class TestPosterDesigner:
         assert 'aria-label="Opslaan"' in r.text   # save button is icon-only
         assert "Font Awesome" in r.text           # inline SVG icons included
 
+    def test_text_fields_have_template_help(self, client, db):
+        _login(client, _user(db))
+        r = client.get("/posters/new?type=badges")
+        # title/subtitle/header/footer each carry the disclosure
+        assert r.text.count("Sjabloonvelden gebruiken") >= 4
+        assert "{{ user.name }}" in r.text and "{{ datum }}" in r.text
+
     def test_huisstijl_color_swatches(self, client, db):
         _login(client, _user(db))
         r = client.get("/posters/new?type=badges")

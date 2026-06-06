@@ -2914,6 +2914,12 @@ button:disabled, a[disabled] {
 .poster-modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
 
 .poster-hint { color: #888; font-size: 0.9rem; padding: 1rem 0; }
+
+/* "Sjabloonvelden gebruiken" disclosure on text fields */
+.poster-fields-help { margin-top: 0.5rem; font-size: 0.8rem; color: #555; }
+.poster-fields-help summary { cursor: pointer; color: #00A651; }
+.poster-fields-help ul { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+.poster-fields-help code { background: #f3f4f6; padding: 0 0.2rem; border-radius: 3px; }
 .poster-editor-title { font-size: 1rem; margin: 0 0 0.6rem; }
 .poster-color-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .poster-color-row input[type="color"] { width: 3rem; height: 2rem; padding: 0; }

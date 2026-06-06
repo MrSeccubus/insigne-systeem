@@ -33,7 +33,7 @@ def _defn(**over):
     if badges is not None:
         d["elements"]["badge_block"]["badges"] = badges
     if "niveau" in over:
-        d["elements"]["badge_block"]["niveau"] = over.pop("niveau")
+        d["elements"]["badge_block"]["niveaus"] = [over.pop("niveau")]
     d.update(over)
     return d
 
@@ -185,6 +185,46 @@ class TestPosterRender:
         r = self._get(client, _defn(title="<b>x</b>"))
         assert "<b>x</b>" not in r.text
         assert "&lt;b&gt;x&lt;/b&gt;" in r.text
+
+    def test_empty_badges_renders_all_default_categories(self, client, db):
+        """badges: [] = all gewoon + buitengewoon (not explorers/jaarinsignes)."""
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=[]))
+        assert "/images/internationaal.1.png" in r.text   # a gewoon badge
+        assert "/images/jaarinsigne_2026" not in r.text    # jaarinsignes excluded
+        assert "/images/explorer_jaarbadge" not in r.text  # explorers excluded
+
+    def test_niveaus_emit_one_image_each(self, client, db):
+        _login(client, _user(db))
+        d = _defn(badges=["vredeslicht"])
+        d["elements"]["badge_block"]["niveaus"] = [1, 2, 3]
+        r = self._get(client, d)
+        for n in (1, 2, 3):
+            assert f"/images/vredeslicht.{n}.png" in r.text
+
+    def test_datum_and_url_templating(self, client, db):
+        from insigne.config import config
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=["vredeslicht"], footer="{{ datum }} via {{ url }}"))
+        assert config.base_url in r.text
+        assert str(datetime.now().year) in r.text
+
+    def test_background_gradient_rendered(self, client, db):
+        _login(client, _user(db))
+        d = _defn(badges=["vredeslicht"])
+        d["elements"]["background"] = {"style": "horizontal_gradient",
+                                       "start_color": "red", "end_color": "green"}
+        r = self._get(client, d)
+        assert "linear-gradient(to right,red,green)" in r.text
+
+    def test_background_color_is_sanitized(self, client, db):
+        """A colour that isn't a #hex or plain name is dropped (CSS-injection guard)."""
+        _login(client, _user(db))
+        d = _defn(badges=["vredeslicht"])
+        d["elements"]["background"] = {"style": "solid",
+                                       "start_color": "red;}body{display:none", "end_color": "green"}
+        r = self._get(client, d)
+        assert "display:none" not in r.text
 
 
 # ── CRUD ────────────────────────────────────────────────────────────────────

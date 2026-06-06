@@ -63,10 +63,6 @@
                     this.def.elements.badge_block.badges = [...(this.filterSets[name] || [])];
                     this.updatePreview();
                 },
-                selectNone() {
-                    this.def.elements.badge_block.badges = [];
-                    this.updatePreview();
-                },
 
                 // Wizard navigation (Inhoud → Opmaak → Opslaan).
                 nextStep() { if (this.step < 3) this.step++; },

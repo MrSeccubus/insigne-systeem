@@ -3029,6 +3029,9 @@ button:disabled, a[disabled] {
 .poster-badge-picker { margin-top: 0.5rem; }
 .poster-check { flex-direction: row !important; align-items: center; gap: 0.4rem; }
 .poster-check input { width: auto !important; }
+.poster-niveaus { display: flex; gap: 1rem; margin-bottom: 0.75rem; }
+.poster-niveaus label { display: flex; align-items: center; gap: 0.3rem; }
+.poster-niveaus input { width: auto; }
 
 .poster-quick-selects {
     display: flex;

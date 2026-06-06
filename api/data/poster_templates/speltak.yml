@@ -1,7 +1,7 @@
 # System base template: speltak-overzicht (type 1).
 # Starting point for /posters/new?type=speltak. The body for this type follows
 # in a later phase (#154); the badge_block defaults below are unused for now.
-name: ''
+name: 'Speltak-overzicht - standaard'
 type: 1
 paper: A3
 orientation: landscape
@@ -11,18 +11,21 @@ header: ''
 footer: ''
 group_name: ''
 speltak_name: ''
-demo_blocks: 12
-styles:
+elements:
   title:
     font_size_pt: 48
   subtitle:
     font_size_pt: 24
-  body:
-    font_size_pt: 12
-elements:
+  header:
+    font_size_pt: 11
+  footer:
+    font_size_pt: 10
   badge_block:
+    font_size_pt: 12
     columns: 4
     badge_size_mm: 0
     show_titles: true
-    niveau: 1
+    niveaus: [1, 2, 3]
     badges: []
+  background:
+    style: none

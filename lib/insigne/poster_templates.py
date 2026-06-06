@@ -10,6 +10,7 @@ lives in ``poster_render.py`` (a sandboxed Jinja environment).
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import yaml
@@ -39,6 +40,9 @@ PAGE_MARGIN_MM = 12
 
 # Text fields that may contain {{ … }} templates (rendered in poster_render).
 TEXT_FIELDS = ("title", "subtitle", "header", "footer", "group_name", "speltak_name")
+
+# An empty badge_block.badges list means "all" — these catalogue categories.
+DEFAULT_BADGE_CATEGORIES = ("gewoon", "buitengewoon")
 
 
 def page_dimensions_mm(paper: str, orientation: str) -> tuple[int, int]:
@@ -80,6 +84,27 @@ def _font_style(raw: dict | None, default_pt: int) -> dict:
     return {"font_size_pt": _int(raw.get("font_size_pt"), default_pt, 6, 300)}
 
 
+def _niveaus(v) -> list[int]:
+    """Coerce a niveaus value to a sorted, unique list of valid levels (1–3).
+    Accepts a list or a single scalar; falls back to [1]."""
+    items = v if isinstance(v, list) else [v]
+    out = sorted({n for n in (
+        _int(x, 0, 0, 3) for x in items) if n in (1, 2, 3)})
+    return out or [1]
+
+
+# CSS-injection-safe colour: a #hex or a plain named colour only (no chars that
+# could break out of a style attribute). Anything else falls back to default.
+_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{3,8}$|^[a-z]{1,20}$")
+
+_BG_STYLES = ("none", "solid", "horizontal_gradient", "vertical_gradient")
+
+
+def _color(v, default: str) -> str:
+    s = "" if v is None else str(v).strip()
+    return s if _COLOR_RE.match(s) else default
+
+
 # ── Base templates (loaded from YAML files in the data dir) ───────────────────
 
 # The directory holding the system base templates (<key>.yml). Set by the app
@@ -116,13 +141,14 @@ def normalise(defn) -> dict:
     paper = d.get("paper") if d.get("paper") in PAPER_SIZES_MM else "A4"
     orientation = d.get("orientation") if d.get("orientation") in ORIENTATIONS else "portrait"
 
-    styles_in = d.get("styles") if isinstance(d.get("styles"), dict) else {}
-    bb_in = {}
-    if isinstance(d.get("elements"), dict) and isinstance(d["elements"].get("badge_block"), dict):
-        bb_in = d["elements"]["badge_block"]
-
+    # Element-centric: content text stays top-level; per-block props live under
+    # elements.<name>. ``badges: []`` means "all" (resolved at render time).
+    els = d.get("elements") if isinstance(d.get("elements"), dict) else {}
+    bb_in = els.get("badge_block") if isinstance(els.get("badge_block"), dict) else {}
     badges = bb_in.get("badges")
     badges = [str(s) for s in badges] if isinstance(badges, list) else []
+    bg_in = els.get("background") if isinstance(els.get("background"), dict) else {}
+    bg_style = bg_in.get("style") if bg_in.get("style") in _BG_STYLES else "none"
 
     return {
         "name": _str(d.get("name"))[:120],
@@ -135,19 +161,24 @@ def normalise(defn) -> dict:
         "footer": _str(d.get("footer"))[:200],
         "group_name": _str(d.get("group_name"))[:120],
         "speltak_name": _str(d.get("speltak_name"))[:120],
-        "demo_blocks": _int(d.get("demo_blocks"), 12, 0, 400),
-        "styles": {
-            "title": _font_style(styles_in.get("title"), 48),
-            "subtitle": _font_style(styles_in.get("subtitle"), 24),
-            "body": _font_style(styles_in.get("body"), 12),
-        },
         "elements": {
+            "title": _font_style(els.get("title"), 48),
+            "subtitle": _font_style(els.get("subtitle"), 24),
+            "header": _font_style(els.get("header"), 11),
+            "footer": _font_style(els.get("footer"), 10),
             "badge_block": {
+                "font_size_pt": _int(bb_in.get("font_size_pt"), 12, 6, 72),
                 "columns": _int(bb_in.get("columns"), 4, 1, 12),
                 "badge_size_mm": _int(bb_in.get("badge_size_mm"), 0, 0, 120),
                 "show_titles": _bool(bb_in.get("show_titles"), True),
-                "niveau": _int(bb_in.get("niveau"), 1, 1, 3),
+                # accept the common 'neveaus' misspelling + the old singular 'niveau'
+                "niveaus": _niveaus(bb_in.get("niveaus", bb_in.get("neveaus", bb_in.get("niveau")))),
                 "badges": badges,
+            },
+            "background": {
+                "style": bg_style,
+                "start_color": _color(bg_in.get("start_color"), "#ffffff"),
+                "end_color": _color(bg_in.get("end_color"), "#ffffff"),
             },
         },
     }

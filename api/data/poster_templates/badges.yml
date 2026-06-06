@@ -1,28 +1,31 @@
 # System base template: algemene insigneposter (type 0).
 # Starting point for /posters/new?type=badges. Loaded + normalised at runtime
 # (see lib/insigne/poster_templates.py); edit here to change the defaults.
-name: ''
+name: 'Insigneposter - standaard'
 type: 0
-paper: A3
+paper: A2
 orientation: portrait
 title: Insigneposter
 subtitle: ''
 header: ''
-footer: ''
-group_name: ''
-speltak_name: ''
-demo_blocks: 12
-styles:
+footer: 'Gegenereerd op {{ datum }} via {{ url }}'
+elements:
   title:
     font_size_pt: 48
   subtitle:
     font_size_pt: 24
-  body:
-    font_size_pt: 12
-elements:
+  header: 
+    font_size_pt: 8
+  footer: 
+    font_size_pt: 8
   badge_block:
-    columns: 4
+    font_size_pt: 12
+    columns: 2
+    neveaus: [1,2,3]
     badge_size_mm: 0   # 0 = auto (fill the grid cell)
     show_titles: true
-    niveau: 1
-    badges: []
+    badges: [] # Leef is allemaal
+  background:
+    style: horizontal_gradient
+    start_color: red
+    end_color: green

@@ -28,13 +28,16 @@ html, body {
     height: 100%;
     display: flex;
     flex-direction: column;
+    /* Print background colours/gradients (browsers omit them by default). */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
 }
 
 .poster-running-header {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    font-size: 11pt;
+    font-size: var(--header-pt, 11pt);
     color: #555;
     border-bottom: 1px solid #d1d5db;
     padding-bottom: 4pt;
@@ -108,7 +111,7 @@ html, body {
 }
 .poster-badge figcaption {
     margin-top: 2mm;
-    font-size: 9pt;
+    font-size: var(--body-pt, 9pt);
     line-height: 1.1;
     color: #333;
 }
@@ -117,7 +120,7 @@ html, body {
     margin-top: 8pt;
     padding-top: 4pt;
     border-top: 1px solid #d1d5db;
-    font-size: 10pt;
+    font-size: var(--footer-pt, 10pt);
     color: #777;
     text-align: center;
 }

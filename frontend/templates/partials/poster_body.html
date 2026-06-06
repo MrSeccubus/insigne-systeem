@@ -1,8 +1,15 @@
 {# Poster content — shared by the live preview iframe and the print window so
    preview == print. Receives the rendered (text fields already templated +
-   autoescaped here) definition ``defn``, ``poster_type`` and ``poster_badges``. #}
+   autoescaped here) definition ``defn``, ``poster_type`` and ``poster_badges``.
+   Per-block font sizes come from ``defn.elements.<block>.font_size_pt``. #}
+{% set bb = defn.elements.badge_block %}
+{% set bg = defn.elements.background %}
+{% if bg.style == 'solid' %}{% set bg_css = 'background:' ~ bg.start_color ~ ';' %}
+{% elif bg.style == 'horizontal_gradient' %}{% set bg_css = 'background:linear-gradient(to right,' ~ bg.start_color ~ ',' ~ bg.end_color ~ ');' %}
+{% elif bg.style == 'vertical_gradient' %}{% set bg_css = 'background:linear-gradient(to bottom,' ~ bg.start_color ~ ',' ~ bg.end_color ~ ');' %}
+{% else %}{% set bg_css = '' %}{% endif %}
 <div class="poster"
-     style="--title-pt:{{ defn.styles.title.font_size_pt }}pt;--subtitle-pt:{{ defn.styles.subtitle.font_size_pt }}pt;--body-pt:{{ defn.styles.body.font_size_pt }}pt;">
+     style="--title-pt:{{ defn.elements.title.font_size_pt }}pt;--subtitle-pt:{{ defn.elements.subtitle.font_size_pt }}pt;--header-pt:{{ defn.elements.header.font_size_pt }}pt;--footer-pt:{{ defn.elements.footer.font_size_pt }}pt;--body-pt:{{ bb.font_size_pt }}pt;{{ bg_css }}">
     {% if defn.header or defn.group_name or defn.speltak_name %}
     <div class="poster-running-header">
         <span class="poster-header-left">{{ defn.header }}</span>
@@ -17,7 +24,6 @@
 
     <div class="poster-content">
         {% if poster_type == "badges" %}
-        {% set bb = defn.elements.badge_block %}
         {% if poster_badges %}
         <div class="poster-badge-grid"
              style="--poster-cols:{{ bb.columns }};{% if bb.badge_size_mm %}--poster-img-mm:{{ bb.badge_size_mm }}mm;{% endif %}">
@@ -29,7 +35,7 @@
             {% endfor %}
         </div>
         {% else %}
-        <p class="poster-placeholder-note">Nog geen insignes geselecteerd — kies ze in het paneel links.</p>
+        <p class="poster-placeholder-note">Geen insignes om te tonen.</p>
         {% endif %}
 
         {% else %}
@@ -38,11 +44,6 @@
             Voorbeeldinhoud — postertype: <strong>{{ poster_type }}</strong>.
             De echte posterinhoud volgt in een volgende fase.
         </p>
-        <div class="poster-demo-grid">
-            {% for i in range(defn.demo_blocks) %}
-            <div class="poster-demo-block">{{ i + 1 }}</div>
-            {% endfor %}
-        </div>
         {% endif %}
     </div>
 

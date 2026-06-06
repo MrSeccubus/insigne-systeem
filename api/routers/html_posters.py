@@ -79,14 +79,32 @@ def _badge_image(badge: dict, niveau: int) -> str | None:
     return imgs[min(max(niveau - 1, 0), len(imgs) - 1)]
 
 
+def _all_default_slugs() -> list[str]:
+    """Every badge in the default categories (gewoon + buitengewoon) — used when
+    the selection is empty ('Leeg is allemaal')."""
+    cat = _CATALOGUE.list()
+    return [info["slug"] for key in pt.DEFAULT_BADGE_CATEGORIES
+            for info in cat.get(key, [])]
+
+
 def _poster_badges(defn: dict) -> list[dict]:
+    """Resolve the badge block to {title, image} cells. Empty selection = all
+    default-category badges; each (regular) badge is emitted once per niveau."""
     bb = defn.get("elements", {}).get("badge_block", {})
-    niveau = bb.get("niveau", 1)
+    niveaus = bb.get("niveaus") or [1]
+    slugs = bb.get("badges") or _all_default_slugs()
     out: list[dict] = []
-    for slug in bb.get("badges", []):
+    for slug in slugs:
         b = _CATALOGUE.get(slug)
-        if b:
-            out.append({"title": b["title"], "image": _badge_image(b, niveau)})
+        if not b:
+            continue
+        if b.get("type") == "jaarinsigne":   # single image, shown once
+            out.append({"title": b["title"], "image": _badge_image(b, 1)})
+        else:
+            for n in niveaus:
+                img = _badge_image(b, n)
+                if img:
+                    out.append({"title": b["title"], "image": img})
     return out
 
 
@@ -103,7 +121,7 @@ def _picker_context(db: Session, user: UserModel, poster) -> dict:
         "badge_catalogue": _CATALOGUE.list(),
         "category_labels": _CATALOGUE.category_labels,
         "filter_sets": {
-            "all": [info["slug"] for items in _CATALOGUE.list().values() for info in items],
+            "all": _all_default_slugs(),
             "favorites": sorted(fav),
             "progress": sorted(prog),
             "speltak_favorites": sorted(speltak_fav),

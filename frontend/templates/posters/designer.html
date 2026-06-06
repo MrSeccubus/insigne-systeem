@@ -62,8 +62,7 @@
                     <div x-show="def.type === 0" class="poster-badge-picker">
                         <div class="poster-quick-selects">
                             <span>Snel kiezen:</span>
-                            <button type="button" class="btn-sm btn-neutral" @click="selectSet('all')">Alles</button>
-                            <button type="button" class="btn-sm btn-neutral" @click="selectNone()">Geen</button>
+                            <button type="button" class="btn-sm btn-neutral" @click="selectSet('all')">Alle (gewoon + buitengewoon)</button>
                             <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.favorites||[]).length" @click="selectSet('favorites')">Mijn favorieten</button>
                             <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.progress||[]).length" @click="selectSet('progress')">Mijn voortgang</button>
                             <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.speltak_favorites||[]).length" @click="selectSet('speltak_favorites')">Speltak-favorieten</button>
@@ -83,7 +82,14 @@
                             </div>
                             {% endfor %}
                         </div>
-                        <p class="field-hint"><span x-text="(def.elements.badge_block.badges || []).length"></span> insigne(s) geselecteerd</p>
+                        <p class="field-hint">
+                            <template x-if="(def.elements.badge_block.badges || []).length">
+                                <span><span x-text="def.elements.badge_block.badges.length"></span> insigne(s) geselecteerd</span>
+                            </template>
+                            <template x-if="!(def.elements.badge_block.badges || []).length">
+                                <span>Niets geselecteerd = alle gewone + buitengewone insignes.</span>
+                            </template>
+                        </p>
                     </div>
                     <p x-show="def.type !== 0" class="field-hint">Inhoudsopties voor dit postertype volgen binnenkort.</p>
                 </div>
@@ -103,25 +109,41 @@
                     </div>
                     <div class="poster-params-grid">
                         <label class="field"><span>Titel (pt)</span>
-                            <input type="number" x-model.number="def.styles.title.font_size_pt" min="8" max="200"></label>
+                            <input type="number" x-model.number="def.elements.title.font_size_pt" min="8" max="200"></label>
                         <label class="field"><span>Subtitel (pt)</span>
-                            <input type="number" x-model.number="def.styles.subtitle.font_size_pt" min="6" max="120"></label>
-                        <label class="field"><span>Tekst (pt)</span>
-                            <input type="number" x-model.number="def.styles.body.font_size_pt" min="6" max="72"></label>
-                        <label class="field" x-show="def.type !== 0"><span>Voorbeeldblokken</span>
-                            <input type="number" x-model.number="def.demo_blocks" min="0" max="400"></label>
+                            <input type="number" x-model.number="def.elements.subtitle.font_size_pt" min="6" max="120"></label>
                     </div>
-                    <div x-show="def.type === 0" class="poster-params-grid">
-                        <label class="field"><span>Kolommen</span>
-                            <input type="number" x-model.number="def.elements.badge_block.columns" min="1" max="12"></label>
-                        <label class="field"><span>Afbeelding (mm, 0=auto)</span>
-                            <input type="number" x-model.number="def.elements.badge_block.badge_size_mm" min="0" max="120"></label>
-                        <label class="field"><span>Niveau</span>
-                            <select x-model.number="def.elements.badge_block.niveau">
-                                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                    <div x-show="def.type === 0">
+                        <div class="poster-params-grid">
+                            <label class="field"><span>Kolommen</span>
+                                <input type="number" x-model.number="def.elements.badge_block.columns" min="1" max="12"></label>
+                            <label class="field"><span>Afbeelding (mm, 0=auto)</span>
+                                <input type="number" x-model.number="def.elements.badge_block.badge_size_mm" min="0" max="120"></label>
+                            <label class="field"><span>Insigne-tekst (pt)</span>
+                                <input type="number" x-model.number="def.elements.badge_block.font_size_pt" min="6" max="72"></label>
+                            <label class="field poster-check">
+                                <input type="checkbox" x-model="def.elements.badge_block.show_titles"><span>Titels tonen</span></label>
+                        </div>
+                        <label class="field"><span>Niveaus</span></label>
+                        <div class="poster-niveaus">
+                            <label><input type="checkbox" value="1" x-model.number="def.elements.badge_block.niveaus"> 1</label>
+                            <label><input type="checkbox" value="2" x-model.number="def.elements.badge_block.niveaus"> 2</label>
+                            <label><input type="checkbox" value="3" x-model.number="def.elements.badge_block.niveaus"> 3</label>
+                        </div>
+                    </div>
+
+                    <div class="poster-params-grid">
+                        <label class="field"><span>Achtergrond</span>
+                            <select x-model="def.elements.background.style">
+                                <option value="none">Geen</option>
+                                <option value="solid">Effen</option>
+                                <option value="horizontal_gradient">Verloop horizontaal</option>
+                                <option value="vertical_gradient">Verloop verticaal</option>
                             </select></label>
-                        <label class="field poster-check">
-                            <input type="checkbox" x-model="def.elements.badge_block.show_titles"><span>Titels tonen</span></label>
+                        <label class="field" x-show="def.elements.background.style !== 'none'"><span>Kleur 1</span>
+                            <input type="color" x-model="def.elements.background.start_color"></label>
+                        <label class="field" x-show="def.elements.background.style.includes('gradient')"><span>Kleur 2</span>
+                            <input type="color" x-model="def.elements.background.end_color"></label>
                     </div>
                 </div>
 

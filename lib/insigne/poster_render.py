@@ -16,6 +16,7 @@ from datetime import datetime
 
 from jinja2.sandbox import SandboxedEnvironment
 
+from insigne.config import config
 from insigne.poster_templates import TEXT_FIELDS
 
 # A single shared sandbox. No globals, no app filters — only what we pass in.
@@ -43,10 +44,13 @@ def build_context(user, *, now: datetime | None = None) -> dict:
     name = ""
     if user is not None:
         name = getattr(user, "name", None) or getattr(user, "email", None) or ""
+    datum = now.strftime("%d-%m-%Y")
+    tijd = now.strftime("%H:%M")
     return {
         "user": {"name": name},
-        "date": now.strftime("%d-%m-%Y"),
-        "time": now.strftime("%H:%M"),
+        "date": datum, "datum": datum,   # English + Dutch aliases
+        "time": tijd, "tijd": tijd,
+        "url": config.base_url,
     }
 
 

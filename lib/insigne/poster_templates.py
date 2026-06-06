@@ -10,7 +10,7 @@ lives in ``poster_render.py`` (a sandboxed Jinja environment).
 """
 from __future__ import annotations
 
-import copy
+from pathlib import Path
 
 import yaml
 
@@ -80,41 +80,32 @@ def _font_style(raw: dict | None, default_pt: int) -> dict:
     return {"font_size_pt": _int(raw.get("font_size_pt"), default_pt, 6, 300)}
 
 
-# ── Base templates + normalisation ────────────────────────────────────────────
+# ── Base templates (loaded from YAML files in the data dir) ───────────────────
+
+# The directory holding the system base templates (<key>.yml). Set by the app
+# at startup via set_templates_dir() — the library doesn't assume where the
+# app's data dir lives (same pattern as BadgeCatalogue being given its path).
+_TEMPLATES_DIR: Path | None = None
+
+
+def set_templates_dir(path) -> None:
+    global _TEMPLATES_DIR
+    _TEMPLATES_DIR = Path(path) if path else None
+
 
 def base_definition(type_code_value: int) -> dict:
-    """A fresh built-in definition for a poster type — the wizard's starting
-    point. Returns a normalised deep copy."""
+    """The wizard's starting definition for a poster type, loaded from
+    ``<templates_dir>/<key>.yml`` and normalised. Falls back to a minimal valid
+    definition for the type if the dir/file is missing or invalid."""
     code = type_code(type_code_value)
     key = TYPE_CODES[code]
-    defn: dict = {
-        "name": "",
-        "type": code,
-        "paper": "A3" if key in ("badges", "speltak") else "A4",
-        "orientation": "landscape" if key == "speltak" else "portrait",
-        "title": TYPE_LABELS[code],
-        "subtitle": "",
-        "header": "",
-        "footer": "",
-        "group_name": "",
-        "speltak_name": "",
-        "demo_blocks": 12,
-        "styles": {
-            "title": {"font_size_pt": 48},
-            "subtitle": {"font_size_pt": 24},
-            "body": {"font_size_pt": 12},
-        },
-        "elements": {
-            "badge_block": {
-                "columns": 4,
-                "badge_size_mm": 0,   # 0 = auto (fill the grid cell)
-                "show_titles": True,
-                "niveau": 1,
-                "badges": [],
-            },
-        },
-    }
-    return normalise(defn)
+    if _TEMPLATES_DIR is not None:
+        path = _TEMPLATES_DIR / f"{key}.yml"
+        try:
+            return from_yaml(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            pass
+    return normalise({"type": code})
 
 
 def normalise(defn) -> dict:

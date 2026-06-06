@@ -6,12 +6,16 @@ from pathlib import Path
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
 
+from insigne import poster_templates as _poster_templates
 from insigne.config import config
 from insigne.eis_render import render_eis as _render_eis
 from insigne.version import APP_VERSION, get_app_version, get_newer_release
 
 _FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 _CUSTOM_POLICY = _FRONTEND_DIR / "templates" / "privacy_policy_custom.md"
+
+# System poster base templates live as YAML files in the data dir (not in code).
+_poster_templates.set_templates_dir(Path(__file__).parent / "data" / "poster_templates")
 
 _GREEN_RE = re.compile(r"==(.+?)==", re.DOTALL)
 

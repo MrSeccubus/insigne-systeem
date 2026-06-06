@@ -125,6 +125,19 @@ html, body {
     text-align: center;
 }
 
+/* Click-to-edit (preview only): hover/selected outlines + empty placeholders. */
+.poster-preview [data-el] { cursor: pointer; }
+.poster-preview [data-el]:hover { outline: 2px dashed #93c5fd; outline-offset: 2px; }
+.poster-preview .poster-selected { outline: 3px solid #00A651 !important; outline-offset: 2px; }
+.poster-preview .poster-running-header,
+.poster-preview .poster-running-footer { min-height: 1.4em; }
+.poster-preview .poster-title:empty::before,
+.poster-preview .poster-subtitle:empty::before,
+.poster-preview .poster-running-footer:empty::before {
+    content: attr(data-placeholder);
+    color: #c4c4c4;
+}
+
 @media print {
     html, body { background: #fff; }
     .pagedjs_page { box-shadow: none; margin: 0 auto; }

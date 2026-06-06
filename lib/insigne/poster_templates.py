@@ -79,9 +79,23 @@ def _bool(v, default: bool) -> bool:
     return str(v).lower() in ("1", "true", "on", "yes")
 
 
+# CSS-injection-safe font family: letters/digits/space/comma/hyphen only (no
+# quotes/semicolons/braces). Permits stacks like "Times New Roman, serif".
+_FONT_FAMILY_RE = re.compile(r"^[a-zA-Z0-9 ,\-]{0,60}$")
+
+
+def _font_family(v) -> str:
+    s = "" if v is None else str(v).strip()
+    return s if _FONT_FAMILY_RE.match(s) else ""
+
+
 def _font_style(raw: dict | None, default_pt: int) -> dict:
     raw = raw if isinstance(raw, dict) else {}
-    return {"font_size_pt": _int(raw.get("font_size_pt"), default_pt, 6, 300)}
+    return {
+        "font_size_pt": _int(raw.get("font_size_pt"), default_pt, 6, 300),
+        "font_family": _font_family(raw.get("font_family")),
+        "color": _color(raw.get("color"), ""),   # "" = inherit / element default
+    }
 
 
 def _niveaus(v) -> list[int]:

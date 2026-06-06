@@ -29,6 +29,13 @@
                         pages.style.height = (pages.scrollHeight * scale) + "px";
                     }
                 }
+                // Highlight the selected element (paged.js may have cloned it per page).
+                var sel = {{ sel|tojson }};
+                if (sel) {
+                    document.querySelectorAll('[data-el="' + sel + '"]').forEach(function (el) {
+                        el.classList.add("poster-selected");
+                    });
+                }
             } catch (e) { /* preview scaling is best-effort */ }
             {% else %}
             window.focus();
@@ -38,6 +45,19 @@
     };
     </script>
     <script src="/static/vendor/paged.polyfill.js?v={{ app_version() }}"></script>
+    {% if preview %}
+    <script>
+    // Click any [data-el] block → tell the designer (parent) which element it is.
+    document.addEventListener("click", function (e) {
+        var el = e.target.closest("[data-el]");
+        if (!el) return;
+        try {
+            parent.postMessage({ source: "poster-preview", el: el.getAttribute("data-el") },
+                               window.location.origin);
+        } catch (_) { /* ignore */ }
+    });
+    </script>
+    {% endif %}
 </head>
 <body class="poster-doc{% if preview %} poster-preview{% endif %}">
     {% include "partials/poster_body.html" %}

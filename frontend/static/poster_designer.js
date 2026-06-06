@@ -25,12 +25,20 @@
                 editable: !!cfg.editable,
                 filterSets: cfg.filterSets || {},
                 scopeSel: 'user',
-                step: 1,
+                selected: '',   // which poster element is being edited
 
                 get tooSmall() { return window.innerWidth < 1024; },
 
                 init() {
                     if (!this.tooSmall) this.updatePreview();
+                    // The preview iframe posts which element was clicked.
+                    window.addEventListener('message', (e) => {
+                        if (e.origin !== window.location.origin) return;
+                        if (e.data && e.data.source === 'poster-preview') {
+                            this.selected = e.data.el || '';
+                            this.updatePreview();   // reload to show the selection highlight
+                        }
+                    });
                     window.addEventListener('resize', () => {
                         if (!this.tooSmall && this.$refs.preview && !this.$refs.preview.src) {
                             this.updatePreview();
@@ -41,7 +49,10 @@
                 renderUrl(preview) {
                     const p = new URLSearchParams();
                     p.set('def', JSON.stringify(this.def));
-                    if (preview) p.set('preview', '1');
+                    if (preview) {
+                        p.set('preview', '1');
+                        if (this.selected) p.set('sel', this.selected);
+                    }
                     return '/posters/render?' + p.toString();
                 },
 
@@ -63,10 +74,6 @@
                     this.def.elements.badge_block.badges = [...(this.filterSets[name] || [])];
                     this.updatePreview();
                 },
-
-                // Wizard navigation (Inhoud → Opmaak → Opslaan).
-                nextStep() { if (this.step < 3) this.step++; },
-                prevStep() { if (this.step > 1) this.step--; },
             };
         });
     }

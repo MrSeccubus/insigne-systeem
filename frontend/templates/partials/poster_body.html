@@ -1,17 +1,21 @@
 {# Poster content — shared by the live preview iframe and the print window so
    preview == print. Receives the rendered (text fields already templated +
-   autoescaped here) definition ``defn``, ``poster_type`` and ``poster_badges``.
-   Per-block font sizes come from ``defn.elements.<block>.font_size_pt``. #}
+   autoescaped here) definition ``defn``, ``poster_type``, ``poster_badges`` and
+   ``preview``. In preview every block is rendered (with a [data-el] hook) so it
+   stays clickable even when empty; in print empty blocks are dropped. #}
+{% macro el_style(el) -%}
+font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_family }};{% endif %}{% if el.color %}color:{{ el.color }};{% endif %}
+{%- endmacro %}
 {% set bb = defn.elements.badge_block %}
 {% set bg = defn.elements.background %}
 {% if bg.style == 'solid' %}{% set bg_css = 'background:' ~ bg.start_color ~ ';' %}
 {% elif bg.style == 'horizontal_gradient' %}{% set bg_css = 'background:linear-gradient(to right,' ~ bg.start_color ~ ',' ~ bg.end_color ~ ');' %}
 {% elif bg.style == 'vertical_gradient' %}{% set bg_css = 'background:linear-gradient(to bottom,' ~ bg.start_color ~ ',' ~ bg.end_color ~ ');' %}
 {% else %}{% set bg_css = '' %}{% endif %}
-<div class="poster"
-     style="--title-pt:{{ defn.elements.title.font_size_pt }}pt;--subtitle-pt:{{ defn.elements.subtitle.font_size_pt }}pt;--header-pt:{{ defn.elements.header.font_size_pt }}pt;--footer-pt:{{ defn.elements.footer.font_size_pt }}pt;--body-pt:{{ bb.font_size_pt }}pt;{{ bg_css }}">
-    {% if defn.header or defn.group_name or defn.speltak_name %}
-    <div class="poster-running-header">
+<div class="poster" data-el="pagina"
+     style="--body-pt:{{ bb.font_size_pt }}pt;{{ bg_css }}">
+    {% if preview or defn.header or defn.group_name or defn.speltak_name %}
+    <div class="poster-running-header" data-el="header" data-placeholder="Koptekst" style="{{ el_style(defn.elements.header) }}">
         <span class="poster-header-left">{{ defn.header }}</span>
         <span class="poster-header-right">
             {{ defn.group_name }}{% if defn.group_name and defn.speltak_name %} — {% endif %}{{ defn.speltak_name }}
@@ -19,10 +23,10 @@
     </div>
     {% endif %}
 
-    {% if defn.title %}<h1 class="poster-title">{{ defn.title }}</h1>{% endif %}
-    {% if defn.subtitle %}<p class="poster-subtitle">{{ defn.subtitle }}</p>{% endif %}
+    {% if preview or defn.title %}<h1 class="poster-title" data-el="title" data-placeholder="Titel" style="{{ el_style(defn.elements.title) }}">{{ defn.title }}</h1>{% endif %}
+    {% if preview or defn.subtitle %}<p class="poster-subtitle" data-el="subtitle" data-placeholder="Subtitel" style="{{ el_style(defn.elements.subtitle) }}">{{ defn.subtitle }}</p>{% endif %}
 
-    <div class="poster-content">
+    <div class="poster-content"{% if poster_type == "badges" %} data-el="badge_block"{% endif %}>
         {% if poster_type == "badges" %}
         {% if poster_badges %}
         <div class="poster-badge-grid"
@@ -39,7 +43,6 @@
         {% endif %}
 
         {% else %}
-        {# Placeholder body for types not yet built (#154, #155). #}
         <p class="poster-placeholder-note">
             Voorbeeldinhoud — postertype: <strong>{{ poster_type }}</strong>.
             De echte posterinhoud volgt in een volgende fase.
@@ -47,5 +50,5 @@
         {% endif %}
     </div>
 
-    {% if defn.footer %}<div class="poster-running-footer">{{ defn.footer }}</div>{% endif %}
+    {% if preview or defn.footer %}<div class="poster-running-footer" data-el="footer" data-placeholder="Voettekst" style="{{ el_style(defn.elements.footer) }}">{{ defn.footer }}</div>{% endif %}
 </div>

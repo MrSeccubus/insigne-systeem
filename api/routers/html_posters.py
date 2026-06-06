@@ -185,6 +185,9 @@ def poster_render(request: Request, db: Session = Depends(get_db)):
     rendered = poster_render_svc.render_definition(defn, ctx)
     w_mm, h_mm = pt.page_dimensions_mm(rendered["paper"], rendered["orientation"])
     poster_type = pt.TYPE_CODES.get(rendered["type"], "badges")
+    sel = q.get("sel", "")
+    if sel not in ("pagina", "title", "subtitle", "header", "footer", "badge_block"):
+        sel = ""
     return _TEMPLATES.TemplateResponse(
         request=request,
         name="posters/render.html",
@@ -196,6 +199,7 @@ def poster_render(request: Request, db: Session = Depends(get_db)):
             "page_h_mm": h_mm,
             "page_margin_mm": pt.PAGE_MARGIN_MM,
             "preview": q.get("preview") == "1",
+            "sel": sel,
         },
     )
 

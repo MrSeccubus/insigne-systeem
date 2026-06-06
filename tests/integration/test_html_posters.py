@@ -89,11 +89,13 @@ class TestPosterDesigner:
         _login(client, _user(db))
         assert client.get("/posters/new?type=bogus").status_code == 200
 
-    def test_is_stepped_wizard(self, client, db):
+    def test_is_click_to_edit(self, client, db):
         _login(client, _user(db))
         r = client.get("/posters/new?type=badges")
-        assert "poster-steps" in r.text
-        assert "1. Inhoud" in r.text and "2. Opmaak" in r.text and "3. Opslaan" in r.text
+        assert "Klik op een element" in r.text     # empty-pane hint
+        assert "poster-editor" in r.text
+        assert "poster-bar" in r.text              # persistent name/save/print bar
+        assert "Insigne-blok" in r.text            # an element editor heading
 
     def test_small_screen_guard(self, client, db):
         _login(client, _user(db))
@@ -225,6 +227,43 @@ class TestPosterRender:
                                        "start_color": "red;}body{display:none", "end_color": "green"}
         r = self._get(client, d)
         assert "display:none" not in r.text
+
+    def test_text_font_family_and_color(self, client, db):
+        _login(client, _user(db))
+        d = _defn(title="Hoi", badges=["vredeslicht"])
+        d["elements"]["title"]["font_family"] = "Georgia, serif"
+        d["elements"]["title"]["color"] = "#ff0000"
+        r = self._get(client, d)
+        assert "font-family:Georgia, serif" in r.text
+        assert "color:#ff0000" in r.text
+
+    def test_font_family_sanitized(self, client, db):
+        _login(client, _user(db))
+        d = _defn(title="Hoi", badges=["vredeslicht"])
+        d["elements"]["title"]["font_family"] = "x;}body{display:none"
+        r = self._get(client, d)
+        assert "display:none" not in r.text
+
+    def test_preview_elements_are_clickable(self, client, db):
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=["vredeslicht"]), preview="1")
+        assert 'data-el="title"' in r.text and 'data-el="badge_block"' in r.text
+        assert "postMessage" in r.text and "poster-preview" in r.text
+
+    def test_print_has_no_click_script(self, client, db):
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=["vredeslicht"]))   # no preview flag
+        assert "postMessage" not in r.text
+
+    def test_selection_highlight_applied(self, client, db):
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=["vredeslicht"]), preview="1", sel="title")
+        assert "poster-selected" in r.text
+
+    def test_bad_sel_ignored(self, client, db):
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=["vredeslicht"]), preview="1", sel="../../etc")
+        assert r.status_code == 200  # sanitised to '' server-side, no error
 
 
 # ── CRUD ────────────────────────────────────────────────────────────────────

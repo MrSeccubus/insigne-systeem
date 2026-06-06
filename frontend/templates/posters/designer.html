@@ -83,15 +83,15 @@
                                     <option value="landscape">Liggend</option>
                                 </select></label>
                         </div>
-                        <div class="poster-params-grid">
-                            <label class="field"><span>Achtergrond</span>
-                                <select x-model="def.elements.background.style">
-                                    <option value="none">Geen</option>
-                                    <option value="solid">Effen</option>
-                                    <option value="horizontal_gradient">Verloop horizontaal</option>
-                                    <option value="vertical_gradient">Verloop verticaal</option>
-                                </select></label>
-                            <label class="field" x-show="def.elements.background.style !== 'none'"><span>Kleur 1</span>
+                        <label class="field"><span>Achtergrond</span>
+                            <select x-model="def.elements.background.style">
+                                <option value="none">Geen</option>
+                                <option value="solid">Effen</option>
+                                <option value="horizontal_gradient">Verloop horizontaal</option>
+                                <option value="vertical_gradient">Verloop verticaal</option>
+                            </select></label>
+                        <div class="poster-params-grid" x-show="def.elements.background.style !== 'none'">
+                            <label class="field"><span>Kleur 1</span>
                                 <input type="color" x-model="def.elements.background.start_color"></label>
                             <label class="field" x-show="def.elements.background.style.includes('gradient')"><span>Kleur 2</span>
                                 <input type="color" x-model="def.elements.background.end_color"></label>

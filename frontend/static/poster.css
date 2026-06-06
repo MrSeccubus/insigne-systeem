@@ -113,7 +113,7 @@ html, body {
 /* Multi-column so insignes fill column 1 top→bottom, then column 2, etc. */
 .poster-badge-grid {
     column-count: var(--poster-cols, 4);
-    column-gap: 6mm;
+    column-gap: 12mm;
 }
 .poster-badge {
     margin: 0 0 8mm;
@@ -135,10 +135,17 @@ html, body {
 /* fixed size per level image */
 .poster-badge-grid[style*="img-mm"] .poster-badge-levels img { width: var(--poster-img-mm); flex: 0 0 auto; }
 .poster-badge figcaption {
-    margin-top: 2mm;
+    width: fit-content;             /* band wraps the title, not the whole row */
+    max-width: 100%;
+    margin: 2mm auto 0;            /* centred under the badge */
+    padding: 0.8mm 2mm;
     font-size: var(--body-pt, 9pt);
-    line-height: 1.1;
-    color: #333;
+    line-height: 1.15;
+    color: #fff;
+    background: #003f87;            /* Scouting blue */
+    border-radius: 1mm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
 }
 
 .poster-running-footer {

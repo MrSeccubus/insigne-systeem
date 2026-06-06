@@ -60,8 +60,8 @@ class TestList:
         result = _CAT.list()
         sport_spel = next(b for b in result["gewoon"] if b["slug"] == "sport_spel")
         vredeslicht = next(b for b in result["buitengewoon"] if b["slug"] == "vredeslicht")
-        assert sport_spel["title"] == "Insigne Sport & Spel"
-        assert vredeslicht["title"] == "Insigne Vredeslicht"
+        assert sport_spel["title"] == "Sport & Spel"
+        assert vredeslicht["title"] == "Vredeslicht"
 
     def test_images_are_three_urls(self):
         result = _CAT.list()
@@ -122,8 +122,8 @@ class TestGet:
         assert badge["slug"] == "vredeslicht"
 
     def test_title_matches_yml(self):
-        assert _CAT.get("vredeslicht")["title"] == "Insigne Vredeslicht"
-        assert _CAT.get("sport_spel")["title"] == "Insigne Sport & Spel"
+        assert _CAT.get("vredeslicht")["title"] == "Vredeslicht"
+        assert _CAT.get("sport_spel")["title"] == "Sport & Spel"
 
     def test_category_from_index(self):
         assert _CAT.get("vredeslicht")["category"] == "buitengewoon"

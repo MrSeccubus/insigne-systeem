@@ -1,6 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Poster-ontwerper — Insigne Systeem{% endblock %}
 {% block content %}
+{# Huisstijl quick-pick swatches that set an Alpine colour property. #}
+{% macro color_swatches(prop) %}
+<button type="button" class="poster-swatch" style="background:#003f87" title="Scouting blauw"
+        aria-label="Scouting blauw" @click="{{ prop }} = '#003f87'; updatePreview()"></button>
+<button type="button" class="poster-swatch" style="background:#00a651" title="Scouting groen"
+        aria-label="Scouting groen" @click="{{ prop }} = '#00a651'; updatePreview()"></button>
+{% endmacro %}
+{% macro color_field(prop) %}
+<span class="poster-color-row">
+    <input type="color" list="poster-huisstijl" x-model="{{ prop }}">
+    {{ color_swatches(prop) }}
+</span>
+{% endmacro %}
 {% macro font_controls(el) %}
 <label class="field"><span>Lettertype</span>
     <select x-model="def.elements.{{ el }}.font_family">
@@ -14,10 +27,17 @@
     </select></label>
 <label class="field"><span>Kleur</span>
     <span class="poster-color-row">
-        <input type="color" x-model="def.elements.{{ el }}.color">
+        <input type="color" list="poster-huisstijl" x-model="def.elements.{{ el }}.color">
+        {{ color_swatches('def.elements.' ~ el ~ '.color') }}
         <button type="button" class="btn-sm btn-neutral" @click="def.elements.{{ el }}.color=''; updatePreview()">Standaard</button>
     </span></label>
 {% endmacro %}
+<datalist id="poster-huisstijl">
+    <option value="#003f87">Scouting blauw</option>
+    <option value="#00a651">Scouting groen</option>
+    <option value="#000000">Zwart</option>
+    <option value="#ffffff">Wit</option>
+</datalist>
 <main class="poster-designer-main" x-data="posterDesigner()">
     {# Config in a JSON script block (NOT an x-data attribute): |tojson doesn't
        escape double quotes, so user strings in a double-quoted attribute would
@@ -91,10 +111,8 @@
                                 <option value="vertical_gradient">Verloop verticaal</option>
                             </select></label>
                         <div class="poster-params-grid" x-show="def.elements.background.style !== 'none'">
-                            <label class="field"><span>Kleur 1</span>
-                                <input type="color" x-model="def.elements.background.start_color"></label>
-                            <label class="field" x-show="def.elements.background.style.includes('gradient')"><span>Kleur 2</span>
-                                <input type="color" x-model="def.elements.background.end_color"></label>
+                            <label class="field"><span>Kleur 1</span>{{ color_field('def.elements.background.start_color') }}</label>
+                            <label class="field" x-show="def.elements.background.style.includes('gradient')"><span>Kleur 2</span>{{ color_field('def.elements.background.end_color') }}</label>
                         </div>
                         <label class="field poster-check">
                             <input type="checkbox" x-model="def.multi_page"><span>Meerdere pagina's toestaan (anders: alles op één pagina)</span></label>

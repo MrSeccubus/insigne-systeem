@@ -2915,8 +2915,13 @@ button:disabled, a[disabled] {
 
 .poster-hint { color: #888; font-size: 0.9rem; padding: 1rem 0; }
 .poster-editor-title { font-size: 1rem; margin: 0 0 0.6rem; }
-.poster-color-row { display: flex; align-items: center; gap: 0.5rem; }
+.poster-color-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .poster-color-row input[type="color"] { width: 3rem; height: 2rem; padding: 0; }
+.poster-swatch {
+    width: 1.6rem; height: 1.6rem;
+    border: 1px solid #ccc; border-radius: 4px;
+    padding: 0; cursor: pointer; flex: 0 0 auto;
+}
 
 .poster-form .field { display: block; margin-bottom: 0.75rem; }
 .poster-form .field > span {
@@ -3019,7 +3024,7 @@ button:disabled, a[disabled] {
 
 /* Badge picker (poster type 1) */
 .poster-badge-picker { margin-top: 0.5rem; }
-.poster-check { flex-direction: row !important; align-items: center; gap: 0.4rem; }
+.poster-check { display: flex !important; flex-direction: row; align-items: center; gap: 0.4rem; }
 .poster-check input { width: auto !important; }
 .poster-niveaus { display: flex; gap: 1rem; margin-bottom: 0.75rem; }
 .poster-niveaus label { display: flex; align-items: center; gap: 0.3rem; }

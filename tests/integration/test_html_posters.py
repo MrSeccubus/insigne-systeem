@@ -104,6 +104,12 @@ class TestPosterDesigner:
         assert 'aria-label="Opslaan"' in r.text   # save button is icon-only
         assert "Font Awesome" in r.text           # inline SVG icons included
 
+    def test_huisstijl_color_swatches(self, client, db):
+        _login(client, _user(db))
+        r = client.get("/posters/new?type=badges")
+        assert "Scouting blauw" in r.text and "Scouting groen" in r.text
+        assert 'id="poster-huisstijl"' in r.text   # datalist for the native picker
+
     def test_toolbar_and_save_dialog(self, client, db):
         _login(client, _user(db))
         r = client.get("/posters/new?type=badges")

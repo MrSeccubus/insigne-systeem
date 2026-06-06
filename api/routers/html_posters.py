@@ -100,16 +100,6 @@ def _all_default_slugs() -> list[str]:
             for info in cat.get(key, [])]
 
 
-_INSIGNE_WORD_RE = _re.compile(r"\binsigne\b\s*", _re.I)
-
-
-def _clean_title(title: str) -> str:
-    """Drop the standalone word 'Insigne' from a badge title
-    (e.g. 'Insigne Internationaal' → 'Internationaal')."""
-    cleaned = _INSIGNE_WORD_RE.sub("", title).strip()
-    return cleaned or title
-
-
 def _poster_badges(defn: dict) -> list[dict]:
     """Resolve the badge block to {title, images} cells — one cell per badge,
     with that badge's selected niveau images side by side (a row of levels).
@@ -128,7 +118,7 @@ def _poster_badges(defn: dict) -> list[dict]:
             images = [_badge_image(b, n) for n in niveaus]
         images = [img for img in images if img]
         if images:
-            out.append({"title": _clean_title(b["title"]), "images": images})
+            out.append({"title": b["title"], "images": images})
     return out
 
 

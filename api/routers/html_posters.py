@@ -79,12 +79,35 @@ def _badge_image(badge: dict, niveau: int) -> str | None:
     return imgs[min(max(niveau - 1, 0), len(imgs) - 1)]
 
 
+def _background_css(bg: dict) -> str:
+    """CSS background value for the page (colours already sanitised in normalise)."""
+    style = bg.get("style")
+    start, end = bg.get("start_color", ""), bg.get("end_color", "")
+    if style == "solid":
+        return start
+    if style == "horizontal_gradient":
+        return f"linear-gradient(to right,{start},{end})"
+    if style == "vertical_gradient":
+        return f"linear-gradient(to bottom,{start},{end})"
+    return ""
+
+
 def _all_default_slugs() -> list[str]:
     """Every badge in the default categories (gewoon + buitengewoon) — used when
     the selection is empty ('Leeg is allemaal')."""
     cat = _CATALOGUE.list()
     return [info["slug"] for key in pt.DEFAULT_BADGE_CATEGORIES
             for info in cat.get(key, [])]
+
+
+_INSIGNE_WORD_RE = _re.compile(r"\binsigne\b\s*", _re.I)
+
+
+def _clean_title(title: str) -> str:
+    """Drop the standalone word 'Insigne' from a badge title
+    (e.g. 'Insigne Internationaal' → 'Internationaal')."""
+    cleaned = _INSIGNE_WORD_RE.sub("", title).strip()
+    return cleaned or title
 
 
 def _poster_badges(defn: dict) -> list[dict]:
@@ -105,7 +128,7 @@ def _poster_badges(defn: dict) -> list[dict]:
             images = [_badge_image(b, n) for n in niveaus]
         images = [img for img in images if img]
         if images:
-            out.append({"title": b["title"], "images": images})
+            out.append({"title": _clean_title(b["title"]), "images": images})
     return out
 
 
@@ -200,6 +223,7 @@ def poster_render(request: Request, db: Session = Depends(get_db)):
             "page_h_mm": h_mm,
             "page_margin_mm": pt.PAGE_MARGIN_MM,
             "multi_page": rendered["multi_page"],
+            "page_background": _background_css(rendered["elements"]["background"]),
             "preview": q.get("preview") == "1",
             "sel": sel,
         },

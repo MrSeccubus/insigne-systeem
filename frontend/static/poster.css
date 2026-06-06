@@ -28,20 +28,26 @@ html, body {
     height: 100%;
     display: flex;
     flex-direction: column;
-    /* Print background colours/gradients (browsers omit them by default). */
+}
+
+/* The page surface carries the (full-bleed) background and must print it
+   (browsers omit backgrounds by default). Covers single-page and paged.js. */
+.poster-page, .pagedjs_sheet {
+    background: var(--poster-bg, #fff);
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
 }
 
-/* Single-page mode (default): one fixed page-sized sheet; the .poster content
-   is scaled by JS to fit. */
+/* Single-page mode (default): one fixed full-page sheet (background fills it
+   edge to edge); an inset inner box holds the content, scaled by JS to fit. */
 .poster-single .poster-page {
+    position: relative;
     box-sizing: border-box;
-    background: #fff;
     overflow: hidden;
     margin: 0 auto 12px;
     box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
 }
+.poster-single .poster-page-inner { position: absolute; }   /* inset set inline */
 @media print {
     .poster-single .poster-page { box-shadow: none; margin: 0; }
 }

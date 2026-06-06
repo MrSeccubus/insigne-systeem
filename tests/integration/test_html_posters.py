@@ -170,7 +170,22 @@ class TestPosterRender:
         _login(client, _user(db))
         r = self._get(client, _defn(paper="A2", orientation="portrait", badges=["vredeslicht"]))
         assert "size: 420mm 594mm" in r.text                 # @page = chosen paper
-        assert "width:396mm;height:570mm" in r.text          # the sheet is that paper − margins
+        assert "width:420mm;height:594mm" in r.text          # full-page sheet (background fills it)
+
+    def test_background_fills_page_via_var(self, client, db):
+        """Background is set on the page surface (--poster-bg), not the scaled .poster."""
+        _login(client, _user(db))
+        d = _defn(badges=["vredeslicht"])
+        d["elements"]["background"] = {"style": "horizontal_gradient",
+                                       "start_color": "red", "end_color": "green"}
+        r = self._get(client, d)
+        assert "--poster-bg: linear-gradient(to right,red,green)" in r.text
+
+    def test_badge_title_drops_insigne_word(self, client, db):
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=["vredeslicht"]))   # title "Insigne Vredeslicht"
+        assert ">Vredeslicht<" in r.text
+        assert "Insigne Vredeslicht" not in r.text
 
     def test_a2_landscape_swaps(self, client, db):
         _login(client, _user(db))

@@ -7,13 +7,8 @@
 font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_family }};{% endif %}{% if el.color %}color:{{ el.color }};{% endif %}
 {%- endmacro %}
 {% set bb = defn.elements.badge_block %}
-{% set bg = defn.elements.background %}
-{% if bg.style == 'solid' %}{% set bg_css = 'background:' ~ bg.start_color ~ ';' %}
-{% elif bg.style == 'horizontal_gradient' %}{% set bg_css = 'background:linear-gradient(to right,' ~ bg.start_color ~ ',' ~ bg.end_color ~ ');' %}
-{% elif bg.style == 'vertical_gradient' %}{% set bg_css = 'background:linear-gradient(to bottom,' ~ bg.start_color ~ ',' ~ bg.end_color ~ ');' %}
-{% else %}{% set bg_css = '' %}{% endif %}
 <div class="poster" data-el="pagina"
-     style="--body-pt:{{ bb.font_size_pt }}pt;{{ bg_css }}">
+     style="--body-pt:{{ bb.font_size_pt }}pt;">
     {% if preview or defn.header or defn.group_name or defn.speltak_name %}
     <div class="poster-running-header" data-el="header" data-placeholder="Koptekst" style="{{ el_style(defn.elements.header) }}">
         <span class="poster-header-left">{{ defn.header }}</span>

@@ -5,10 +5,15 @@
     <title>Poster</title>
     <link rel="stylesheet" href="/static/poster.css?v={{ app_version() }}">
     {# Exact paper size drives both the preview pages and the print output.
-       A2/A1/A0 aren't valid CSS `size` keywords, so we always emit mm. #}
+       A2/A1/A0 aren't valid CSS `size` keywords, so we always emit mm.
+       Single-page mode prints full-bleed (margin 0); the page padding/inset
+       provides the margin so the background can fill the whole sheet. #}
     <style>
-        @page { size: {{ page_w_mm }}mm {{ page_h_mm }}mm; margin: {{ page_margin_mm }}mm; }
-        :root { --page-w-mm: {{ page_w_mm }}; --page-h-mm: {{ page_h_mm }}; }
+        @page { size: {{ page_w_mm }}mm {{ page_h_mm }}mm; margin: {% if multi_page %}{{ page_margin_mm }}mm{% else %}0{% endif %}; }
+        :root {
+            --page-w-mm: {{ page_w_mm }}; --page-h-mm: {{ page_h_mm }};
+            {% if page_background %}--poster-bg: {{ page_background }};{% endif %}
+        }
     </style>
 
     {% if multi_page %}
@@ -40,17 +45,20 @@
     </script>
     <script src="/static/vendor/paged.polyfill.js?v={{ app_version() }}"></script>
     {% else %}
-    {# Single page (default): scale the content to fit one page. #}
+    {# Single page (default): scale the content to fit one page, centered. #}
     <script>
     window.addEventListener("load", function () {
         try {
             var page = document.querySelector(".poster-page");
-            var poster = page && page.querySelector(".poster");
-            if (page && poster) {
-                var s = Math.min(1, page.clientWidth / poster.scrollWidth,
-                                    page.clientHeight / poster.scrollHeight);
+            var inner = document.querySelector(".poster-page-inner");
+            var poster = inner && inner.querySelector(".poster");
+            if (inner && poster) {
+                var iw = inner.clientWidth, ih = inner.clientHeight;
+                var pw = poster.scrollWidth, ph = poster.scrollHeight;
+                var s = Math.min(1, iw / pw, ih / ph);
+                var tx = Math.max(0, (iw - pw * s) / 2);   // centre horizontally
                 poster.style.transformOrigin = "top left";
-                poster.style.transform = "scale(" + s + ")";
+                poster.style.transform = "translateX(" + tx + "px) scale(" + s + ")";
             }
             {% if preview %}
             if (page) {
@@ -72,7 +80,6 @@
 
     {% if preview %}
     <script>
-    // Highlight the selected element (called after layout).
     function highlightSelected() {
         var sel = {{ sel|tojson }};
         if (!sel) return;
@@ -80,7 +87,6 @@
             el.classList.add("poster-selected");
         });
     }
-    // Click any [data-el] block → tell the designer (parent) which element it is.
     document.addEventListener("click", function (e) {
         var el = e.target.closest("[data-el]");
         if (!el) return;
@@ -96,8 +102,10 @@
     {% if multi_page %}
     {% include "partials/poster_body.html" %}
     {% else %}
-    <div class="poster-page" style="width:{{ page_w_mm - 2 * page_margin_mm }}mm;height:{{ page_h_mm - 2 * page_margin_mm }}mm;">
-        {% include "partials/poster_body.html" %}
+    <div class="poster-page" style="width:{{ page_w_mm }}mm;height:{{ page_h_mm }}mm;">
+        <div class="poster-page-inner" style="inset:{{ page_margin_mm }}mm;">
+            {% include "partials/poster_body.html" %}
+        </div>
     </div>
     {% endif %}
 </body>

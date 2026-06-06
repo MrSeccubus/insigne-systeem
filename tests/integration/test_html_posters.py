@@ -97,6 +97,12 @@ class TestPosterDesigner:
         assert "poster-bar" in r.text              # persistent name/save/print bar
         assert "Insigne-blok" in r.text            # an element editor heading
 
+    def test_save_and_print_icons(self, client, db):
+        _login(client, _user(db))
+        r = client.get("/posters/new?type=badges")
+        assert 'aria-label="Printen"' in r.text   # print button is icon-only
+        assert "Font Awesome" in r.text           # inline SVG icons included
+
     def test_small_screen_guard(self, client, db):
         _login(client, _user(db))
         r = client.get("/posters/new?type=badges")
@@ -135,7 +141,28 @@ class TestPosterRender:
         r = self._get(client, _defn(paper="A4", orientation="portrait"))
         assert r.status_code == 200
         assert "size: 210mm 297mm" in r.text
+
+    def test_single_page_is_default(self, client, db):
+        """Default multi_page=False → fit on one page, no paged.js."""
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=["vredeslicht"]))
+        assert "paged.polyfill.js" not in r.text
+        assert "poster-page" in r.text   # single fixed-page wrapper
+
+    def test_multi_page_uses_pagedjs(self, client, db):
+        _login(client, _user(db))
+        d = _defn(badges=["vredeslicht"])
+        d["multi_page"] = True
+        r = self._get(client, d)
         assert "/static/vendor/paged.polyfill.js" in r.text
+        assert "poster-page" not in r.text
+
+    def test_single_page_preserves_paper_size(self, client, db):
+        """Fitting to one page keeps the chosen paper — it doesn't collapse to A4."""
+        _login(client, _user(db))
+        r = self._get(client, _defn(paper="A2", orientation="portrait", badges=["vredeslicht"]))
+        assert "size: 420mm 594mm" in r.text                 # @page = chosen paper
+        assert "width:396mm;height:570mm" in r.text          # the sheet is that paper − margins
 
     def test_a2_landscape_swaps(self, client, db):
         _login(client, _user(db))
@@ -171,16 +198,15 @@ class TestPosterRender:
         assert "{{ date }}" not in r.text
 
     def test_templating_is_sandboxed(self, client, db):
-        """SSTI probes must render inert (caught → empty), never leak globals or 500."""
+        """SSTI probes must render inert (caught → empty), never leak internals or 500."""
         _login(client, _user(db))
         for payload in ("{{ self.__init__.__globals__ }}",
                         "{{ ''.__class__.__mro__ }}",
                         "{{ cycler.__init__.__globals__ }}"):
             r = self._get(client, _defn(title=payload))
             assert r.status_code == 200
-            assert "globals" not in r.text.lower() or "__globals__" not in r.text
-            assert "builtins" not in r.text
-            assert "function" not in r.text.lower().split("paged")[0]
+            for marker in ("__globals__", "__class__", "__mro__", "builtins", "<class"):
+                assert marker not in r.text
 
     def test_html_in_field_escaped(self, client, db):
         _login(client, _user(db))
@@ -203,6 +229,15 @@ class TestPosterRender:
         r = self._get(client, d)
         for n in (1, 2, 3):
             assert f"/images/vredeslicht.{n}.png" in r.text
+
+    def test_levels_grouped_per_badge(self, client, db):
+        """Each badge is one cell with its niveaus as a row of levels."""
+        _login(client, _user(db))
+        d = _defn(badges=["vredeslicht", "lucht"])
+        d["elements"]["badge_block"]["niveaus"] = [1, 2, 3]
+        r = self._get(client, d)
+        assert r.text.count('class="poster-badge"') == 2          # one cell per badge
+        assert r.text.count('class="poster-badge-levels"') == 2   # a levels row each
 
     def test_datum_and_url_templating(self, client, db):
         from insigne.config import config

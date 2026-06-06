@@ -72,9 +72,13 @@
                     <span class="field-hint">Gedeeld — opslaan maakt een kopie.</span>
                     {% endif %}
                     <div class="poster-bar-actions">
-                        <button type="submit" class="btn-primary btn-sm"
-                                x-text="(posterId && editable) ? 'Opslaan' : (posterId ? 'Opslaan als kopie' : 'Opslaan')"></button>
-                        <button type="button" class="btn-neutral btn-sm" @click="printPoster()">Printen</button>
+                        <button type="submit" class="btn-primary btn-sm">
+                            {% include "partials/icon_save.html" %}
+                            <span x-text="(posterId && editable) ? 'Opslaan' : (posterId ? 'Opslaan als kopie' : 'Opslaan')"></span>
+                        </button>
+                        <button type="button" class="btn-neutral btn-sm" @click="printPoster()" title="Printen" aria-label="Printen">
+                            {% include "partials/icon_print.html" %}
+                        </button>
                         {% if poster %}<a href="/posters/{{ poster.id }}/export" class="btn-neutral btn-sm" style="text-decoration:none;">Exporteren</a>{% endif %}
                     </div>
                 </div>
@@ -110,6 +114,8 @@
                             <label class="field" x-show="def.elements.background.style.includes('gradient')"><span>Kleur 2</span>
                                 <input type="color" x-model="def.elements.background.end_color"></label>
                         </div>
+                        <label class="field poster-check">
+                            <input type="checkbox" x-model="def.multi_page"><span>Meerdere pagina's toestaan (anders: alles op één pagina)</span></label>
                     </div>
 
                     {# Titel #}

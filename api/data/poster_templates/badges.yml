@@ -26,6 +26,6 @@ elements:
     show_titles: true
     badges: [] # Leef is allemaal
   background:
-    style: horizontal_gradient
-    start_color: red
-    end_color: green
+    style: vertical_gradient
+    start_color: white
+    end_color: light blue

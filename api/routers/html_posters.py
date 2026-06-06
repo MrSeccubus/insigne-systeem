@@ -88,8 +88,9 @@ def _all_default_slugs() -> list[str]:
 
 
 def _poster_badges(defn: dict) -> list[dict]:
-    """Resolve the badge block to {title, image} cells. Empty selection = all
-    default-category badges; each (regular) badge is emitted once per niveau."""
+    """Resolve the badge block to {title, images} cells — one cell per badge,
+    with that badge's selected niveau images side by side (a row of levels).
+    Empty selection = all default-category badges."""
     bb = defn.get("elements", {}).get("badge_block", {})
     niveaus = bb.get("niveaus") or [1]
     slugs = bb.get("badges") or _all_default_slugs()
@@ -98,13 +99,13 @@ def _poster_badges(defn: dict) -> list[dict]:
         b = _CATALOGUE.get(slug)
         if not b:
             continue
-        if b.get("type") == "jaarinsigne":   # single image, shown once
-            out.append({"title": b["title"], "image": _badge_image(b, 1)})
+        if b.get("type") == "jaarinsigne":   # single image
+            images = [_badge_image(b, 1)]
         else:
-            for n in niveaus:
-                img = _badge_image(b, n)
-                if img:
-                    out.append({"title": b["title"], "image": img})
+            images = [_badge_image(b, n) for n in niveaus]
+        images = [img for img in images if img]
+        if images:
+            out.append({"title": b["title"], "images": images})
     return out
 
 
@@ -198,6 +199,7 @@ def poster_render(request: Request, db: Session = Depends(get_db)):
             "page_w_mm": w_mm,
             "page_h_mm": h_mm,
             "page_margin_mm": pt.PAGE_MARGIN_MM,
+            "multi_page": rendered["multi_page"],
             "preview": q.get("preview") == "1",
             "sel": sel,
         },

@@ -10,13 +10,14 @@
         @page { size: {{ page_w_mm }}mm {{ page_h_mm }}mm; margin: {{ page_margin_mm }}mm; }
         :root { --page-w-mm: {{ page_w_mm }}; --page-h-mm: {{ page_h_mm }}; }
     </style>
+
+    {% if multi_page %}
+    {# Multi-page: paged.js flows the content across exact A-series pages. #}
     <script>
-    // paged.js config must be set before the polyfill script loads.
     window.PagedConfig = {
         auto: true,
         after: function () {
             {% if preview %}
-            // Scale the rendered A-pages down to fit the preview iframe width.
             try {
                 var page = document.querySelector(".pagedjs_page");
                 var pages = document.querySelector(".pagedjs_pages");
@@ -25,18 +26,11 @@
                     if (scale > 0 && scale < 1) {
                         pages.style.transformOrigin = "top left";
                         pages.style.transform = "scale(" + scale + ")";
-                        // Reserve the post-scale height so the iframe scrolls correctly.
                         pages.style.height = (pages.scrollHeight * scale) + "px";
                     }
                 }
-                // Highlight the selected element (paged.js may have cloned it per page).
-                var sel = {{ sel|tojson }};
-                if (sel) {
-                    document.querySelectorAll('[data-el="' + sel + '"]').forEach(function (el) {
-                        el.classList.add("poster-selected");
-                    });
-                }
-            } catch (e) { /* preview scaling is best-effort */ }
+                highlightSelected();
+            } catch (e) { /* best-effort */ }
             {% else %}
             window.focus();
             window.print();
@@ -45,8 +39,47 @@
     };
     </script>
     <script src="/static/vendor/paged.polyfill.js?v={{ app_version() }}"></script>
+    {% else %}
+    {# Single page (default): scale the content to fit one page. #}
+    <script>
+    window.addEventListener("load", function () {
+        try {
+            var page = document.querySelector(".poster-page");
+            var poster = page && page.querySelector(".poster");
+            if (page && poster) {
+                var s = Math.min(1, page.clientWidth / poster.scrollWidth,
+                                    page.clientHeight / poster.scrollHeight);
+                poster.style.transformOrigin = "top left";
+                poster.style.transform = "scale(" + s + ")";
+            }
+            {% if preview %}
+            if (page) {
+                var avail = document.documentElement.clientWidth - 24;
+                var ps = Math.min(1, avail / page.offsetWidth);
+                page.style.transformOrigin = "top left";
+                page.style.transform = "scale(" + ps + ")";
+                document.body.style.height = (page.offsetHeight * ps) + "px";
+            }
+            highlightSelected();
+            {% else %}
+            window.focus();
+            window.print();
+            {% endif %}
+        } catch (e) { /* best-effort */ }
+    });
+    </script>
+    {% endif %}
+
     {% if preview %}
     <script>
+    // Highlight the selected element (called after layout).
+    function highlightSelected() {
+        var sel = {{ sel|tojson }};
+        if (!sel) return;
+        document.querySelectorAll('[data-el="' + sel + '"]').forEach(function (el) {
+            el.classList.add("poster-selected");
+        });
+    }
     // Click any [data-el] block → tell the designer (parent) which element it is.
     document.addEventListener("click", function (e) {
         var el = e.target.closest("[data-el]");
@@ -59,7 +92,13 @@
     </script>
     {% endif %}
 </head>
-<body class="poster-doc{% if preview %} poster-preview{% endif %}">
+<body class="poster-doc{% if preview %} poster-preview{% endif %}{% if not multi_page %} poster-single{% endif %}">
+    {% if multi_page %}
     {% include "partials/poster_body.html" %}
+    {% else %}
+    <div class="poster-page" style="width:{{ page_w_mm - 2 * page_margin_mm }}mm;height:{{ page_h_mm - 2 * page_margin_mm }}mm;">
+        {% include "partials/poster_body.html" %}
+    </div>
+    {% endif %}
 </body>
 </html>

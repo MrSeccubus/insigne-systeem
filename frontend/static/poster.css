@@ -33,6 +33,19 @@ html, body {
     print-color-adjust: exact;
 }
 
+/* Single-page mode (default): one fixed page-sized sheet; the .poster content
+   is scaled by JS to fit. */
+.poster-single .poster-page {
+    box-sizing: border-box;
+    background: #fff;
+    overflow: hidden;
+    margin: 0 auto 12px;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+}
+@media print {
+    .poster-single .poster-page { box-shadow: none; margin: 0; }
+}
+
 .poster-running-header {
     display: flex;
     justify-content: space-between;
@@ -91,24 +104,30 @@ html, body {
 }
 
 /* Type 1 — badge grid. */
+/* Multi-column so insignes fill column 1 top→bottom, then column 2, etc. */
 .poster-badge-grid {
-    display: grid;
-    grid-template-columns: repeat(var(--poster-cols, 4), 1fr);
-    gap: 8mm 6mm;
-    justify-items: center;
-    align-items: start;
+    column-count: var(--poster-cols, 4);
+    column-gap: 6mm;
 }
 .poster-badge {
-    margin: 0;
+    margin: 0 0 8mm;
     width: 100%;
     text-align: center;
-    break-inside: avoid;        /* keep a badge whole across page breaks */
+    break-inside: avoid;            /* keep a badge whole within a column/page */
+    -webkit-column-break-inside: avoid;
 }
-.poster-badge img {
-    width: var(--poster-img-mm, 100%);   /* unset (badge_size_mm 0) = fill the cell */
-    max-width: 100%;
-    height: auto;
+/* A badge's niveau images sit side by side as a row of levels. */
+.poster-badge-levels {
+    display: flex;
+    gap: 2mm;
+    justify-content: center;
+    align-items: flex-end;
 }
+.poster-badge-levels img { height: auto; max-width: 100%; }
+/* auto (badge_size_mm 0): the levels share the cell equally */
+.poster-badge-grid:not([style*="img-mm"]) .poster-badge-levels img { flex: 1 1 0; min-width: 0; }
+/* fixed size per level image */
+.poster-badge-grid[style*="img-mm"] .poster-badge-levels img { width: var(--poster-img-mm); flex: 0 0 auto; }
 .poster-badge figcaption {
     margin-top: 2mm;
     font-size: var(--body-pt, 9pt);

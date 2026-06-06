@@ -169,6 +169,8 @@ def normalise(defn) -> dict:
         "type": code,
         "paper": paper,
         "orientation": orientation,
+        # False (default): scale everything to fit one page. True: paginate.
+        "multi_page": _bool(d.get("multi_page"), False),
         "title": _str(d.get("title"))[:200],
         "subtitle": _str(d.get("subtitle"))[:300],
         "header": _str(d.get("header"))[:200],

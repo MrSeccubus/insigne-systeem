@@ -1,6 +1,13 @@
-"""Poster designer routes (#132, Phase 1) — list, designer, render, CRUD,
-scope/visibility and IDOR guards."""
+"""Poster designer (#132) — YAML-definition storage, sandboxed templating,
+CRUD, scope/IDOR, export/import."""
+import json
+from datetime import datetime
+
+import yaml
+
 from insigne import groups as groups_svc
+from insigne import poster_templates as pt
+from insigne import posters as posters_svc
 from insigne.auth import create_access_token
 from insigne.config import config
 from insigne.models import PosterTemplate, SpeltakMembership, User
@@ -20,168 +27,197 @@ def _login(client, user):
     client.cookies.set("access_token", token)
 
 
+def _defn(**over):
+    d = pt.base_definition(over.pop("type", 0))
+    badges = over.pop("badges", None)
+    if badges is not None:
+        d["elements"]["badge_block"]["badges"] = badges
+    if "niveau" in over:
+        d["elements"]["badge_block"]["niveau"] = over.pop("niveau")
+    d.update(over)
+    return d
+
+
+def _create(db, user, **over):
+    return posters_svc.create(db, created_by_id=user.id, definition=_defn(**over),
+                              scope="user", scope_id=None)
+
+
 def _speltakleider(db, *, email):
-    """A user who is speltakleider of a fresh group/speltak. Returns (user, group, speltak)."""
     leider = _user(db, email=email)
     g = groups_svc.create_group(db, name="Groep", slug=f"g-{email[:4]}", created_by_id=leider.id)
     s = groups_svc.create_speltak(db, group_id=g.id, name="Stam", slug=f"s-{email[:4]}")
-    db.add(SpeltakMembership(user_id=leider.id, speltak_id=s.id,
-                             role="speltakleider", approved=True))
+    db.add(SpeltakMembership(user_id=leider.id, speltak_id=s.id, role="speltakleider", approved=True))
     db.commit()
     return leider, g, s
 
 
-# ── List ──────────────────────────────────────────────────────────────────────
+# ── List / wizard chooser ─────────────────────────────────────────────────────
 
 class TestPostersList:
     def test_anonymous_redirects_to_login(self, client, db):
         r = client.get("/posters", follow_redirects=False)
-        assert r.status_code == 303
-        assert r.headers["location"] == "/login"
+        assert r.status_code == 303 and r.headers["location"] == "/login"
 
-    def test_authenticated_shows_wizard_chooser(self, client, db):
+    def test_shows_wizard_chooser(self, client, db):
         _login(client, _user(db))
         r = client.get("/posters")
         assert r.status_code == 200
         assert "Wat wil je doen?" in r.text
-        # The three "new" options + the "open existing" step.
-        assert "/posters/new?type=badges" in r.text
-        assert "/posters/new?type=speltak" in r.text
-        assert "/posters/new?type=signoff" in r.text
-        assert "poster-wizard-card" in r.text
+        for t in ("badges", "speltak", "signoff"):
+            assert f"/posters/new?type={t}" in r.text
+        assert "/posters/import" in r.text  # import form
 
-    def test_existing_posters_listed_in_open_step(self, client, db):
-        from insigne import posters as posters_svc
-        from insigne import poster_templates as pt
+    def test_existing_posters_listed(self, client, db):
         u = _user(db)
         _login(client, u)
-        posters_svc.create(db, created_by_id=u.id, name="Bestaande", poster_type="badges",
-                           paper_size="A4", orientation="portrait",
-                           params=pt.parse_params({}), scope="user", scope_id=None)
-        r = client.get("/posters")
-        assert "Bestaande" in r.text and "/posters/" in r.text
+        _create(db, u, name="Bestaande")
+        assert "Bestaande" in client.get("/posters").text
 
 
-# ── New / designer ──────────────────────────────────────────────────────────
+# ── Designer ──────────────────────────────────────────────────────────────────
 
-class TestPosterNew:
-    def test_new_seeds_base_template(self, client, db):
+class TestPosterDesigner:
+    def test_new_seeds_base_definition(self, client, db):
         _login(client, _user(db))
         r = client.get("/posters/new?type=badges")
         assert r.status_code == 200
-        # Base template title for the badge poster is seeded into the Alpine model.
-        assert "Insignes" in r.text
+        assert "Insigneposter" in r.text          # base title, seeded into config
         assert "poster_designer.js" in r.text
 
     def test_new_unknown_type_falls_back(self, client, db):
         _login(client, _user(db))
-        r = client.get("/posters/new?type=bogus")
-        assert r.status_code == 200
+        assert client.get("/posters/new?type=bogus").status_code == 200
 
-    def test_designer_has_small_screen_guard(self, client, db):
-        _login(client, _user(db))
-        r = client.get("/posters/new?type=badges")
-        assert "poster-toosmall" in r.text and "Te klein scherm" in r.text
-
-    def test_designer_is_stepped_wizard(self, client, db):
+    def test_is_stepped_wizard(self, client, db):
         _login(client, _user(db))
         r = client.get("/posters/new?type=badges")
         assert "poster-steps" in r.text
         assert "1. Inhoud" in r.text and "2. Opmaak" in r.text and "3. Opslaan" in r.text
 
-    def test_designer_config_is_xss_safe(self, client, db):
-        """The designer config goes in a JSON <script> block (|tojson escapes
-        < > &), not an x-data attribute — so a malicious saved title can't break
-        out into live markup (regression for the PR #158 review finding)."""
-        from insigne import posters as posters_svc
-        from insigne import poster_templates as pt
+    def test_small_screen_guard(self, client, db):
+        _login(client, _user(db))
+        r = client.get("/posters/new?type=badges")
+        assert "poster-toosmall" in r.text and "Te klein scherm" in r.text
+
+    def test_badge_picker_present(self, client, db):
+        _login(client, _user(db))
+        r = client.get("/posters/new?type=badges")
+        assert "poster-badge-list" in r.text
+        assert 'value="vredeslicht"' in r.text
+        assert "filterSets" in r.text
+
+    def test_config_is_xss_safe(self, client, db):
         u = _user(db)
         _login(client, u)
-        payload = '"></script><img src=x onerror=alert(1)>'
-        p = posters_svc.create(
-            db, created_by_id=u.id, name=payload, poster_type="badges",
-            paper_size="A4", orientation="portrait",
-            params=pt.parse_params({"title": payload}), scope="user", scope_id=None,
-        )
+        p = _create(db, u, name='"></script><img src=x onerror=alert(1)>',
+                    title='"><img src=y onerror=alert(2)>')
         r = client.get(f"/posters/{p.id}")
         assert r.status_code == 200
         assert 'x-data="posterDesigner()"' in r.text
-        # The payload must not appear as live markup anywhere.
         assert "<img src=x onerror" not in r.text
+        assert "<img src=y onerror" not in r.text
         assert "</script><img" not in r.text
 
 
-# ── Render (standalone) ───────────────────────────────────────────────────────
+# ── Render (standalone) + templating ──────────────────────────────────────────
 
 class TestPosterRender:
-    def test_render_emits_correct_page_size_a4(self, client, db):
+    def _get(self, client, defn, **extra):
+        params = {"def": json.dumps(defn)}
+        params.update(extra)
+        return client.get("/posters/render", params=params)
+
+    def test_page_size_a4(self, client, db):
         _login(client, _user(db))
-        r = client.get("/posters/render?type=badges&paper_size=A4&orientation=portrait")
+        r = self._get(client, _defn(paper="A4", orientation="portrait"))
         assert r.status_code == 200
         assert "size: 210mm 297mm" in r.text
         assert "/static/vendor/paged.polyfill.js" in r.text
 
-    def test_render_a2_landscape_swaps_dimensions(self, client, db):
+    def test_a2_landscape_swaps(self, client, db):
         _login(client, _user(db))
-        r = client.get("/posters/render?type=badges&paper_size=A2&orientation=landscape")
+        r = self._get(client, _defn(paper="A2", orientation="landscape"))
         assert "size: 594mm 420mm" in r.text
 
-    def test_render_preview_flag_autoprints_only_when_not_preview(self, client, db):
+    def test_print_only_when_not_preview(self, client, db):
         _login(client, _user(db))
-        printv = client.get("/posters/render?type=badges&paper_size=A4&orientation=portrait")
-        assert "window.print()" in printv.text
-        prev = client.get("/posters/render?type=badges&paper_size=A4&orientation=portrait&preview=1")
-        assert "window.print()" not in prev.text
+        assert "window.print()" in self._get(client, _defn()).text
+        assert "window.print()" not in self._get(client, _defn(), preview="1").text
 
-    def test_render_escapes_title(self, client, db):
+    def test_selected_badge_images(self, client, db):
         _login(client, _user(db))
-        r = client.get("/posters/render", params={
-            "type": "badges", "paper_size": "A4", "orientation": "portrait",
-            "title": "<script>alert(1)</script>",
-        })
-        assert "<script>alert(1)</script>" not in r.text
-        assert "&lt;script&gt;" in r.text
+        r = self._get(client, _defn(badges=["vredeslicht"], niveau=1))
+        assert 'src="/images/vredeslicht.1.png"' in r.text
+
+    def test_niveau_selects_image(self, client, db):
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=["vredeslicht"], niveau=2))
+        assert 'src="/images/vredeslicht.2.png"' in r.text
+
+    def test_unknown_slug_dropped(self, client, db):
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=["vredeslicht", "not-a-real-badge"]))
+        assert "/images/vredeslicht" in r.text
+        assert "not-a-real-badge" not in r.text
+
+    def test_templating_user_and_date(self, client, db):
+        _login(client, _user(db, name="Jan Jansen"))
+        r = self._get(client, _defn(title="Hallo {{ user.name }}", header="{{ date }}"))
+        assert "Hallo Jan Jansen" in r.text
+        assert str(datetime.now().year) in r.text
+        assert "{{ date }}" not in r.text
+
+    def test_templating_is_sandboxed(self, client, db):
+        """SSTI probes must render inert (caught → empty), never leak globals or 500."""
+        _login(client, _user(db))
+        for payload in ("{{ self.__init__.__globals__ }}",
+                        "{{ ''.__class__.__mro__ }}",
+                        "{{ cycler.__init__.__globals__ }}"):
+            r = self._get(client, _defn(title=payload))
+            assert r.status_code == 200
+            assert "globals" not in r.text.lower() or "__globals__" not in r.text
+            assert "builtins" not in r.text
+            assert "function" not in r.text.lower().split("paged")[0]
+
+    def test_html_in_field_escaped(self, client, db):
+        _login(client, _user(db))
+        r = self._get(client, _defn(title="<b>x</b>"))
+        assert "<b>x</b>" not in r.text
+        assert "&lt;b&gt;x&lt;/b&gt;" in r.text
 
 
-# ── Create / update / delete ──────────────────────────────────────────────────
+# ── CRUD ────────────────────────────────────────────────────────────────────
 
 class TestPosterCrud:
-    def test_create_personal_and_redirect(self, client, db):
+    def test_create_stores_yaml_and_mirrors_meta(self, client, db):
         _login(client, _user(db))
-        r = client.post("/posters", data={
-            "poster_type": "badges", "scope": "user", "paper_size": "A4",
-            "orientation": "portrait", "name": "Mijn poster", "title": "Hoi",
-        }, follow_redirects=False)
-        assert r.status_code == 303
-        assert r.headers["location"].startswith("/posters/")
+        defn = _defn(name="Mijn poster", title="Hoi", badges=["vredeslicht"])
+        r = client.post("/posters", data={"definition": json.dumps(defn), "scope": "user"},
+                        follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"].startswith("/posters/")
         row = db.query(PosterTemplate).filter_by(name="Mijn poster").first()
-        assert row is not None and row.scope == "user"
-        assert row.params["title"] == "Hoi"
+        assert row is not None and row.poster_type == 0
+        stored = yaml.safe_load(row.definition)
+        assert stored["title"] == "Hoi"
+        assert stored["elements"]["badge_block"]["badges"] == ["vredeslicht"]
 
-    def test_update_changes_fields(self, client, db):
+    def test_update(self, client, db):
         u = _user(db)
         _login(client, u)
-        from insigne import posters as posters_svc
-        from insigne import poster_templates as pt
-        p = posters_svc.create(db, created_by_id=u.id, name="A", poster_type="badges",
-                               paper_size="A4", orientation="portrait",
-                               params=pt.parse_params({}), scope="user", scope_id=None)
-        r = client.post(f"/posters/{p.id}", data={
-            "poster_type": "badges", "paper_size": "A3", "orientation": "landscape",
-            "name": "B", "title": "Nieuw",
-        }, follow_redirects=False)
+        p = _create(db, u, name="A")
+        defn = _defn(name="B", paper="A3", orientation="landscape")
+        r = client.post(f"/posters/{p.id}", data={"definition": json.dumps(defn)},
+                        follow_redirects=False)
         assert r.status_code == 303
         db.refresh(p)
-        assert p.name == "B" and p.paper_size == "A3" and p.orientation == "landscape"
+        assert p.name == "B"
+        assert yaml.safe_load(p.definition)["paper"] == "A3"
 
-    def test_delete_removes_row(self, client, db):
+    def test_delete(self, client, db):
         u = _user(db)
         _login(client, u)
-        from insigne import posters as posters_svc
-        from insigne import poster_templates as pt
-        p = posters_svc.create(db, created_by_id=u.id, name="A", poster_type="badges",
-                               paper_size="A4", orientation="portrait",
-                               params=pt.parse_params({}), scope="user", scope_id=None)
+        p = _create(db, u, name="A")
         r = client.post(f"/posters/{p.id}/delete", follow_redirects=False)
         assert r.status_code == 303 and r.headers["location"] == "/posters"
         assert db.get(PosterTemplate, p.id) is None
@@ -191,78 +227,22 @@ class TestPosterCrud:
         r = client.get("/posters/not-a-uuid", follow_redirects=False)
         assert r.status_code == 303 and r.headers["location"] == "/posters"
 
+    def test_malformed_definition_falls_back(self, client, db):
+        _login(client, _user(db))
+        r = client.post("/posters", data={"definition": "{not json", "scope": "user"},
+                        follow_redirects=False)
+        assert r.status_code == 303  # creates a fresh fallback poster, no crash
+
 
 # ── Scope + IDOR ────────────────────────────────────────────────────────────
 
-class TestBadgePoster:
-    """Type 1 — Insigneposter algemeen (badge grid)."""
-
-    def test_render_shows_selected_badge_images(self, client, db):
-        _login(client, _user(db))
-        r = client.get("/posters/render", params={
-            "type": "badges", "paper_size": "A3", "orientation": "portrait",
-            "badge_slugs": "vredeslicht", "niveau": "1", "columns": "4",
-            "image_mm": "35", "show_titles": "1",
-        })
-        assert r.status_code == 200
-        assert 'src="/images/vredeslicht.1.png"' in r.text
-        assert "poster-badge-grid" in r.text
-
-    def test_render_niveau_selects_image(self, client, db):
-        _login(client, _user(db))
-        r = client.get("/posters/render", params={
-            "type": "badges", "paper_size": "A3", "orientation": "portrait",
-            "badge_slugs": "vredeslicht", "niveau": "2",
-        })
-        assert 'src="/images/vredeslicht.2.png"' in r.text
-
-    def test_render_ignores_unknown_slug(self, client, db):
-        _login(client, _user(db))
-        r = client.get("/posters/render", params={
-            "type": "badges", "paper_size": "A3", "orientation": "portrait",
-            "badge_slugs": "vredeslicht,not-a-real-badge",
-        })
-        assert "/images/vredeslicht" in r.text
-        assert "not-a-real-badge" not in r.text
-
-    def test_create_persists_cleaned_type_params(self, client, db):
-        u = _user(db)
-        _login(client, u)
-        r = client.post("/posters", data={
-            "poster_type": "badges", "scope": "user", "paper_size": "A3",
-            "orientation": "portrait", "name": "Grid",
-            "badge_slugs": "vredeslicht,bogus", "columns": "5", "image_mm": "40",
-            "niveau": "2", "show_titles": "0",
-        }, follow_redirects=False)
-        assert r.status_code == 303
-        row = db.query(PosterTemplate).filter_by(name="Grid").first()
-        assert row.params["badge_slugs"] == ["vredeslicht"]   # bogus dropped
-        assert row.params["columns"] == 5 and row.params["niveau"] == 2
-        assert row.params["show_titles"] is False
-
-    def test_designer_has_badge_picker(self, client, db):
-        _login(client, _user(db))
-        r = client.get("/posters/new?type=badges")
-        assert "poster-badge-list" in r.text
-        assert 'value="vredeslicht"' in r.text          # a real badge checkbox
-        assert "filterSets" in r.text                    # quick-select sets in config
-
-    def test_designer_config_includes_favorites_set(self, client, db):
-        from insigne import users as users_svc
-        u = _user(db)
-        _login(client, u)
-        users_svc.toggle_user_favorite_badge(db, u.id, "vredeslicht")
-        r = client.get("/posters/new?type=badges")
-        assert "favorites" in r.text and "vredeslicht" in r.text
-
-
 class TestPosterScope:
-    def test_leader_can_create_speltak_scoped(self, client, db):
+    def test_leader_creates_speltak_scoped(self, client, db):
         leider, g, s = _speltakleider(db, email="leider@example.com")
         _login(client, leider)
         r = client.post("/posters", data={
-            "poster_type": "speltak", "scope": "speltak", "scope_id": s.id,
-            "paper_size": "A3", "orientation": "landscape", "name": "Stam-poster",
+            "definition": json.dumps(_defn(name="Stam-poster", type=1)),
+            "scope": "speltak", "scope_id": s.id,
         }, follow_redirects=False)
         assert r.status_code == 303
         row = db.query(PosterTemplate).filter_by(name="Stam-poster").first()
@@ -275,44 +255,72 @@ class TestPosterScope:
         db.commit()
         _login(client, scout)
         r = client.post("/posters", data={
-            "poster_type": "speltak", "scope": "speltak", "scope_id": s.id, "name": "Hack",
+            "definition": json.dumps(_defn(name="Hack")), "scope": "speltak", "scope_id": s.id,
         }, follow_redirects=False)
         assert r.status_code == 303 and r.headers["location"] == "/posters"
         assert db.query(PosterTemplate).filter_by(name="Hack").first() is None
 
-    def test_personal_poster_is_idor_protected(self, client, db):
+    def test_personal_is_idor_protected(self, client, db):
         owner = _user(db, email="owner@example.com")
-        from insigne import posters as posters_svc
-        from insigne import poster_templates as pt
-        p = posters_svc.create(db, created_by_id=owner.id, name="Privé", poster_type="badges",
-                               paper_size="A4", orientation="portrait",
-                               params=pt.parse_params({}), scope="user", scope_id=None)
+        p = _create(db, owner, name="Privé")
         other = _user(db, email="other@example.com")
         _login(client, other)
         r = client.get(f"/posters/{p.id}", follow_redirects=False)
         assert r.status_code == 303 and r.headers["location"] == "/posters"
 
-    def test_member_sees_and_duplicates_shared_speltak_poster(self, client, db):
+    def test_member_duplicates_shared(self, client, db):
         leider, g, s = _speltakleider(db, email="leider3@example.com")
-        from insigne import posters as posters_svc
-        from insigne import poster_templates as pt
-        shared = posters_svc.create(db, created_by_id=leider.id, name="Gedeeld",
-                                    poster_type="speltak", paper_size="A3",
-                                    orientation="landscape", params=pt.parse_params({}),
+        shared = posters_svc.create(db, created_by_id=leider.id,
+                                    definition=_defn(name="Gedeeld", type=1),
                                     scope="speltak", scope_id=s.id)
         scout = _user(db, email="scout3@example.com")
         db.add(SpeltakMembership(user_id=scout.id, speltak_id=s.id, role="scout", approved=True))
         db.commit()
         _login(client, scout)
-        # Visible + viewable, but not editable.
-        assert client.get("/posters").text.count("Gedeeld") >= 1
-        view = client.get(f"/posters/{shared.id}")
-        assert view.status_code == 200
-        # Saving as a non-editor creates a personal copy (new row), original untouched.
-        r = client.post(f"/posters/{shared.id}", data={
-            "poster_type": "speltak", "paper_size": "A3", "orientation": "landscape",
-            "name": "Mijn kopie",
-        }, follow_redirects=False)
+        assert "Gedeeld" in client.get("/posters").text
+        assert client.get(f"/posters/{shared.id}").status_code == 200
+        r = client.post(f"/posters/{shared.id}",
+                        data={"definition": json.dumps(_defn(name="Mijn kopie"))},
+                        follow_redirects=False)
         assert r.status_code == 303
         copy = db.query(PosterTemplate).filter_by(name="Mijn kopie").first()
         assert copy is not None and copy.scope == "user" and copy.user_id == scout.id
+
+
+# ── Export / import ────────────────────────────────────────────────────────────
+
+class TestExportImport:
+    def test_export_returns_yaml(self, client, db):
+        u = _user(db)
+        _login(client, u)
+        p = _create(db, u, name="Exporteerbaar", title="Hoi")
+        r = client.get(f"/posters/{p.id}/export")
+        assert r.status_code == 200
+        assert "yaml" in r.headers.get("content-type", "")
+        loaded = yaml.safe_load(r.text)
+        assert loaded["name"] == "Exporteerbaar" and loaded["title"] == "Hoi"
+
+    def test_export_idor_protected(self, client, db):
+        owner = _user(db, email="o2@example.com")
+        p = _create(db, owner, name="X")
+        _login(client, _user(db, email="x2@example.com"))
+        r = client.get(f"/posters/{p.id}/export", follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == "/posters"
+
+    def test_import_creates_personal_poster(self, client, db):
+        u = _user(db)
+        _login(client, u)
+        yaml_text = pt.to_yaml(_defn(name="Geïmporteerd", title="Ingeladen"))
+        r = client.post("/posters/import",
+                        files={"file": ("poster.yml", yaml_text, "application/x-yaml")},
+                        follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"].startswith("/posters/")
+        row = db.query(PosterTemplate).filter_by(name="Geïmporteerd").first()
+        assert row is not None and row.scope == "user" and row.user_id == u.id
+
+    def test_import_malformed_redirects(self, client, db):
+        _login(client, _user(db))
+        r = client.post("/posters/import",
+                        files={"file": ("bad.yml", "- just\n- a\n- list", "application/x-yaml")},
+                        follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == "/posters"

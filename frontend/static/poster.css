@@ -102,7 +102,7 @@ html, body {
     break-inside: avoid;        /* keep a badge whole across page breaks */
 }
 .poster-badge img {
-    width: var(--poster-img-mm, 35mm);
+    width: var(--poster-img-mm, 100%);   /* unset (badge_size_mm 0) = fill the cell */
     max-width: 100%;
     height: auto;
 }

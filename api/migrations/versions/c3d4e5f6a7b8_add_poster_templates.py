@@ -19,10 +19,9 @@ def upgrade() -> None:
         'poster_templates',
         sa.Column('id', sa.String(36), primary_key=True),
         sa.Column('name', sa.String(), nullable=False),
-        sa.Column('poster_type', sa.String(), nullable=False),
-        sa.Column('paper_size', sa.String(), nullable=False),
-        sa.Column('orientation', sa.String(), nullable=False),
-        sa.Column('params', sa.JSON(), nullable=False),
+        sa.Column('poster_type', sa.Integer(), nullable=False),
+        # Whole poster definition as a YAML document (source of truth).
+        sa.Column('definition', sa.String(), nullable=False),
         sa.Column('created_by_id', sa.String(36), sa.ForeignKey('users.id'), nullable=False),
         sa.Column('user_id', sa.String(36), sa.ForeignKey('users.id'), nullable=True),
         sa.Column('speltak_id', sa.String(36), sa.ForeignKey('speltakken.id'), nullable=True),

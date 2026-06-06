@@ -1,159 +1,180 @@
-"""Poster designer constants + the system base templates (#132).
+"""Poster definition: the canonical YAML document for a poster (#132).
 
-Three poster types, the supported paper sizes (full A-series), and the
-per-type **base templates** a user loads and then customizes. Kept in code (not
-the DB) so they're always available as a starting point. Phase 1 only renders
-the *chrome* (title/subtitle/header/footer/group/speltak + font sizes) plus a
-placeholder body; later phases add the type-specific body params to ``params``.
+A poster is a self-contained definition (stored as YAML, exportable/importable).
+This module owns the type codes, the supported paper sizes, the built-in base
+definition per type, and ``normalise()`` — the single validator that allowlists
+keys and coerces types so nothing arbitrary reaches the renderer.
+
+Templating of the text fields (``title``/``header``/… may contain ``{{ … }}``)
+lives in ``poster_render.py`` (a sandboxed Jinja environment).
 """
 from __future__ import annotations
 
 import copy
 
-# Poster types: key → human label (Dutch).
-POSTER_TYPES: dict[str, str] = {
-    "badges": "Insigneposter",
-    "speltak": "Speltak-overzicht",
-    "signoff": "Aftekenposter",
-}
+import yaml
 
-# Paper sizes in mm as (width, height) **portrait**. A2/A1/A0 are NOT valid CSS
-# ``@page { size: … }`` keywords (only up to A3), so we always emit explicit mm.
+# Poster types — numeric code (as stored in the YAML `type:` field) → key/label.
+TYPE_CODES: dict[int, str] = {0: "badges", 1: "speltak", 2: "signoff"}
+TYPE_LABELS: dict[int, str] = {
+    0: "Insigneposter",
+    1: "Speltak-overzicht",
+    2: "Aftekenposter",
+}
+KEY_TO_CODE: dict[str, int] = {key: code for code, key in TYPE_CODES.items()}
+
+
+def code_from_key(key: str, default: int = 0) -> int:
+    """Map a string type key ('badges'/'speltak'/'signoff') → numeric code."""
+    return KEY_TO_CODE.get(key, default)
+
+# Paper sizes in mm as (width, height) PORTRAIT. A2/A1/A0 are not valid CSS
+# `@page { size }` keywords, so we always emit explicit mm.
 PAPER_SIZES_MM: dict[str, tuple[int, int]] = {
-    "A4": (210, 297),
-    "A3": (297, 420),
-    "A2": (420, 594),
-    "A1": (594, 841),
-    "A0": (841, 1189),
+    "A4": (210, 297), "A3": (297, 420), "A2": (420, 594),
+    "A1": (594, 841), "A0": (841, 1189),
 }
-
 ORIENTATIONS = ("portrait", "landscape")
-
-# Default page margin (mm) used by the print/preview @page rule.
 PAGE_MARGIN_MM = 12
 
-# Chrome params shared by every poster type, with their defaults and the
-# coercion applied when reading them from a form/query string. The keys here are
-# the single source of truth used by the service, the render route, and the
-# designer's Alpine model.
-CHROME_PARAMS: dict[str, object] = {
-    "title": "",
-    "subtitle": "",
-    "header": "",
-    "footer": "",
-    "group_name": "",
-    "speltak_name": "",
-    "title_font_pt": 48,
-    "subtitle_font_pt": 24,
-    "body_font_pt": 12,
-    # Placeholder-only (Phase 1): number of demo blocks so multi-page pagination
-    # can be exercised before the real poster bodies exist (Phases 2–4).
-    "demo_blocks": 12,
-}
-
-_INT_PARAMS = {"title_font_pt", "subtitle_font_pt", "body_font_pt", "demo_blocks"}
-
-# Type-specific params (merged into ``params`` on top of the chrome params).
-# Phase 2 adds the badge-grid type ("badges"); speltak/signoff bodies follow.
-TYPE_PARAM_DEFAULTS: dict[str, dict] = {
-    "badges": {
-        "badge_slugs": [],   # ordered list of selected badge slugs
-        "columns": 4,        # grid columns
-        "image_mm": 35,      # badge image width in mm
-        "niveau": 1,         # which niveau image (1–3) for regular badges
-        "show_titles": True, # caption each badge with its title
-    },
-    "speltak": {},
-    "signoff": {},
-}
-
-_TYPE_INT_PARAMS = {"columns", "image_mm", "niveau"}
-_TYPE_BOOL_PARAMS = {"show_titles"}
-_TYPE_LIST_PARAMS = {"badge_slugs"}
+# Text fields that may contain {{ … }} templates (rendered in poster_render).
+TEXT_FIELDS = ("title", "subtitle", "header", "footer", "group_name", "speltak_name")
 
 
-def parse_type_params(poster_type: str, mapping) -> dict:
-    """Extract the type-specific params for a poster type from a form/query
-    mapping (allowlisted by ``TYPE_PARAM_DEFAULTS``). Lists are comma-separated
-    in the wire format; ints/bools are coerced; unknown keys are dropped."""
-    out: dict = {}
-    for key, default in TYPE_PARAM_DEFAULTS.get(poster_type, {}).items():
-        raw = mapping.get(key)
-        if key in _TYPE_LIST_PARAMS:
-            out[key] = [s for s in str(raw).split(",") if s] if raw else []
-        elif raw is None or raw == "":
-            out[key] = default
-        elif key in _TYPE_INT_PARAMS:
-            try:
-                out[key] = max(1, int(float(raw)))
-            except (TypeError, ValueError):
-                out[key] = default
-        elif key in _TYPE_BOOL_PARAMS:
-            out[key] = str(raw).lower() in ("1", "true", "on", "yes")
-        else:
-            out[key] = str(raw)
-    return out
+def page_dimensions_mm(paper: str, orientation: str) -> tuple[int, int]:
+    w, h = PAPER_SIZES_MM.get(paper, PAPER_SIZES_MM["A4"])
+    return (h, w) if orientation == "landscape" else (w, h)
 
 
-def parse_all_params(poster_type: str, mapping) -> dict:
-    """Chrome params + the poster type's own params, from one mapping."""
-    return {**parse_params(mapping), **parse_type_params(poster_type, mapping)}
+def type_code(value, default: int = 0) -> int:
+    try:
+        code = int(value)
+    except (TypeError, ValueError):
+        return default
+    return code if code in TYPE_CODES else default
 
 
-def page_dimensions_mm(paper_size: str, orientation: str) -> tuple[int, int]:
-    """Return (width_mm, height_mm) for a paper size + orientation."""
-    w, h = PAPER_SIZES_MM.get(paper_size, PAPER_SIZES_MM["A4"])
-    if orientation == "landscape":
-        return (h, w)
-    return (w, h)
+# ── Coercion helpers ──────────────────────────────────────────────────────────
+
+def _str(v, default: str = "") -> str:
+    return default if v is None else str(v)
 
 
-def parse_params(mapping) -> dict:
-    """Extract the known chrome params from a form/query mapping, coercing ints
-    and falling back to defaults. Unknown keys are ignored (so a crafted query
-    string can't inject arbitrary params)."""
-    out: dict = {}
-    for key, default in CHROME_PARAMS.items():
-        raw = mapping.get(key)
-        if raw is None or raw == "":
-            out[key] = default
-            continue
-        if key in _INT_PARAMS:
-            try:
-                out[key] = max(0, int(float(raw)))
-            except (TypeError, ValueError):
-                out[key] = default
-        else:
-            out[key] = str(raw)
-    return out
+def _int(v, default: int, lo: int, hi: int) -> int:
+    try:
+        return max(lo, min(hi, int(float(v))))
+    except (TypeError, ValueError):
+        return default
 
 
-# The three system base templates. ``params`` starts from the chrome defaults
-# with a sensible title; later phases extend the per-type params.
-_BASE_TEMPLATES: dict[str, dict] = {
-    "badges": {
-        "poster_type": "badges",
-        "paper_size": "A3",
-        "orientation": "portrait",
-        "params": {**CHROME_PARAMS, "title": "Insignes", **TYPE_PARAM_DEFAULTS["badges"]},
-    },
-    "speltak": {
-        "poster_type": "speltak",
-        "paper_size": "A3",
-        "orientation": "landscape",
-        "params": {**CHROME_PARAMS, "title": "Speltak-overzicht"},
-    },
-    "signoff": {
-        "poster_type": "signoff",
-        "paper_size": "A4",
-        "orientation": "portrait",
-        "params": {**CHROME_PARAMS, "title": "Aftekenlijst"},
-    },
-}
+def _bool(v, default: bool) -> bool:
+    if isinstance(v, bool):
+        return v
+    if v is None:
+        return default
+    return str(v).lower() in ("1", "true", "on", "yes")
 
 
-def base_template(poster_type: str) -> dict:
-    """Return a deep copy of the base template for a poster type (defaults to
-    the badge poster for an unknown type)."""
-    spec = _BASE_TEMPLATES.get(poster_type) or _BASE_TEMPLATES["badges"]
-    return copy.deepcopy(spec)
+def _font_style(raw: dict | None, default_pt: int) -> dict:
+    raw = raw if isinstance(raw, dict) else {}
+    return {"font_size_pt": _int(raw.get("font_size_pt"), default_pt, 6, 300)}
+
+
+# ── Base templates + normalisation ────────────────────────────────────────────
+
+def base_definition(type_code_value: int) -> dict:
+    """A fresh built-in definition for a poster type — the wizard's starting
+    point. Returns a normalised deep copy."""
+    code = type_code(type_code_value)
+    key = TYPE_CODES[code]
+    defn: dict = {
+        "name": "",
+        "type": code,
+        "paper": "A3" if key in ("badges", "speltak") else "A4",
+        "orientation": "landscape" if key == "speltak" else "portrait",
+        "title": TYPE_LABELS[code],
+        "subtitle": "",
+        "header": "",
+        "footer": "",
+        "group_name": "",
+        "speltak_name": "",
+        "demo_blocks": 12,
+        "styles": {
+            "title": {"font_size_pt": 48},
+            "subtitle": {"font_size_pt": 24},
+            "body": {"font_size_pt": 12},
+        },
+        "elements": {
+            "badge_block": {
+                "columns": 4,
+                "badge_size_mm": 0,   # 0 = auto (fill the grid cell)
+                "show_titles": True,
+                "niveau": 1,
+                "badges": [],
+            },
+        },
+    }
+    return normalise(defn)
+
+
+def normalise(defn) -> dict:
+    """Validate + coerce an arbitrary parsed definition into the canonical shape.
+    Unknown keys are dropped; every known key is present and type-correct."""
+    d = defn if isinstance(defn, dict) else {}
+    code = type_code(d.get("type"))
+    paper = d.get("paper") if d.get("paper") in PAPER_SIZES_MM else "A4"
+    orientation = d.get("orientation") if d.get("orientation") in ORIENTATIONS else "portrait"
+
+    styles_in = d.get("styles") if isinstance(d.get("styles"), dict) else {}
+    bb_in = {}
+    if isinstance(d.get("elements"), dict) and isinstance(d["elements"].get("badge_block"), dict):
+        bb_in = d["elements"]["badge_block"]
+
+    badges = bb_in.get("badges")
+    badges = [str(s) for s in badges] if isinstance(badges, list) else []
+
+    return {
+        "name": _str(d.get("name"))[:120],
+        "type": code,
+        "paper": paper,
+        "orientation": orientation,
+        "title": _str(d.get("title"))[:200],
+        "subtitle": _str(d.get("subtitle"))[:300],
+        "header": _str(d.get("header"))[:200],
+        "footer": _str(d.get("footer"))[:200],
+        "group_name": _str(d.get("group_name"))[:120],
+        "speltak_name": _str(d.get("speltak_name"))[:120],
+        "demo_blocks": _int(d.get("demo_blocks"), 12, 0, 400),
+        "styles": {
+            "title": _font_style(styles_in.get("title"), 48),
+            "subtitle": _font_style(styles_in.get("subtitle"), 24),
+            "body": _font_style(styles_in.get("body"), 12),
+        },
+        "elements": {
+            "badge_block": {
+                "columns": _int(bb_in.get("columns"), 4, 1, 12),
+                "badge_size_mm": _int(bb_in.get("badge_size_mm"), 0, 0, 120),
+                "show_titles": _bool(bb_in.get("show_titles"), True),
+                "niveau": _int(bb_in.get("niveau"), 1, 1, 3),
+                "badges": badges,
+            },
+        },
+    }
+
+
+# ── Serialisation ──────────────────────────────────────────────────────────────
+
+def to_yaml(defn: dict) -> str:
+    return yaml.safe_dump(normalise(defn), allow_unicode=True, sort_keys=False)
+
+
+def from_yaml(text: str) -> dict:
+    """Parse a YAML poster definition (safe_load only) → normalised dict.
+    Raises ValueError on non-mapping / invalid YAML."""
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as e:
+        raise ValueError(f"ongeldige YAML: {e}") from e
+    if not isinstance(data, dict):
+        raise ValueError("posterdefinitie moet een YAML-mapping zijn")
+    return normalise(data)

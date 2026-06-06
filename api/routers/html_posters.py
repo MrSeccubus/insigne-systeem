@@ -1,21 +1,25 @@
-"""Poster designer routes (#132, Phase 1: mechanism + persistence).
+"""Poster designer routes (#132) — YAML-definition storage + sandboxed templating.
 
-A poster's body is one Jinja partial (``partials/poster_body.html``) rendered
-from the poster's params; both the live preview iframe and the print window load
-``GET /posters/render`` so preview == print. State-changing routes are POST
-(covered by the app-wide SameSite + Origin/Referer CSRF layers). Redirects use
+A poster is a self-contained YAML *definition* (exportable/importable). The
+designer holds it as a JSON object (Alpine ``def``); the preview iframe and the
+print window load ``GET /posters/render?def=<json>`` so preview == print. Text
+fields may contain ``{{ user.name }}`` / ``{{ date }}`` — rendered through the
+sandbox in ``insigne.poster_render`` (never the app's Jinja env). State-changing
+routes are POST (app-wide SameSite + Origin/Referer CSRF); redirects use
 server-derived ids; access helpers return data only.
 """
+import json
 import re as _re
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Depends, File, Request, UploadFile
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from insigne import groups as groups_svc
-from insigne import posters as posters_svc
+from insigne import poster_render as poster_render_svc
 from insigne import poster_templates as pt
+from insigne import posters as posters_svc
 from insigne import progress as progress_svc
 from insigne import users as users_svc
 from insigne.badges import BadgeCatalogue
@@ -32,9 +36,10 @@ _UUID_RE = _re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", _re.I
 )
 
+_MAX_DEF_BYTES = 64 * 1024  # cap on a definition/upload size
+
 
 def _require_user(request: Request, db: Session) -> UserModel | None:
-    """Authenticated user or None (data only; caller builds the redirect)."""
     return _get_current_user(request, db)
 
 
@@ -43,26 +48,29 @@ def _page(request: Request, name: str, db: Session, **ctx):
     return _TEMPLATES.TemplateResponse(request=request, name=name, context=ctx)
 
 
-def _clean_paper(paper_size: str | None, orientation: str | None) -> tuple[str, str]:
-    ps = paper_size if paper_size in pt.PAPER_SIZES_MM else "A4"
-    orient = orientation if orientation in pt.ORIENTATIONS else "portrait"
-    return ps, orient
-
-
-def _clean_slugs(slugs: list[str]) -> list[str]:
-    """Keep only real catalogue slugs, de-duplicated, preserving order."""
+def _clean_definition(defn: dict) -> dict:
+    """Normalise + drop badge slugs that aren't real catalogue entries."""
+    defn = pt.normalise(defn)
+    bb = defn["elements"]["badge_block"]
     seen: set[str] = set()
-    out: list[str] = []
-    for s in slugs:
-        if s not in seen and _CATALOGUE.get(s) is not None:
-            seen.add(s)
-            out.append(s)
-    return out
+    bb["badges"] = [s for s in bb["badges"]
+                    if s not in seen and not seen.add(s) and _CATALOGUE.get(s)]
+    return defn
+
+
+def _definition_from_json(raw: str | None) -> dict:
+    """Parse a definition JSON string from a form/query → cleaned dict.
+    Falls back to a fresh badge poster on anything invalid."""
+    if not raw or len(raw) > _MAX_DEF_BYTES:
+        return _clean_definition(pt.base_definition(0))
+    try:
+        data = json.loads(raw)
+    except (ValueError, TypeError):
+        return _clean_definition(pt.base_definition(0))
+    return _clean_definition(data)
 
 
 def _badge_image(badge: dict, niveau: int) -> str | None:
-    """Image URL for a badge at a given niveau (1–3). Jaarinsigne badges have a
-    single image; regular badges have one per niveau."""
     imgs = badge.get("images") or []
     if not imgs:
         return None
@@ -71,19 +79,11 @@ def _badge_image(badge: dict, niveau: int) -> str | None:
     return imgs[min(max(niveau - 1, 0), len(imgs) - 1)]
 
 
-def _params_from(poster_type: str, mapping) -> dict:
-    """Parse + clean all params for a poster type from a form/query mapping."""
-    params = pt.parse_all_params(poster_type, mapping)
-    if poster_type == "badges":
-        params["badge_slugs"] = _clean_slugs(params.get("badge_slugs", []))
-    return params
-
-
-def _poster_badges(params: dict) -> list[dict]:
-    """Resolve the selected slugs to {title, image} for the badge-grid body."""
-    niveau = params.get("niveau", 1)
+def _poster_badges(defn: dict) -> list[dict]:
+    bb = defn.get("elements", {}).get("badge_block", {})
+    niveau = bb.get("niveau", 1)
     out: list[dict] = []
-    for slug in params.get("badge_slugs", []):
+    for slug in bb.get("badges", []):
         b = _CATALOGUE.get(slug)
         if b:
             out.append({"title": b["title"], "image": _badge_image(b, niveau)})
@@ -91,9 +91,6 @@ def _poster_badges(params: dict) -> list[dict]:
 
 
 def _picker_context(db: Session, user: UserModel, poster) -> dict:
-    """Badge picker data for the designer: the full catalogue (grouped) plus the
-    quick-select filter sets (your favourites / progress, and — for a
-    speltak-scoped poster — the speltak's favourites / progress)."""
     fav = users_svc.get_user_favorite_slugs(db, user.id)
     prog = {e.badge_slug for e in progress_svc.list_progress(db, user.id)}
     speltak_fav: set[str] = set()
@@ -115,6 +112,20 @@ def _picker_context(db: Session, user: UserModel, poster) -> dict:
     }
 
 
+def _designer(request: Request, db: Session, user, *, poster, editable, definition: dict):
+    return _page(
+        request, "posters/designer.html", db,
+        current_user=user,
+        poster=poster,
+        editable=editable,
+        definition=definition,
+        scopes=posters_svc.manageable_scopes(db, user),
+        paper_sizes=list(pt.PAPER_SIZES_MM.keys()),
+        type_labels=pt.TYPE_LABELS,
+        **_picker_context(db, user, poster),
+    )
+
+
 # ── List ────────────────────────────────────────────────────────────────────
 
 @router.get("/posters", response_class=HTMLResponse)
@@ -122,71 +133,71 @@ def posters_list(request: Request, db: Session = Depends(get_db)):
     user = _require_user(request, db)
     if user is None:
         return RedirectResponse("/login", status_code=303)
-    visible = posters_svc.list_visible_to(db, user)
     return _page(
         request, "posters/list.html", db,
         current_user=user,
-        visible=visible,
-        poster_types=pt.POSTER_TYPES,
+        visible=posters_svc.list_visible_to(db, user),
+        type_labels=pt.TYPE_LABELS,
     )
 
 
-# ── Designer (new + existing) — static paths declared before /{poster_id} ─────
+# ── Designer (static paths before /{poster_id}) ───────────────────────────────
 
 @router.get("/posters/new", response_class=HTMLResponse)
 def poster_new(request: Request, type: str = "badges", db: Session = Depends(get_db)):
     user = _require_user(request, db)
     if user is None:
         return RedirectResponse("/login", status_code=303)
-    poster_type = type if posters_svc.is_valid_type(type) else "badges"
-    spec = pt.base_template(poster_type)
-    return _page(
-        request, "posters/designer.html", db,
-        current_user=user,
-        poster=None,
-        editable=True,
-        poster_type=spec["poster_type"],
-        poster_name="",
-        paper_size=spec["paper_size"],
-        orientation=spec["orientation"],
-        params=spec["params"],
-        scopes=posters_svc.manageable_scopes(db, user),
-        paper_sizes=list(pt.PAPER_SIZES_MM.keys()),
-        orientations=list(pt.ORIENTATIONS),
-        poster_types=pt.POSTER_TYPES,
-        **_picker_context(db, user, None),
-    )
+    code = pt.code_from_key(type, 0)
+    return _designer(request, db, user, poster=None, editable=True,
+                     definition=pt.base_definition(code))
 
 
 @router.get("/posters/render", response_class=HTMLResponse)
 def poster_render(request: Request, db: Session = Depends(get_db)):
-    """Standalone poster document (no base chrome): paged.js paginates it into
-    exact A-series pages. Loaded by the preview iframe and the print window."""
+    """Standalone poster doc (no base chrome). Loaded by the preview iframe and
+    the print window. The definition arrives as ?def=<json>; text fields are
+    rendered through the sandbox with the {user, date, time} context."""
     user = _require_user(request, db)
     if user is None:
         return RedirectResponse("/login", status_code=303)
     q = request.query_params
-    poster_type = q.get("type", "badges")
-    if not posters_svc.is_valid_type(poster_type):
-        poster_type = "badges"
-    paper_size, orientation = _clean_paper(q.get("paper_size"), q.get("orientation"))
-    params = _params_from(poster_type, q)
-    w_mm, h_mm = pt.page_dimensions_mm(paper_size, orientation)
-    preview = q.get("preview") == "1"
+    defn = _definition_from_json(q.get("def"))
+    ctx = poster_render_svc.build_context(user)
+    rendered = poster_render_svc.render_definition(defn, ctx)
+    w_mm, h_mm = pt.page_dimensions_mm(rendered["paper"], rendered["orientation"])
+    poster_type = pt.TYPE_CODES.get(rendered["type"], "badges")
     return _TEMPLATES.TemplateResponse(
         request=request,
         name="posters/render.html",
         context={
+            "defn": rendered,
             "poster_type": poster_type,
-            "params": params,
-            "poster_badges": _poster_badges(params) if poster_type == "badges" else [],
-            "paper_size": paper_size,
-            "orientation": orientation,
+            "poster_badges": _poster_badges(rendered) if poster_type == "badges" else [],
             "page_w_mm": w_mm,
             "page_h_mm": h_mm,
             "page_margin_mm": pt.PAGE_MARGIN_MM,
-            "preview": preview,
+            "preview": q.get("preview") == "1",
         },
+    )
+
+
+@router.get("/posters/{poster_id}/export")
+def poster_export(poster_id: str, request: Request, db: Session = Depends(get_db)):
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
+    if not _UUID_RE.match(poster_id):
+        return RedirectResponse("/posters", status_code=303)
+    poster = posters_svc.get(db, poster_id)
+    if poster is None or not posters_svc.can_view(db, user, poster):
+        return RedirectResponse("/posters", status_code=303)
+    yaml_text = pt.to_yaml(posters_svc.get_definition(poster))
+    safe = _re.sub(r"[^a-z0-9_-]+", "-", (poster.name or "poster").lower()).strip("-") or "poster"
+    return Response(
+        content=yaml_text,
+        media_type="application/x-yaml",
+        headers={"Content-Disposition": f'attachment; filename="{safe}.yml"'},
     )
 
 
@@ -200,25 +211,12 @@ def poster_designer(poster_id: str, request: Request, db: Session = Depends(get_
     poster = posters_svc.get(db, poster_id)
     if poster is None or not posters_svc.can_view(db, user, poster):
         return RedirectResponse("/posters", status_code=303)
-    return _page(
-        request, "posters/designer.html", db,
-        current_user=user,
-        poster=poster,
-        editable=posters_svc.can_edit(db, user, poster),
-        poster_type=poster.poster_type,
-        poster_name=poster.name,
-        paper_size=poster.paper_size,
-        orientation=poster.orientation,
-        params={**pt.CHROME_PARAMS, **pt.TYPE_PARAM_DEFAULTS.get(poster.poster_type, {}), **(poster.params or {})},
-        scopes=posters_svc.manageable_scopes(db, user),
-        paper_sizes=list(pt.PAPER_SIZES_MM.keys()),
-        orientations=list(pt.ORIENTATIONS),
-        poster_types=pt.POSTER_TYPES,
-        **_picker_context(db, user, poster),
-    )
+    return _designer(request, db, user, poster=poster,
+                     editable=posters_svc.can_edit(db, user, poster),
+                     definition=posters_svc.get_definition(poster))
 
 
-# ── Create / update / delete ──────────────────────────────────────────────────
+# ── Create / update / delete / import ─────────────────────────────────────────
 
 @router.post("/posters")
 async def poster_create(request: Request, db: Session = Depends(get_db)):
@@ -226,26 +224,33 @@ async def poster_create(request: Request, db: Session = Depends(get_db)):
     if user is None:
         return RedirectResponse("/login", status_code=303)
     form = await request.form()
-    poster_type = form.get("poster_type", "badges")
-    if not posters_svc.is_valid_type(poster_type):
-        poster_type = "badges"
     scope = form.get("scope", "user")
     scope_id = form.get("scope_id") or None
     if not posters_svc.can_save_at(db, user, scope, scope_id):
         return RedirectResponse("/posters", status_code=303)
-    paper_size, orientation = _clean_paper(form.get("paper_size"), form.get("orientation"))
-    name = (form.get("name") or "").strip() or pt.POSTER_TYPES.get(poster_type, "Poster")
-    poster = posters_svc.create(
-        db,
-        created_by_id=user.id,
-        name=name,
-        poster_type=poster_type,
-        paper_size=paper_size,
-        orientation=orientation,
-        params=_params_from(poster_type, form),
-        scope=scope,
-        scope_id=scope_id,
-    )
+    defn = _definition_from_json(form.get("definition"))
+    poster = posters_svc.create(db, created_by_id=user.id, definition=defn,
+                                scope=scope, scope_id=scope_id)
+    return RedirectResponse(f"/posters/{poster.id}", status_code=303)
+
+
+@router.post("/posters/import")
+async def poster_import(request: Request, file: UploadFile | None = File(None),
+                        db: Session = Depends(get_db)):
+    """Import a poster YAML → create a personal poster, open it in the designer.
+    Declared before /posters/{poster_id} so 'import' isn't captured as an id."""
+    user = _require_user(request, db)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
+    if file is None:
+        return RedirectResponse("/posters", status_code=303)
+    raw = (await file.read())[:_MAX_DEF_BYTES]
+    try:
+        defn = pt.from_yaml(raw.decode("utf-8", "replace"))
+    except ValueError:
+        return RedirectResponse("/posters", status_code=303)
+    poster = posters_svc.create(db, created_by_id=user.id, definition=_clean_definition(defn),
+                                scope="user", scope_id=None)
     return RedirectResponse(f"/posters/{poster.id}", status_code=303)
 
 
@@ -260,33 +265,15 @@ async def poster_update(poster_id: str, request: Request, db: Session = Depends(
     if poster is None:
         return RedirectResponse("/posters", status_code=303)
     form = await request.form()
-    # A viewer who can't edit the shared template "saves a copy" → personal.
+    defn = _definition_from_json(form.get("definition"))
+    # A viewer who can't edit the shared template saves a personal copy.
     if not posters_svc.can_edit(db, user, poster):
         if not posters_svc.can_view(db, user, poster):
             return RedirectResponse("/posters", status_code=303)
-        paper_size, orientation = _clean_paper(form.get("paper_size"), form.get("orientation"))
-        name = (form.get("name") or "").strip() or poster.name
-        copy = posters_svc.create(
-            db,
-            created_by_id=user.id,
-            name=name,
-            poster_type=poster.poster_type,
-            paper_size=paper_size,
-            orientation=orientation,
-            params=_params_from(poster.poster_type, form),
-            scope="user",
-            scope_id=None,
-        )
+        copy = posters_svc.create(db, created_by_id=user.id, definition=defn,
+                                  scope="user", scope_id=None)
         return RedirectResponse(f"/posters/{copy.id}", status_code=303)
-    paper_size, orientation = _clean_paper(form.get("paper_size"), form.get("orientation"))
-    name = (form.get("name") or "").strip() or poster.name
-    posters_svc.update(
-        db, poster,
-        name=name,
-        paper_size=paper_size,
-        orientation=orientation,
-        params=_params_from(poster.poster_type, form),
-    )
+    posters_svc.update(db, poster, definition=defn)
     return RedirectResponse(f"/posters/{poster.id}", status_code=303)
 
 

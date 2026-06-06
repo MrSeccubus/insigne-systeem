@@ -18,6 +18,8 @@ weer leeg gemaakt.
 
 - **Poster-ontwerper — stapsgewijze wizard** (#132) — `/posters` begint nu met **"Wat wil je doen?"** (algemene insigneposter / speltak-overzicht / aftekenposter / een bestaande openen). Het ontwerpscherm zelf is opgedeeld in stappen — **Inhoud → Opmaak → Opslaan** — met het live voorbeeld altijd in beeld; naam en opslaglocatie (persoonlijk / speltak / groep) staan in de laatste stap.
 
+- **Poster-ontwerper — YAML-definitie, sjabloonvelden & export/import** (#132) — een poster wordt opgeslagen als een **YAML-document** (de bron van waarheid). Je kunt een poster **exporteren** (`.yml`) en weer **importeren**. Tekstvelden (titel, kop-/voettekst, …) ondersteunen sjabloonvelden: `{{ user.name }}` (de ingelogde gebruiker) en `{{ date }}` / `{{ time }}` worden bij het renderen ingevuld. Dat gebeurt in een **sandbox** met een vaste, kleine context — veilig, ook voor gedeelde speltak-/groepsposters. (`{{ lid }}` voor leden van een speltak volgt met de speltak- en aftekenposter.)
+
 ### Onderhoud
 
 - **Smoke-testdekking voor alle HTML-pagina's** (sluit #142) — een geparametriseerde test rendert nu elke template-renderende GET-route (`/`, `/admin`, alle `/groups/...`- en `/scouts/...`-pagina's, enz.) als ingelogde admin + groepsleider + speltakleider met een echte scout-fixture, en faalt bij elke 5xx. Dit dekt de klasse fout waardoor #139 (de admin-500 door een verouderde `user`-verwijzing in de template-context) destijds **ongemerkt** kon doorglippen: er was simpelweg geen test die `/admin` als beheerder rendert. Een bewakingstest faalt bovendien zodra een nieuwe pagina-route niet aan de smoke-lijst is toegevoegd, zodat de dekking niet stilletjes achterloopt.

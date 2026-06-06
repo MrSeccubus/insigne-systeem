@@ -40,6 +40,12 @@
                 </span>
             </button>
         </div>
+
+        <form method="post" action="/posters/import" enctype="multipart/form-data" class="poster-import">
+            <span>Of importeer een poster (YAML):</span>
+            <input type="file" name="file" accept=".yml,.yaml" required>
+            <button type="submit" class="btn-sm btn-neutral">Importeren</button>
+        </form>
     </div>
 
     {# ── Wizard step (option 4): existing posters ───────────────────────── #}
@@ -59,7 +65,7 @@
                     <li class="poster-list-row">
                         <a href="/posters/{{ p.id }}" class="poster-list-link">
                             <span class="poster-list-name">{{ p.name }}</span>
-                            <span class="poster-list-meta">{{ poster_types.get(p.poster_type, p.poster_type) }} · {{ p.paper_size }} {{ 'staand' if p.orientation == 'portrait' else 'liggend' }}</span>
+                            <span class="poster-list-meta">{{ type_labels.get(p.poster_type, 'Poster') }}</span>
                         </a>
                     </li>
                     {% endfor %}

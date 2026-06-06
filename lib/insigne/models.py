@@ -7,7 +7,6 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
-    JSON,
     String,
     UniqueConstraint,
 )
@@ -306,10 +305,10 @@ class PosterTemplate(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    poster_type: Mapped[str] = mapped_column(String, nullable=False)  # badges | speltak | signoff
-    paper_size: Mapped[str] = mapped_column(String, nullable=False, default="A4")
-    orientation: Mapped[str] = mapped_column(String, nullable=False, default="portrait")
-    params: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    poster_type: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0 badges | 1 speltak | 2 signoff
+    # The whole poster definition as a YAML document (source of truth). name and
+    # poster_type are mirrored from it on save for list/visibility queries.
+    definition: Mapped[str] = mapped_column(String, nullable=False, default="")
     created_by_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("users.id"), nullable=False, index=True
     )

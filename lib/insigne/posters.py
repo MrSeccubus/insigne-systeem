@@ -15,13 +15,13 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from insigne import groups as groups_svc
+from insigne import poster_templates as pt
 from insigne.models import (
     GroupMembership,
     PosterTemplate,
     SpeltakMembership,
     User,
 )
-from insigne.poster_templates import POSTER_TYPES
 
 
 # ── CRUD ────────────────────────────────────────────────────────────────────
@@ -30,23 +30,19 @@ def create(
     db: Session,
     *,
     created_by_id: str,
-    name: str,
-    poster_type: str,
-    paper_size: str,
-    orientation: str,
-    params: dict,
+    definition: dict,
     scope: str,
     scope_id: str | None,
 ) -> PosterTemplate:
-    """Create a poster template at the given scope. ``scope`` is one of
-    ``user`` / ``speltak`` / ``group``; for ``user`` the owner is the creator."""
+    """Create a poster at the given scope from a (normalised) definition dict.
+    ``name`` and ``poster_type`` are mirrored from the definition; the whole
+    definition is stored as YAML. ``scope`` is ``user`` / ``speltak`` / ``group``."""
+    defn = pt.normalise(definition)
     poster = PosterTemplate(
         created_by_id=created_by_id,
-        name=name,
-        poster_type=poster_type,
-        paper_size=paper_size,
-        orientation=orientation,
-        params=params,
+        name=defn["name"],
+        poster_type=defn["type"],
+        definition=pt.to_yaml(defn),
         user_id=created_by_id if scope == "user" else None,
         speltak_id=scope_id if scope == "speltak" else None,
         group_id=scope_id if scope == "group" else None,
@@ -60,19 +56,19 @@ def get(db: Session, poster_id: str) -> PosterTemplate | None:
     return db.get(PosterTemplate, poster_id)
 
 
-def update(
-    db: Session,
-    poster: PosterTemplate,
-    *,
-    name: str,
-    paper_size: str,
-    orientation: str,
-    params: dict,
-) -> PosterTemplate:
-    poster.name = name
-    poster.paper_size = paper_size
-    poster.orientation = orientation
-    poster.params = params
+def get_definition(poster: PosterTemplate) -> dict:
+    """Parse a saved poster's YAML into a normalised definition dict."""
+    try:
+        return pt.from_yaml(poster.definition or "")
+    except ValueError:
+        return pt.base_definition(poster.poster_type or 0)
+
+
+def update(db: Session, poster: PosterTemplate, *, definition: dict) -> PosterTemplate:
+    defn = pt.normalise(definition)
+    poster.name = defn["name"]
+    poster.poster_type = defn["type"]
+    poster.definition = pt.to_yaml(defn)
     db.commit()
     return poster
 
@@ -176,5 +172,8 @@ def list_visible_to(db: Session, user: User) -> dict:
     return {"personal": personal, "speltak": speltak, "group": group}
 
 
-def is_valid_type(poster_type: str) -> bool:
-    return poster_type in POSTER_TYPES
+def is_valid_type(code) -> bool:
+    try:
+        return int(code) in pt.TYPE_CODES
+    except (TypeError, ValueError):
+        return False

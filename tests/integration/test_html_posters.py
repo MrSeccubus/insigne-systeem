@@ -266,6 +266,20 @@ class TestPosterRender:
         for n in (1, 2, 3):
             assert f"/images/vredeslicht.{n}.png" in r.text
 
+    def test_handpicked_badges_render_in_catalogue_order(self, client, db):
+        """A few hand-picked badges appear in catalogue order, not click order."""
+        _login(client, _user(db))
+        # 'internationaal' precedes 'kamperen' in the catalogue; pick them reversed.
+        r = self._get(client, _defn(badges=["kamperen", "internationaal"]))
+        assert r.text.index("/images/internationaal") < r.text.index("/images/kamperen")
+
+    def test_jaarinsigne_image_sized_like_others(self, client, db):
+        """A jaarinsigne's single image is sized per-niveau (not full column)."""
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=["jaarinsigne_2026"]))
+        assert "--poster-levels:3" in r.text
+        assert "/images/jaarinsigne_2026.png" in r.text
+
     def test_section_headers_shown_by_default(self, client, db):
         _login(client, _user(db))
         r = self._get(client, _defn(badges=[]))   # empty = all gewoon + buitengewoon

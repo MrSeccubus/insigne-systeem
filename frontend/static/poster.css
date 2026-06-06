@@ -144,9 +144,13 @@ html, body {
     align-items: flex-end;
 }
 .poster-badge-levels img { height: auto; }
-/* Auto (badge_size_mm 0): the level images share the column width, so they're
-   as large as fit (≈60mm on A2 with 2 columns) and scale with paper/columns. */
-.poster-badge-grid:not([style*="img-mm"]) .poster-badge-levels img { flex: 1 1 0; min-width: 0; }
+/* Auto (badge_size_mm 0): each level image is column-width / number-of-niveaus,
+   so an image is the same size whether it's in a row of 3 or alone (e.g. a
+   jaarinsigne on its own row), and it scales with paper/columns. */
+.poster-badge-grid:not([style*="img-mm"]) .poster-badge-levels img {
+    width: calc((100% - (var(--poster-levels, 1) - 1) * 2mm) / var(--poster-levels, 1));
+    flex: 0 0 auto;
+}
 /* Fixed badge_size_mm: exact size; the badge shrinks to that row, centred. */
 .poster-badge-grid[style*="img-mm"] .poster-badge { width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto; }
 .poster-badge-grid[style*="img-mm"] .poster-badge-levels img { width: var(--poster-img-mm); flex: 0 0 auto; }

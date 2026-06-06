@@ -2892,20 +2892,26 @@ button:disabled, a[disabled] {
 .poster-back { font-size: 0.85rem; color: #00A651; text-decoration: none; }
 .poster-params-title { font-size: 1.2rem; margin: 0.25rem 0 0.5rem; }
 
-/* Click-to-edit: persistent bar + element editor */
-.poster-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
-    padding-bottom: 0.75rem;
-    margin-bottom: 0.75rem;
-    border-bottom: 1px solid #e5e7eb;
+/* Click-to-edit: toolbar + element editor */
+.poster-bar { display: flex; flex-direction: column; gap: 0.5rem; }
+.poster-bar-row { display: flex; align-items: center; gap: 0.4rem; }
+.poster-bar-actions { flex-wrap: wrap; }
+.poster-divider { border: 0; border-top: 1px solid #e5e7eb; margin: 0.75rem 0; }
+
+/* Save dialog */
+.poster-modal-backdrop {
+    position: fixed; inset: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
 }
-.poster-bar .poster-back { flex: 0 0 auto; }
-.poster-name-input { flex: 1 1 140px; min-width: 120px; }
-.poster-scope-select { flex: 1 1 140px; }
-.poster-bar-actions { display: flex; gap: 0.4rem; flex: 0 0 auto; }
+.poster-modal {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1.25rem;
+    width: min(380px, 92vw);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+.poster-modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
 
 .poster-hint { color: #888; font-size: 0.9rem; padding: 1rem 0; }
 .poster-editor-title { font-size: 1rem; margin: 0 0 0.6rem; }

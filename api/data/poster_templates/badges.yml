@@ -15,9 +15,9 @@ elements:
   subtitle:
     font_size_pt: 24
   header: 
-    font_size_pt: 8
+    font_size_pt: 12
   footer: 
-    font_size_pt: 8
+    font_size_pt: 12
   badge_block:
     font_size_pt: 12
     columns: 2
@@ -28,4 +28,4 @@ elements:
   background:
     style: vertical_gradient
     start_color: white
-    end_color: light blue
+    end_color: blue

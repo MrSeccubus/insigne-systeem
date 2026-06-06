@@ -26,6 +26,7 @@
                 filterSets: cfg.filterSets || {},
                 scopeSel: 'user',
                 selected: '',   // which poster element is being edited
+                saveOpen: false,
 
                 get tooSmall() { return window.innerWidth < 1024; },
 

@@ -42,46 +42,28 @@
                   :action="(posterId && editable) ? ('/posters/' + posterId) : '/posters'"
                   @input.debounce.400ms="updatePreview()"
                   @change.debounce.400ms="updatePreview()"
+                  @keydown.enter.prevent
                   class="poster-form">
                 <input type="hidden" name="definition" :value="JSON.stringify(def)">
 
-                {# ── Persistent bar: name + scope + save/print/export ──────── #}
+                {# ── Toolbar: back / save+print+page-properties ──────────── #}
                 <div class="poster-bar">
-                    <a href="/posters" class="poster-back">← Posters</a>
-                    <input type="text" x-model="def.name" maxlength="120"
-                           class="poster-name-input" placeholder="Naam van deze poster">
-                    {% if not poster %}
-                    <select x-model="scopeSel" class="poster-scope-select">
-                        <option value="user">Persoonlijk</option>
-                        {% if scopes.speltakken %}
-                        <optgroup label="Speltak">
-                            {% for group, speltak in scopes.speltakken %}
-                            <option value="speltak:{{ speltak.id }}">{{ group.name }} — {{ speltak.name }}</option>
-                            {% endfor %}
-                        </optgroup>
-                        {% endif %}
-                        {% if scopes.groups %}
-                        <optgroup label="Groep">
-                            {% for group in scopes.groups %}<option value="group:{{ group.id }}">{{ group.name }}</option>{% endfor %}
-                        </optgroup>
-                        {% endif %}
-                    </select>
-                    <input type="hidden" name="scope" :value="scopeSel.split(':')[0]">
-                    <input type="hidden" name="scope_id" :value="scopeSel.split(':')[1] || ''">
-                    {% elif not editable %}
-                    <span class="field-hint">Gedeeld — opslaan maakt een kopie.</span>
-                    {% endif %}
-                    <div class="poster-bar-actions">
-                        <button type="submit" class="btn-primary btn-sm">
+                    <div class="poster-bar-row">
+                        <a href="/posters" class="poster-back">← Posters</a>
+                    </div>
+                    <div class="poster-bar-row poster-bar-actions">
+                        <button type="button" class="btn-primary btn-sm" @click="saveOpen = true" title="Opslaan" aria-label="Opslaan">
                             {% include "partials/icon_save.html" %}
-                            <span x-text="(posterId && editable) ? 'Opslaan' : (posterId ? 'Opslaan als kopie' : 'Opslaan')"></span>
                         </button>
                         <button type="button" class="btn-neutral btn-sm" @click="printPoster()" title="Printen" aria-label="Printen">
                             {% include "partials/icon_print.html" %}
                         </button>
-                        {% if poster %}<a href="/posters/{{ poster.id }}/export" class="btn-neutral btn-sm" style="text-decoration:none;">Exporteren</a>{% endif %}
+                        <button type="button" class="btn-neutral btn-sm"
+                                :class="selected === 'pagina' ? 'btn-star-active' : ''"
+                                @click="selected = 'pagina'; updatePreview()">Pagina-eigenschappen</button>
                     </div>
                 </div>
+                <hr class="poster-divider">
 
                 {# ── Element editor (driven by the selected preview element) ─ #}
                 <div class="poster-editor">
@@ -200,6 +182,48 @@
                                 <span>Niets geselecteerd = alle gewone + buitengewone insignes.</span>
                             </template>
                         </p>
+                    </div>
+                </div>
+
+                {# ── Save dialog (name + where to save), opened by the save button #}
+                <div class="poster-modal-backdrop" x-show="saveOpen" x-transition
+                     @click.self="saveOpen = false" style="display:none;">
+                    <div class="poster-modal">
+                        <h3 class="poster-editor-title">Poster opslaan</h3>
+                        <label class="field"><span>Naam</span>
+                            <input type="text" x-model="def.name" maxlength="120" placeholder="Naam van deze poster"></label>
+                        {% if not poster %}
+                        <label class="field"><span>Opslaan als</span>
+                            <select x-model="scopeSel">
+                                <option value="user">Persoonlijk (alleen ik)</option>
+                                {% if scopes.speltakken %}
+                                <optgroup label="Speltak (zichtbaar voor leden)">
+                                    {% for group, speltak in scopes.speltakken %}
+                                    <option value="speltak:{{ speltak.id }}">{{ group.name }} — {{ speltak.name }}</option>
+                                    {% endfor %}
+                                </optgroup>
+                                {% endif %}
+                                {% if scopes.groups %}
+                                <optgroup label="Groep (zichtbaar voor leden)">
+                                    {% for group in scopes.groups %}<option value="group:{{ group.id }}">{{ group.name }}</option>{% endfor %}
+                                </optgroup>
+                                {% endif %}
+                            </select></label>
+                        <input type="hidden" name="scope" :value="scopeSel.split(':')[0]">
+                        <input type="hidden" name="scope_id" :value="scopeSel.split(':')[1] || ''">
+                        {% elif not editable %}
+                        <p class="field-hint">Je bekijkt een gedeelde poster. Opslaan maakt een persoonlijke kopie.</p>
+                        {% endif %}
+                        <div class="poster-modal-actions">
+                            <button type="submit" class="btn-primary"
+                                    x-text="(posterId && editable) ? 'Opslaan' : (posterId ? 'Opslaan als kopie' : 'Opslaan')"></button>
+                            <button type="button" class="btn-neutral" @click="saveOpen = false">Annuleren</button>
+                        </div>
+                        {% if poster %}
+                        <p class="field-hint" style="margin-top:0.75rem;">
+                            <a href="/posters/{{ poster.id }}/export">Exporteren (YAML)</a>
+                        </p>
+                        {% endif %}
                     </div>
                 </div>
             </form>

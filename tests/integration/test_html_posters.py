@@ -101,7 +101,15 @@ class TestPosterDesigner:
         _login(client, _user(db))
         r = client.get("/posters/new?type=badges")
         assert 'aria-label="Printen"' in r.text   # print button is icon-only
+        assert 'aria-label="Opslaan"' in r.text   # save button is icon-only
         assert "Font Awesome" in r.text           # inline SVG icons included
+
+    def test_toolbar_and_save_dialog(self, client, db):
+        _login(client, _user(db))
+        r = client.get("/posters/new?type=badges")
+        assert "Pagina-eigenschappen" in r.text   # page-properties button in the toolbar
+        assert "poster-modal" in r.text           # save name/scope dialog
+        assert "poster-divider" in r.text
 
     def test_small_screen_guard(self, client, db):
         _login(client, _user(db))

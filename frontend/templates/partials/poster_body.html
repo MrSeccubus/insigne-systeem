@@ -23,10 +23,12 @@ font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_
 
     <div class="poster-content"{% if poster_type == "badges" %} data-el="badge_block"{% endif %}>
         {% if poster_type == "badges" %}
-        {% if poster_badges %}
+        {% if poster_sections %}
+        {% for section in poster_sections %}
+        {% if bb.show_section_headers %}<h2 class="poster-section-header">{{ section.label }}</h2>{% endif %}
         <div class="poster-badge-grid"
              style="--poster-cols:{{ bb.columns }};{% if bb.badge_size_mm %}--poster-img-mm:{{ bb.badge_size_mm }}mm;{% endif %}">
-            {% for b in poster_badges %}
+            {% for b in section.badges %}
             <figure class="poster-badge">
                 <div class="poster-badge-levels">
                     {% for img in b.images %}<img src="{{ img }}" alt="{{ b.title }}" loading="eager">{% endfor %}
@@ -35,6 +37,7 @@ font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_
             </figure>
             {% endfor %}
         </div>
+        {% endfor %}
         {% else %}
         <p class="poster-placeholder-note">Geen insignes om te tonen.</p>
         {% endif %}

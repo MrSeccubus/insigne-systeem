@@ -100,26 +100,42 @@ def _all_default_slugs() -> list[str]:
             for info in cat.get(key, [])]
 
 
-def _poster_badges(defn: dict) -> list[dict]:
-    """Resolve the badge block to {title, images} cells — one cell per badge,
-    with that badge's selected niveau images side by side (a row of levels).
-    Empty selection = all default-category badges."""
+def _badge_cell(b: dict, niveaus: list[int]) -> dict | None:
+    """A {title, images} cell for one badge (one image per niveau)."""
+    if b.get("type") == "jaarinsigne":
+        images = [_badge_image(b, 1)]
+    else:
+        images = [_badge_image(b, n) for n in niveaus]
+    images = [img for img in images if img]
+    return {"title": b["title"], "images": images} if images else None
+
+
+def _poster_sections(defn: dict) -> list[dict]:
+    """Resolve the badge block to sections grouped by catalogue category, in
+    catalogue order: [{label, badges:[{title, images}]}]. Empty selection = all
+    default-category badges (gewoon + buitengewoon)."""
     bb = defn.get("elements", {}).get("badge_block", {})
     niveaus = bb.get("niveaus") or [1]
-    slugs = bb.get("badges") or _all_default_slugs()
-    out: list[dict] = []
-    for slug in slugs:
-        b = _CATALOGUE.get(slug)
-        if not b:
+    selected = set(bb.get("badges") or [])
+    use_all = not selected
+    sections: list[dict] = []
+    for cat_key, items in _CATALOGUE.list().items():
+        if use_all and cat_key not in pt.DEFAULT_BADGE_CATEGORIES:
             continue
-        if b.get("type") == "jaarinsigne":   # single image
-            images = [_badge_image(b, 1)]
-        else:
-            images = [_badge_image(b, n) for n in niveaus]
-        images = [img for img in images if img]
-        if images:
-            out.append({"title": b["title"], "images": images})
-    return out
+        cells = []
+        for info in items:
+            if not use_all and info["slug"] not in selected:
+                continue
+            b = _CATALOGUE.get(info["slug"])
+            cell = _badge_cell(b, niveaus) if b else None
+            if cell:
+                cells.append(cell)
+        if cells:
+            sections.append({
+                "label": _CATALOGUE.category_labels.get(cat_key, cat_key),
+                "badges": cells,
+            })
+    return sections
 
 
 def _picker_context(db: Session, user: UserModel, poster) -> dict:
@@ -208,7 +224,7 @@ def poster_render(request: Request, db: Session = Depends(get_db)):
         context={
             "defn": rendered,
             "poster_type": poster_type,
-            "poster_badges": _poster_badges(rendered) if poster_type == "badges" else [],
+            "poster_sections": _poster_sections(rendered) if poster_type == "badges" else [],
             "page_w_mm": w_mm,
             "page_h_mm": h_mm,
             "page_margin_mm": pt.PAGE_MARGIN_MM,

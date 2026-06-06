@@ -266,6 +266,19 @@ class TestPosterRender:
         for n in (1, 2, 3):
             assert f"/images/vredeslicht.{n}.png" in r.text
 
+    def test_section_headers_shown_by_default(self, client, db):
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=[]))   # empty = all gewoon + buitengewoon
+        assert "poster-section-header" in r.text
+        assert "Gewone insignes" in r.text and "Buitengewone insignes" in r.text
+
+    def test_section_headers_can_be_hidden(self, client, db):
+        _login(client, _user(db))
+        d = _defn(badges=[])
+        d["elements"]["badge_block"]["show_section_headers"] = False
+        r = self._get(client, d)
+        assert "poster-section-header" not in r.text
+
     def test_levels_grouped_per_badge(self, client, db):
         """Each badge is one cell with its niveaus as a row of levels."""
         _login(client, _user(db))

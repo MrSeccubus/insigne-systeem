@@ -110,6 +110,20 @@ html, body {
 }
 
 /* Type 1 — badge grid. */
+/* Per-category section header (toggleable). */
+.poster-section-header {
+    font-size: 1.4em;
+    font-weight: 700;
+    color: #003f87;
+    margin: 4mm 0 3mm;
+    padding-bottom: 1mm;
+    border-bottom: 1pt solid #003f87;
+    break-after: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+.poster-section-header:first-child { margin-top: 0; }
+
 /* Multi-column so insignes fill column 1 top→bottom, then column 2, etc. */
 .poster-badge-grid {
     column-count: var(--poster-cols, 4);

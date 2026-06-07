@@ -419,6 +419,15 @@ class TestPosterRender:
         assert "poster-niveau-row" in r.text
         assert "Niveau 1" in r.text and "Niveau 2" in r.text and "Niveau 3" in r.text
 
+    def test_niveau_headers_use_per_level_colours(self, client, db):
+        """Niveau 1/2/3 bars get geel / oranje / paars backgrounds."""
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=[]))
+        assert "background:#ffd200" in r.text      # niveau 1 geel
+        assert "background:#f47b20" in r.text      # niveau 2 oranje
+        assert "background:#92278f" in r.text      # niveau 3 paars
+        assert "color:#1a1a1a" in r.text           # dark text on the light yellow bar
+
     def test_niveau_headers_can_be_hidden(self, client, db):
         _login(client, _user(db))
         d = _defn(badges=[])
@@ -430,7 +439,7 @@ class TestPosterRender:
         _login(client, _user(db))
         r = self._get(client, _defn(badges=["explorer_jaarbadge"]))
         assert "Jaar 1" in r.text and "Jaar 3" in r.text
-        assert "--niveau-color:#00a651" in r.text          # green for explorers
+        assert "background:#00a651" in r.text               # green for explorers
 
     def test_jaarinsigne_has_no_niveau_header(self, client, db):
         """Single-image categories get no per-niveau header row."""

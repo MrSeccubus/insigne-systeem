@@ -94,6 +94,21 @@ def _background_css(bg: dict) -> str:
 
 _PT_MM = 25.4 / 72   # 1pt in mm
 
+# Per-niveau header bar colours (insigne geel / oranje / paars).
+_NIVEAU_BG = {1: "#ffd200", 2: "#f47b20", 3: "#92278f"}
+
+
+def _readable_text(hex_color: str) -> str:
+    """Black or white text for a #rrggbb background, by perceived brightness.
+    Keeps white on the darker colours; switches to near-black on light ones
+    (e.g. the yellow bar, where white would be illegible)."""
+    h = hex_color.lstrip("#")
+    if len(h) != 6:
+        return "#ffffff"
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    yiq = (r * 299 + g * 587 + b * 114) / 1000
+    return "#1a1a1a" if yiq >= 160 else "#ffffff"
+
 
 def _multipage_margins_mm(rendered: dict) -> tuple[int, int, int, int]:
     """(top, right, bottom, left) page margins in mm for multi-page output.
@@ -184,17 +199,18 @@ def _poster_sections(defn: dict) -> list[dict]:
         # year labels in green; single-image categories (jaarinsignes) get none.
         sample = next((c for row in rows for c in row if c), None)
         img_count = len(sample["images"]) if sample else 0
-        if cat_key == "jaarinsignes" or img_count <= 1:
-            niveau_labels: list[str] = []
-        else:
+        niveau_labels: list[dict] = []
+        if cat_key != "jaarinsignes" and img_count > 1:
             word = "Jaar" if cat_key == "explorers" else "Niveau"
-            niveau_labels = [f"{word} {n}" for n in niveaus[:img_count]]
+            for n in niveaus[:img_count]:
+                bg = "#00a651" if cat_key == "explorers" else _NIVEAU_BG.get(n, "#003f87")
+                niveau_labels.append(
+                    {"text": f"{word} {n}", "bg": bg, "fg": _readable_text(bg)})
         sections.append({
             "label": _CATALOGUE.category_labels.get(cat_key, cat_key),
             "ncols": ncols,
             "rows": rows,
             "niveau_labels": niveau_labels,
-            "niveau_color": "#00a651" if cat_key == "explorers" else "#003f87",
         })
     return sections
 

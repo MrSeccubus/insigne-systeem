@@ -41,14 +41,14 @@ font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_
             {# Per-niveau column headers, aligned with the level images of each
                column (Niveau 1/2/3, or Jaar 1/2/3 for explorers). #}
             {% if bb.show_niveau_headers and section.niveau_labels %}
-            <div class="poster-badge-row poster-niveau-row" style="--niveau-color:{{ section.niveau_color }};">
+            <div class="poster-badge-row poster-niveau-row">
                 {% for _ in range(ncols) %}
                 <div class="poster-badge-cell{% if loop.last and ncols > 1 %} poster-badge-cell--flip{% endif %}">
                     <div class="poster-badge{% if bb.show_activiteitengebied %} poster-badge--gutter{% endif %}">
                         {% if bb.show_activiteitengebied %}<div class="poster-badge-gutter"></div>{% endif %}
                         <div class="poster-badge-main">
                             <div class="poster-badge-levels">
-                                {% for lbl in section.niveau_labels %}<span class="poster-niveau-label">{{ lbl }}</span>{% endfor %}
+                                {% for lbl in section.niveau_labels %}<span class="poster-niveau-label" style="background:{{ lbl.bg }};color:{{ lbl.fg }};">{{ lbl.text }}</span>{% endfor %}
                             </div>
                         </div>
                     </div>

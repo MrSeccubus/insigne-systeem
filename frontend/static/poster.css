@@ -184,8 +184,9 @@ html, body {
 .poster-niveau-row,
 .poster-badge-cols--fill .poster-niveau-row { flex: 0 0 auto; }
 /* One bar per niveau, filling its column slot (so it's as wide as the badge
-   image column below and centred over it): white text on the category colour,
-   like the badge caption. */
+   image column below and centred over it), like the badge caption. The
+   per-niveau background + readable text colour are set inline (geel/oranje/
+   paars; green for explorers). */
 .poster-niveau-label {
     flex: 1 1 0;
     min-width: 0;
@@ -196,8 +197,6 @@ html, body {
     font-weight: 700;
     font-size: 0.9em;
     line-height: 1.2;
-    color: #fff;
-    background: var(--niveau-color, #003f87);
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
 }

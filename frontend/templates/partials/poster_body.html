@@ -30,6 +30,7 @@ font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_
              style="--poster-cols:{{ bb.columns }};--poster-levels:{{ bb.niveaus|length }};{% if bb.badge_size_mm %}--poster-img-mm:{{ bb.badge_size_mm }}mm;{% endif %}">
             {% for b in section.badges %}
             <figure class="poster-badge">
+                {% if bb.show_activiteitengebied and b.callout %}<div class="poster-badge-callout">{{ b.callout }}</div>{% endif %}
                 <div class="poster-badge-levels">
                     {% for img in b.images %}<img src="{{ img }}" alt="{{ b.title }}" loading="eager">{% endfor %}
                 </div>

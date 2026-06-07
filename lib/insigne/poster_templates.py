@@ -188,6 +188,7 @@ def normalise(defn) -> dict:
                 "badge_size_mm": _int(bb_in.get("badge_size_mm"), 0, 0, 120),
                 "show_titles": _bool(bb_in.get("show_titles"), True),
                 "show_section_headers": _bool(bb_in.get("show_section_headers"), True),
+                "show_activiteitengebied": _bool(bb_in.get("show_activiteitengebied"), True),
                 # accept the common 'neveaus' misspelling + the old singular 'niveau'
                 "niveaus": _niveaus(bb_in.get("niveaus", bb_in.get("neveaus", bb_in.get("niveau")))),
                 "badges": badges,

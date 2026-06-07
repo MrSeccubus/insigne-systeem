@@ -101,13 +101,16 @@ def _all_default_slugs() -> list[str]:
 
 
 def _badge_cell(b: dict, niveaus: list[int]) -> dict | None:
-    """A {title, images} cell for one badge (one image per niveau)."""
+    """A {title, images, gebied} cell for one badge (one image per niveau)."""
     if b.get("type") == "jaarinsigne":
         images = [_badge_image(b, 1)]
     else:
         images = [_badge_image(b, n) for n in niveaus]
     images = [img for img in images if img]
-    return {"title": b["title"], "images": images} if images else None
+    if not images:
+        return None
+    return {"title": b["title"], "images": images,
+            "gebied": b.get("activiteitengebied", "")}
 
 
 def _poster_sections(defn: dict) -> list[dict]:
@@ -131,6 +134,15 @@ def _poster_sections(defn: dict) -> list[dict]:
             if cell:
                 cells.append(cell)
         if cells:
+            # Mark the first badge of each new activiteitengebied with a callout.
+            prev = None
+            for cell in cells:
+                g = cell.get("gebied") or ""
+                if g and g != prev:
+                    cell["callout"] = g
+                    prev = g
+                else:
+                    cell["callout"] = ""
             sections.append({
                 "label": _CATALOGUE.category_labels.get(cat_key, cat_key),
                 "badges": cells,

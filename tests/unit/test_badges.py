@@ -129,6 +129,11 @@ class TestGet:
         assert _CAT.get("vredeslicht")["category"] == "buitengewoon"
         assert _CAT.get("sport_spel")["category"] == "gewoon"
 
+    def test_activiteitengebied(self):
+        assert _CAT.get("kamperen")["activiteitengebied"] == "Uitdagende Scoutingtechnieken"
+        assert _CAT.get("internationaal")["activiteitengebied"] == "Internationaal"
+        assert _CAT.get("vredeslicht")["activiteitengebied"] == ""   # buitengewoon: none
+
     def test_images_are_three_urls(self):
         badge = _CAT.get("vredeslicht")
         assert len(badge["images"]) == 3

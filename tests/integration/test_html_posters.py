@@ -280,6 +280,19 @@ class TestPosterRender:
         assert "--poster-levels:3" in r.text
         assert "/images/jaarinsigne_2026.png" in r.text
 
+    def test_activiteitengebied_callout(self, client, db):
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=[]))   # all gewoon + buitengewoon
+        assert "poster-badge-callout" in r.text
+        assert "Uitdagende Scoutingtechnieken" in r.text   # a gebied callout
+
+    def test_activiteitengebied_callout_can_be_hidden(self, client, db):
+        _login(client, _user(db))
+        d = _defn(badges=[])
+        d["elements"]["badge_block"]["show_activiteitengebied"] = False
+        r = self._get(client, d)
+        assert "poster-badge-callout" not in r.text
+
     def test_section_headers_shown_by_default(self, client, db):
         _login(client, _user(db))
         r = self._get(client, _defn(badges=[]))   # empty = all gewoon + buitengewoon

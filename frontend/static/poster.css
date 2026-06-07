@@ -136,6 +136,20 @@ html, body {
     break-inside: avoid;            /* keep a badge whole within a column/page */
     -webkit-column-break-inside: avoid;
 }
+/* Callout shown on the first badge of each new activiteitengebied. */
+.poster-badge-callout {
+    display: inline-block;
+    margin-bottom: 1.5mm;
+    padding: 0.5mm 2mm;
+    font-size: 0.72em;
+    font-weight: 700;
+    color: #fff;
+    background: #00A651;            /* Scouting green */
+    border-radius: 1mm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
 /* A badge's niveau images sit side by side as a row of levels. */
 .poster-badge-levels {
     display: flex;

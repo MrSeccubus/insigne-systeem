@@ -113,12 +113,26 @@ def _badge_cell(b: dict, niveaus: list[int]) -> dict | None:
             "gebied": b.get("activiteitengebied", "")}
 
 
+def _mark_callouts(cells: list[dict]) -> None:
+    """Within a column, flag the first badge of each new activiteitengebied."""
+    prev = None
+    for cell in cells:
+        g = cell.get("gebied") or ""
+        if g and g != prev:
+            cell["callout"] = g
+            prev = g
+        else:
+            cell["callout"] = ""
+
+
 def _poster_sections(defn: dict) -> list[dict]:
     """Resolve the badge block to sections grouped by catalogue category, in
-    catalogue order: [{label, badges:[{title, images}]}]. Empty selection = all
-    default-category badges (gewoon + buitengewoon)."""
+    catalogue order. Each section's badges are split column-major into ``columns``
+    columns: [{label, columns:[[{title, images, callout}], …]}]. Empty selection
+    = all default-category badges (gewoon + buitengewoon)."""
     bb = defn.get("elements", {}).get("badge_block", {})
     niveaus = bb.get("niveaus") or [1]
+    ncols = max(1, int(bb.get("columns") or 1))
     selected = set(bb.get("badges") or [])
     use_all = not selected
     sections: list[dict] = []
@@ -133,20 +147,16 @@ def _poster_sections(defn: dict) -> list[dict]:
             cell = _badge_cell(b, niveaus) if b else None
             if cell:
                 cells.append(cell)
-        if cells:
-            # Mark the first badge of each new activiteitengebied with a callout.
-            prev = None
-            for cell in cells:
-                g = cell.get("gebied") or ""
-                if g and g != prev:
-                    cell["callout"] = g
-                    prev = g
-                else:
-                    cell["callout"] = ""
-            sections.append({
-                "label": _CATALOGUE.category_labels.get(cat_key, cat_key),
-                "badges": cells,
-            })
+        if not cells:
+            continue
+        per = (len(cells) + ncols - 1) // ncols          # column-major fill
+        columns = [cells[i:i + per] for i in range(0, len(cells), per)]
+        for col in columns:
+            _mark_callouts(col)                           # callouts per column
+        sections.append({
+            "label": _CATALOGUE.category_labels.get(cat_key, cat_key),
+            "columns": columns,
+        })
     return sections
 
 

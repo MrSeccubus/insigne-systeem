@@ -26,22 +26,26 @@ font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_
         {% if poster_sections %}
         {% for section in poster_sections %}
         {% if bb.show_section_headers %}<h2 class="poster-section-header">{{ section.label }}</h2>{% endif %}
-        <div class="poster-badge-grid"
-             style="--poster-cols:{{ bb.columns }};--poster-levels:{{ bb.niveaus|length }};{% if bb.badge_size_mm %}--poster-img-mm:{{ bb.badge_size_mm }}mm;{% endif %}">
-            {% for b in section.badges %}
-            <figure class="poster-badge{% if bb.show_activiteitengebied %} poster-badge--gutter{% endif %}">
-                {% if bb.show_activiteitengebied %}
-                <div class="poster-badge-gutter">
-                    {% if b.callout %}<div class="poster-badge-callout">{{ b.callout }}</div>{% endif %}
-                </div>
-                {% endif %}
-                <div class="poster-badge-main">
-                    <div class="poster-badge-levels">
-                        {% for img in b.images %}<img src="{{ img }}" alt="{{ b.title }}" loading="eager">{% endfor %}
+        <div class="poster-badge-cols"
+             style="--poster-levels:{{ bb.niveaus|length }};{% if bb.badge_size_mm %}--poster-img-mm:{{ bb.badge_size_mm }}mm;{% endif %}">
+            {% for col in section.columns %}
+            <div class="poster-badge-col{% if loop.last and section.columns|length > 1 %} poster-badge-col--flip{% endif %}">
+                {% for b in col %}
+                <figure class="poster-badge{% if bb.show_activiteitengebied %} poster-badge--gutter{% endif %}">
+                    {% if bb.show_activiteitengebied %}
+                    <div class="poster-badge-gutter">
+                        {% if b.callout %}<div class="poster-badge-callout">{{ b.callout }}</div>{% endif %}
                     </div>
-                    {% if bb.show_titles %}<figcaption>{{ b.title }}</figcaption>{% endif %}
-                </div>
-            </figure>
+                    {% endif %}
+                    <div class="poster-badge-main">
+                        <div class="poster-badge-levels">
+                            {% for img in b.images %}<img src="{{ img }}" alt="{{ b.title }}" loading="eager">{% endfor %}
+                        </div>
+                        {% if bb.show_titles %}<figcaption>{{ b.title }}</figcaption>{% endif %}
+                    </div>
+                </figure>
+                {% endfor %}
+            </div>
             {% endfor %}
         </div>
         {% endfor %}

@@ -124,20 +124,24 @@ html, body {
 }
 .poster-section-header:first-child { margin-top: 0; }
 
-/* Multi-column so insignes fill column 1 top→bottom, then column 2, etc. */
-.poster-badge-grid {
-    column-count: var(--poster-cols, 4);
-    column-gap: 12mm;
+/* Explicit columns (filled column-major in the router). Each column is split
+   into a callout gutter + the badge, so the badge keeps its size; the last
+   column is mirrored (callouts on the outer edge) unless there's only one. */
+.poster-badge-cols {
+    display: flex;
+    gap: 12mm;
+    align-items: flex-start;
 }
+.poster-badge-col { flex: 1 1 0; min-width: 0; }
 .poster-badge {
-    width: 100%;                    /* auto: the badge fills the column */
     margin: 0 0 8mm;
     text-align: center;
-    break-inside: avoid;            /* keep a badge whole within a column/page */
+    break-inside: avoid;
     -webkit-column-break-inside: avoid;
 }
 /* With the activiteitengebied gutter: [callout][badge], callout top-aligned. */
-.poster-badge--gutter { display: flex; align-items: flex-start; gap: 2mm; }
+.poster-badge--gutter { display: flex; align-items: flex-start; gap: 2mm; text-align: left; }
+.poster-badge-col--flip .poster-badge--gutter { flex-direction: row-reverse; }
 .poster-badge-gutter { flex: 0 0 26mm; }
 .poster-badge-main { flex: 1 1 auto; min-width: 0; text-align: center; }
 /* Callout on the first badge of each new activiteitengebied — left of the badge,
@@ -166,13 +170,12 @@ html, body {
 /* Auto (badge_size_mm 0): each level image is column-width / number-of-niveaus,
    so an image is the same size whether it's in a row of 3 or alone (e.g. a
    jaarinsigne on its own row), and it scales with paper/columns. */
-.poster-badge-grid:not([style*="img-mm"]) .poster-badge-levels img {
+.poster-badge-cols:not([style*="img-mm"]) .poster-badge-levels img {
     width: calc((100% - (var(--poster-levels, 1) - 1) * 2mm) / var(--poster-levels, 1));
     flex: 0 0 auto;
 }
-/* Fixed badge_size_mm: exact size; the badge shrinks to that row, centred. */
-.poster-badge-grid[style*="img-mm"] .poster-badge { width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto; }
-.poster-badge-grid[style*="img-mm"] .poster-badge-levels img { width: var(--poster-img-mm); flex: 0 0 auto; }
+/* Fixed badge_size_mm: exact size per level image. */
+.poster-badge-cols[style*="img-mm"] .poster-badge-levels img { width: var(--poster-img-mm); flex: 0 0 auto; }
 .poster-badge figcaption {
     display: block;
     width: 100%;                    /* a rectangle as wide as the badge row above */

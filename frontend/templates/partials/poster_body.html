@@ -24,16 +24,18 @@ font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_
     <div class="poster-content"{% if poster_type == "badges" %} data-el="badge_block"{% endif %}>
         {% if poster_type == "badges" %}
         {% if poster_sections %}
-        {% for section in poster_sections %}
-        {# Each section grows by its row count so all badge rows across sections
-           share the page height evenly (fixed-box model — no scale transform). #}
-        <div class="poster-section" style="flex-grow:{{ section.rows|length }};">
-        {% if bb.show_section_headers %}<h2 class="poster-section-header">{{ section.label }}</h2>{% endif %}
+        {% set ncols = poster_sections[0].ncols %}
+        {# One grid for the whole badge area: category headers are `auto` rows
+           spanning all columns, every badge row is `1fr`. So all badge rows are
+           equal height across sections (a small category's row is as tall as a
+           large one), and headers only take their natural height. #}
         <div class="poster-badge-cols"
-             style="grid-template-columns:repeat({{ section.ncols }},1fr);grid-template-rows:repeat({{ section.rows|length }},1fr);--poster-levels:{{ bb.niveaus|length }};{% if bb.badge_size_mm %}--poster-img-mm:{{ bb.badge_size_mm }}mm;{% endif %}">
+             style="grid-template-columns:repeat({{ ncols }},1fr);grid-template-rows:{% for section in poster_sections %}{% if bb.show_section_headers %}auto {% endif %}{% for row in section.rows %}1fr {% endfor %}{% endfor %};--poster-levels:{{ bb.niveaus|length }};{% if bb.badge_size_mm %}--poster-img-mm:{{ bb.badge_size_mm }}mm;{% endif %}">
+            {% for section in poster_sections %}
+            {% if bb.show_section_headers %}<h2 class="poster-section-header">{{ section.label }}</h2>{% endif %}
             {% for row in section.rows %}
             {% for b in row %}
-            <div class="poster-badge-cell{% if loop.last and section.ncols > 1 %} poster-badge-cell--flip{% endif %}">
+            <div class="poster-badge-cell{% if loop.last and ncols > 1 %} poster-badge-cell--flip{% endif %}">
                 {% if b %}
                 <figure class="poster-badge{% if bb.show_activiteitengebied %} poster-badge--gutter{% endif %}">
                     {% if bb.show_activiteitengebied %}
@@ -52,9 +54,8 @@ font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_
             </div>
             {% endfor %}
             {% endfor %}
+            {% endfor %}
         </div>
-        </div>
-        {% endfor %}
         {% else %}
         <p class="poster-placeholder-note">Geen insignes om te tonen.</p>
         {% endif %}

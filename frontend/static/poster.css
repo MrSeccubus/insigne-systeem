@@ -82,19 +82,10 @@ html, body {
     flex: 1 1 0;
     min-height: 0;              /* let the badge area shrink to fit (not min-content) */
 }
-/* Badge poster only: stack the category sections and let them divide the page
-   height between them, proportional to how many rows each holds. */
-.poster-content:has(.poster-section) {
+/* Badge poster only: the single badge grid fills the page height. */
+.poster-content:has(.poster-badge-cols) {
     display: flex;
     flex-direction: column;
-}
-/* One category. flex-grow is set inline (= row count) so every badge row across
-   all sections ends up the same height. */
-.poster-section {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 0;
-    min-height: 0;
 }
 
 .poster-placeholder-note {
@@ -127,7 +118,7 @@ html, body {
 /* Type 1 — badge grid. */
 /* Per-category section header (toggleable). */
 .poster-section-header {
-    flex: 0 0 auto;                 /* natural height; the grid below takes the rest */
+    grid-column: 1 / -1;            /* a header spans the full grid width (its own `auto` row) */
     font-size: 1.4em;
     font-weight: 700;
     color: #003f87;

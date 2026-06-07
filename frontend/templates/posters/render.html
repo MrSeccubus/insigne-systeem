@@ -9,7 +9,22 @@
        Single-page mode prints full-bleed (margin 0); the page padding/inset
        provides the margin so the background can fill the whole sheet. #}
     <style>
-        @page { size: {{ page_w_mm }}mm {{ page_h_mm }}mm; margin: {% if multi_page %}{{ page_margin_mm }}mm{% else %}0{% endif %}; }
+        @page {
+            size: {{ page_w_mm }}mm {{ page_h_mm }}mm;
+            margin: {% if multi_page %}{{ mp_margin }}{% else %}0{% endif %};
+            {% if multi_page %}
+            /* Running header/title (top) and footer (bottom) repeat on every page. */
+            @top-center { content: element(posterTop); }
+            @bottom-center { content: element(posterBottom); }
+            {% endif %}
+        }
+        {% if multi_page %}
+        /* Pull the repeating elements out of flow into the @page margins.
+           repeat_title repeats the whole masthead (header + title + subtitle);
+           otherwise only the header repeats and the title stays on page 1. */
+        {% if repeat_title %}.poster-masthead{% else %}.poster-running-header{% endif %} { position: running(posterTop); }
+        .poster-running-footer { position: running(posterBottom); }
+        {% endif %}
         :root {
             --page-w-mm: {{ page_w_mm }}; --page-h-mm: {{ page_h_mm }};
             {% if page_background %}--poster-bg: {{ page_background }};{% endif %}

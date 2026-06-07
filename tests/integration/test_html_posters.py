@@ -89,6 +89,13 @@ class TestPosterDesigner:
         _login(client, _user(db))
         assert client.get("/posters/new?type=bogus").status_code == 200
 
+    def test_repeat_title_toggle_gated_on_multi_page(self, client, db):
+        """The 'repeat title on every page' checkbox is only shown in multi-page."""
+        _login(client, _user(db))
+        r = client.get("/posters/new?type=badges")
+        assert 'x-model="def.repeat_title"' in r.text
+        assert 'x-show="def.multi_page"' in r.text   # gated on multi-page
+
     def test_is_click_to_edit(self, client, db):
         _login(client, _user(db))
         r = client.get("/posters/new?type=badges")
@@ -177,6 +184,43 @@ class TestPosterRender:
         r = self._get(client, d)
         assert "/static/vendor/paged.polyfill.js" in r.text
         assert "poster-page" not in r.text
+
+    def test_single_page_has_no_running_elements(self, client, db):
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=["vredeslicht"]))   # single page (default)
+        assert "position: running(" not in r.text
+        assert "content: element(" not in r.text
+
+    def test_multi_page_repeats_header_and_footer(self, client, db):
+        """Multi-page: header + footer become running @page-margin elements."""
+        _login(client, _user(db))
+        d = _defn(badges=["vredeslicht"])
+        d["multi_page"] = True
+        r = self._get(client, d)
+        assert "@top-center { content: element(posterTop); }" in r.text
+        assert "@bottom-center { content: element(posterBottom); }" in r.text
+        assert ".poster-running-header { position: running(posterTop); }" in r.text
+        assert ".poster-running-footer { position: running(posterBottom); }" in r.text
+        # title is NOT repeated unless repeat_title is set
+        assert ".poster-masthead { position: running(posterTop); }" not in r.text
+
+    def test_multi_page_repeat_title_runs_the_masthead(self, client, db):
+        _login(client, _user(db))
+        d = _defn(badges=["vredeslicht"])
+        d["multi_page"] = True
+        d["repeat_title"] = True
+        r = self._get(client, d)
+        assert ".poster-masthead { position: running(posterTop); }" in r.text
+        # the header alone is no longer the running top element
+        assert ".poster-running-header { position: running(posterTop); }" not in r.text
+
+    def test_repeat_title_only_applies_with_multi_page(self, client, db):
+        """repeat_title without multi_page does nothing (single page, no running)."""
+        _login(client, _user(db))
+        d = _defn(badges=["vredeslicht"])
+        d["repeat_title"] = True            # but multi_page stays False
+        r = self._get(client, d)
+        assert "position: running(" not in r.text
 
     def test_single_page_fills_height(self, client, db):
         """Single-page adds --fill so the rows divide the fixed page height."""

@@ -139,6 +139,8 @@
                         </div>
                         <label class="field poster-check">
                             <input type="checkbox" x-model="def.multi_page"><span>Meerdere pagina's toestaan (anders: alles op één pagina)</span></label>
+                        <label class="field poster-check" x-show="def.multi_page">
+                            <input type="checkbox" x-model="def.repeat_title"><span>Titel op elke pagina herhalen</span></label>
                     </div>
 
                     {# Titel #}

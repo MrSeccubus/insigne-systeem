@@ -32,6 +32,11 @@ html, body {
    distributed to fit. Multi-page leaves it natural height so paged.js paginates. */
 .poster-single .poster { height: 100%; }
 
+/* Header + title + subtitle group. In multi-page mode this (or just the header)
+   is pulled into the running @page margin via position:running(); otherwise it
+   is a normal in-flow block at the top of the poster. */
+.poster-masthead { flex: 0 0 auto; }
+
 /* The page surface carries the (full-bleed) background and must print it
    (browsers omit backgrounds by default). Covers single-page and paged.js. */
 .poster-page, .pagedjs_sheet {

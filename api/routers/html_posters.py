@@ -92,6 +92,27 @@ def _background_css(bg: dict) -> str:
     return ""
 
 
+_PT_MM = 25.4 / 72   # 1pt in mm
+
+
+def _multipage_margins_mm(rendered: dict) -> tuple[int, int, int, int]:
+    """(top, right, bottom, left) page margins in mm for multi-page output.
+
+    In multi-page mode the header (and, if repeat_title, the title + subtitle)
+    repeat in the top @page margin and the footer repeats in the bottom margin
+    (paged.js running elements). The margins must be tall enough to hold them —
+    margin boxes don't auto-grow — so size them from the elements' font sizes."""
+    els = rendered["elements"]
+    side = pt.PAGE_MARGIN_MM
+    # One text line ≈ font_size * line-height; add a little for borders/padding.
+    top = els["header"]["font_size_pt"] * _PT_MM * 1.4 + 8
+    bottom = els["footer"]["font_size_pt"] * _PT_MM * 1.4 + 8
+    if rendered.get("repeat_title"):
+        top += (els["title"]["font_size_pt"] * _PT_MM * 1.2
+                + els["subtitle"]["font_size_pt"] * _PT_MM * 1.3 + 4)
+    return round(top), side, round(bottom), side
+
+
 def _all_default_slugs() -> list[str]:
     """Every badge in the default categories (gewoon + buitengewoon) — used when
     the selection is empty ('Leeg is allemaal')."""
@@ -247,6 +268,7 @@ def poster_render(request: Request, db: Session = Depends(get_db)):
     sel = q.get("sel", "")
     if sel not in ("pagina", "title", "subtitle", "header", "footer", "badge_block"):
         sel = ""
+    mp_top, mp_right, mp_bottom, mp_left = _multipage_margins_mm(rendered)
     return _TEMPLATES.TemplateResponse(
         request=request,
         name="posters/render.html",
@@ -258,6 +280,8 @@ def poster_render(request: Request, db: Session = Depends(get_db)):
             "page_h_mm": h_mm,
             "page_margin_mm": pt.PAGE_MARGIN_MM,
             "multi_page": rendered["multi_page"],
+            "repeat_title": rendered["repeat_title"],
+            "mp_margin": f"{mp_top}mm {mp_right}mm {mp_bottom}mm {mp_left}mm",
             "page_background": _background_css(rendered["elements"]["background"]),
             "preview": q.get("preview") == "1",
             # Proof view: render faithfully (no placeholders, not clickable) and

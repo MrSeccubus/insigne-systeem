@@ -9,6 +9,9 @@ font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_
 {% set bb = defn.elements.badge_block %}
 <div class="poster" data-el="pagina"
      style="--body-pt:{{ bb.font_size_pt }}pt;">
+    {# Masthead = header + title + subtitle. In multi-page mode this (or just the
+       header) is pulled into the running @page margin so it repeats per page. #}
+    <div class="poster-masthead">
     {% if preview or defn.header or defn.group_name or defn.speltak_name %}
     <div class="poster-running-header" data-el="header" data-placeholder="Koptekst" style="{{ el_style(defn.elements.header) }}">
         <span class="poster-header-left">{{ defn.header }}</span>
@@ -20,6 +23,7 @@ font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_
 
     {% if preview or defn.title %}<h1 class="poster-title" data-el="title" data-placeholder="Titel" style="{{ el_style(defn.elements.title) }}">{{ defn.title }}</h1>{% endif %}
     {% if preview or defn.subtitle %}<p class="poster-subtitle" data-el="subtitle" data-placeholder="Subtitel" style="{{ el_style(defn.elements.subtitle) }}">{{ defn.subtitle }}</p>{% endif %}
+    </div>{# .poster-masthead #}
 
     <div class="poster-content"{% if poster_type == "badges" %} data-el="badge_block"{% endif %}>
         {% if poster_type == "badges" %}

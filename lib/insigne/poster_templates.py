@@ -171,6 +171,9 @@ def normalise(defn) -> dict:
         "orientation": orientation,
         # False (default): scale everything to fit one page. True: paginate.
         "multi_page": _bool(d.get("multi_page"), False),
+        # Multi-page only: repeat the full title (masthead) on every page. The
+        # header and footer always repeat when paginating; this adds the title.
+        "repeat_title": _bool(d.get("repeat_title"), False),
         "title": _str(d.get("title"))[:200],
         "subtitle": _str(d.get("subtitle"))[:300],
         "header": _str(d.get("header"))[:200],

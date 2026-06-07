@@ -183,6 +183,12 @@ html, body {
    width share as a level image so it sits right above its column. */
 .poster-niveau-row,
 .poster-badge-cols--fill .poster-niveau-row { flex: 0 0 auto; }
+/* The header row sizes to its labels — override the fill-mode height:100% /
+   flex:1 that otherwise collapse it to zero (so labels would overlap the
+   category header above). Higher specificity so it wins regardless of order. */
+.poster-badge-cols .poster-niveau-row .poster-badge,
+.poster-badge-cols .poster-niveau-row .poster-badge-main { height: auto; }
+.poster-badge-cols .poster-niveau-row .poster-badge-levels { flex: 0 0 auto; min-height: 0; }
 /* One bar per niveau, filling its column slot (so it's as wide as the badge
    image column below and centred over it), like the badge caption. The
    per-niveau background + readable text colour are set inline (geel/oranje/

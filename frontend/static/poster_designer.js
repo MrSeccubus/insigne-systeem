@@ -27,6 +27,7 @@
                 scopeSel: 'user',
                 selected: '',   // which poster element is being edited
                 saveOpen: false,
+                proofMode: false,   // preview iframe shows the faithful (proof) render
 
                 get tooSmall() { return window.innerWidth < 1024; },
 
@@ -59,20 +60,28 @@
 
                 updatePreview() {
                     if (this.tooSmall) return;
-                    if (this.$refs.preview) this.$refs.preview.src = this.renderUrl(true);
+                    if (!this.$refs.preview) return;
+                    if (this.proofMode) {
+                        // Proof: the faithful render (no placeholders, not clickable),
+                        // scaled to fit — shown in the same iframe, not a new window.
+                        const p = new URLSearchParams();
+                        p.set('def', JSON.stringify(this.def));
+                        p.set('proof', '1');
+                        this.$refs.preview.src = '/posters/render?' + p.toString();
+                    } else {
+                        this.$refs.preview.src = this.renderUrl(true);
+                    }
                 },
 
                 printPoster() {
                     window.open(this.renderUrl(false), '_blank');
                 },
 
-                // Proof view: the faithful render (no placeholders, not clickable),
-                // scaled to fit the window, without opening the print dialog.
-                previewPoster() {
-                    const p = new URLSearchParams();
-                    p.set('def', JSON.stringify(this.def));
-                    p.set('proof', '1');
-                    window.open('/posters/render?' + p.toString(), '_blank');
+                // Toggle the preview iframe between the editable view and the
+                // faithful proof view (press again to return and edit).
+                togglePreview() {
+                    this.proofMode = !this.proofMode;
+                    this.updatePreview();
                 },
 
                 // Badge-grid quick selects (poster type 0).

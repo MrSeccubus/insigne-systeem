@@ -86,7 +86,11 @@
                         <button type="button" class="btn-primary btn-sm" @click="saveOpen = true" title="Opslaan" aria-label="Opslaan">
                             {% include "partials/icon_save.html" %}
                         </button>
-                        <button type="button" class="btn-neutral btn-sm" @click="previewPoster()" title="Voorbeeld (zoals afgedrukt)" aria-label="Voorbeeld">
+                        <button type="button" class="btn-neutral btn-sm"
+                                :class="proofMode ? 'btn-star-active' : ''"
+                                @click="togglePreview()"
+                                :title="proofMode ? 'Terug naar bewerken' : 'Voorbeeld (zoals afgedrukt)'"
+                                aria-label="Voorbeeld" :aria-pressed="proofMode">
                             {% include "partials/icon_eye.html" %}
                         </button>
                         <button type="button" class="btn-neutral btn-sm" @click="printPoster()" title="Printen" aria-label="Printen">
@@ -99,8 +103,13 @@
                 </div>
                 <hr class="poster-divider">
 
+                <div class="notification-bar" x-show="proofMode" x-cloak>
+                    Voorbeeldmodus actief — druk nogmaals op
+                    <span aria-hidden="true">👁</span> Voorbeeld om weer te kunnen bewerken.
+                </div>
+
                 {# ── Element editor (driven by the selected preview element) ─ #}
-                <div class="poster-editor">
+                <div class="poster-editor" x-show="!proofMode">
                     <p x-show="!selected" class="poster-hint">Klik op een element in de poster om het aan te passen.</p>
 
                     {# Pagina #}

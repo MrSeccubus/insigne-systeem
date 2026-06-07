@@ -312,9 +312,12 @@ class TestPosterRender:
         assert "window.print" in r.text
 
     def test_activiteitengebied_font_size_default(self, client, db):
+        """When the field is absent, normalise falls back to 14pt."""
         _login(client, _user(db))
-        r = self._get(client, _defn(badges=[]))
-        assert "--callout-pt:14pt" in r.text          # default
+        d = _defn(badges=[])
+        d["elements"]["badge_block"].pop("activiteitengebied_font_size_pt", None)
+        r = self._get(client, d)
+        assert "--callout-pt:14pt" in r.text          # normalise fallback
 
     def test_activiteitengebied_font_size_adjustable(self, client, db):
         _login(client, _user(db))

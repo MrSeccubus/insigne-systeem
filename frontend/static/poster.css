@@ -34,8 +34,11 @@ html, body {
 
 /* Header + title + subtitle group. In multi-page mode this (or just the header)
    is pulled into the running @page margin via position:running(); otherwise it
-   is a normal in-flow block at the top of the poster. */
-.poster-masthead { flex: 0 0 auto; }
+   is a normal in-flow block at the top of the poster. The explicit text-align
+   keeps the title left-aligned: a running element sits in the @top-center
+   margin box, which defaults to text-align:center and would otherwise centre
+   the title. */
+.poster-masthead { flex: 0 0 auto; text-align: left; }
 
 /* The page surface carries the (full-bleed) background and must print it
    (browsers omit backgrounds by default). Covers single-page and paged.js. */

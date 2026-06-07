@@ -27,10 +27,11 @@ font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_
         {% for section in poster_sections %}
         {% if bb.show_section_headers %}<h2 class="poster-section-header">{{ section.label }}</h2>{% endif %}
         <div class="poster-badge-cols"
-             style="--poster-levels:{{ bb.niveaus|length }};{% if bb.badge_size_mm %}--poster-img-mm:{{ bb.badge_size_mm }}mm;{% endif %}">
-            {% for col in section.columns %}
-            <div class="poster-badge-col{% if loop.last and section.columns|length > 1 %} poster-badge-col--flip{% endif %}">
-                {% for b in col %}
+             style="grid-template-columns:repeat({{ section.ncols }},1fr);--poster-levels:{{ bb.niveaus|length }};{% if bb.badge_size_mm %}--poster-img-mm:{{ bb.badge_size_mm }}mm;{% endif %}">
+            {% for row in section.rows %}
+            {% for b in row %}
+            <div class="poster-badge-cell{% if loop.last and section.ncols > 1 %} poster-badge-cell--flip{% endif %}">
+                {% if b %}
                 <figure class="poster-badge{% if bb.show_activiteitengebied %} poster-badge--gutter{% endif %}">
                     {% if bb.show_activiteitengebied %}
                     <div class="poster-badge-gutter">
@@ -44,8 +45,9 @@ font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_
                         {% if bb.show_titles %}<figcaption>{{ b.title }}</figcaption>{% endif %}
                     </div>
                 </figure>
-                {% endfor %}
+                {% endif %}
             </div>
+            {% endfor %}
             {% endfor %}
         </div>
         {% endfor %}

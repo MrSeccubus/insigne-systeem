@@ -124,24 +124,24 @@ html, body {
 }
 .poster-section-header:first-child { margin-top: 0; }
 
-/* Explicit columns (filled column-major in the router). Each column is split
-   into a callout gutter + the badge, so the badge keeps its size; the last
-   column is mirrored (callouts on the outer edge) unless there's only one. */
+/* A real grid: badges are placed row-major into aligned rows (built in the
+   router), so the columns line up (no vertical drift). Each column is split
+   into a callout gutter + the badge; the last column is mirrored (callouts on
+   the outer edge) unless there's only one column. */
 .poster-badge-cols {
-    display: flex;
-    gap: 12mm;
-    align-items: flex-start;
+    display: grid;
+    gap: 8mm 12mm;
+    align-items: start;
 }
-.poster-badge-col { flex: 1 1 0; min-width: 0; }
+.poster-badge-cell { min-width: 0; }
 .poster-badge {
-    margin: 0 0 8mm;
     text-align: center;
     break-inside: avoid;
     -webkit-column-break-inside: avoid;
 }
 /* With the activiteitengebied gutter: [callout][badge], callout top-aligned. */
 .poster-badge--gutter { display: flex; align-items: flex-start; gap: 2mm; text-align: left; }
-.poster-badge-col--flip .poster-badge--gutter { flex-direction: row-reverse; }
+.poster-badge-cell--flip .poster-badge--gutter { flex-direction: row-reverse; }
 .poster-badge-gutter { flex: 0 0 26mm; }
 .poster-badge-main { flex: 1 1 auto; min-width: 0; text-align: center; }
 /* Callout on the first badge of each new activiteitengebied — left of the badge,

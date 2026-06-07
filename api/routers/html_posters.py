@@ -149,13 +149,20 @@ def _poster_sections(defn: dict) -> list[dict]:
                 cells.append(cell)
         if not cells:
             continue
-        per = (len(cells) + ncols - 1) // ncols          # column-major fill
+        per = (len(cells) + ncols - 1) // ncols          # rows per column (column-major)
         columns = [cells[i:i + per] for i in range(0, len(cells), per)]
+        while len(columns) < ncols:                      # pad to a full grid
+            columns.append([])
         for col in columns:
             _mark_callouts(col)                           # callouts per column
+        # Transpose to aligned rows so the columns line up (no vertical drift):
+        # row i holds one badge from each column (or None).
+        rows = [[(col[i] if i < len(col) else None) for col in columns]
+                for i in range(per)]
         sections.append({
             "label": _CATALOGUE.category_labels.get(cat_key, cat_key),
-            "columns": columns,
+            "ncols": ncols,
+            "rows": rows,
         })
     return sections
 

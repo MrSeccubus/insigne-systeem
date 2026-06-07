@@ -7,6 +7,12 @@
         aria-label="Scouting blauw" @click="{{ prop }} = '#003f87'; updatePreview()"></button>
 <button type="button" class="poster-swatch" style="background:#00a651" title="Scouting groen"
         aria-label="Scouting groen" @click="{{ prop }} = '#00a651'; updatePreview()"></button>
+<button type="button" class="poster-swatch" style="background:#ffd200" title="Insigne geel"
+        aria-label="Insigne geel" @click="{{ prop }} = '#ffd200'; updatePreview()"></button>
+<button type="button" class="poster-swatch" style="background:#f47b20" title="Insigne oranje"
+        aria-label="Insigne oranje" @click="{{ prop }} = '#f47b20'; updatePreview()"></button>
+<button type="button" class="poster-swatch" style="background:#92278f" title="Insigne paars"
+        aria-label="Insigne paars" @click="{{ prop }} = '#92278f'; updatePreview()"></button>
 {% endmacro %}
 {% macro color_field(prop) %}
 <span class="poster-color-row">
@@ -46,6 +52,9 @@
 <datalist id="poster-huisstijl">
     <option value="#003f87">Scouting blauw</option>
     <option value="#00a651">Scouting groen</option>
+    <option value="#ffd200">Insigne geel</option>
+    <option value="#f47b20">Insigne oranje</option>
+    <option value="#92278f">Insigne paars</option>
     <option value="#000000">Zwart</option>
     <option value="#ffffff">Wit</option>
 </datalist>

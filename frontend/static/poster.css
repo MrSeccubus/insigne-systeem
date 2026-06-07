@@ -25,10 +25,12 @@ html, body {
 
 .poster {
     width: 100%;
-    height: 100%;
     display: flex;
     flex-direction: column;
 }
+/* Single-page only: the poster fills the fixed page box so its content can be
+   distributed to fit. Multi-page leaves it natural height so paged.js paginates. */
+.poster-single .poster { height: 100%; }
 
 /* The page surface carries the (full-bleed) background and must print it
    (browsers omit backgrounds by default). Covers single-page and paged.js. */
@@ -79,13 +81,17 @@ html, body {
 
 .poster-content {
     font-size: var(--body-pt, 12pt);
-    flex: 1 1 0;
-    min-height: 0;              /* let the badge area shrink to fit (not min-content) */
 }
-/* Badge poster only: the single badge grid fills the page height. */
+/* Badge poster: stack the section headers + rows. */
 .poster-content:has(.poster-badge-cols) {
     display: flex;
     flex-direction: column;
+}
+/* Single-page only: fill the page height (so the rows can divide it). Multi-page
+   leaves it natural height so paged.js can paginate. */
+.poster-single .poster-content {
+    flex: 1 1 0;
+    min-height: 0;              /* let the badge area shrink to fit (not min-content) */
 }
 
 .poster-placeholder-note {
@@ -118,7 +124,7 @@ html, body {
 /* Type 1 — badge grid. */
 /* Per-category section header (toggleable). */
 .poster-section-header {
-    grid-column: 1 / -1;            /* a header spans the full grid width (its own `auto` row) */
+    flex: 0 0 auto;                 /* natural height; rows below take the rest */
     font-size: 1.4em;
     font-weight: 700;
     color: #003f87;
@@ -131,24 +137,35 @@ html, body {
 }
 .poster-section-header:first-child { margin-top: 0; }
 
-/* A real grid: badges are placed row-major into aligned rows (built in the
-   router), so the columns line up (no vertical drift). Each column is split
-   into a callout gutter + the badge; the last column is mirrored (callouts on
-   the outer edge) unless there's only one column. */
-/* The grid fills its section: 1fr rows (set inline) divide the available height
-   evenly, so the badges use the whole page without any scale transform. */
+/* The badge area is a column of rows; each row is a flex container with equal
+   cells (so columns line up). The last column is mirrored (callouts on the
+   outer edge) unless there's only one column. */
 .poster-badge-cols {
-    flex: 1 1 0;
-    min-height: 0;
-    display: grid;
-    gap: 2mm 8mm;
-    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+    gap: 2mm;                       /* between rows */
 }
-.poster-badge-cell { min-width: 0; min-height: 0; }
+.poster-badge-row {
+    display: flex;
+    gap: 8mm;                       /* between columns */
+    min-height: 0;
+}
+.poster-badge-cell { flex: 1 1 0; min-width: 0; min-height: 0; }
 .poster-badge {
     margin: 0;                      /* reset the UA default figure margin (1em 40px) */
-    height: 100%;                   /* fill the grid cell so the image can size to it */
     text-align: center;
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+}
+
+/* Single-page (--fill): the rows flex-grow equally to fill the page height, so
+   every badge row is the same height (no scale transform). */
+.poster-badge-cols--fill { flex: 1 1 0; min-height: 0; }
+.poster-badge-cols--fill .poster-badge-row { flex: 1 1 0; }
+.poster-badge-cols--fill .poster-badge { height: 100%; }
+
+/* Multi-page: rows keep their natural height; never split one across a page. */
+.poster-badge-cols:not(.poster-badge-cols--fill) .poster-badge-row {
     break-inside: avoid;
     -webkit-column-break-inside: avoid;
 }
@@ -165,11 +182,11 @@ html, body {
                                        height-bound, so main keeps width to spare. */
     min-width: 0;
     min-height: 0;
-    height: 100%;
     display: flex;
     flex-direction: column;
     text-align: center;
 }
+.poster-badge-cols--fill .poster-badge-main { height: 100%; }
 /* Callout on the first badge of each new activiteitengebied — left of the badge,
    top-aligned, blue text on a white pill. */
 .poster-badge-callout {
@@ -195,19 +212,22 @@ html, body {
    cell height left over above the caption; images bottom-align so the caption
    hugs them. */
 .poster-badge-levels {
-    flex: 1 1 0;
-    min-height: 0;
     display: flex;
     gap: 2mm;
     justify-content: center;
     align-items: flex-end;
 }
+.poster-badge-cols--fill .poster-badge-levels { flex: 1 1 0; min-height: 0; }
 .poster-badge-levels img { flex: 0 1 auto; }
-/* Auto (badge_size_mm 0): each level image is bounded by BOTH its width share
-   (column-width / number-of-niveaus) and the available cell height — whichever
-   is smaller wins, keeping aspect ratio. So the badges grow to fill the box and
-   shrink as more are added, with no scale transform. */
+/* Auto (badge_size_mm 0): each level image is its width share
+   (column-width / number-of-niveaus). Multi-page: natural height. */
 .poster-badge-cols:not([style*="img-mm"]) .poster-badge-levels img {
+    width: calc((100% - (var(--poster-levels, 1) - 1) * 2mm) / var(--poster-levels, 1));
+    height: auto;
+}
+/* Single-page (--fill): also cap by the available cell height so the badge fits
+   the box; whichever of width-share / height is smaller wins (keeps aspect). */
+.poster-badge-cols--fill:not([style*="img-mm"]) .poster-badge-levels img {
     max-width: calc((100% - (var(--poster-levels, 1) - 1) * 2mm) / var(--poster-levels, 1));
     max-height: 100%;
     width: auto;

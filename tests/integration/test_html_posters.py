@@ -178,6 +178,23 @@ class TestPosterRender:
         assert "/static/vendor/paged.polyfill.js" in r.text
         assert "poster-page" not in r.text
 
+    def test_single_page_fills_height(self, client, db):
+        """Single-page adds --fill so the rows divide the fixed page height."""
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=[]))
+        assert "poster-badge-cols--fill" in r.text
+        assert "poster-badge-row" in r.text
+
+    def test_multi_page_natural_height_not_filled(self, client, db):
+        """Multi-page must NOT fill/constrain the height (--fill absent), so
+        paged.js can paginate; rows stay as discrete elements to break between."""
+        _login(client, _user(db))
+        d = _defn(badges=[])
+        d["multi_page"] = True
+        r = self._get(client, d)
+        assert "poster-badge-cols--fill" not in r.text
+        assert "poster-badge-row" in r.text
+
     def test_single_page_preserves_paper_size(self, client, db):
         """Fitting to one page keeps the chosen paper — it doesn't collapse to A4."""
         _login(client, _user(db))

@@ -293,6 +293,24 @@ class TestPosterRender:
         r = self._get(client, d)
         assert "poster-badge-callout" not in r.text
 
+    def test_proof_view_is_faithful_not_clickable_no_print(self, client, db):
+        """proof=1 renders like print (no placeholders, not clickable) but does
+        not open the print dialog; it scales to fit the window instead."""
+        _login(client, _user(db))
+        p = {"def": json.dumps(_defn(badges=["vredeslicht"])), "proof": "1"}
+        r = client.get("/posters/render", params=p)
+        assert r.status_code == 200
+        assert "poster-preview" not in r.text          # not the clickable editor view
+        assert 'data-placeholder="Subtitel"' not in r.text  # empty blocks dropped
+        assert "window.print" not in r.text            # no auto-print
+        assert "page.style.transform" in r.text        # scaled to fit the window
+
+    def test_print_view_auto_prints(self, client, db):
+        _login(client, _user(db))
+        p = {"def": json.dumps(_defn(badges=["vredeslicht"]))}   # neither preview nor proof
+        r = client.get("/posters/render", params=p)
+        assert "window.print" in r.text
+
     def test_activiteitengebied_font_size_default(self, client, db):
         _login(client, _user(db))
         r = self._get(client, _defn(badges=[]))

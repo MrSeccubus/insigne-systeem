@@ -86,6 +86,9 @@
                         <button type="button" class="btn-primary btn-sm" @click="saveOpen = true" title="Opslaan" aria-label="Opslaan">
                             {% include "partials/icon_save.html" %}
                         </button>
+                        <button type="button" class="btn-neutral btn-sm" @click="previewPoster()" title="Voorbeeld (zoals afgedrukt)" aria-label="Voorbeeld">
+                            {% include "partials/icon_eye.html" %}
+                        </button>
                         <button type="button" class="btn-neutral btn-sm" @click="printPoster()" title="Printen" aria-label="Printen">
                             {% include "partials/icon_print.html" %}
                         </button>

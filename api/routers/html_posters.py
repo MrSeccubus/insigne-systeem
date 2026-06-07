@@ -260,6 +260,9 @@ def poster_render(request: Request, db: Session = Depends(get_db)):
             "multi_page": rendered["multi_page"],
             "page_background": _background_css(rendered["elements"]["background"]),
             "preview": q.get("preview") == "1",
+            # Proof view: render faithfully (no placeholders, not clickable) and
+            # scale to fit the window, but don't open the print dialog.
+            "proof": q.get("proof") == "1",
             "sel": sel,
         },
     )

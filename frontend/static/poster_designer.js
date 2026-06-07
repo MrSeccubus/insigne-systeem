@@ -66,6 +66,15 @@
                     window.open(this.renderUrl(false), '_blank');
                 },
 
+                // Proof view: the faithful render (no placeholders, not clickable),
+                // scaled to fit the window, without opening the print dialog.
+                previewPoster() {
+                    const p = new URLSearchParams();
+                    p.set('def', JSON.stringify(this.def));
+                    p.set('proof', '1');
+                    window.open('/posters/render?' + p.toString(), '_blank');
+                },
+
                 // Badge-grid quick selects (poster type 0).
                 badges() {
                     return (this.def.elements && this.def.elements.badge_block

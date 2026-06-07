@@ -22,7 +22,7 @@
     window.PagedConfig = {
         auto: true,
         after: function () {
-            {% if preview %}
+            {% if preview or proof %}
             try {
                 var page = document.querySelector(".pagedjs_page");
                 var pages = document.querySelector(".pagedjs_pages");
@@ -34,7 +34,7 @@
                         pages.style.height = (pages.scrollHeight * scale) + "px";
                     }
                 }
-                highlightSelected();
+                {% if preview %}highlightSelected();{% endif %}
             } catch (e) { /* best-effort */ }
             {% else %}
             window.focus();
@@ -64,7 +64,7 @@
                 poster.style.transformOrigin = "top left";
                 poster.style.transform = "translateX(" + tx + "px) scale(" + s + ")";
             }
-            {% if preview %}
+            {% if preview or proof %}
             if (page) {
                 var avail = document.documentElement.clientWidth - 24;
                 var ps = Math.min(1, avail / page.offsetWidth);
@@ -72,7 +72,7 @@
                 page.style.transform = "scale(" + ps + ")";
                 document.body.style.height = (page.offsetHeight * ps) + "px";
             }
-            highlightSelected();
+            {% if preview %}highlightSelected();{% endif %}
             {% else %}
             window.focus();
             window.print();

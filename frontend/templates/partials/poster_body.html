@@ -30,7 +30,7 @@ font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_
            equal height across sections (a small category's row is as tall as a
            large one), and headers only take their natural height. #}
         <div class="poster-badge-cols"
-             style="grid-template-columns:repeat({{ ncols }},1fr);grid-template-rows:{% for section in poster_sections %}{% if bb.show_section_headers %}auto {% endif %}{% for row in section.rows %}1fr {% endfor %}{% endfor %};--poster-levels:{{ bb.niveaus|length }};{% if bb.badge_size_mm %}--poster-img-mm:{{ bb.badge_size_mm }}mm;{% endif %}">
+             style="grid-template-columns:repeat({{ ncols }},1fr);grid-template-rows:{% for section in poster_sections %}{% if bb.show_section_headers %}auto {% endif %}{% for row in section.rows %}1fr {% endfor %}{% endfor %};--poster-levels:{{ bb.niveaus|length }};--callout-pt:{{ bb.activiteitengebied_font_size_pt }}pt;{% if bb.badge_size_mm %}--poster-img-mm:{{ bb.badge_size_mm }}mm;{% endif %}">
             {% for section in poster_sections %}
             {% if bb.show_section_headers %}<h2 class="poster-section-header">{{ section.label }}</h2>{% endif %}
             {% for row in section.rows %}

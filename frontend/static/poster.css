@@ -177,7 +177,7 @@ html, body {
     box-sizing: border-box;
     width: 100%;
     padding: 1.2mm 2.5mm;
-    font-size: 0.72em;
+    font-size: var(--callout-pt, 14pt);
     font-weight: 700;
     line-height: 1.15;
     color: #003f87;                 /* Scouting blue */

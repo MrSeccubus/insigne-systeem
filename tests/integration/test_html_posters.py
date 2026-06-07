@@ -293,6 +293,26 @@ class TestPosterRender:
         r = self._get(client, d)
         assert "poster-badge-callout" not in r.text
 
+    def test_activiteitengebied_font_size_default(self, client, db):
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=[]))
+        assert "--callout-pt:14pt" in r.text          # default
+
+    def test_activiteitengebied_font_size_adjustable(self, client, db):
+        _login(client, _user(db))
+        d = _defn(badges=[])
+        d["elements"]["badge_block"]["activiteitengebied_font_size_pt"] = 22
+        r = self._get(client, d)
+        assert "--callout-pt:22pt" in r.text
+
+    def test_activiteitengebied_font_size_clamped(self, client, db):
+        """Out-of-range / bad values fall back to the default (6–72)."""
+        _login(client, _user(db))
+        d = _defn(badges=[])
+        d["elements"]["badge_block"]["activiteitengebied_font_size_pt"] = 999
+        r = self._get(client, d)
+        assert "--callout-pt:72pt" in r.text
+
     def test_section_headers_shown_by_default(self, client, db):
         _login(client, _user(db))
         r = self._get(client, _defn(badges=[]))   # empty = all gewoon + buitengewoon

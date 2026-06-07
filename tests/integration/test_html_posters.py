@@ -312,7 +312,7 @@ class TestPosterRender:
         d = _defn(badges=["vredeslicht", "lucht"])
         d["elements"]["badge_block"]["niveaus"] = [1, 2, 3]
         r = self._get(client, d)
-        assert r.text.count('class="poster-badge"') == 2          # one cell per badge
+        assert r.text.count('class="poster-badge-main"') == 2     # one cell per badge
         assert r.text.count('class="poster-badge-levels"') == 2   # a levels row each
 
     def test_datum_and_url_templating(self, client, db):

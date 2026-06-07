@@ -177,6 +177,21 @@ html, body {
     break-inside: avoid;
     -webkit-column-break-inside: avoid;
 }
+
+/* Per-niveau column headers (Niveau 1/2/3, or Jaar 1/2/3 for explorers).
+   The row is thin (never grows, even in --fill mode); each label takes the same
+   width share as a level image so it sits right above its column. */
+.poster-niveau-row,
+.poster-badge-cols--fill .poster-niveau-row { flex: 0 0 auto; }
+.poster-niveau-label {
+    flex: 0 0 auto;
+    width: calc((100% - (var(--poster-levels, 1) - 1) * 2mm) / var(--poster-levels, 1));
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.9em;
+    line-height: 1.2;
+    color: var(--niveau-color, #003f87);
+}
 /* With the activiteitengebied gutter: [callout][badge], callout top-aligned. */
 .poster-badge--gutter { display: flex; align-items: stretch; gap: 4mm; text-align: left; }
 .poster-badge-cell--flip .poster-badge--gutter { flex-direction: row-reverse; }

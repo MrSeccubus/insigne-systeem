@@ -180,10 +180,21 @@ def _poster_sections(defn: dict) -> list[dict]:
         # row i holds one badge from each column (or None).
         rows = [[(col[i] if i < len(col) else None) for col in columns]
                 for i in range(per)]
+        # Per-niveau column headers (aligned with the level images). Explorers use
+        # year labels in green; single-image categories (jaarinsignes) get none.
+        sample = next((c for row in rows for c in row if c), None)
+        img_count = len(sample["images"]) if sample else 0
+        if cat_key == "jaarinsignes" or img_count <= 1:
+            niveau_labels: list[str] = []
+        else:
+            word = "Jaar" if cat_key == "explorers" else "Niveau"
+            niveau_labels = [f"{word} {n}" for n in niveaus[:img_count]]
         sections.append({
             "label": _CATALOGUE.category_labels.get(cat_key, cat_key),
             "ncols": ncols,
             "rows": rows,
+            "niveau_labels": niveau_labels,
+            "niveau_color": "#00a651" if cat_key == "explorers" else "#003f87",
         })
     return sections
 

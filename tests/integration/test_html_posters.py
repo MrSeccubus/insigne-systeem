@@ -89,6 +89,11 @@ class TestPosterDesigner:
         _login(client, _user(db))
         assert client.get("/posters/new?type=bogus").status_code == 200
 
+    def test_niveau_headers_toggle_present(self, client, db):
+        _login(client, _user(db))
+        r = client.get("/posters/new?type=badges")
+        assert 'x-model="def.elements.badge_block.show_niveau_headers"' in r.text
+
     def test_repeat_title_toggle_gated_on_multi_page(self, client, db):
         """The 'repeat title on every page' checkbox is only shown in multi-page."""
         _login(client, _user(db))
@@ -408,11 +413,37 @@ class TestPosterRender:
         r = self._get(client, d)
         assert "poster-section-header" not in r.text
 
+    def test_niveau_headers_shown_by_default(self, client, db):
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=[]))
+        assert "poster-niveau-row" in r.text
+        assert "Niveau 1" in r.text and "Niveau 2" in r.text and "Niveau 3" in r.text
+
+    def test_niveau_headers_can_be_hidden(self, client, db):
+        _login(client, _user(db))
+        d = _defn(badges=[])
+        d["elements"]["badge_block"]["show_niveau_headers"] = False
+        r = self._get(client, d)
+        assert "poster-niveau-row" not in r.text
+
+    def test_explorer_niveau_headers_say_jaar_in_green(self, client, db):
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=["explorer_jaarbadge"]))
+        assert "Jaar 1" in r.text and "Jaar 3" in r.text
+        assert "--niveau-color:#00a651" in r.text          # green for explorers
+
+    def test_jaarinsigne_has_no_niveau_header(self, client, db):
+        """Single-image categories get no per-niveau header row."""
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=["jaarinsigne_2026"]))
+        assert "poster-niveau-row" not in r.text
+
     def test_levels_grouped_per_badge(self, client, db):
         """Each badge is one cell with its niveaus as a row of levels."""
         _login(client, _user(db))
         d = _defn(badges=["vredeslicht", "lucht"])
         d["elements"]["badge_block"]["niveaus"] = [1, 2, 3]
+        d["elements"]["badge_block"]["show_niveau_headers"] = False   # isolate the badges
         r = self._get(client, d)
         assert r.text.count('class="poster-badge-main"') == 2     # one cell per badge
         assert r.text.count('class="poster-badge-levels"') == 2   # a levels row each

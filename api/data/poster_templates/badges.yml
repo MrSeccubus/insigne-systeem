@@ -20,7 +20,8 @@ elements:
   footer: 
     font_size_pt: 18
   badge_block:
-    font_size_pt: 24
+    font_size_pt: 18                      # insignetekst (titels onder de badges)
+    activiteitengebied_font_size_pt: 18   # activiteitengebied-label (callout)
     columns: 2
     neveaus: [1,2,3]
     badge_size_mm: 0   # 0 = auto (fill the grid cell)

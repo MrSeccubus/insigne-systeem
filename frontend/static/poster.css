@@ -140,21 +140,25 @@ html, body {
     -webkit-column-break-inside: avoid;
 }
 /* With the activiteitengebied gutter: [callout][badge], callout top-aligned. */
-.poster-badge--gutter { display: flex; align-items: flex-start; gap: 2mm; text-align: left; }
+.poster-badge--gutter { display: flex; align-items: flex-start; gap: 3mm; text-align: left; }
 .poster-badge-cell--flip .poster-badge--gutter { flex-direction: row-reverse; }
-.poster-badge-gutter { flex: 0 0 26mm; }
+/* Pin the gutter width: min-width:0 stops a long callout word from widening it
+   (which would shrink that badge); the callout wraps inside instead. */
+.poster-badge-gutter { flex: 0 0 32mm; min-width: 0; }
 .poster-badge-main { flex: 1 1 auto; min-width: 0; text-align: center; }
 /* Callout on the first badge of each new activiteitengebied — left of the badge,
    top-aligned, blue text on a white pill. */
 .poster-badge-callout {
     display: inline-block;
-    padding: 0.8mm 2mm;
+    max-width: 100%;
+    padding: 1.2mm 2.5mm;
     font-size: 0.72em;
     font-weight: 700;
-    line-height: 1.1;
+    line-height: 1.15;
     color: #003f87;                 /* Scouting blue */
     background: #fff;
     border-radius: 2mm;
+    overflow-wrap: anywhere;        /* wrap long words inside the gutter */
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
 }
@@ -180,8 +184,8 @@ html, body {
     display: block;
     width: 100%;                    /* a rectangle as wide as the badge row above */
     box-sizing: border-box;
-    margin: 2mm 0 0;
-    padding: 0.8mm 2mm;
+    margin: 3mm 0 0;
+    padding: 1.4mm 3mm;
     font-size: var(--body-pt, 9pt);
     line-height: 1.15;
     color: #fff;

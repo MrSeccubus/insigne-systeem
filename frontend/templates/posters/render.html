@@ -53,9 +53,13 @@
             var inner = document.querySelector(".poster-page-inner");
             var poster = inner && inner.querySelector(".poster");
             if (inner && poster) {
-                var iw = inner.clientWidth, ih = inner.clientHeight;
-                var pw = poster.scrollWidth, ph = poster.scrollHeight;
-                var s = Math.min(1, iw / pw, ih / ph);
+                // Width-only fit: the fixed-box CSS (1fr grid rows + max-height
+                // images) already makes the content fill the page height, so we
+                // only guard against horizontal overflow. Height is NEVER used to
+                // scale — that's what used to shrink the width and leave margins.
+                var iw = inner.clientWidth;
+                var pw = poster.scrollWidth;
+                var s = Math.min(1, iw / pw);
                 var tx = Math.max(0, (iw - pw * s) / 2);   // centre horizontally
                 poster.style.transformOrigin = "top left";
                 poster.style.transform = "translateX(" + tx + "px) scale(" + s + ")";

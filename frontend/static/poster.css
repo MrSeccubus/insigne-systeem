@@ -79,7 +79,22 @@ html, body {
 
 .poster-content {
     font-size: var(--body-pt, 12pt);
-    flex: 1 1 auto;
+    flex: 1 1 0;
+    min-height: 0;              /* let the badge area shrink to fit (not min-content) */
+}
+/* Badge poster only: stack the category sections and let them divide the page
+   height between them, proportional to how many rows each holds. */
+.poster-content:has(.poster-section) {
+    display: flex;
+    flex-direction: column;
+}
+/* One category. flex-grow is set inline (= row count) so every badge row across
+   all sections ends up the same height. */
+.poster-section {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
 }
 
 .poster-placeholder-note {
@@ -112,10 +127,11 @@ html, body {
 /* Type 1 — badge grid. */
 /* Per-category section header (toggleable). */
 .poster-section-header {
+    flex: 0 0 auto;                 /* natural height; the grid below takes the rest */
     font-size: 1.4em;
     font-weight: 700;
     color: #003f87;
-    margin: 4mm 0 3mm;
+    margin: 1.5mm 0 1.5mm;
     padding-bottom: 1mm;
     border-bottom: 1pt solid #003f87;
     break-after: avoid;
@@ -128,29 +144,44 @@ html, body {
    router), so the columns line up (no vertical drift). Each column is split
    into a callout gutter + the badge; the last column is mirrored (callouts on
    the outer edge) unless there's only one column. */
+/* The grid fills its section: 1fr rows (set inline) divide the available height
+   evenly, so the badges use the whole page without any scale transform. */
 .poster-badge-cols {
+    flex: 1 1 0;
+    min-height: 0;
     display: grid;
-    gap: 8mm 12mm;
-    align-items: start;
+    gap: 2mm 8mm;
+    align-items: stretch;
 }
-.poster-badge-cell { min-width: 0; }
+.poster-badge-cell { min-width: 0; min-height: 0; }
 .poster-badge {
+    margin: 0;                      /* reset the UA default figure margin (1em 40px) */
+    height: 100%;                   /* fill the grid cell so the image can size to it */
     text-align: center;
     break-inside: avoid;
     -webkit-column-break-inside: avoid;
 }
 /* With the activiteitengebied gutter: [callout][badge], callout top-aligned. */
-.poster-badge--gutter { display: flex; align-items: flex-start; gap: 3mm; text-align: left; }
+.poster-badge--gutter { display: flex; align-items: stretch; gap: 4mm; text-align: left; }
 .poster-badge-cell--flip .poster-badge--gutter { flex-direction: row-reverse; }
-/* Pin the gutter width: min-width:0 stops a long callout word from widening it
-   (which would shrink that badge); the callout wraps inside instead. */
-.poster-badge-gutter { flex: 0 0 32mm; min-width: 0; }
-.poster-badge-main { flex: 1 1 auto; min-width: 0; text-align: center; }
+/* The callout gutter is nearly as wide as the badge row; min-width:0 lets it
+   share the cell (and stops a long word from widening it). */
+.poster-badge-gutter { flex: 1 1 0; min-width: 0; }
+.poster-badge-main {
+    flex: 3 1 0;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
 /* Callout on the first badge of each new activiteitengebied — left of the badge,
    top-aligned, blue text on a white pill. */
 .poster-badge-callout {
-    display: inline-block;
-    max-width: 100%;
+    display: block;                 /* fill the gutter → nearly as wide as the badges */
+    box-sizing: border-box;
+    width: 100%;
     padding: 1.2mm 2.5mm;
     font-size: 0.72em;
     font-weight: 700;
@@ -163,29 +194,38 @@ html, body {
     print-color-adjust: exact;
 }
 
-/* A badge's niveau images sit side by side as a row of levels. */
+/* A badge's niveau images sit side by side as a row of levels. The row fills the
+   cell height left over above the caption; images bottom-align so the caption
+   hugs them. */
 .poster-badge-levels {
+    flex: 1 1 0;
+    min-height: 0;
     display: flex;
     gap: 2mm;
     justify-content: center;
     align-items: flex-end;
 }
-.poster-badge-levels img { height: auto; }
-/* Auto (badge_size_mm 0): each level image is column-width / number-of-niveaus,
-   so an image is the same size whether it's in a row of 3 or alone (e.g. a
-   jaarinsigne on its own row), and it scales with paper/columns. */
+.poster-badge-levels img { flex: 0 1 auto; }
+/* Auto (badge_size_mm 0): each level image is bounded by BOTH its width share
+   (column-width / number-of-niveaus) and the available cell height — whichever
+   is smaller wins, keeping aspect ratio. So the badges grow to fill the box and
+   shrink as more are added, with no scale transform. */
 .poster-badge-cols:not([style*="img-mm"]) .poster-badge-levels img {
-    width: calc((100% - (var(--poster-levels, 1) - 1) * 2mm) / var(--poster-levels, 1));
-    flex: 0 0 auto;
+    max-width: calc((100% - (var(--poster-levels, 1) - 1) * 2mm) / var(--poster-levels, 1));
+    max-height: 100%;
+    width: auto;
+    height: auto;
 }
-/* Fixed badge_size_mm: exact size per level image. */
-.poster-badge-cols[style*="img-mm"] .poster-badge-levels img { width: var(--poster-img-mm); flex: 0 0 auto; }
+/* Fixed badge_size_mm: exact size per level image (explicit override; may exceed
+   the page — the user asked for that size). */
+.poster-badge-cols[style*="img-mm"] .poster-badge-levels img { width: var(--poster-img-mm); height: auto; flex: 0 0 auto; }
 .poster-badge figcaption {
+    flex: 0 0 auto;
     display: block;
     width: 100%;                    /* a rectangle as wide as the badge row above */
     box-sizing: border-box;
-    margin: 3mm 0 0;
-    padding: 1.4mm 3mm;
+    margin: 1mm 0 0;
+    padding: 1mm 3mm;
     font-size: var(--body-pt, 9pt);
     line-height: 1.15;
     color: #fff;

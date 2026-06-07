@@ -36,7 +36,7 @@ PAPER_SIZES_MM: dict[str, tuple[int, int]] = {
     "A1": (594, 841), "A0": (841, 1189),
 }
 ORIENTATIONS = ("portrait", "landscape")
-PAGE_MARGIN_MM = 12
+PAGE_MARGIN_MM = 8
 
 # Text fields that may contain {{ … }} templates (rendered in poster_render).
 TEXT_FIELDS = ("title", "subtitle", "header", "footer", "group_name", "speltak_name")

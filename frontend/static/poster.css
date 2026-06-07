@@ -183,14 +183,23 @@ html, body {
    width share as a level image so it sits right above its column. */
 .poster-niveau-row,
 .poster-badge-cols--fill .poster-niveau-row { flex: 0 0 auto; }
+/* One bar per niveau, filling its column slot (so it's as wide as the badge
+   image column below and centred over it): white text on the category colour,
+   like the badge caption. */
 .poster-niveau-label {
-    flex: 0 0 auto;
-    width: calc((100% - (var(--poster-levels, 1) - 1) * 2mm) / var(--poster-levels, 1));
+    flex: 1 1 0;
+    min-width: 0;
+    box-sizing: border-box;
     text-align: center;
+    padding: 1mm 2mm;
+    border-radius: 1mm;
     font-weight: 700;
     font-size: 0.9em;
     line-height: 1.2;
-    color: var(--niveau-color, #003f87);
+    color: #fff;
+    background: var(--niveau-color, #003f87);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
 }
 /* With the activiteitengebied gutter: [callout][badge], callout top-aligned. */
 .poster-badge--gutter { display: flex; align-items: stretch; gap: 4mm; text-align: left; }
@@ -237,28 +246,28 @@ html, body {
 .poster-badge-levels {
     display: flex;
     gap: 2mm;
-    justify-content: center;
     align-items: flex-end;
 }
 .poster-badge-cols--fill .poster-badge-levels { flex: 1 1 0; min-height: 0; }
-.poster-badge-levels img { flex: 0 1 auto; }
-/* Auto (badge_size_mm 0): each level image is its width share
-   (column-width / number-of-niveaus). Multi-page: natural height. */
+/* Each level image occupies an equal column slot, so the niveau header bars line
+   up exactly over their image columns. */
+.poster-badge-levels img { flex: 1 1 0; min-width: 0; }
+/* Auto (badge_size_mm 0). Multi-page: fill the slot width, natural height. */
 .poster-badge-cols:not([style*="img-mm"]) .poster-badge-levels img {
-    width: calc((100% - (var(--poster-levels, 1) - 1) * 2mm) / var(--poster-levels, 1));
+    width: 100%;
     height: auto;
 }
-/* Single-page (--fill): also cap by the available cell height so the badge fits
-   the box; whichever of width-share / height is smaller wins (keeps aspect). */
+/* Single-page (--fill): contain within the slot and the available row height
+   (keeps aspect), bottom-aligned so the caption hugs the badge. */
 .poster-badge-cols--fill:not([style*="img-mm"]) .poster-badge-levels img {
-    max-width: calc((100% - (var(--poster-levels, 1) - 1) * 2mm) / var(--poster-levels, 1));
-    max-height: 100%;
-    width: auto;
-    height: auto;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center bottom;
 }
 /* Fixed badge_size_mm: exact size per level image (explicit override; may exceed
    the page — the user asked for that size). */
-.poster-badge-cols[style*="img-mm"] .poster-badge-levels img { width: var(--poster-img-mm); height: auto; flex: 0 0 auto; }
+.poster-badge-cols[style*="img-mm"] .poster-badge-levels img { flex: 0 0 auto; width: var(--poster-img-mm); height: auto; }
 .poster-badge figcaption {
     flex: 0 0 auto;
     display: block;

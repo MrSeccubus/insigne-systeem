@@ -42,8 +42,11 @@ font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_
                column (Niveau 1/2/3, or Jaar 1/2/3 for explorers). #}
             {% if bb.show_niveau_headers and section.niveau_labels %}
             <div class="poster-badge-row poster-niveau-row">
-                {% for _ in range(ncols) %}
+                {% for i in range(ncols) %}
                 <div class="poster-badge-cell{% if loop.last and ncols > 1 %} poster-badge-cell--flip{% endif %}">
+                    {# Only label columns that actually hold badges (a category may
+                       fill fewer columns than ncols, e.g. a single explorer badge). #}
+                    {% if i < section.used_cols %}
                     <div class="poster-badge{% if bb.show_activiteitengebied %} poster-badge--gutter{% endif %}">
                         {% if bb.show_activiteitengebied %}<div class="poster-badge-gutter"></div>{% endif %}
                         <div class="poster-badge-main">
@@ -52,6 +55,7 @@ font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_
                             </div>
                         </div>
                     </div>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </div>

@@ -441,6 +441,13 @@ class TestPosterRender:
         assert "Jaar 1" in r.text and "Jaar 3" in r.text
         assert "background:#00a651" in r.text               # green for explorers
 
+    def test_niveau_headers_only_label_used_columns(self, client, db):
+        """A single badge fills one of the two columns → labels render once."""
+        _login(client, _user(db))
+        r = self._get(client, _defn(badges=["explorer_jaarbadge"]))   # 1 badge, 2 cols
+        assert r.text.count("Jaar 1") == 1                 # only the used column
+        assert r.text.count("Jaar 2") == 1
+
     def test_jaarinsigne_has_no_niveau_header(self, client, db):
         """Single-image categories get no per-niveau header row."""
         _login(client, _user(db))

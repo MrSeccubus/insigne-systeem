@@ -187,6 +187,7 @@ def _poster_sections(defn: dict) -> list[dict]:
             continue
         per = (len(cells) + ncols - 1) // ncols          # rows per column (column-major)
         columns = [cells[i:i + per] for i in range(0, len(cells), per)]
+        used_cols = len(columns)                         # columns that actually hold badges
         while len(columns) < ncols:                      # pad to a full grid
             columns.append([])
         for col in columns:
@@ -209,6 +210,7 @@ def _poster_sections(defn: dict) -> list[dict]:
         sections.append({
             "label": _CATALOGUE.category_labels.get(cat_key, cat_key),
             "ncols": ncols,
+            "used_cols": used_cols,
             "rows": rows,
             "niveau_labels": niveau_labels,
         })

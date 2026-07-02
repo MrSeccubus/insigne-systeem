@@ -10,6 +10,14 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Beveiliging
+
+- **Accountovername via "e-mailadres koppelen" geblokkeerd** — de endpoint `POST /groups/{groep}/speltakken/{speltak}/members/{id}/set-email` controleerde alleen `can_manage_speltak` op de speltak in de URL, maar niet dat de meegegeven `member_id` (a) een echte account-loze scout is en (b) lid is van díe speltak. Daardoor kon een speltakleider een willekeurige `member_id` opgeven en het e-mailadres van elke gebruiker overschrijven, het account op `pending` zetten en een registratietoken naar een zelfgekozen adres laten sturen — een volledige accountovername. Gecombineerd met de standaard `allow_any_user_to_create_groups: true` (elke gebruiker kan een groep aanmaken en wordt daarmee groepsleider) was dit door élke ingelogde gebruiker uit te voeren. `attach_email_to_scout` weigert nu tenzij de doel-scout `email is None`, `status == "active"` én een goedgekeurd lidmaatschap in de betreffende speltak heeft. 4 unit- + 3 integratietests.
+
+### Opgelost
+
+- **Uitnodigingsmail bij "e-mailadres koppelen" gaf een 500** — het legitieme pad riep `send_speltak_invite_email(..., code=...)` aan terwijl die functie geen `code`-parameter heeft (de registratielink wordt intern uit het e-mailadres opgebouwd). De overbodige `code`-parameter is verwijderd zodat de scout weer een uitnodiging ontvangt. Aan het licht gekomen door de nieuwe regressietest voor het bovenstaande beveiligingslek.
+
 ### Onderhoud
 
 - **Smoke-testdekking voor alle HTML-pagina's** (sluit #142) — een geparametriseerde test rendert nu elke template-renderende GET-route (`/`, `/admin`, alle `/groups/...`- en `/scouts/...`-pagina's, enz.) als ingelogde admin + groepsleider + speltakleider met een echte scout-fixture, en faalt bij elke 5xx. Dit dekt de klasse fout waardoor #139 (de admin-500 door een verouderde `user`-verwijzing in de template-context) destijds **ongemerkt** kon doorglippen: er was simpelweg geen test die `/admin` als beheerder rendert. Een bewakingstest faalt bovendien zodra een nieuwe pagina-route niet aan de smoke-lijst is toegevoegd, zodat de dekking niet stilletjes achterloopt.

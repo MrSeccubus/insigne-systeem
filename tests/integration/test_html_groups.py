@@ -569,3 +569,58 @@ class TestGroupProgressPage:
         r = client.get("/groups/g/progress", follow_redirects=False)
         assert r.status_code == 303
         assert "/login" in r.headers["location"]
+
+
+class TestSpeltakSetMemberEmailTakeoverGuard:
+    """The set-email endpoint must not let a leader overwrite an arbitrary
+    user's email (account takeover). See SECURITY-REVIEW / fix.
+    """
+
+    def test_cannot_hijack_user_with_existing_email(self, client, db):
+        leader = _user(db, email="leader@example.com")
+        victim = _user(db, email="victim@example.com", name="Victim")
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leader.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        _login(client, leader)
+
+        r = client.post(
+            f"/groups/g/speltakken/s/members/{victim.id}/set-email",
+            data={"email": "attacker@example.com"}, follow_redirects=False,
+        )
+        # Handler renders an error page (200), does not mutate the victim.
+        assert r.status_code == 200
+        db.refresh(victim)
+        assert victim.email == "victim@example.com"
+        assert victim.status == "active"
+
+    def test_cannot_target_scout_from_another_speltak(self, client, db):
+        leader = _user(db, email="leader@example.com")
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leader.id)
+        s1 = svc.create_speltak(db, group_id=g.id, name="S1", slug="s1")
+        s2 = svc.create_speltak(db, group_id=g.id, name="S2", slug="s2")
+        scout = _scout_user(db, g.id, s2.id)  # member of s2, not s1
+        _login(client, leader)
+
+        r = client.post(
+            f"/groups/g/speltakken/s1/members/{scout.id}/set-email",
+            data={"email": "new@example.com"}, follow_redirects=False,
+        )
+        assert r.status_code == 200
+        db.refresh(scout)
+        assert scout.email is None
+
+    def test_legit_emailless_member_still_works(self, client, db):
+        leader = _user(db, email="leader@example.com")
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leader.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        scout = _scout_user(db, g.id, s.id)
+        _login(client, leader)
+
+        r = client.post(
+            f"/groups/g/speltakken/s/members/{scout.id}/set-email",
+            data={"email": "scout@example.com"}, follow_redirects=False,
+        )
+        assert r.status_code == 200
+        db.refresh(scout)
+        assert scout.email == "scout@example.com"
+        assert scout.status == "pending"

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Posters — Insigne Systeem{% endblock %}
+{% block content %}
+{% set any = visible.personal or visible.speltak or visible.group %}
+<main style="max-width:760px;" x-data="{ step: 'choose' }">
+    <h1>Posters</h1>
+
+    {# ── Wizard step 1: Wat wil je doen? ────────────────────────────────── #}
+    <div x-show="step === 'choose'">
+        <p class="poster-wizard-q">Wat wil je doen?</p>
+        <div class="poster-wizard-options">
+            <a href="/posters/new?type=badges" class="poster-wizard-card">
+                <span class="poster-wizard-num">1</span>
+                <span class="poster-wizard-text">
+                    <span class="poster-wizard-label">Een algemeen insigneposter maken</span>
+                    <span class="poster-wizard-desc">Een raster van insignes die je zelf kiest.</span>
+                </span>
+            </a>
+            <a href="/posters/new?type=speltak" class="poster-wizard-card">
+                <span class="poster-wizard-num">2</span>
+                <span class="poster-wizard-text">
+                    <span class="poster-wizard-label">Een persoonlijk / speltak-overzicht maken</span>
+                    <span class="poster-wizard-desc">De voortgang van een speltak op een poster.</span>
+                </span>
+            </a>
+            <a href="/posters/new?type=signoff" class="poster-wizard-card">
+                <span class="poster-wizard-num">3</span>
+                <span class="poster-wizard-text">
+                    <span class="poster-wizard-label">Een aftekenposter maken</span>
+                    <span class="poster-wizard-desc">Eisen per insigne met ruimte om af te tekenen.</span>
+                </span>
+            </a>
+            <button type="button" class="poster-wizard-card" @click="step = 'list'">
+                <span class="poster-wizard-num">4</span>
+                <span class="poster-wizard-text">
+                    <span class="poster-wizard-label">Een bestaande poster openen of wijzigen</span>
+                    <span class="poster-wizard-desc">
+                        {% if any %}Kies uit je opgeslagen posters.{% else %}Je hebt er nog geen.{% endif %}
+                    </span>
+                </span>
+            </button>
+        </div>
+
+        <form method="post" action="/posters/import" enctype="multipart/form-data" class="poster-import">
+            <span>Of importeer een poster (YAML):</span>
+            <input type="file" name="file" accept=".yml,.yaml" required>
+            <button type="submit" class="btn-sm btn-neutral">Importeren</button>
+        </form>
+    </div>
+
+    {# ── Wizard step (option 4): existing posters ───────────────────────── #}
+    <div x-show="step === 'list'" style="display:none;">
+        <button type="button" class="poster-back" @click="step = 'choose'">← Terug</button>
+        <h2 style="font-size:1.1rem;margin:0.5rem 0 1rem;">Bestaande posters</h2>
+
+        {% set scope_labels = {"personal": "Persoonlijk", "speltak": "Speltak", "group": "Groep"} %}
+        {% if any %}
+        {% for scope_key in ["personal", "speltak", "group"] %}
+            {% set items = visible[scope_key] %}
+            {% if items %}
+            <section style="margin-bottom:1.5rem;">
+                <h3 style="font-size:0.95rem;margin-bottom:0.5rem;">{{ scope_labels[scope_key] }}</h3>
+                <ul class="poster-list">
+                    {% for p in items %}
+                    <li class="poster-list-row">
+                        <a href="/posters/{{ p.id }}" class="poster-list-link">
+                            <span class="poster-list-name">{{ p.name }}</span>
+                            <span class="poster-list-meta">{{ type_labels.get(p.poster_type, 'Poster') }}</span>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+        {% endfor %}
+        {% else %}
+        <p class="empty-state">Je hebt nog geen posters. Maak er een via de vorige stap.</p>
+        {% endif %}
+    </div>
+</main>
+{% endblock %}

@@ -1,0 +1,101 @@
+{# Poster content — shared by the live preview iframe and the print window so
+   preview == print. Receives the rendered (text fields already templated +
+   autoescaped here) definition ``defn``, ``poster_type``, ``poster_badges`` and
+   ``preview``. In preview every block is rendered (with a [data-el] hook) so it
+   stays clickable even when empty; in print empty blocks are dropped. #}
+{% macro el_style(el) -%}
+font-size:{{ el.font_size_pt }}pt;{% if el.font_family %}font-family:{{ el.font_family }};{% endif %}{% if el.color %}color:{{ el.color }};{% endif %}
+{%- endmacro %}
+{% set bb = defn.elements.badge_block %}
+<div class="poster" data-el="pagina"
+     style="--body-pt:{{ bb.font_size_pt }}pt;">
+    {# Masthead = header + title + subtitle. In multi-page mode this (or just the
+       header) is pulled into the running @page margin so it repeats per page. #}
+    <div class="poster-masthead">
+    {% if preview or defn.header or defn.group_name or defn.speltak_name %}
+    <div class="poster-running-header" data-el="header" data-placeholder="Koptekst" style="{{ el_style(defn.elements.header) }}">
+        <span class="poster-header-left">{{ defn.header }}</span>
+        <span class="poster-header-right">
+            {{ defn.group_name }}{% if defn.group_name and defn.speltak_name %} — {% endif %}{{ defn.speltak_name }}
+        </span>
+    </div>
+    {% endif %}
+
+    {% if preview or defn.title %}<h1 class="poster-title" data-el="title" data-placeholder="Titel" style="{{ el_style(defn.elements.title) }}">{{ defn.title }}</h1>{% endif %}
+    {% if preview or defn.subtitle %}<p class="poster-subtitle" data-el="subtitle" data-placeholder="Subtitel" style="{{ el_style(defn.elements.subtitle) }}">{{ defn.subtitle }}</p>{% endif %}
+    </div>{# .poster-masthead #}
+
+    <div class="poster-content"{% if poster_type == "badges" %} data-el="badge_block"{% endif %}>
+        {% if poster_type == "badges" %}
+        {% if poster_sections %}
+        {% set ncols = poster_sections[0].ncols %}
+        {# Flex rows. Each row is a flex container (equal-width cells → aligned
+           columns); category headers sit between rows. Single-page mode adds
+           --fill: the rows flex-grow equally to fill the page height (all badge
+           rows equal). Multi-page mode leaves rows at natural height and keeps
+           each one intact across page breaks (break-inside:avoid). #}
+        <div class="poster-badge-cols{% if not multi_page %} poster-badge-cols--fill{% endif %}"
+             style="--poster-levels:{{ bb.niveaus|length }};--callout-pt:{{ bb.activiteitengebied_font_size_pt }}pt;{% if bb.badge_size_mm %}--poster-img-mm:{{ bb.badge_size_mm }}mm;{% endif %}">
+            {% for section in poster_sections %}
+            {% if bb.show_section_headers %}<h2 class="poster-section-header">{{ section.label }}</h2>{% endif %}
+            {# Per-niveau column headers, aligned with the level images of each
+               column (Niveau 1/2/3, or Jaar 1/2/3 for explorers). #}
+            {% if bb.show_niveau_headers and section.niveau_labels %}
+            <div class="poster-badge-row poster-niveau-row">
+                {% for i in range(ncols) %}
+                <div class="poster-badge-cell{% if loop.last and ncols > 1 %} poster-badge-cell--flip{% endif %}">
+                    {# Only label columns that actually hold badges (a category may
+                       fill fewer columns than ncols, e.g. a single explorer badge). #}
+                    {% if i < section.used_cols %}
+                    <div class="poster-badge{% if bb.show_activiteitengebied %} poster-badge--gutter{% endif %}">
+                        {% if bb.show_activiteitengebied %}<div class="poster-badge-gutter"></div>{% endif %}
+                        <div class="poster-badge-main">
+                            <div class="poster-badge-levels">
+                                {% for lbl in section.niveau_labels %}<span class="poster-niveau-label" style="background:{{ lbl.bg }};color:{{ lbl.fg }};">{{ lbl.text }}</span>{% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% for row in section.rows %}
+            <div class="poster-badge-row">
+            {% for b in row %}
+            <div class="poster-badge-cell{% if loop.last and ncols > 1 %} poster-badge-cell--flip{% endif %}">
+                {% if b %}
+                <figure class="poster-badge{% if bb.show_activiteitengebied %} poster-badge--gutter{% endif %}">
+                    {% if bb.show_activiteitengebied %}
+                    <div class="poster-badge-gutter">
+                        {% if b.callout %}<div class="poster-badge-callout">{{ b.callout }}</div>{% endif %}
+                    </div>
+                    {% endif %}
+                    <div class="poster-badge-main">
+                        <div class="poster-badge-levels">
+                            {% for img in b.images %}<img src="{{ img }}" alt="{{ b.title }}" loading="eager">{% endfor %}
+                        </div>
+                        {% if bb.show_titles %}<figcaption>{{ b.title }}</figcaption>{% endif %}
+                    </div>
+                </figure>
+                {% endif %}
+            </div>
+            {% endfor %}
+            </div>
+            {% endfor %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="poster-placeholder-note">Geen insignes om te tonen.</p>
+        {% endif %}
+
+        {% else %}
+        <p class="poster-placeholder-note">
+            Voorbeeldinhoud — postertype: <strong>{{ poster_type }}</strong>.
+            De echte posterinhoud volgt in een volgende fase.
+        </p>
+        {% endif %}
+    </div>
+
+    {% if preview or defn.footer %}<div class="poster-running-footer" data-el="footer" data-placeholder="Voettekst" style="{{ el_style(defn.elements.footer) }}">{{ defn.footer }}</div>{% endif %}
+</div>

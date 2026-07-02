@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block title %}Poster-ontwerper — Insigne Systeem{% endblock %}
+{% block content %}
+{# Huisstijl quick-pick swatches that set an Alpine colour property. #}
+{% macro color_swatches(prop) %}
+<button type="button" class="poster-swatch" style="background:#003f87" title="Scouting blauw"
+        aria-label="Scouting blauw" @click="{{ prop }} = '#003f87'; updatePreview()"></button>
+<button type="button" class="poster-swatch" style="background:#00a651" title="Scouting groen"
+        aria-label="Scouting groen" @click="{{ prop }} = '#00a651'; updatePreview()"></button>
+<button type="button" class="poster-swatch" style="background:#ffd200" title="Insigne geel"
+        aria-label="Insigne geel" @click="{{ prop }} = '#ffd200'; updatePreview()"></button>
+<button type="button" class="poster-swatch" style="background:#f47b20" title="Insigne oranje"
+        aria-label="Insigne oranje" @click="{{ prop }} = '#f47b20'; updatePreview()"></button>
+<button type="button" class="poster-swatch" style="background:#92278f" title="Insigne paars"
+        aria-label="Insigne paars" @click="{{ prop }} = '#92278f'; updatePreview()"></button>
+{% endmacro %}
+{% macro color_field(prop) %}
+<span class="poster-color-row">
+    <input type="color" list="poster-huisstijl" x-model="{{ prop }}">
+    {{ color_swatches(prop) }}
+</span>
+{% endmacro %}
+{% macro font_controls(el) %}
+<label class="field"><span>Lettertype</span>
+    <select x-model="def.elements.{{ el }}.font_family">
+        <option value="">Standaard</option>
+        <option value="Arial, sans-serif">Arial</option>
+        <option value="Verdana, sans-serif">Verdana</option>
+        <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+        <option value="Georgia, serif">Georgia</option>
+        <option value="Times New Roman, serif">Times New Roman</option>
+        <option value="Courier New, monospace">Courier New</option>
+    </select></label>
+<label class="field"><span>Kleur</span>
+    <span class="poster-color-row">
+        <input type="color" list="poster-huisstijl" x-model="def.elements.{{ el }}.color">
+        {{ color_swatches('def.elements.' ~ el ~ '.color') }}
+        <button type="button" class="btn-sm btn-neutral" @click="def.elements.{{ el }}.color=''; updatePreview()">Standaard</button>
+    </span></label>
+{% endmacro %}
+{% macro template_fields_help() %}
+<details class="poster-fields-help">
+    <summary>Sjabloonvelden gebruiken</summary>
+    <ul>
+        <li><code>{{ '{{ user.name }}' }}</code> — naam van de ingelogde gebruiker</li>
+        <li><code>{{ '{{ datum }}' }}</code> — datum van vandaag</li>
+        <li><code>{{ '{{ tijd }}' }}</code> — huidige tijd</li>
+        <li><code>{{ '{{ url }}' }}</code> — adres van het systeem</li>
+    </ul>
+</details>
+{% endmacro %}
+<datalist id="poster-huisstijl">
+    <option value="#003f87">Scouting blauw</option>
+    <option value="#00a651">Scouting groen</option>
+    <option value="#ffd200">Insigne geel</option>
+    <option value="#f47b20">Insigne oranje</option>
+    <option value="#92278f">Insigne paars</option>
+    <option value="#000000">Zwart</option>
+    <option value="#ffffff">Wit</option>
+</datalist>
+<main class="poster-designer-main" x-data="posterDesigner()">
+    {# Config in a JSON script block (NOT an x-data attribute): |tojson doesn't
+       escape double quotes, so user strings in a double-quoted attribute would
+       be stored XSS + break the markup. It DOES escape < > & here. #}
+    <script type="application/json" id="poster-designer-config">{{ {
+        "definition": definition,
+        "posterId": (poster.id if poster else ""),
+        "editable": editable,
+        "filterSets": filter_sets
+    } | tojson }}</script>
+
+    <div class="poster-toosmall">
+        <h1>Te klein scherm</h1>
+        <p>De poster-ontwerper heeft een breder scherm nodig — gebruik een desktop
+           of een tablet in liggende stand.</p>
+        <a href="/posters" class="btn-neutral" style="text-decoration:none;">Terug naar posters</a>
+    </div>
+
+    <div class="poster-designer">
+        <aside class="poster-params">
+            <form method="post"
+                  :action="(posterId && editable) ? ('/posters/' + posterId) : '/posters'"
+                  @input.debounce.400ms="updatePreview()"
+                  @change.debounce.400ms="updatePreview()"
+                  @keydown.enter.prevent
+                  class="poster-form">
+                <input type="hidden" name="definition" :value="JSON.stringify(def)">
+
+                {# ── Toolbar: back / save+print+page-properties ──────────── #}
+                <div class="poster-bar">
+                    <div class="poster-bar-row">
+                        <a href="/posters" class="poster-back">← Posters</a>
+                    </div>
+                    <div class="poster-bar-row poster-bar-actions">
+                        <button type="button" class="btn-primary btn-sm" @click="saveOpen = true" title="Opslaan" aria-label="Opslaan">
+                            {% include "partials/icon_save.html" %}
+                        </button>
+                        <button type="button" class="btn-neutral btn-sm"
+                                :class="proofMode ? 'btn-star-active' : ''"
+                                @click="togglePreview()"
+                                :title="proofMode ? 'Terug naar bewerken' : 'Voorbeeld (zoals afgedrukt)'"
+                                aria-label="Voorbeeld" :aria-pressed="proofMode">
+                            {% include "partials/icon_eye.html" %}
+                        </button>
+                        <button type="button" class="btn-neutral btn-sm" @click="printPoster()" title="Printen" aria-label="Printen">
+                            {% include "partials/icon_print.html" %}
+                        </button>
+                        <button type="button" class="btn-neutral btn-sm"
+                                :class="selected === 'pagina' ? 'btn-star-active' : ''"
+                                @click="selected = 'pagina'; updatePreview()">Pagina-eigenschappen</button>
+                    </div>
+                </div>
+                <hr class="poster-divider">
+
+                <div class="notification-bar" x-show="proofMode" x-cloak>
+                    Voorbeeldmodus actief — druk nogmaals op
+                    <span aria-hidden="true">👁</span> Voorbeeld om weer te kunnen bewerken.
+                </div>
+
+                {# ── Element editor (driven by the selected preview element) ─ #}
+                <div class="poster-editor" x-show="!proofMode">
+                    <p x-show="!selected" class="poster-hint">Klik op een element in de poster om het aan te passen.</p>
+
+                    {# Pagina #}
+                    <div x-show="selected === 'pagina'">
+                        <h2 class="poster-editor-title">Pagina</h2>
+                        <div class="poster-params-grid">
+                            <label class="field"><span>Papierformaat</span>
+                                <select x-model="def.paper">
+                                    {% for ps in paper_sizes %}<option value="{{ ps }}">{{ ps }}</option>{% endfor %}
+                                </select></label>
+                            <label class="field"><span>Oriëntatie</span>
+                                <select x-model="def.orientation">
+                                    <option value="portrait">Staand</option>
+                                    <option value="landscape">Liggend</option>
+                                </select></label>
+                        </div>
+                        <label class="field"><span>Achtergrond</span>
+                            <select x-model="def.elements.background.style">
+                                <option value="none">Geen</option>
+                                <option value="solid">Effen</option>
+                                <option value="horizontal_gradient">Verloop horizontaal</option>
+                                <option value="vertical_gradient">Verloop verticaal</option>
+                            </select></label>
+                        <div class="poster-params-grid" x-show="def.elements.background.style !== 'none'">
+                            <label class="field"><span>Kleur 1</span>{{ color_field('def.elements.background.start_color') }}</label>
+                            <label class="field" x-show="def.elements.background.style.includes('gradient')"><span>Kleur 2</span>{{ color_field('def.elements.background.end_color') }}</label>
+                        </div>
+                        <label class="field poster-check">
+                            <input type="checkbox" x-model="def.multi_page"><span>Meerdere pagina's toestaan (anders: alles op één pagina)</span></label>
+                        <label class="field poster-check" x-show="def.multi_page">
+                            <input type="checkbox" x-model="def.repeat_title"><span>Titel op elke pagina herhalen</span></label>
+                    </div>
+
+                    {# Titel #}
+                    <div x-show="selected === 'title'">
+                        <h2 class="poster-editor-title">Titel</h2>
+                        <label class="field"><span>Tekst</span><input type="text" x-model="def.title" maxlength="200"></label>
+                        <label class="field"><span>Lettergrootte (pt)</span><input type="number" x-model.number="def.elements.title.font_size_pt" min="8" max="200"></label>
+                        {{ font_controls('title') }}
+                        {{ template_fields_help() }}
+                    </div>
+
+                    {# Subtitel #}
+                    <div x-show="selected === 'subtitle'">
+                        <h2 class="poster-editor-title">Subtitel</h2>
+                        <label class="field"><span>Tekst</span><input type="text" x-model="def.subtitle" maxlength="300"></label>
+                        <label class="field"><span>Lettergrootte (pt)</span><input type="number" x-model.number="def.elements.subtitle.font_size_pt" min="6" max="120"></label>
+                        {{ font_controls('subtitle') }}
+                        {{ template_fields_help() }}
+                    </div>
+
+                    {# Koptekst #}
+                    <div x-show="selected === 'header'">
+                        <h2 class="poster-editor-title">Koptekst</h2>
+                        <label class="field"><span>Tekst (links)</span><input type="text" x-model="def.header" maxlength="200"></label>
+                        <div class="poster-params-grid">
+                            <label class="field"><span>Groep (rechts)</span><input type="text" x-model="def.group_name" maxlength="120"></label>
+                            <label class="field"><span>Speltak (rechts)</span><input type="text" x-model="def.speltak_name" maxlength="120"></label>
+                        </div>
+                        <label class="field"><span>Lettergrootte (pt)</span><input type="number" x-model.number="def.elements.header.font_size_pt" min="6" max="72"></label>
+                        {{ font_controls('header') }}
+                        {{ template_fields_help() }}
+                    </div>
+
+                    {# Voettekst #}
+                    <div x-show="selected === 'footer'">
+                        <h2 class="poster-editor-title">Voettekst</h2>
+                        <label class="field"><span>Tekst</span><input type="text" x-model="def.footer" maxlength="200"></label>
+                        <label class="field"><span>Lettergrootte (pt)</span><input type="number" x-model.number="def.elements.footer.font_size_pt" min="6" max="72"></label>
+                        {{ font_controls('footer') }}
+                        {{ template_fields_help() }}
+                    </div>
+
+                    {# Insigne-blok #}
+                    <div x-show="selected === 'badge_block'" class="poster-badge-picker">
+                        <h2 class="poster-editor-title">Insigne-blok</h2>
+                        <div class="poster-params-grid">
+                            <label class="field"><span>Kolommen</span><input type="number" x-model.number="def.elements.badge_block.columns" min="1" max="12"></label>
+                            <label class="field"><span>Afbeelding (mm, 0=auto)</span><input type="number" x-model.number="def.elements.badge_block.badge_size_mm" min="0" max="120"></label>
+                            <label class="field"><span>Insigne-tekst (pt)</span><input type="number" x-model.number="def.elements.badge_block.font_size_pt" min="6" max="72"></label>
+                            <label class="field poster-check"><input type="checkbox" x-model="def.elements.badge_block.show_titles"><span>Titels tonen</span></label>
+                            <label class="field poster-check"><input type="checkbox" x-model="def.elements.badge_block.show_section_headers"><span>Sectiekoppen tonen</span></label>
+                            <label class="field poster-check"><input type="checkbox" x-model="def.elements.badge_block.show_niveau_headers"><span>Niveaukoppen tonen</span></label>
+                            <label class="field poster-check"><input type="checkbox" x-model="def.elements.badge_block.show_activiteitengebied"><span>Activiteitengebied tonen</span></label>
+                            <label class="field" x-show="def.elements.badge_block.show_activiteitengebied"><span>Activiteitengebied (pt)</span><input type="number" x-model.number="def.elements.badge_block.activiteitengebied_font_size_pt" min="6" max="72"></label>
+                        </div>
+                        <label class="field"><span>Niveaus</span></label>
+                        <div class="poster-niveaus">
+                            <label><input type="checkbox" value="1" x-model.number="def.elements.badge_block.niveaus"> 1</label>
+                            <label><input type="checkbox" value="2" x-model.number="def.elements.badge_block.niveaus"> 2</label>
+                            <label><input type="checkbox" value="3" x-model.number="def.elements.badge_block.niveaus"> 3</label>
+                        </div>
+                        <div class="poster-quick-selects">
+                            <span>Snel kiezen:</span>
+                            <button type="button" class="btn-sm btn-neutral" @click="selectSet('all')">Alle (gewoon + buitengewoon)</button>
+                            <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.favorites||[]).length" @click="selectSet('favorites')">Mijn favorieten</button>
+                            <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.progress||[]).length" @click="selectSet('progress')">Mijn voortgang</button>
+                            <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.speltak_favorites||[]).length" @click="selectSet('speltak_favorites')">Speltak-favorieten</button>
+                            <button type="button" class="btn-sm btn-neutral" x-show="(filterSets.speltak_progress||[]).length" @click="selectSet('speltak_progress')">Speltak-voortgang</button>
+                        </div>
+                        <div class="poster-badge-list">
+                            {% for category, items in badge_catalogue.items() %}
+                            <div class="poster-badge-cat">
+                                <h3>{{ category_labels.get(category, category) }}</h3>
+                                {% for info in items %}
+                                <label class="poster-badge-option">
+                                    <input type="checkbox" value="{{ info.slug }}" x-model="def.elements.badge_block.badges">
+                                    {% if info.images %}<img src="{{ info.images[0] }}" alt="" loading="lazy">{% endif %}
+                                    <span>{{ info.title }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <p class="field-hint">
+                            <template x-if="(def.elements.badge_block.badges || []).length">
+                                <span><span x-text="def.elements.badge_block.badges.length"></span> insigne(s) geselecteerd</span>
+                            </template>
+                            <template x-if="!(def.elements.badge_block.badges || []).length">
+                                <span>Niets geselecteerd = alle gewone + buitengewone insignes.</span>
+                            </template>
+                        </p>
+                    </div>
+                </div>
+
+                {# ── Save dialog (name + where to save), opened by the save button #}
+                <div class="poster-modal-backdrop" x-show="saveOpen" x-transition
+                     @click.self="saveOpen = false" style="display:none;">
+                    <div class="poster-modal">
+                        <h3 class="poster-editor-title">Poster opslaan</h3>
+                        <label class="field"><span>Naam</span>
+                            <input type="text" x-model="def.name" maxlength="120" placeholder="Naam van deze poster"></label>
+                        {% if not poster %}
+                        <label class="field"><span>Opslaan als</span>
+                            <select x-model="scopeSel">
+                                <option value="user">Persoonlijk (alleen ik)</option>
+                                {% if scopes.speltakken %}
+                                <optgroup label="Speltak (zichtbaar voor leden)">
+                                    {% for group, speltak in scopes.speltakken %}
+                                    <option value="speltak:{{ speltak.id }}">{{ group.name }} — {{ speltak.name }}</option>
+                                    {% endfor %}
+                                </optgroup>
+                                {% endif %}
+                                {% if scopes.groups %}
+                                <optgroup label="Groep (zichtbaar voor leden)">
+                                    {% for group in scopes.groups %}<option value="group:{{ group.id }}">{{ group.name }}</option>{% endfor %}
+                                </optgroup>
+                                {% endif %}
+                            </select></label>
+                        <input type="hidden" name="scope" :value="scopeSel.split(':')[0]">
+                        <input type="hidden" name="scope_id" :value="scopeSel.split(':')[1] || ''">
+                        {% elif not editable %}
+                        <p class="field-hint">Je bekijkt een gedeelde poster. Opslaan maakt een persoonlijke kopie.</p>
+                        {% endif %}
+                        <div class="poster-modal-actions">
+                            <button type="submit" class="btn-primary"
+                                    x-text="(posterId && editable) ? 'Opslaan' : (posterId ? 'Opslaan als kopie' : 'Opslaan')"></button>
+                            <button type="button" class="btn-neutral" @click="saveOpen = false">Annuleren</button>
+                        </div>
+                        {% if poster %}
+                        <p class="field-hint" style="margin-top:0.75rem;">
+                            <a href="/posters/{{ poster.id }}/export">Exporteren (YAML)</a>
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+
+            {% if poster and editable %}
+            <form method="post" action="/posters/{{ poster.id }}/delete"
+                  @submit="if (!confirm('Deze poster verwijderen?')) $event.preventDefault()"
+                  class="poster-delete-form">
+                <button type="submit" class="btn-danger btn-sm">Verwijderen</button>
+            </form>
+            {% endif %}
+        </aside>
+
+        <section class="poster-preview-pane">
+            <iframe x-ref="preview" class="poster-preview-frame" title="Voorbeeld"></iframe>
+        </section>
+    </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script src="/static/poster_designer.js?v={{ app_version() }}"></script>
+{% endblock %}

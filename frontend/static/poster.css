@@ -1,0 +1,321 @@
+/* Standalone poster document styles (#132).
+ *
+ * Loaded only by /posters/render (the preview iframe + the print window) — NOT
+ * by the app's normal pages. The @page size/margin is emitted inline per poster
+ * (paper size varies); this file styles the poster body that paged.js paginates.
+ */
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background: #e5e7eb;            /* visible "desk" behind the pages (preview) */
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    color: #1a1a1a;
+}
+
+/* paged.js wraps each page in .pagedjs_page; give pages a white sheet + shadow
+   in the preview so the page edges are visible. Print drops the shadow. */
+.pagedjs_page {
+    background: #fff;
+    margin: 0 auto 12px;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+}
+
+.poster {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+/* Single-page only: the poster fills the fixed page box so its content can be
+   distributed to fit. Multi-page leaves it natural height so paged.js paginates. */
+.poster-single .poster { height: 100%; }
+
+/* Header + title + subtitle group. In multi-page mode this (or just the header)
+   is pulled into the running @page margin via position:running(); otherwise it
+   is a normal in-flow block at the top of the poster. The explicit text-align
+   keeps the title left-aligned: a running element sits in the @top-center
+   margin box, which defaults to text-align:center and would otherwise centre
+   the title. */
+.poster-masthead { flex: 0 0 auto; text-align: left; }
+
+/* The page surface carries the (full-bleed) background and must print it
+   (browsers omit backgrounds by default). Covers single-page and paged.js. */
+.poster-page, .pagedjs_sheet {
+    background: var(--poster-bg, #fff);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* Single-page mode (default): one fixed full-page sheet (background fills it
+   edge to edge); an inset inner box holds the content, scaled by JS to fit. */
+.poster-single .poster-page {
+    position: relative;
+    box-sizing: border-box;
+    overflow: hidden;
+    margin: 0 auto 12px;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+}
+.poster-single .poster-page-inner { position: absolute; }   /* inset set inline */
+@media print {
+    .poster-single .poster-page { box-shadow: none; margin: 0; }
+}
+
+.poster-running-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: var(--header-pt, 11pt);
+    color: #555;
+    border-bottom: 1px solid #d1d5db;
+    padding-bottom: 4pt;
+    margin-bottom: 8pt;
+}
+
+.poster-title {
+    font-size: var(--title-pt, 48pt);
+    line-height: 1.05;
+    margin: 0 0 4pt;
+    color: #00A651;                 /* Scouting green */
+}
+
+.poster-subtitle {
+    font-size: var(--subtitle-pt, 24pt);
+    line-height: 1.1;
+    margin: 0 0 12pt;
+    color: #333;
+}
+
+.poster-content {
+    font-size: var(--body-pt, 12pt);
+}
+/* Badge poster: stack the section headers + rows. */
+.poster-content:has(.poster-badge-cols) {
+    display: flex;
+    flex-direction: column;
+}
+/* Single-page only: fill the page height (so the rows can divide it). Multi-page
+   leaves it natural height so paged.js can paginate. */
+.poster-single .poster-content {
+    flex: 1 1 0;
+    min-height: 0;              /* let the badge area shrink to fit (not min-content) */
+}
+
+.poster-placeholder-note {
+    color: #777;
+    font-style: italic;
+    margin: 0 0 12pt;
+}
+
+/* Placeholder demo blocks (Phase 1) — a simple grid that overflows onto more
+   pages so multi-page pagination can be verified before the real bodies exist. */
+.poster-demo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(28mm, 1fr));
+    gap: 6mm;
+}
+
+.poster-demo-block {
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1pt solid #9ca3af;
+    border-radius: 4pt;
+    background: #f3f4f6;
+    color: #6b7280;
+    /* Keep a block whole rather than split across a page break. */
+    break-inside: avoid;
+}
+
+/* Type 1 — badge grid. */
+/* Per-category section header (toggleable). */
+.poster-section-header {
+    flex: 0 0 auto;                 /* natural height; rows below take the rest */
+    font-size: 1.4em;
+    font-weight: 700;
+    color: #003f87;
+    margin: 1.5mm 0 1.5mm;
+    padding-bottom: 1mm;
+    border-bottom: 1pt solid #003f87;
+    break-after: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+.poster-section-header:first-child { margin-top: 0; }
+
+/* The badge area is a column of rows; each row is a flex container with equal
+   cells (so columns line up). The last column is mirrored (callouts on the
+   outer edge) unless there's only one column. */
+.poster-badge-cols {
+    display: flex;
+    flex-direction: column;
+    gap: 2mm;                       /* between rows */
+}
+.poster-badge-row {
+    display: flex;
+    gap: 8mm;                       /* between columns */
+    min-height: 0;
+}
+.poster-badge-cell { flex: 1 1 0; min-width: 0; min-height: 0; }
+.poster-badge {
+    margin: 0;                      /* reset the UA default figure margin (1em 40px) */
+    text-align: center;
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+}
+
+/* Single-page (--fill): rows SHRINK to fit the page when there are many, but do
+   NOT grow when there are few — otherwise a couple of badges would stretch to
+   fill the whole page. So a sparse poster sits at natural size (top-aligned,
+   whitespace below); a crowded one shrinks to fit, no scale transform. */
+.poster-badge-cols--fill { flex: 1 1 0; min-height: 0; }
+.poster-badge-cols--fill .poster-badge-row { flex: 0 1 auto; }
+.poster-badge-cols--fill .poster-badge { height: 100%; }
+
+/* Multi-page: rows keep their natural height; never split one across a page. */
+.poster-badge-cols:not(.poster-badge-cols--fill) .poster-badge-row {
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+}
+
+/* Per-niveau column headers (Niveau 1/2/3, or Jaar 1/2/3 for explorers).
+   The row is thin (never grows, even in --fill mode); each label takes the same
+   width share as a level image so it sits right above its column. */
+.poster-niveau-row,
+.poster-badge-cols--fill .poster-niveau-row { flex: 0 0 auto; }
+/* The header row sizes to its labels — override the fill-mode height:100% /
+   flex:1 that otherwise collapse it to zero (so labels would overlap the
+   category header above). Higher specificity so it wins regardless of order. */
+.poster-badge-cols .poster-niveau-row .poster-badge,
+.poster-badge-cols .poster-niveau-row .poster-badge-main { height: auto; }
+.poster-badge-cols .poster-niveau-row .poster-badge-levels { flex: 0 0 auto; min-height: 0; }
+/* One bar per niveau, filling its column slot (so it's as wide as the badge
+   image column below and centred over it), like the badge caption. The
+   per-niveau background + readable text colour are set inline (geel/oranje/
+   paars; green for explorers). */
+.poster-niveau-label {
+    flex: 1 1 0;
+    min-width: 0;
+    box-sizing: border-box;
+    text-align: center;
+    padding: 1mm 2mm;
+    border-radius: 1mm;
+    font-weight: 700;
+    font-size: 0.9em;
+    line-height: 1.2;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+/* With the activiteitengebied gutter: [callout][badge], callout top-aligned. */
+.poster-badge--gutter { display: flex; align-items: stretch; gap: 4mm; text-align: left; }
+.poster-badge-cell--flip .poster-badge--gutter { flex-direction: row-reverse; }
+/* The callout gutter is nearly as wide as the badge row; min-width:0 lets it
+   share the cell (and stops a long word from widening it). */
+.poster-badge-gutter { flex: 1 1 0; min-width: 0; }
+.poster-badge-main {
+    flex: 2 1 0;                    /* gutter ~1/3 of the cell: wide enough for a
+                                       callout like "Scoutingtechnieken" without
+                                       breaking. The badges don't shrink — they're
+                                       height-bound, so main keeps width to spare. */
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
+.poster-badge-cols--fill .poster-badge-main { height: 100%; }
+/* Callout on the first badge of each new activiteitengebied — left of the badge,
+   top-aligned, blue text on a white pill. */
+.poster-badge-callout {
+    display: block;                 /* fill the gutter → nearly as wide as the badges */
+    box-sizing: border-box;
+    width: 100%;
+    padding: 1.2mm 2.5mm;
+    font-size: var(--callout-pt, 14pt);
+    font-weight: 700;
+    line-height: 1.15;
+    color: #003f87;                 /* Scouting blue */
+    background: #fff;
+    border-radius: 2mm;
+    overflow-wrap: break-word;      /* keep words whole; only break if one truly
+                                       can't fit (the gutter is sized for the
+                                       longest real activiteitengebied name) */
+    hyphens: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* A badge's niveau images sit side by side as a row of levels. The row fills the
+   cell height left over above the caption; images bottom-align so the caption
+   hugs them. */
+.poster-badge-levels {
+    display: flex;
+    gap: 2mm;
+    align-items: flex-end;
+}
+.poster-badge-cols--fill .poster-badge-levels { flex: 0 1 auto; min-height: 0; }
+/* Each level image occupies an equal column slot, so the niveau header bars line
+   up exactly over their image columns. */
+.poster-badge-levels img { flex: 1 1 0; min-width: 0; }
+/* Auto (badge_size_mm 0). Multi-page: fill the slot width, natural height. */
+.poster-badge-cols:not([style*="img-mm"]) .poster-badge-levels img {
+    width: 100%;
+    height: auto;
+}
+/* Single-page (--fill): natural size (fills the slot width), but capped to the
+   available row height so it shrinks — keeping aspect — when the page is crowded.
+   Bottom-aligned so the caption hugs the badge. */
+.poster-badge-cols--fill:not([style*="img-mm"]) .poster-badge-levels img {
+    width: 100%;
+    height: auto;
+    max-height: 100%;
+    object-fit: contain;
+    object-position: center bottom;
+}
+/* Fixed badge_size_mm: exact size per level image (explicit override; may exceed
+   the page — the user asked for that size). */
+.poster-badge-cols[style*="img-mm"] .poster-badge-levels img { flex: 0 0 auto; width: var(--poster-img-mm); height: auto; }
+.poster-badge figcaption {
+    flex: 0 0 auto;
+    display: block;
+    width: 100%;                    /* a rectangle as wide as the badge row above */
+    box-sizing: border-box;
+    margin: 1mm 0 0;
+    padding: 1mm 3mm;
+    font-size: var(--body-pt, 9pt);
+    line-height: 1.15;
+    color: #fff;
+    background: #003f87;            /* Scouting blue */
+    border-radius: 1mm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.poster-running-footer {
+    margin-top: 8pt;
+    padding-top: 4pt;
+    border-top: 1px solid #d1d5db;
+    font-size: var(--footer-pt, 10pt);
+    color: #777;
+    text-align: center;
+}
+
+/* Click-to-edit (preview only): hover/selected outlines + empty placeholders. */
+.poster-preview [data-el] { cursor: pointer; }
+.poster-preview [data-el]:hover { outline: 2px dashed #93c5fd; outline-offset: 2px; }
+.poster-preview .poster-selected { outline: 3px solid #00A651 !important; outline-offset: 2px; }
+.poster-preview .poster-running-header,
+.poster-preview .poster-running-footer { min-height: 1.4em; }
+.poster-preview .poster-title:empty::before,
+.poster-preview .poster-subtitle:empty::before,
+.poster-preview .poster-running-footer:empty::before {
+    content: attr(data-placeholder);
+    color: #c4c4c4;
+}
+
+@media print {
+    html, body { background: #fff; }
+    .pagedjs_page { box-shadow: none; margin: 0 auto; }
+}

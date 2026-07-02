@@ -2854,3 +2854,222 @@ button:disabled, a[disabled] {
     padding: 0 0.4rem;
     line-height: 1.6;
 }
+
+/* ── Poster designer (#132) ─────────────────────────────────────────────── */
+.poster-designer-main {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Desktop/tablet only: below 1024px show the warning, hide the designer. */
+.poster-toosmall { display: none; }
+.poster-designer {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 0;
+    height: calc(100vh - 60px);
+}
+
+@media (max-width: 1024px) {
+    .poster-designer { display: none; }
+    .poster-toosmall {
+        display: block;
+        max-width: 560px;
+        margin: 3rem auto;
+        padding: 0 1rem;
+        text-align: center;
+    }
+}
+
+.poster-params {
+    border-right: 1px solid #e5e7eb;
+    padding: 1rem 1.25rem 2rem;
+    overflow-y: auto;
+}
+
+.poster-params-head { margin-bottom: 1rem; }
+.poster-back { font-size: 0.85rem; color: #00A651; text-decoration: none; }
+.poster-params-title { font-size: 1.2rem; margin: 0.25rem 0 0.5rem; }
+
+/* Click-to-edit: toolbar + element editor */
+.poster-bar { display: flex; flex-direction: column; gap: 0.5rem; }
+.poster-bar-row { display: flex; align-items: center; gap: 0.4rem; }
+.poster-bar-actions { flex-wrap: wrap; }
+.poster-divider { border: 0; border-top: 1px solid #e5e7eb; margin: 0.75rem 0; }
+
+/* Save dialog */
+.poster-modal-backdrop {
+    position: fixed; inset: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+}
+.poster-modal {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1.25rem;
+    width: min(380px, 92vw);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+.poster-modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+
+.poster-hint { color: #888; font-size: 0.9rem; padding: 1rem 0; }
+
+/* "Sjabloonvelden gebruiken" disclosure on text fields */
+.poster-fields-help { margin-top: 0.5rem; font-size: 0.8rem; color: #555; }
+.poster-fields-help summary { cursor: pointer; color: #00A651; }
+.poster-fields-help ul { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+.poster-fields-help code { background: #f3f4f6; padding: 0 0.2rem; border-radius: 3px; }
+.poster-editor-title { font-size: 1rem; margin: 0 0 0.6rem; }
+.poster-color-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.poster-color-row input[type="color"] { width: 3rem; height: 2rem; padding: 0; }
+.poster-swatch {
+    width: 1.6rem; height: 1.6rem;
+    border: 1px solid #ccc; border-radius: 4px;
+    padding: 0; cursor: pointer; flex: 0 0 auto;
+}
+
+.poster-form .field { display: block; margin-bottom: 0.75rem; }
+.poster-form .field > span {
+    display: block;
+    font-size: 0.8rem;
+    color: #555;
+    margin-bottom: 0.2rem;
+}
+.poster-form .field input,
+.poster-form .field select {
+    width: 100%;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.poster-params-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem 0.75rem;
+}
+
+.poster-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+.poster-delete-form { margin-top: 1rem; }
+
+.poster-preview-pane {
+    background: #e5e7eb;
+    overflow: hidden;
+}
+.poster-preview-frame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #e5e7eb;
+}
+
+.poster-new-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.75rem;
+}
+.poster-new-btn { text-decoration: none; text-align: center; }
+
+/* Poster wizard — step 1 chooser */
+.poster-wizard-q { font-size: 1.05rem; color: #333; margin: 0.5rem 0 1rem; }
+.poster-wizard-options { display: flex; flex-direction: column; gap: 0.6rem; }
+.poster-wizard-card {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    width: 100%;
+    text-align: left;
+    padding: 0.9rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    font: inherit;
+    transition: border-color 0.12s, box-shadow 0.12s;
+}
+.poster-wizard-card:hover {
+    border-color: #00A651;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+}
+.poster-wizard-num {
+    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #00A651;
+    color: #fff;
+    font-weight: 700;
+}
+.poster-wizard-text { display: flex; flex-direction: column; }
+.poster-wizard-label { font-weight: 600; }
+.poster-wizard-desc { font-size: 0.85rem; color: #777; }
+
+.poster-list { list-style: none; margin: 0; padding: 0; }
+.poster-list-row { border-bottom: 1px solid #eee; }
+.poster-list-link {
+    display: flex;
+    flex-direction: column;
+    padding: 0.6rem 0.25rem;
+    text-decoration: none;
+    color: inherit;
+}
+.poster-list-link:hover { background: #f9fafb; }
+.poster-list-name { font-weight: 600; }
+.poster-list-meta { font-size: 0.8rem; color: #888; }
+
+/* Badge picker (poster type 1) */
+.poster-badge-picker { margin-top: 0.5rem; }
+.poster-check { display: flex !important; flex-direction: row; align-items: center; gap: 0.4rem; }
+.poster-check input { width: auto !important; }
+.poster-niveaus { display: flex; gap: 1rem; margin-bottom: 0.75rem; }
+.poster-niveaus label { display: flex; align-items: center; gap: 0.3rem; }
+.poster-niveaus input { width: auto; }
+
+.poster-quick-selects {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0.5rem 0;
+    font-size: 0.8rem;
+    color: #555;
+}
+
+.poster-badge-list {
+    max-height: 320px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 0.5rem;
+}
+.poster-badge-cat h3 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #888;
+    margin: 0.5rem 0 0.25rem;
+}
+.poster-badge-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.2rem 0.25rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-radius: 4px;
+}
+.poster-badge-option:hover { background: #f9fafb; }
+.poster-badge-option input { width: auto; flex: 0 0 auto; }
+.poster-badge-option img { width: 28px; height: 28px; object-fit: contain; flex: 0 0 auto; }
+.poster-badge-option span { line-height: 1.2; }

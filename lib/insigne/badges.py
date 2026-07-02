@@ -50,6 +50,7 @@ def _parse_full(slug: str, raw: dict, category: str | None) -> dict:
         "title": raw["titel"],
         "category": category,
         "type": raw.get("type", "gewoon"),
+        "activiteitengebied": (raw.get("activiteitengebied") or "").strip(),
         "niveau_label": raw.get("niveau_label", "Niveau"),
         "niveau_label_kort": raw.get("niveau_label_kort", "N"),
         "images": [f"/images/{slug}.{i}.png" for i in (1, 2, 3)],

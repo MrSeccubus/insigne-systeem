@@ -1,0 +1,33 @@
+# System base template: algemene insigneposter (type 0).
+# Starting point for /posters/new?type=badges. Loaded + normalised at runtime
+# (see lib/insigne/poster_templates.py); edit here to change the defaults.
+name: 'Insigneposter - standaard'
+type: 0
+paper: A2
+orientation: portrait
+title: Insignes
+subtitle: ''
+header: ''
+footer: 'Gegenereerd op {{ datum }} via {{ url }}'
+elements:
+  title:
+    font_size_pt: 100
+    color: blue
+  subtitle:
+    font_size_pt: 24
+  header: 
+    font_size_pt: 12
+  footer: 
+    font_size_pt: 18
+  badge_block:
+    font_size_pt: 18                      # insignetekst (titels onder de badges)
+    activiteitengebied_font_size_pt: 18   # activiteitengebied-label (callout)
+    columns: 2
+    neveaus: [1,2,3]
+    badge_size_mm: 0   # 0 = auto (fill the grid cell)
+    show_titles: true
+    badges: [] # Leeg is alle gewone en buiten gewone insignes
+  background:
+    style: vertical_gradient
+    start_color: white
+    end_color: cyan

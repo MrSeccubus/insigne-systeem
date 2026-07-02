@@ -1,7 +1,15 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -275,6 +283,57 @@ class UserFavoriteBadge(Base):
         String(36), ForeignKey("users.id"), primary_key=True
     )
     badge_slug: Mapped[str] = mapped_column(String(100), primary_key=True)
+
+
+class PosterTemplate(Base):
+    """A saved, customizable poster (#132).
+
+    Scope is exactly one of personal / speltak / group — enforced by the
+    ``CheckConstraint``. Personal templates are visible only to their owner;
+    speltak/group templates are visible to members of that speltak/group and
+    editable by its leaders. Type-specific settings live in ``params`` (JSON)
+    so later poster types add fields without a migration.
+    """
+
+    __tablename__ = "poster_templates"
+    __table_args__ = (
+        CheckConstraint(
+            "(user_id IS NOT NULL) + (speltak_id IS NOT NULL) + (group_id IS NOT NULL) = 1",
+            name="ck_poster_template_one_scope",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    poster_type: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0 badges | 1 speltak | 2 signoff
+    # The whole poster definition as a YAML document (source of truth). name and
+    # poster_type are mirrored from it on save for list/visibility queries.
+    definition: Mapped[str] = mapped_column(String, nullable=False, default="")
+    created_by_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False, index=True
+    )
+    # Exactly one of the three scope columns is set (see CheckConstraint).
+    user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True, index=True
+    )
+    speltak_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("speltakken.id"), nullable=True, index=True
+    )
+    group_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("groups.id"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now, onupdate=_now
+    )
+
+    @property
+    def scope(self) -> str:
+        if self.speltak_id:
+            return "speltak"
+        if self.group_id:
+            return "group"
+        return "user"
 
 
 class EmailChangeRequest(Base):

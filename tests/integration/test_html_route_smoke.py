@@ -103,6 +103,9 @@ PAGE_ROUTES = [
     "/groups/join",
     "/my-speltakken",
     "/requests",
+    "/posters",
+    "/posters/new",
+    "/posters/render",
     "/groups/{group_slug}",
     "/groups/{group_slug}/edit",
     "/groups/{group_slug}/progress",
@@ -135,6 +138,8 @@ def test_all_page_routes_are_listed():
         "/groups/search",                        # needs ?q=
         "/groups/{group_slug}/speltakken/{speltak_slug}/members/check-email",
         "/groups/{slug}/members/check-email",    # JSON, needs ?email=
+        "/posters/{poster_id}",                  # needs a real id; see test_html_posters.py
+        "/posters/{poster_id}/export",           # YAML download; see test_html_posters.py
     }
     # PAGE_ROUTES use literal "0" for niveau index and resolve {slug} via the
     # group/speltak/badge keys; normalise both sides to FastAPI's path templates.

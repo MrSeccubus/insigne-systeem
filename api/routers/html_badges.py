@@ -1832,6 +1832,12 @@ async def scout_set_progress(
     badge = _CATALOGUE.get(badge_slug)
     if edit_speltak_id is None or badge is None:
         return HTMLResponse("", status_code=403)
+    # Validate the indices against the catalogue (mirrors log_step): otherwise
+    # out-of-range values create an orphan ProgressEntry and IndexError-500 on
+    # the sign-off e-mail below (and again for any mentor who later opens it).
+    if (not (0 <= level_index < len(badge["levels"]))
+            or not (0 <= step_index < len(badge["levels"][level_index]["steps"]))):
+        return HTMLResponse("", status_code=400)
 
     _post_url = f"/scouts/{scout_id}/set-progress"
     entry = None

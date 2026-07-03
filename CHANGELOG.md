@@ -34,6 +34,10 @@ weer leeg gemaakt.
 
 - **Uitnodigingsmail bij "e-mailadres koppelen" gaf een 500** — het legitieme pad riep `send_speltak_invite_email(..., code=...)` aan terwijl die functie geen `code`-parameter heeft (de registratielink wordt intern uit het e-mailadres opgebouwd). De overbodige `code`-parameter is verwijderd zodat de scout weer een uitnodiging ontvangt. Aan het licht gekomen door de nieuwe regressietest voor het bovenstaande beveiligingslek.
 
+- **Beheerder: gebruiker zoeken/verwijderen gaf een 500 op het succespad** — `admin_find_user` en `admin_delete_user` gaven `{"current_user": user}` mee aan de template terwijl die variabele `current_user` heet → `NameError` → 500. Bij verwijderen draaide de verwijdering (en de "account verwijderd"-mail) al vóór de crash, zodat de beheerder een foutmelding zag terwijl het account al weg was. De verwijzing is gecorrigeerd; nieuwe integratietests dekken de succespaden (die voorheen ongetest waren). 6 nieuwe tests.
+
+- **`/scouts/{id}/set-progress` accepteerde niet-bestaande eis-indices** — `level_index`/`step_index` uit het formulier werden zonder grenscontrole verwerkt: een waarde buiten bereik maakte een verweesde `ProgressEntry` én liet de aftekenmail crashen (`IndexError` → 500), waarna diezelfde rij ook de mentor-inbox 500'de. De endpoint valideert de indices nu tegen de catalogus (net als `log_step`) en weigert met 400 zonder iets weg te schrijven. 2 nieuwe tests.
+
 ### Onderhoud
 
 - **Smoke-testdekking voor alle HTML-pagina's** (sluit #142) — een geparametriseerde test rendert nu elke template-renderende GET-route (`/`, `/admin`, alle `/groups/...`- en `/scouts/...`-pagina's, enz.) als ingelogde admin + groepsleider + speltakleider met een echte scout-fixture, en faalt bij elke 5xx. Dit dekt de klasse fout waardoor #139 (de admin-500 door een verouderde `user`-verwijzing in de template-context) destijds **ongemerkt** kon doorglippen: er was simpelweg geen test die `/admin` als beheerder rendert. Een bewakingstest faalt bovendien zodra een nieuwe pagina-route niet aan de smoke-lijst is toegevoegd, zodat de dekking niet stilletjes achterloopt.

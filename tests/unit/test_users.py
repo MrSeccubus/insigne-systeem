@@ -9,6 +9,7 @@ from insigne.auth import (
     decode_access_token,
     hash_password,
     verify_password,
+    verify_password_dummy,
 )
 from insigne.models import ConfirmationToken, EmailChangeRequest, User
 
@@ -295,6 +296,13 @@ class TestActivateAccount:
 
 # ── authenticate ──────────────────────────────────────────────────────────────
 
+def test_verify_password_dummy_runs_without_error():
+    """The timing equalizer must complete a real bcrypt comparison (and not
+    raise) for any input — its whole point is to spend bcrypt time."""
+    assert verify_password_dummy("anything") is None
+    assert verify_password_dummy("") is None
+
+
 class TestAuthenticate:
     def test_correct_credentials_return_user(self, db):
         _register_and_activate(db)
@@ -317,6 +325,27 @@ class TestAuthenticate:
         _register_and_activate(db)
         user = user_svc.authenticate(db, "  JAN@EXAMPLE.COM  ", "validpass1")
         assert user is not None
+
+    def test_unknown_email_still_runs_a_password_verification(self, db, monkeypatch):
+        """Timing-oracle guard: on the account-not-found path a bcrypt
+        comparison must still run (against the dummy hash), so login latency
+        can't reveal whether an e-mail is registered. If someone removes the
+        equalizer, this fails."""
+        calls = []
+        real = user_svc.verify_password_dummy
+        monkeypatch.setattr(user_svc, "verify_password_dummy",
+                            lambda pw: calls.append(pw) or real(pw))
+        assert user_svc.authenticate(db, "nobody@example.com", "anypass") is None
+        assert calls == ["anypass"]
+
+    def test_pending_user_also_runs_dummy_verification(self, db, monkeypatch):
+        """A pending (non-active) account is filtered out by the query, so it
+        hits the same not-found path and must also spend the dummy hash."""
+        user_svc.start_registration(db, "jan@example.com")
+        calls = []
+        monkeypatch.setattr(user_svc, "verify_password_dummy", lambda pw: calls.append(pw))
+        assert user_svc.authenticate(db, "jan@example.com", "anypass") is None
+        assert calls == ["anypass"]
 
 
 class TestLogFailedLoginAttempt:

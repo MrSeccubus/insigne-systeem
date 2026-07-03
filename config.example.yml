@@ -90,3 +90,26 @@ rate_limit:
   register: "5/hour"
   forgot_password: "5/hour"
   contact: "10/hour"
+
+# ALTCHA proof-of-work captcha on the unauthenticated forms (/register and
+# /contact). Self-hosted and privacy-friendly: no cookies, no fingerprinting,
+# no third-party calls. The browser widget solves a small proof-of-work signed
+# with a key derived from jwt.secret_key.
+#
+# REQUIREMENTS in the visitor's browser:
+#   * JavaScript enabled.
+#   * A SECURE CONTEXT — the widget uses the Web Crypto API (crypto.subtle),
+#     which browsers only expose over HTTPS or on http://localhost /
+#     http://127.0.0.1. Over plain HTTP to a LAN IP or hostname it fails with
+#     "Web Crypto is not available. Secure context is required." Since you
+#     should serve this app over HTTPS in production anyway (see base_url /
+#     the http->https note), that's the supported setup; for local testing use
+#     http://localhost:8000 rather than the machine's IP.
+# Set enabled: false if a secure context or JavaScript is not available to your
+# audience (then rely on the rate_limit above).
+#
+# ``complexity`` is the ALTCHA max_number (upper bound of the number the client
+# brute-forces); higher = more bot cost but slightly slower for real users.
+captcha:
+  enabled: true
+  complexity: 100000

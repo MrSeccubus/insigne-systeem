@@ -49,6 +49,14 @@ INSIGNE_HOST=0.0.0.0 INSIGNE_PORT=9000 ./run_prod.sh
 
 Then open http://localhost:8000.
 
+**Use `localhost`, not the machine's LAN IP, in dev.** The ALTCHA captcha on
+`/register` and `/contact` uses the Web Crypto API, which browsers only expose
+in a secure context — HTTPS or `http://localhost`/`127.0.0.1`. Over plain HTTP
+to a LAN IP or hostname it fails with *"Web Crypto is not available. Secure
+context is required."* Production serves over HTTPS (see `base_url`), so this
+only bites local testing; open `http://localhost:8000` (or set
+`captcha.enabled: false` in `config.yml`).
+
 ## Running as a systemd user service
 
 Install once (requires `config.yml` to exist first):

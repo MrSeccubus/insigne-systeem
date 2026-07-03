@@ -37,6 +37,21 @@ class RateLimitConfig:
 
 
 @dataclass
+class CaptchaConfig:
+    """ALTCHA proof-of-work captcha on the unauthenticated form endpoints
+    (``/register`` and ``/contact``). Self-hosted, privacy-friendly (no cookies,
+    no third party): the browser widget solves a PoW challenge signed by us.
+
+    ``complexity`` is the ALTCHA ``max_number`` — the upper bound of the number
+    the client must brute-force. Higher = more bot cost but slower for real
+    users (~100k solves in a fraction of a second on a normal device). Requires
+    JavaScript in the browser; disable if that is a problem for your audience.
+    """
+    enabled: bool = True
+    complexity: int = 100000
+
+
+@dataclass
 class Config:
     database_url: str
     jwt_secret_key: str
@@ -55,6 +70,7 @@ class Config:
     allow_any_user_to_create_groups: bool = True
     email: EmailConfig = field(default_factory=EmailConfig)
     rate_limit: RateLimitConfig = field(default_factory=RateLimitConfig)
+    captcha: CaptchaConfig = field(default_factory=CaptchaConfig)
 
 
 def _load() -> Config:
@@ -69,6 +85,7 @@ def _load() -> Config:
     data = yaml.safe_load(path.read_text())
     email_data = data.get("email", {})
     rl_data = data.get("rate_limit", {})
+    captcha_data = data.get("captcha", {})
     return Config(
         database_url=data["database"]["url"],
         jwt_secret_key=data["jwt"]["secret_key"],
@@ -96,6 +113,10 @@ def _load() -> Config:
             register=str(rl_data.get("register", "5/hour")),
             forgot_password=str(rl_data.get("forgot_password", "5/hour")),
             contact=str(rl_data.get("contact", "10/hour")),
+        ),
+        captcha=CaptchaConfig(
+            enabled=bool(captcha_data.get("enabled", True)),
+            complexity=int(captcha_data.get("complexity", 100000)),
         ),
     )
 

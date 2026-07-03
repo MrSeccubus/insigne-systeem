@@ -22,3 +22,8 @@ email:
 # calls aren't throttled; the rate-limit tests flip config.rate_limit.enabled on.
 rate_limit:
   enabled: false
+
+# Off by default in the test suite so the existing register/contact tests don't
+# have to solve a proof-of-work; the captcha tests flip config.captcha.enabled on.
+captcha:
+  enabled: false

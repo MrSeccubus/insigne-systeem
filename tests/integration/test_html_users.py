@@ -25,6 +25,26 @@ def _auth_cookie(user) -> dict:
     return {"access_token": token}
 
 
+class TestNonActiveUserToken:
+    """_get_current_user must reject a valid token whose account is no longer
+    active — the guardrail that makes suspension/soft-delete take effect on the
+    HTML layer despite stateless, long-lived JWTs."""
+
+    def test_active_user_is_authenticated(self, client, db):
+        user = _register_and_activate(db)
+        client.cookies.set("access_token", create_access_token(user.id)[0])
+        assert client.get("/profile", follow_redirects=False).status_code == 200
+
+    def test_suspended_user_token_no_longer_authenticates(self, client, db):
+        user = _register_and_activate(db)
+        client.cookies.set("access_token", create_access_token(user.id)[0])
+        user.status = "suspended"
+        db.commit()
+        r = client.get("/profile", follow_redirects=False)
+        assert r.status_code == 303
+        assert "/login" in r.headers["location"]
+
+
 # ── login ─────────────────────────────────────────────────────────────────────
 
 class TestLogin:

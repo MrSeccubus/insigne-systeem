@@ -28,6 +28,17 @@ class TestCreateMembershipRequest:
         req = svc.create_membership_request(db, user_id=scout.id, group_id=g.id, speltak_id=s.id)
         assert req.speltak_id == s.id
 
+    def test_rejects_speltak_from_another_group(self, client, db):
+        """Cross-group injection guard: group_id and speltak_id are independent
+        form fields; a speltak belonging to a different group must be rejected."""
+        scout = _user(db, email="scout@example.com")
+        g_a = svc.create_group(db, name="A", slug="a")
+        g_b = svc.create_group(db, name="B", slug="b")
+        s_b = svc.create_speltak(db, group_id=g_b.id, name="S", slug="s")  # in group B
+        with pytest.raises(ValueError, match="speltak_group_mismatch"):
+            svc.create_membership_request(db, user_id=scout.id, group_id=g_a.id, speltak_id=s_b.id)
+        assert db.query(MembershipRequest).count() == 0
+
     def test_raises_if_already_member(self, client, db):
         scout = _user(db, email="scout@example.com")
         g = svc.create_group(db, name="G", slug="g")
@@ -82,6 +93,25 @@ class TestApproveRejectRequest:
         leider = _user(db)
         with pytest.raises(ValueError, match="not_found"):
             svc.approve_membership_request(db, request_id="nonexistent", reviewed_by_id=leider.id)
+
+    def test_approve_rejects_mismatched_speltak_defence_in_depth(self, client, db):
+        """Even if a request row's speltak belongs to a different group than its
+        group_id (legacy/tampered — create_membership_request now blocks it),
+        approval must refuse rather than inject the membership into group B."""
+        attacker = _user(db, email="attacker@example.com")
+        g_a = svc.create_group(db, name="A", slug="a", created_by_id=attacker.id)  # attacker leads A
+        g_b = svc.create_group(db, name="B", slug="b")
+        s_b = svc.create_speltak(db, group_id=g_b.id, name="S", slug="s")          # speltak in B
+        # Insert a mismatched request directly (bypassing the create-time guard).
+        req = MembershipRequest(user_id=attacker.id, group_id=g_a.id, speltak_id=s_b.id)
+        db.add(req)
+        db.commit()
+        with pytest.raises(ValueError, match="forbidden"):
+            svc.approve_membership_request(db, request_id=req.id, reviewed_by_id=attacker.id)
+        # No membership written into group B's speltak.
+        assert svc.list_speltak_members(db, s_b.id) == []
+        db.refresh(req)
+        assert req.status == "pending"
 
 
 # ── Library: list / count ─────────────────────────────────────────────────────
@@ -175,6 +205,22 @@ class TestGroupsJoinHTML:
         r = client.post("/groups/join", data={"group_id": g.id, "speltak_id": ""})
         assert r.status_code == 200
         assert "openstaande aanvraag" in r.text
+
+    def test_cross_group_injection_blocked_end_to_end(self, client, db):
+        """Full attack: submit a join for a group you control but a speltak that
+        belongs to ANOTHER group, then self-approve. Must be blocked at submit,
+        so no request (and thus no cross-group membership) is ever created."""
+        attacker = _user(db, email="attacker@example.com")
+        g_a = svc.create_group(db, name="A", slug="a", created_by_id=attacker.id)  # attacker leads A
+        g_b = svc.create_group(db, name="B", slug="b")
+        s_b = svc.create_speltak(db, group_id=g_b.id, name="S", slug="s")          # speltak in B
+        self._login(client, attacker)
+        r = client.post("/groups/join", data={"group_id": g_a.id, "speltak_id": s_b.id})
+        assert r.status_code == 200
+        assert "hoort niet bij" in r.text
+        # No request created, so nothing to approve; group B's speltak untouched.
+        assert db.query(MembershipRequest).count() == 0
+        assert svc.list_speltak_members(db, s_b.id) == []
 
 
 # ── HTML: leader review (/requests) ──────────────────────────────────────────

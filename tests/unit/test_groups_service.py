@@ -402,6 +402,86 @@ def test_group_pending_requests_groups_by_group_and_speltak(db):
     assert with_speltak["speltak"].id == s.id
 
 
+# ── approve/reject_membership_request: authorization ─────────────────────────
+
+def test_approve_membership_request_by_leader(db):
+    """The group's leader may approve; the requester becomes a member."""
+    leider = _user(db, email="leider@example.com")
+    scout = _user(db, email="scout@example.com")
+    g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+    req = svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
+
+    result = svc.approve_membership_request(db, request_id=req.id, reviewed_by_id=leider.id)
+
+    assert result.status == "approved"
+    assert svc.get_group_role(db, scout.id, g.id) == "member"
+
+
+def test_approve_membership_request_rejects_self_approval(db):
+    """A non-leader (here the requester themselves) must NOT be able to approve
+    their own request into a group — the core self-approval takeover."""
+    scout = _user(db, email="scout@example.com")
+    g = svc.create_group(db, name="G", slug="g")  # no leader / scout is not a member
+    req = svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
+
+    with pytest.raises(ValueError, match="forbidden"):
+        svc.approve_membership_request(db, request_id=req.id, reviewed_by_id=scout.id)
+
+    from insigne.models import MembershipRequest
+    assert db.query(MembershipRequest).filter_by(id=req.id).first().status == "pending"
+    assert svc.get_group_role(db, scout.id, g.id) is None
+
+
+def test_approve_membership_request_rejects_other_group_leader(db):
+    """A leader of a different group cannot approve this group's requests."""
+    leider_a = _user(db, email="a@example.com")
+    scout = _user(db, email="scout@example.com")
+    g_a = svc.create_group(db, name="A", slug="a", created_by_id=leider_a.id)
+    g_b = svc.create_group(db, name="B", slug="b")  # leider_a does not manage B
+    req = svc.create_membership_request(db, user_id=scout.id, group_id=g_b.id)
+
+    with pytest.raises(ValueError, match="forbidden"):
+        svc.approve_membership_request(db, request_id=req.id, reviewed_by_id=leider_a.id)
+
+
+def test_approve_membership_request_speltak_by_group_leader(db):
+    """A speltak-level request is authorized against its parent group's leader."""
+    leider = _user(db, email="leider@example.com")
+    scout = _user(db, email="scout@example.com")
+    g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    req = svc.create_membership_request(db, user_id=scout.id, group_id=g.id, speltak_id=s.id)
+
+    result = svc.approve_membership_request(db, request_id=req.id, reviewed_by_id=leider.id)
+
+    assert result.status == "approved"
+    assert svc.get_speltak_role(db, scout.id, s.id) == "scout"
+
+
+def test_reject_membership_request_rejects_non_leader(db):
+    """A non-leader cannot reject (tamper with) another user's pending request."""
+    outsider = _user(db, email="outsider@example.com")
+    scout = _user(db, email="scout@example.com")
+    g = svc.create_group(db, name="G", slug="g")
+    req = svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
+
+    with pytest.raises(ValueError, match="forbidden"):
+        svc.reject_membership_request(db, request_id=req.id, reviewed_by_id=outsider.id)
+
+    from insigne.models import MembershipRequest
+    assert db.query(MembershipRequest).filter_by(id=req.id).first().status == "pending"
+
+
+def test_reject_membership_request_by_leader(db):
+    leider = _user(db, email="leider@example.com")
+    scout = _user(db, email="scout@example.com")
+    g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+    req = svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
+
+    result = svc.reject_membership_request(db, request_id=req.id, reviewed_by_id=leider.id)
+    assert result.status == "rejected"
+
+
 # ── User.is_leader ────────────────────────────────────────────────────────────
 
 def test_is_leader_true_for_groepsleider(db):

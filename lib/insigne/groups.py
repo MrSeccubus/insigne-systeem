@@ -901,12 +901,26 @@ def count_pending_requests_for_leader(db: Session, user_id: str) -> int:
 def approve_membership_request(
     db: Session, *, request_id: str, reviewed_by_id: str
 ) -> "MembershipRequest":
-    """Approve a pending request; creates the appropriate membership record(s)."""
+    """Approve a pending request; creates the appropriate membership record(s).
+
+    Raises ``ValueError("forbidden")`` unless the reviewer can manage the
+    request's group. Without this, any authenticated user could self-request
+    membership of any group (``POST /groups/join`` is unrestricted) and then
+    self-approve it — the view layer only *hides* other groups' requests, it
+    does not authorize the mutation. ``req.group_id`` is always set (a speltak
+    request carries its parent group), so ``can_manage_group`` covers both
+    group- and speltak-level requests, matching the groepsleider scoping in
+    ``list_all_pending_requests_for_leader``.
+    """
     from insigne.models import MembershipRequest
 
     req = db.query(MembershipRequest).filter_by(id=request_id, status="pending").first()
     if req is None:
         raise ValueError("not_found")
+
+    reviewer = db.get(User, reviewed_by_id)
+    if reviewer is None or not can_manage_group(reviewer, db, req.group_id):
+        raise ValueError("forbidden")
 
     if req.speltak_id:
         set_speltak_role(db, user_id=req.user_id, speltak_id=req.speltak_id, role="scout")
@@ -923,12 +937,21 @@ def approve_membership_request(
 def reject_membership_request(
     db: Session, *, request_id: str, reviewed_by_id: str
 ) -> "MembershipRequest":
-    """Reject a pending request."""
+    """Reject a pending request.
+
+    Same authorization guard as :func:`approve_membership_request`: only a
+    manager of the request's group may reject it, so a user cannot tamper with
+    (or DoS) other users' pending requests by iterating request ids.
+    """
     from insigne.models import MembershipRequest
 
     req = db.query(MembershipRequest).filter_by(id=request_id, status="pending").first()
     if req is None:
         raise ValueError("not_found")
+
+    reviewer = db.get(User, reviewed_by_id)
+    if reviewer is None or not can_manage_group(reviewer, db, req.group_id):
+        raise ValueError("forbidden")
 
     req.status = "rejected"
     req.reviewed_by_id = reviewed_by_id

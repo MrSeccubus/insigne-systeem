@@ -624,3 +624,45 @@ class TestSpeltakSetMemberEmailTakeoverGuard:
         db.refresh(scout)
         assert scout.email == "scout@example.com"
         assert scout.status == "pending"
+
+
+class TestMembershipRequestApprovalAuthz:
+    """A membership request may only be approved/rejected by a manager of its
+    group. Guards against self-approval into an arbitrary group.
+    """
+
+    def test_self_approval_blocked(self, client, db):
+        from insigne.models import MembershipRequest
+        scout = _user(db, email="scout@example.com")
+        g = svc.create_group(db, name="G", slug="g")  # scout is not a leader
+        req = svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
+        _login(client, scout)
+
+        r = client.post(f"/requests/{req.id}/approve", follow_redirects=False)
+        assert r.status_code == 303  # handler swallows the ValueError, redirects back
+        # Nothing mutated: request still pending, no membership created.
+        assert db.query(MembershipRequest).filter_by(id=req.id).first().status == "pending"
+        assert svc.get_group_role(db, scout.id, g.id) is None
+
+    def test_other_user_cannot_reject(self, client, db):
+        from insigne.models import MembershipRequest
+        outsider = _user(db, email="outsider@example.com")
+        scout = _user(db, email="scout@example.com")
+        g = svc.create_group(db, name="G", slug="g")
+        req = svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
+        _login(client, outsider)
+
+        r = client.post(f"/requests/{req.id}/reject", follow_redirects=False)
+        assert r.status_code == 303
+        assert db.query(MembershipRequest).filter_by(id=req.id).first().status == "pending"
+
+    def test_leader_can_approve(self, client, db):
+        leider = _user(db, email="leider@example.com")
+        scout = _user(db, email="scout@example.com")
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+        req = svc.create_membership_request(db, user_id=scout.id, group_id=g.id)
+        _login(client, leider)
+
+        r = client.post(f"/requests/{req.id}/approve", follow_redirects=False)
+        assert r.status_code == 303
+        assert svc.get_group_role(db, scout.id, g.id) == "member"

@@ -291,3 +291,66 @@ class TestAssignSpeltak:
         )
         assert r.status_code == 303
         assert svc.list_speltak_members(db, s.id) == []
+
+    def test_assign_speltak_rejects_destination_in_other_group(self, client, db):
+        """A groepsleider of group A must not assign a member into a speltak that
+        belongs to group B via the to_speltak_id form field (cross-group IDOR)."""
+        leider = _user(db, email="leider@example.com")
+        scout = _user(db, email="scout@example.com")
+        g_a = svc.create_group(db, name="A", slug="a", created_by_id=leider.id)
+        g_b = svc.create_group(db, name="B", slug="b")
+        s_b = svc.create_speltak(db, group_id=g_b.id, name="S", slug="s")  # other group
+        svc.set_group_role(db, user_id=scout.id, group_id=g_a.id, role="member")
+        self._login(client, leider)
+        r = client.post(
+            f"/groups/{g_a.slug}/members/{scout.id}/assign-speltak",
+            data={"to_speltak_id": s_b.id},
+            follow_redirects=False,
+        )
+        assert r.status_code == 303
+        assert svc.list_speltak_members(db, s_b.id) == []  # nothing written to group B
+
+
+class TestTransferMember:
+    def _login(self, client, user):
+        from insigne.auth import create_access_token
+        token, _ = create_access_token(user.id)
+        client.cookies.set("access_token", token)
+
+    def test_transfer_within_group_works(self, client, db):
+        leider = _user(db, email="leider@example.com")
+        scout = _user(db, email="scout@example.com")
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+        s1 = svc.create_speltak(db, group_id=g.id, name="A", slug="a")
+        s2 = svc.create_speltak(db, group_id=g.id, name="B", slug="b")
+        svc.set_speltak_role(db, user_id=scout.id, speltak_id=s1.id, role="scout")
+        self._login(client, leider)
+        r = client.post(
+            f"/groups/{g.slug}/speltakken/{s1.slug}/members/{scout.id}/transfer",
+            data={"to_speltak_id": s2.id},
+            follow_redirects=False,
+        )
+        assert r.status_code == 303
+        assert svc.list_speltak_members(db, s1.id) == []
+        assert any(m.user_id == scout.id for m in svc.list_speltak_members(db, s2.id))
+
+    def test_transfer_rejects_destination_in_other_group(self, client, db):
+        """A speltakleider of the source speltak must not transfer a scout into a
+        speltak belonging to another group via to_speltak_id (cross-group IDOR)."""
+        leider = _user(db, email="leider@example.com")
+        scout = _user(db, email="scout@example.com")
+        g_a = svc.create_group(db, name="A", slug="a", created_by_id=leider.id)
+        s1 = svc.create_speltak(db, group_id=g_a.id, name="Source", slug="src")
+        g_b = svc.create_group(db, name="B", slug="b")
+        s_b = svc.create_speltak(db, group_id=g_b.id, name="Target", slug="tgt")
+        svc.set_speltak_role(db, user_id=scout.id, speltak_id=s1.id, role="scout")
+        self._login(client, leider)
+        r = client.post(
+            f"/groups/{g_a.slug}/speltakken/{s1.slug}/members/{scout.id}/transfer",
+            data={"to_speltak_id": s_b.id},
+            follow_redirects=False,
+        )
+        assert r.status_code == 303
+        # Scout stays in the source speltak; nothing written to group B.
+        assert any(m.user_id == scout.id for m in svc.list_speltak_members(db, s1.id))
+        assert svc.list_speltak_members(db, s_b.id) == []

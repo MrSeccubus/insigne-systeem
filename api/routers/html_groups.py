@@ -503,6 +503,12 @@ def group_assign_speltak(
     group = groups_svc.get_group_by_slug(db, slug)
     if not group or not groups_svc.can_manage_group(user, db, group.id):
         return RedirectResponse("/groups", status_code=303)
+    # The destination speltak must belong to the group the caller manages —
+    # otherwise a groepsleider could write a member into another group's
+    # speltak via the ``to_speltak_id`` form field (cross-group IDOR).
+    to_speltak = groups_svc.get_speltak(db, to_speltak_id)
+    if to_speltak is None or to_speltak.group_id != group.id:
+        return RedirectResponse(f"/groups/{group.slug}", status_code=303)
     groups_svc.set_speltak_role(db, user_id=member_id, speltak_id=to_speltak_id, role="scout")
     return RedirectResponse(f"/groups/{group.slug}", status_code=303)
 
@@ -1086,8 +1092,15 @@ def speltak_transfer_member(
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if speltak and groups_svc.can_manage_speltak(user, db, speltak.id):
-        groups_svc.transfer_scout(db, user_id=member_id,
-                                  from_speltak_id=speltak.id, to_speltak_id=to_speltak_id)
+        # The destination speltak must live in the same group as the source —
+        # can_manage_speltak only authorizes the source, so without this a
+        # speltakleider could transfer the scout into another group's speltak
+        # via ``to_speltak_id`` (cross-group IDOR). transfer_scout enforces the
+        # same invariant; checking here keeps a blocked attempt a clean redirect.
+        to_speltak = groups_svc.get_speltak(db, to_speltak_id)
+        if to_speltak is not None and to_speltak.group_id == speltak.group_id:
+            groups_svc.transfer_scout(db, user_id=member_id,
+                                      from_speltak_id=speltak.id, to_speltak_id=to_speltak_id)
     return RedirectResponse(f"/groups/{group.slug}/speltakken/{speltak.slug}" if speltak else (f"/groups/{group.slug}" if group else "/groups"), status_code=303)
 
 

@@ -2,6 +2,23 @@
 
 Shared between the web layer (``api/templates.py``) and outbound e-mail
 (``lib/insigne/email.py``) so both surfaces format eis text identically.
+
+SECURITY — this renderer does NOT sanitize HTML. python-markdown passes raw
+HTML in the source straight through (the catalogue deliberately uses e.g.
+``<u>…</u>``), and the result is wrapped in ``Markup`` so Jinja2 renders it
+unescaped. That is safe *only* because the input is trusted, developer-authored
+catalogue YAML (``api/data/badges/*.yml``) that is not writable through any web
+route.
+
+If eis/poster/badge text ever becomes editable through the app (e.g. the
+poster designer, #132), piping that user input through here would be a
+stored-XSS sink. Before that ships, add an allowlist HTML sanitizer to the
+output — keep the tags the catalogue/markdown actually use (``u``, ``a`` with
+its target/rel, ``span class="eis-groen"``, ``strong``/``em``, ``ul``/``ol``/
+``li``, ``br``) and drop everything else plus ``javascript:``/``data:`` hrefs —
+rather than escaping raw HTML wholesale (which would break the existing
+``<u>`` formatting). Do NOT feed user-controlled text through ``render_eis``
+until then.
 """
 import re
 

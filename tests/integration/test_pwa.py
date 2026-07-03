@@ -120,6 +120,46 @@ class TestServiceWorker:
         assert "/static/vendor/htmx.min.js" in r.text
         assert "/static/vendor/alpine.min.js" in r.text
 
+    def test_sw_still_caches_html_for_offline(self, client, db):
+        """Offline read-only mode depends on the SW runtime-caching HTML
+        (including no-store pages like the home page) — the shared-device leak
+        is handled by the logout cache-clear, NOT by refusing to cache."""
+        sw = client.get("/sw.js").text
+        assert "caches.open(RUNTIME_CACHE)" in sw
+
+    def test_sw_clears_runtime_cache_on_logout(self, client, db):
+        """The SW drops the runtime cache when the page posts a logout message,
+        so a next user can't reach cached authenticated pages offline."""
+        sw = client.get("/sw.js").text
+        assert 'type === "logout"' in sw
+        assert "caches.delete(RUNTIME_CACHE)" in sw
+
+    def test_logout_form_notifies_service_worker(self, client, db):
+        """The logout form must be tagged so the page can message the SW."""
+        from insigne.auth import create_access_token
+        from insigne.models import User
+        u = User(email="u@example.com", name="U", status="active", password_hash="x")
+        db.add(u); db.commit()
+        client.cookies.set("access_token", create_access_token(u.id)[0])
+        html = client.get("/").text
+        assert "data-logout-form" in html
+        assert "{ type: 'logout' }" in html
+
+
+class TestAuthenticatedPageCaching:
+    def test_home_page_is_no_store(self, client, db):
+        """The authenticated home page is Cache-Control: no-store so browsers /
+        proxies / the back-forward cache don't retain it. (The PWA service
+        worker still caches it for offline use and clears that on logout — see
+        TestServiceWorker.)"""
+        from insigne.auth import create_access_token
+        from insigne.models import User
+        u = User(email="u@example.com", name="U", status="active", password_hash="x")
+        db.add(u); db.commit()
+        client.cookies.set("access_token", create_access_token(u.id)[0])
+        r = client.get("/")
+        assert "no-store" in r.headers.get("cache-control", "")
+
 
 class TestVendoredJs:
     """HTMX and Alpine must be served same-origin (not from a CDN) so the

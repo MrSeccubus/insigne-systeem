@@ -544,6 +544,16 @@ def _cleanup_group_membership(db: Session, *, user_id: str, group_id: str) -> No
 def transfer_scout(
     db: Session, *, user_id: str, from_speltak_id: str, to_speltak_id: str
 ) -> SpeltakMembership:
+    # A transfer may only move a scout *within* one group. Both speltakken must
+    # exist and share a group_id; otherwise a speltakleider (who is authorized
+    # only for the source speltak) could write the scout into an arbitrary
+    # other group's speltak via the ``to_speltak_id`` form field. Defense in
+    # depth: the handler also validates this before calling, but the invariant
+    # belongs here so any caller is safe.
+    from_speltak = db.get(Speltak, from_speltak_id)
+    to_speltak = db.get(Speltak, to_speltak_id)
+    if from_speltak is None or to_speltak is None or from_speltak.group_id != to_speltak.group_id:
+        raise ValueError("cross_group")
     # Set destination first so _cleanup_group_membership (called during source
     # removal) sees the destination membership and keeps the group membership.
     # The upsert in set_speltak_role also handles the case where the user is

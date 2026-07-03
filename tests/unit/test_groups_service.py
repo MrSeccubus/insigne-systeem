@@ -541,6 +541,35 @@ def test_transfer_scout_preserves_group_membership(db):
     assert any(m.user_id == user.id for m in group_members)
 
 
+def test_transfer_scout_rejects_cross_group(db):
+    """A transfer whose destination speltak lives in a different group must be
+    refused — otherwise a speltakleider could push a scout into another group's
+    speltak via to_speltak_id. Source membership must remain untouched."""
+    user = _user(db)
+    g1 = svc.create_group(db, name="G1", slug="g1")
+    g2 = svc.create_group(db, name="G2", slug="g2")
+    s1 = svc.create_speltak(db, group_id=g1.id, name="A", slug="a")
+    s2 = svc.create_speltak(db, group_id=g2.id, name="B", slug="b")  # other group
+    svc.set_speltak_role(db, user_id=user.id, speltak_id=s1.id, role="scout")
+
+    with pytest.raises(ValueError, match="cross_group"):
+        svc.transfer_scout(db, user_id=user.id, from_speltak_id=s1.id, to_speltak_id=s2.id)
+
+    assert len(svc.list_speltak_members(db, s1.id)) == 1  # still in source
+    assert svc.list_speltak_members(db, s2.id) == []      # not written to other group
+
+
+def test_transfer_scout_rejects_unknown_destination(db):
+    user = _user(db)
+    g = svc.create_group(db, name="G", slug="g")
+    s1 = svc.create_speltak(db, group_id=g.id, name="A", slug="a")
+    svc.set_speltak_role(db, user_id=user.id, speltak_id=s1.id, role="scout")
+
+    with pytest.raises(ValueError, match="cross_group"):
+        svc.transfer_scout(db, user_id=user.id, from_speltak_id=s1.id,
+                           to_speltak_id="00000000-0000-0000-0000-000000000000")
+
+
 # ── preview_scout_merge ───────────────────────────────────────────────────────
 
 def test_preview_scout_merge_added(db):

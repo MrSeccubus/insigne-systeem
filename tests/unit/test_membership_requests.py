@@ -143,12 +143,19 @@ class TestGroupsJoinHTML:
         assert r.status_code == 200
 
     def test_group_search_endpoint(self, client, db):
+        user = _user(db)
+        self._login(client, user)
         svc.create_group(db, name="Groep Noord", slug="groep-noord")
         r = client.get("/groups/search?q=noord")
         assert r.status_code == 200
         data = r.json()
         assert len(data) == 1
         assert data[0]["slug"] == "groep-noord"
+
+    def test_group_search_requires_auth(self, client, db):
+        svc.create_group(db, name="Groep Noord", slug="groep-noord")
+        r = client.get("/groups/search?q=noord")
+        assert r.status_code == 401
 
     def test_submit_creates_request(self, client, db):
         user = _user(db)

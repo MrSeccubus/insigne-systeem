@@ -123,6 +123,54 @@ async def origin_csrf_check(request: Request, call_next):
     return await call_next(request)
 
 
+# ── Security headers ──────────────────────────────────────────────────────────
+#
+# Applied to every response. The CSP is deliberately *pragmatic*, not strict:
+# the UI uses inline <script> blocks and Alpine.js, which evaluates its x-data /
+# @click expressions via ``new Function`` — so ``script-src`` must allow
+# ``'unsafe-inline'`` and ``'unsafe-eval'``. Tightening to a nonce/hash-based
+# policy would mean refactoring every inline script and dropping the standard
+# Alpine build; out of scope here. What this still buys us:
+#   * frame-ancestors 'none' + X-Frame-Options: DENY — clickjacking protection
+#     on the cookie-authenticated forms (logout, sign-off, delete, approve…).
+#   * object-src 'none', base-uri 'self', form-action 'self' — shrink the XSS
+#     blast radius and block <base>/form-action hijacking.
+#   * X-Content-Type-Options: nosniff — no MIME sniffing.
+# Notes:
+#   * worker-src allows blob: because the ALTCHA captcha widget spawns its
+#     proof-of-work worker from a Blob URL — without it the captcha breaks.
+#   * All app resources (vendored JS, css, images, /altcha/challenge, htmx
+#     fetches) are same-origin, so 'self' covers script/style/img/connect.
+#   * HSTS is intentionally NOT set here — it belongs at the TLS-terminating
+#     reverse proxy (and must never be sent over plain-HTTP dev/localhost).
+_CSP = "; ".join([
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "connect-src 'self'",
+    "worker-src 'self' blob:",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+])
+_SECURITY_HEADERS = {
+    "Content-Security-Policy": _CSP,
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "same-origin",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for header, value in _SECURITY_HEADERS.items():
+        response.headers.setdefault(header, value)
+    return response
+
+
 app.include_router(users.router)
 app.include_router(html_admin.router)
 app.include_router(html_badges.router)

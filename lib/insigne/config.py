@@ -18,6 +18,25 @@ class EmailConfig:
 
 
 @dataclass
+class RateLimitConfig:
+    """Per-IP rate limits on the unauthenticated, e-mail-sending endpoints
+    (``/register``, ``/forgot-password``, ``/contact``) to curb inbox bombing
+    and contact-form spam. Values are ``limits``-library strings, e.g.
+    ``"5/hour"``, ``"10/minute"``, ``"3/day"``.
+
+    Per-IP limiting only sees the real client IP when uvicorn runs behind a
+    trusted proxy with ``server.forwarded_allow_ips`` set (uvicorn rewrites
+    ``request.client.host`` from ``X-Forwarded-For``); without it every request
+    appears to come from the proxy and shares one bucket. Same dependency as
+    the fail2ban login log.
+    """
+    enabled: bool = True
+    register: str = "5/hour"
+    forgot_password: str = "5/hour"
+    contact: str = "10/hour"
+
+
+@dataclass
 class Config:
     database_url: str
     jwt_secret_key: str
@@ -35,6 +54,7 @@ class Config:
     admins: list = field(default_factory=list)
     allow_any_user_to_create_groups: bool = True
     email: EmailConfig = field(default_factory=EmailConfig)
+    rate_limit: RateLimitConfig = field(default_factory=RateLimitConfig)
 
 
 def _load() -> Config:
@@ -48,6 +68,7 @@ def _load() -> Config:
         )
     data = yaml.safe_load(path.read_text())
     email_data = data.get("email", {})
+    rl_data = data.get("rate_limit", {})
     return Config(
         database_url=data["database"]["url"],
         jwt_secret_key=data["jwt"]["secret_key"],
@@ -69,6 +90,12 @@ def _load() -> Config:
             from_name=email_data.get("from_name", "Insigne Systeem"),
             security=email_data.get("security", "starttls"),
             templates_dir=email_data.get("templates_dir", ""),
+        ),
+        rate_limit=RateLimitConfig(
+            enabled=bool(rl_data.get("enabled", True)),
+            register=str(rl_data.get("register", "5/hour")),
+            forgot_password=str(rl_data.get("forgot_password", "5/hour")),
+            contact=str(rl_data.get("contact", "10/hour")),
         ),
     )
 

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from insigne.config import config
 from insigne.database import get_db
 from insigne.email import send_contact_form_email
+from ratelimit import contact_rate_limit
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
 
@@ -88,6 +89,7 @@ async def contact_page(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/contact", response_class=HTMLResponse)
+@contact_rate_limit
 async def contact_submit(
     request: Request,
     background_tasks: BackgroundTasks,

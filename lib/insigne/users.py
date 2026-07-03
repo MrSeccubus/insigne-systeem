@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from email_validator import EmailNotValidError, validate_email
 from sqlalchemy.orm import Session
 
-from .auth import hash_password, verify_password
+from .auth import hash_password, verify_password, verify_password_dummy
 from .models import ConfirmationToken, EmailChangeRequest, GroupMembership, SpeltakMembership, User, UserFavoriteBadge
 
 logger = logging.getLogger(__name__)
@@ -182,7 +182,12 @@ def authenticate(db: Session, email: str, password: str) -> User | None:
     """Return the active User if credentials are valid, else None."""
     email = email.strip().lower()
     user = db.query(User).filter(User.email == email, User.status == "active").first()
-    if user is None or not verify_password(password, user.password_hash):
+    if user is None:
+        # Equalize timing with the account-found path so login latency can't be
+        # used to enumerate which e-mails are registered.
+        verify_password_dummy(password)
+        return None
+    if not verify_password(password, user.password_hash):
         return None
     return user
 

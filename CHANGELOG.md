@@ -18,6 +18,8 @@ weer leeg gemaakt.
 
 - **Speltak-toewijzing en -overplaatsing over groepsgrenzen heen geblokkeerd** — `POST /groups/{groep}/members/{id}/assign-speltak` en `POST /groups/{groep}/speltakken/{speltak}/members/{id}/transfer` autoriseerden alleen de groep/speltak in de URL, maar valideerden de bestemmings-`to_speltak_id` uit het formulier niet. Daardoor kon een groeps- of speltakleider een lid in een speltak van een *andere* groep schrijven (cross-group IDOR). Beide endpoints controleren nu dat de bestemmingsspeltak tot dezelfde groep behoort; `transfer_scout` weigert bovendien op serviceniveau met `ValueError("cross_group")` wanneer bron- en bestemmingsspeltak niet dezelfde groep delen. 2 unit- + 3 integratietests.
 
+- **Log-injectie in de mislukte-login-regel geblokkeerd** — het ingezonden e-mailadres werd met alleen `.strip().lower()` in de fail2ban-WARNING-regel gelogd, zodat een interne regeleinde (`\n`) een tweede, zelfgekozen regel kon vervalsen die aan het fail2ban-filter voldoet — waarmee een aanvaller een IP naar keuze (een concurrent, de upstream-proxy → self-DoS, of monitoring) kon laten bannen. Alle ASCII-stuurtekens (C0-bereik + DEL) in het adres worden nu naar een spatie vervangen vóór het loggen, zodat de hele poging op één regel blijft. 2 nieuwe tests.
+
 ### Opgelost
 
 - **Uitnodigingsmail bij "e-mailadres koppelen" gaf een 500** — het legitieme pad riep `send_speltak_invite_email(..., code=...)` aan terwijl die functie geen `code`-parameter heeft (de registratielink wordt intern uit het e-mailadres opgebouwd). De overbodige `code`-parameter is verwijderd zodat de scout weer een uitnodiging ontvangt. Aan het licht gekomen door de nieuwe regressietest voor het bovenstaande beveiligingslek.

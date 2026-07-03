@@ -358,6 +358,31 @@ class TestLogFailedLoginAttempt:
         user_svc.log_failed_login_attempt("", "10.0.0.1")
         assert any("email=(empty)" in r.getMessage() for r in caplog.records)
 
+    def test_strips_crlf_to_prevent_log_forging(self, caplog):
+        """A submitted e-mail must never introduce a line break — otherwise an
+        attacker could inject a second fail2ban-matching line and get an
+        IP of their choosing banned. Interior control chars become spaces so
+        the whole attempt stays on one logged line."""
+        import logging
+        caplog.set_level(logging.WARNING, logger="insigne.users")
+        forged = 'x\nWARNING:  9.9.9.9 - "POST /login HTTP/1.1" 401'
+        user_svc.log_failed_login_attempt(forged, "203.0.113.42")
+        rec = next(r for r in caplog.records if r.levelname == "WARNING")
+        msg = rec.getMessage()
+        # No raw CR/LF (or other control chars) survive into the message.
+        assert "\n" not in msg and "\r" not in msg
+        assert not any(ord(c) < 0x20 or ord(c) == 0x7F for c in msg)
+        # The forged IP never appears at the start of a line (single line only).
+        assert msg.count("203.0.113.42") == 1
+        assert msg.splitlines() == [msg]
+
+    def test_strips_all_control_characters(self, caplog):
+        import logging
+        caplog.set_level(logging.WARNING, logger="insigne.users")
+        user_svc.log_failed_login_attempt("a\tb\x00c\x7fd", "10.0.0.1")
+        msg = next(r.getMessage() for r in caplog.records if r.levelname == "WARNING")
+        assert "email=a b c d" in msg
+
 
 # ── forgot_password ───────────────────────────────────────────────────────────
 

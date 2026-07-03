@@ -10,6 +10,13 @@ from .models import ConfirmationToken, EmailChangeRequest, GroupMembership, Spel
 
 logger = logging.getLogger(__name__)
 
+# Map every ASCII control character (C0 range + DEL) to a space, so a
+# fully attacker-controlled string logged on one line cannot forge extra log
+# lines (CR/LF) or otherwise corrupt log parsing. Used before echoing the
+# submitted e-mail into the failed-login WARNING (see log_failed_login_attempt).
+_LOG_CONTROL_CHARS = {c: " " for c in range(0x20)}
+_LOG_CONTROL_CHARS[0x7F] = " "
+
 _TOKEN_EXPIRE_HOURS = 1
 _EMAIL_CHANGE_CONFIRM_HOURS = 24
 _EMAIL_CHANGE_REVERT_DAYS = 7
@@ -206,7 +213,7 @@ def log_failed_login_attempt(email: str, ip: str | None) -> None:
     logger.warning(
         '%s - "POST /login HTTP/1.1" 401 invalid credentials email=%s',
         ip or "(unknown)",
-        (email or "").strip().lower() or "(empty)",
+        (email or "").strip().lower().translate(_LOG_CONTROL_CHARS) or "(empty)",
     )
 
 

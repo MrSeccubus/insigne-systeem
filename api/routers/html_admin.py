@@ -59,7 +59,7 @@ def admin_find_user(
         request=request,
         name="partials/admin_user_result.html",
         context={
-            "current_user": user,
+            "current_user": current_user,
             "found_user": found,
             "searched_email": email.strip(),
             "deleted_email": None,
@@ -82,7 +82,7 @@ def admin_delete_user(
             request=request,
             name="partials/admin_user_result.html",
             context={
-                "current_user": user,
+                "current_user": current_user,
                 "found_user": target,
                 "searched_email": target.email or "",
                 "deleted_email": None,
@@ -98,7 +98,7 @@ def admin_delete_user(
         request=request,
         name="partials/admin_user_result.html",
         context={
-            "current_user": user,
+            "current_user": current_user,
             "found_user": None,
             "searched_email": "",
             "deleted_email": deleted_email,

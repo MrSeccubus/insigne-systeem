@@ -51,7 +51,15 @@ def _get_current_user(request: Request, db: Session) -> User | None:
         user_id = decode_access_token(token)
     except jwt.PyJWTError:
         return None
-    return db.get(User, user_id)
+    user = db.get(User, user_id)
+    # Only honour tokens for active accounts. Tokens are minted only for active
+    # users today, so this is currently a no-op — but it's the guardrail that
+    # makes account suspension/soft-delete actually take effect on the HTML
+    # layer (JWTs are stateless and live 30 days). Without it, flipping a user's
+    # status would leave their existing cookie working until the token expires.
+    if user is None or user.status != "active":
+        return None
+    return user
 
 
 # --- Registration ---

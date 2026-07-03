@@ -17,3 +17,8 @@ email:
   smtp_host: ""
   from_address: "noreply@insigne.nl"
   from_name: "Insigne Systeem"
+
+# Off by default in the test suite so repeated register/forgot-password/contact
+# calls aren't throttled; the rate-limit tests flip config.rate_limit.enabled on.
+rate_limit:
+  enabled: false

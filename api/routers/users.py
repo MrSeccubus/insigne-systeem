@@ -21,6 +21,7 @@ from insigne.email import (
     send_welcome_email,
 )
 from insigne.models import User
+from ratelimit import forgot_password_rate_limit, register_rate_limit
 from templates import templates as _TEMPLATES
 
 _secure_cookies = config.base_url.startswith("https://")
@@ -96,6 +97,7 @@ async def register_confirm_link(request: Request, code: str, db: Session = Depen
 
 
 @router.post("/register", response_class=HTMLResponse)
+@register_rate_limit
 async def register(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -341,6 +343,7 @@ async def forgot_password_page(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/forgot-password", response_class=HTMLResponse)
+@forgot_password_rate_limit
 async def forgot_password(
     request: Request,
     background_tasks: BackgroundTasks,

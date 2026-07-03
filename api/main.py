@@ -39,8 +39,10 @@ from insigne import users as users_svc
 from insigne.badges import BadgeCatalogue, jaarinsigne_levels_for_scout
 from insigne.config import config
 from insigne.database import get_db
+from ratelimit import limiter
 from routers import html_admin, html_badges, html_contact, html_groups, users
 from routers.users import _get_current_user
+from slowapi.errors import RateLimitExceeded
 from templates import templates
 
 BASE_DIR = Path(__file__).parent.parent
@@ -51,6 +53,20 @@ _CATALOGUE = BadgeCatalogue(DATA_DIR)
 _DEV = os.environ.get("INSIGNE_DEV") == "1"  # set by serve_dev.sh
 
 app = FastAPI()
+
+# Per-IP rate limiting on the unauthenticated e-mail-sending endpoints
+# (see ratelimit.py). The per-route @limiter.limit decorators need the limiter
+# on app.state plus an exception handler for the 429.
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return PlainTextResponse(
+        "Te veel aanvragen. Probeer het over een tijdje opnieuw.",
+        status_code=429,
+        headers={"Retry-After": "3600"},
+    )
 
 
 # ── CSRF defence-in-depth: Origin / Referer header check ──────────────────────

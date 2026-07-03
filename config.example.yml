@@ -74,3 +74,19 @@ admins:
 
 # Whether any authenticated user may create a group (false = only admins).
 allow_any_user_to_create_groups: true
+
+# Per-IP rate limiting on the unauthenticated, e-mail-sending endpoints
+# (/register, /forgot-password, /contact) to curb inbox bombing and contact
+# spam. Values are "limits"-library strings: "<count>/<period>", where period
+# is second|minute|hour|day (e.g. "5/hour", "10/minute", "3/day").
+#
+# IMPORTANT: this keys on the client IP (request.client.host). Behind a reverse
+# proxy that is only the *real* client IP when server.forwarded_allow_ips is
+# set (uvicorn then rewrites it from X-Forwarded-For) — otherwise every request
+# looks like it comes from the proxy and shares one bucket. Same dependency as
+# the fail2ban login log above.
+rate_limit:
+  enabled: true
+  register: "5/hour"
+  forgot_password: "5/hour"
+  contact: "10/hour"

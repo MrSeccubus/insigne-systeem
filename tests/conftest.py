@@ -27,9 +27,28 @@ def reset_config():
     """Restore mutable config fields after each test to prevent cross-test pollution."""
     saved_admins = list(_config.admins)
     saved_allow = _config.allow_any_user_to_create_groups
+    saved_rl = (
+        _config.rate_limit.enabled,
+        _config.rate_limit.register,
+        _config.rate_limit.forgot_password,
+        _config.rate_limit.contact,
+    )
     yield
     _config.admins = saved_admins
     _config.allow_any_user_to_create_groups = saved_allow
+    (
+        _config.rate_limit.enabled,
+        _config.rate_limit.register,
+        _config.rate_limit.forgot_password,
+        _config.rate_limit.contact,
+    ) = saved_rl
+    # Clear the in-memory limiter counters so one test's requests can't leak
+    # into another's budget (the limiter lives on the app singleton).
+    try:
+        from ratelimit import limiter
+        limiter.reset()
+    except Exception:
+        pass
 
 
 @pytest.fixture

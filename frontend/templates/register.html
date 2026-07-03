@@ -21,3 +21,9 @@
     </div>
 </main>
 {% endblock %}
+
+{% block scripts %}
+{% if captcha_enabled %}
+<script type="module" src="/static/vendor/altcha.min.js?v={{ app_version() }}"></script>
+{% endif %}
+{% endblock %}

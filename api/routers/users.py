@@ -20,6 +20,7 @@ from insigne.email import (
     send_registration_email,
     send_welcome_email,
 )
+import captcha
 from insigne.models import User
 from ratelimit import forgot_password_rate_limit, register_rate_limit
 from templates import templates as _TEMPLATES
@@ -63,7 +64,8 @@ async def register_page(
 ):
     """Step 1 of registration. ``?email=`` pre-fills the e-mail field so
     invitation e-mails can deep-link new users without expiring tokens."""
-    return _page(request, "register.html", db, prefill_email=(email or ""))
+    return _page(request, "register.html", db, prefill_email=(email or ""),
+                 captcha_enabled=captcha.is_enabled())
 
 
 @router.get("/register/confirm", response_class=HTMLResponse)
@@ -102,8 +104,15 @@ async def register(
     request: Request,
     background_tasks: BackgroundTasks,
     email: str = Form(...),
+    altcha: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    if captcha.is_enabled() and not captcha.verify(altcha):
+        return _partial(
+            request, "register_step1.html",
+            prefill_email=email.strip().lower(), captcha_enabled=True,
+            error="De verificatie is mislukt. Laad de pagina opnieuw en probeer het nog eens.",
+        )
     code, token_type, user = user_svc.start_registration(db, email)
     naam = user.name or user.email.split("@")[0]
     if token_type == "email_confirmation":

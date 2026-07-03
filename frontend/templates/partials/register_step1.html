@@ -1,10 +1,18 @@
 <form hx-post="/register" hx-target="#form-area" hx-swap="innerHTML">
+    {% if error %}
+        <p class="form-error">{{ error }}</p>
+    {% endif %}
     <div class="field">
         <label for="email">E-mailadres</label>
         <input type="email" id="email" name="email" required autofocus
                placeholder="jij@voorbeeld.nl"
                value="{{ prefill_email or '' }}">
     </div>
+    {% if captcha_enabled %}
+    <div class="field">
+        <altcha-widget challengeurl="/altcha/challenge"></altcha-widget>
+    </div>
+    {% endif %}
     <button type="submit" class="btn-primary">Doorgaan</button>
 </form>
 <div class="auth-footer">

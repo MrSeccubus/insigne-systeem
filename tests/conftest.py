@@ -33,6 +33,7 @@ def reset_config():
         _config.rate_limit.forgot_password,
         _config.rate_limit.contact,
     )
+    saved_captcha = (_config.captcha.enabled, _config.captcha.complexity)
     yield
     _config.admins = saved_admins
     _config.allow_any_user_to_create_groups = saved_allow
@@ -42,11 +43,18 @@ def reset_config():
         _config.rate_limit.forgot_password,
         _config.rate_limit.contact,
     ) = saved_rl
+    (_config.captcha.enabled, _config.captcha.complexity) = saved_captcha
     # Clear the in-memory limiter counters so one test's requests can't leak
     # into another's budget (the limiter lives on the app singleton).
     try:
         from ratelimit import limiter
         limiter.reset()
+    except Exception:
+        pass
+    # Clear the captcha single-use store for the same reason.
+    try:
+        import captcha
+        captcha.reset()
     except Exception:
         pass
 

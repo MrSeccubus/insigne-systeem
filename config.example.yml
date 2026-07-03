@@ -90,3 +90,14 @@ rate_limit:
   register: "5/hour"
   forgot_password: "5/hour"
   contact: "10/hour"
+
+# ALTCHA proof-of-work captcha on the unauthenticated forms (/register and
+# /contact). Self-hosted and privacy-friendly: no cookies, no fingerprinting,
+# no third-party calls. The browser widget solves a small proof-of-work signed
+# with a key derived from jwt.secret_key. REQUIRES JavaScript in the visitor's
+# browser — set enabled: false if that is a problem for your audience.
+# ``complexity`` is the ALTCHA max_number (upper bound of the number the client
+# brute-forces); higher = more bot cost but slightly slower for real users.
+captcha:
+  enabled: true
+  complexity: 100000

@@ -716,6 +716,29 @@ class TestScoutSetProgress:
         entry = db.query(ProgressEntry).filter_by(user_id=scout.id).first()
         assert entry.status == "signed_off"  # unchanged; message required
 
+    def test_out_of_range_indices_rejected_no_row_created(self, client, db):
+        """Out-of-range level/step indices must be refused (400) without writing
+        an orphan ProgressEntry — otherwise the sign-off e-mail IndexErrors (500)
+        and the bad row later 500s any mentor who opens it."""
+        leider, scout, g, s = _make_speltak_with_leider_and_scout(db)
+        _set_auth(client, leider)
+        r = client.post(
+            f"/scouts/{scout.id}/set-progress",
+            data={"badge_slug": _BADGE, "level_index": 999, "step_index": 0, "status": "signed_off"},
+        )
+        assert r.status_code == 400
+        assert db.query(ProgressEntry).filter_by(user_id=scout.id).count() == 0
+
+    def test_out_of_range_step_rejected(self, client, db):
+        leider, scout, g, s = _make_speltak_with_leider_and_scout(db)
+        _set_auth(client, leider)
+        r = client.post(
+            f"/scouts/{scout.id}/set-progress",
+            data={"badge_slug": _BADGE, "level_index": _LEVEL, "step_index": 999, "status": "in_progress"},
+        )
+        assert r.status_code == 400
+        assert db.query(ProgressEntry).filter_by(user_id=scout.id).count() == 0
+
 
 class TestBadgeDetailDefensiveRender:
     """Renderer must not crash if an entry is in an inconsistent state —

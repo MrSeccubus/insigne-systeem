@@ -113,7 +113,10 @@ class TestGroupDetail:
 # ── POST /groups/{slug}/members/add ──────────────────────────────────────────
 
 class TestGroupAddMember:
-    def test_adds_groepsleider(self, client, db):
+    def test_add_creates_pending_invite_not_approved(self, client, db):
+        """Invite semantics: 'add' must create a PENDING membership the target
+        accepts, not an approved one — no access is granted without consent."""
+        from insigne.models import GroupMembership
         leider = _user(db)
         new_leider = _user(db, email="new@example.com", name="New")
         g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
@@ -121,8 +124,24 @@ class TestGroupAddMember:
         r = client.post(f"/groups/g/members/add", data={"email": "new@example.com"},
                         follow_redirects=False)
         assert r.status_code == 303
-        members = svc.list_group_members(db, g.id)
-        assert any(m.user_id == new_leider.id for m in members)
+        m = db.query(GroupMembership).filter_by(group_id=g.id, user_id=new_leider.id).first()
+        assert m is not None
+        assert m.approved is False           # pending, awaiting acceptance
+        assert m.invited_by_id == leider.id
+        # Not yet in the active roster.
+        assert not any(x.user_id == new_leider.id for x in svc.list_group_members(db, g.id))
+
+    def test_add_does_not_demote_existing_approved_member(self, client, db):
+        from insigne.models import GroupMembership
+        leider = _user(db)
+        existing = _user(db, email="co@example.com", name="Co")
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+        svc.set_group_role(db, user_id=existing.id, group_id=g.id, role="groepsleider")
+        _login(client, leider)
+        client.post(f"/groups/g/members/add", data={"email": "co@example.com"},
+                    follow_redirects=False)
+        m = db.query(GroupMembership).filter_by(group_id=g.id, user_id=existing.id).first()
+        assert m.approved is True  # unchanged, not demoted to pending
 
     def test_check_email_returns_exists_true(self, client, db):
         leider = _user(db)
@@ -666,3 +685,58 @@ class TestMembershipRequestApprovalAuthz:
         r = client.post(f"/requests/{req.id}/approve", follow_redirects=False)
         assert r.status_code == 303
         assert svc.get_group_role(db, scout.id, g.id) == "member"
+
+
+class TestSpeltakAddAndRoleHardening:
+    """Invite semantics for speltak member-add + role whitelist."""
+
+    def _leader_group_speltak(self, db):
+        leider = _user(db, email="leider@example.com")
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        return leider, g, s
+
+    def test_add_creates_pending_speltak_invite(self, client, db):
+        from insigne.models import SpeltakMembership
+        leider, g, s = self._leader_group_speltak(db)
+        target = _user(db, email="scout@example.com", name="Scout")
+        _login(client, leider)
+        r = client.post(f"/groups/g/speltakken/s/members/add",
+                        data={"email": "scout@example.com", "role": "scout"},
+                        follow_redirects=False)
+        assert r.status_code == 303
+        m = db.query(SpeltakMembership).filter_by(speltak_id=s.id, user_id=target.id).first()
+        assert m is not None and m.approved is False and m.invited_by_id == leider.id
+
+    def test_add_rejects_bogus_role_falls_back_to_scout(self, client, db):
+        from insigne.models import SpeltakMembership
+        leider, g, s = self._leader_group_speltak(db)
+        target = _user(db, email="scout@example.com", name="Scout")
+        _login(client, leider)
+        client.post(f"/groups/g/speltakken/s/members/add",
+                    data={"email": "scout@example.com", "role": "superadmin"},
+                    follow_redirects=False)
+        m = db.query(SpeltakMembership).filter_by(speltak_id=s.id, user_id=target.id).first()
+        assert m.role == "scout"  # bogus role coerced to least privilege
+
+    def test_set_role_rejects_bogus_role(self, client, db):
+        from insigne.models import SpeltakMembership
+        leider, g, s = self._leader_group_speltak(db)
+        scout = _user(db, email="scout@example.com", name="Scout")
+        svc.set_speltak_role(db, user_id=scout.id, speltak_id=s.id, role="scout")
+        _login(client, leider)
+        client.post(f"/groups/g/speltakken/s/members/{scout.id}/role",
+                    data={"role": "superadmin"}, follow_redirects=False)
+        m = db.query(SpeltakMembership).filter_by(speltak_id=s.id, user_id=scout.id).first()
+        assert m.role == "scout"  # unchanged; bogus role ignored
+
+    def test_set_role_allows_speltakleider(self, client, db):
+        from insigne.models import SpeltakMembership
+        leider, g, s = self._leader_group_speltak(db)
+        scout = _user(db, email="scout@example.com", name="Scout")
+        svc.set_speltak_role(db, user_id=scout.id, speltak_id=s.id, role="scout")
+        _login(client, leider)
+        client.post(f"/groups/g/speltakken/s/members/{scout.id}/role",
+                    data={"role": "speltakleider"}, follow_redirects=False)
+        m = db.query(SpeltakMembership).filter_by(speltak_id=s.id, user_id=scout.id).first()
+        assert m.role == "speltakleider"  # valid role still works

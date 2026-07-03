@@ -21,6 +21,11 @@ _CATALOGUE = BadgeCatalogue(Path(__file__).parent.parent / "data")
 import re as _re
 _UUID_RE = _re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', _re.I)
 
+# The only roles a speltak membership may hold. Endpoints that accept a ``role``
+# form field validate against this whitelist so a caller can't set an arbitrary
+# string (or self-promote to an unexpected role) via a crafted POST.
+_VALID_SPELTAK_ROLES = {"scout", "speltakleider"}
+
 def _lookup_user_by_email_or_id(db, value: str):
     """Return User if value is a UUID (lookup by id) or an email address (lookup by email)."""
     if _UUID_RE.match(value.strip()):
@@ -215,7 +220,11 @@ def group_create(
 # ── Group search (JSON, for datalist) ────────────────────────────────────────
 
 @router.get("/groups/search")
-def group_search(q: str = Query(""), db: Session = Depends(get_db)):
+def group_search(request: Request, q: str = Query(""), db: Session = Depends(get_db)):
+    # Require authentication: every other endpoint here does, and leaking the
+    # full group id/name/slug list to anonymous callers is needless exposure.
+    if _get_current_user(request, db) is None:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     results = groups_svc.search_groups(db, q) if q.strip() else []
     return JSONResponse([{"id": g.id, "name": g.name, "slug": g.slug} for g in results])
 
@@ -590,7 +599,28 @@ def group_add_member(
         return _page(request, "group_detail.html", db,
                      **_group_detail_ctx(db, group, user),
                      invite_email=email)
-    groups_svc.set_group_role(db, user_id=target.id, group_id=group.id, role="groepsleider")
+    # Invite semantics (not immediate approval): create a PENDING membership the
+    # target must accept before gaining any access. Previously this wrote an
+    # approved groepsleider directly, pulling an arbitrary user into the group
+    # without their consent. Don't demote an already-approved member.
+    m = db.query(GroupMembership).filter_by(user_id=target.id, group_id=group.id).first()
+    if not (m and m.approved and not m.withdrawn):
+        if m:
+            m.role = "groepsleider"
+            m.approved = False
+            m.withdrawn = False
+            m.invited_by_id = user.id
+        else:
+            db.add(GroupMembership(user_id=target.id, group_id=group.id,
+                                   role="groepsleider", approved=False, invited_by_id=user.id))
+        db.commit()
+        if target.email:
+            email_svc.send_membership_invite_email(
+                to=target.email,
+                naam=target.name or target.email.split("@")[0],
+                inviter_name=user.name or user.email,
+                description=f"groepsleider van groep {group.name}",
+            )
     return RedirectResponse(f"/groups/{group.slug}", status_code=303)
 
 
@@ -856,6 +886,10 @@ def speltak_invite_member(
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
         return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
+    # Defence-in-depth: an unknown role from a crafted POST falls back to the
+    # least-privilege "scout" (the UI only ever sends scout/speltakleider).
+    if role not in _VALID_SPELTAK_ROLES:
+        role = "scout"
     if not users_svc.is_valid_email(email.strip().lower()):
         members = groups_svc.list_speltak_members(db, speltak.id)
         pending_members = groups_svc.list_pending_speltak_members(db, speltak.id)
@@ -941,12 +975,35 @@ def speltak_add_member(
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
     if not speltak or not groups_svc.can_manage_speltak(user, db, speltak.id):
         return RedirectResponse(f"/groups/{group.slug}" if group else "/groups", status_code=303)
+    # Unknown role from a crafted POST → least-privilege "scout".
+    if role not in _VALID_SPELTAK_ROLES:
+        role = "scout"
     target = _lookup_user_by_email_or_id(db, email)
     error = None
     if not target:
         error = f"Geen gebruiker gevonden met e-mail {email}."
     else:
-        groups_svc.set_speltak_role(db, user_id=target.id, speltak_id=speltak.id, role=role)
+        # Invite semantics: create a PENDING membership the target must accept,
+        # rather than writing an approved member without their consent. Don't
+        # demote an already-approved member.
+        m = db.query(SpeltakMembership).filter_by(user_id=target.id, speltak_id=speltak.id).first()
+        if not (m and m.approved and not m.withdrawn):
+            if m:
+                m.role = role
+                m.approved = False
+                m.withdrawn = False
+                m.invited_by_id = user.id
+            else:
+                db.add(SpeltakMembership(user_id=target.id, speltak_id=speltak.id,
+                                         role=role, approved=False, invited_by_id=user.id))
+            db.commit()
+            if target.email:
+                email_svc.send_membership_invite_email(
+                    to=target.email,
+                    naam=target.name or target.email.split("@")[0],
+                    inviter_name=user.name or user.email,
+                    description=f"{role} bij speltak {speltak.name} van groep {group.name}",
+                )
     if error:
         members = groups_svc.list_speltak_members(db, speltak.id)
         other_speltakken = [s for s in group.speltakken if s.id != speltak.id]
@@ -1117,7 +1174,7 @@ def speltak_set_role(
         return RedirectResponse("/login", status_code=303)
     group = groups_svc.get_group_by_slug(db, group_slug)
     speltak = group and groups_svc.get_speltak_by_slug(db, group.id, speltak_slug)
-    if speltak and groups_svc.can_manage_speltak(user, db, speltak.id):
+    if speltak and groups_svc.can_manage_speltak(user, db, speltak.id) and role in _VALID_SPELTAK_ROLES:
         groups_svc.set_speltak_role(db, user_id=member_id,
                                     speltak_id=speltak.id, role=role)
     return RedirectResponse(f"/groups/{group.slug}/speltakken/{speltak.slug}" if speltak else (f"/groups/{group.slug}" if group else "/groups"), status_code=303)

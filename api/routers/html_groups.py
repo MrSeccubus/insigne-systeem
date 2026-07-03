@@ -998,17 +998,22 @@ def speltak_set_member_email(
             invited_by_id=user.id, speltak=speltak,
         )
     except ValueError as e:
+        error_messages = {
+            "not_found": "Deze scout bestaat niet.",
+            "not_emailless_scout": "Deze scout heeft al een e-mailadres; een e-mailadres kan alleen aan een scout zonder account worden gekoppeld.",
+            "not_a_member": "Deze scout is geen lid van deze speltak.",
+            "email_in_use": f"Het e-mailadres {email} is al in gebruik door een andere uitgenodigde gebruiker.",
+        }
         return _page(request, "speltak_detail.html", db,
                      group=group, speltak=speltak, members=members,
                      pending_members=pending_members, can_manage=True,
                      other_speltakken=other_speltakken, suggested_users=suggested_users,
-                     error=f"Het e-mailadres {email} is al in gebruik door een andere uitgenodigde gebruiker.")
+                     error=error_messages.get(str(e), "De actie kon niet worden uitgevoerd."))
 
     if action == "new_user":
         email_svc.send_speltak_invite_email(
             to=email,
             naam=target.name or email.split("@")[0],
-            code=code,
             inviter_name=user.name or user.email,
             group_name=group.name,
             speltak_name=speltak.name,

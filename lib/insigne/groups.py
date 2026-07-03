@@ -685,6 +685,27 @@ def attach_email_to_scout(
     email = email.strip().lower()
     scout = db.get(User, scout_user_id)
 
+    # Account-takeover guard. This endpoint may ONLY attach an email to a
+    # genuine emailless scout (created via ``create_emailless_scout``:
+    # ``email is None``, ``status == "active"``) who is already an approved
+    # member of *this* speltak. Without these checks a speltakleider could pass
+    # an arbitrary ``member_id`` and overwrite any user's email, forcing their
+    # account into ``pending`` and mailing a registration token to an
+    # attacker-chosen address — a full account takeover. The membership lookup
+    # mirrors the ``approved=True`` assumption already made below when the
+    # emailless membership is flipped to a pending invite.
+    if scout is None:
+        raise ValueError("not_found")
+    if scout.email is not None or scout.status != "active":
+        raise ValueError("not_emailless_scout")
+    if (
+        db.query(SpeltakMembership)
+        .filter_by(user_id=scout_user_id, speltak_id=speltak.id, approved=True)
+        .first()
+        is None
+    ):
+        raise ValueError("not_a_member")
+
     existing = db.query(User).filter(User.email == email).first()
     if existing is not None and existing.status != "active":
         raise ValueError("email_in_use")

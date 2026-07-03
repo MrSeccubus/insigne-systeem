@@ -637,6 +637,85 @@ def test_list_speltak_members_restores_scout_when_invite_withdrawn(db):
     assert any(m.user_id == scout.id for m in svc.list_speltak_members(db, s.id))
 
 
+# ── attach_email_to_scout: account-takeover guard ────────────────────────────
+
+def test_attach_email_legit_emailless_member_new_email(db):
+    """Regression: the intended flow — attaching a brand-new email to an
+    emailless scout who IS an approved member of the speltak — still works."""
+    leader = _user(db, email="leader@example.com")
+    g = svc.create_group(db, name="G", slug="g")
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    scout = _scout(db, g.id, s.id)
+
+    kind, returned_user, code = svc.attach_email_to_scout(
+        db, scout_user_id=scout.id, email="new@example.com",
+        invited_by_id=leader.id, speltak=s,
+    )
+
+    assert kind == "new_user"
+    assert returned_user.id == scout.id
+    assert code is not None
+    db.refresh(scout)
+    assert scout.email == "new@example.com"
+    assert scout.status == "pending"
+
+
+def test_attach_email_rejects_user_with_existing_email(db):
+    """Account-takeover guard: a member_id belonging to a user who already has
+    an email must be rejected — otherwise a leader could overwrite any active
+    account's email and hijack it. The victim's email must be untouched."""
+    leader = _user(db, email="leader@example.com")
+    victim = _user(db, email="victim@example.com", name="Victim")
+    g = svc.create_group(db, name="G", slug="g")
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    # Even if the victim were a member of the speltak, the email check fires first.
+    db.add(SpeltakMembership(user_id=victim.id, speltak_id=s.id, role="scout", approved=True))
+    db.commit()
+
+    with pytest.raises(ValueError, match="not_emailless_scout"):
+        svc.attach_email_to_scout(
+            db, scout_user_id=victim.id, email="attacker@example.com",
+            invited_by_id=leader.id, speltak=s,
+        )
+    db.refresh(victim)
+    assert victim.email == "victim@example.com"
+    assert victim.status == "active"
+
+
+def test_attach_email_rejects_non_member_scout(db):
+    """Account-takeover guard: an emailless scout who is NOT a member of the
+    target speltak must be rejected, so a leader cannot reach into another
+    speltak's scouts."""
+    leader = _user(db, email="leader@example.com")
+    g = svc.create_group(db, name="G", slug="g")
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+    # Emailless scout with no membership in speltak s.
+    outsider = User(name="Outsider", status="active", created_by_id=None)
+    db.add(outsider)
+    db.commit()
+
+    with pytest.raises(ValueError, match="not_a_member"):
+        svc.attach_email_to_scout(
+            db, scout_user_id=outsider.id, email="new@example.com",
+            invited_by_id=leader.id, speltak=s,
+        )
+    db.refresh(outsider)
+    assert outsider.email is None
+
+
+def test_attach_email_rejects_unknown_user(db):
+    """A non-existent member_id must raise cleanly (not crash on None)."""
+    leader = _user(db, email="leader@example.com")
+    g = svc.create_group(db, name="G", slug="g")
+    s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+
+    with pytest.raises(ValueError, match="not_found"):
+        svc.attach_email_to_scout(
+            db, scout_user_id="00000000-0000-0000-0000-000000000000",
+            email="new@example.com", invited_by_id=leader.id, speltak=s,
+        )
+
+
 # ── has_scout_progress ────────────────────────────────────────────────────────
 
 def test_has_scout_progress_true(db):

@@ -155,6 +155,26 @@ class TestToPdf:
         pdf = to_pdf(data)
         assert len(pdf) > 1000
 
+    def test_pdf_escapes_user_controlled_markup(self, db):
+        """User name / notes / signed_off_by are interpolated into reportlab
+        Paragraphs (which parse a mini-XML markup). Without escaping, a '<' or
+        '&' would 500 the export and <img src="file://…"> could coerce a local
+        file read. With escaping, the export builds and the markup is rendered
+        as literal text."""
+        holder = find_or_create_nameholder(db, "<b>Leider</b> & co")
+        db.commit()
+        user = _make_user(db, name="Scout <script>alert(1)</script>")
+        _make_entry(db, user.id, status="signed_off",
+                    signed_off_by_id=holder.id,
+                    signed_off_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
+                    notes='<img src="file:///etc/passwd"/> & <onbekende tag')
+        data = export_data(db, user.id)
+        pdf = to_pdf(data, catalogue=_CATALOGUE)  # must not raise
+        assert pdf[:4] == b"%PDF"
+        # Rendered as literal text, not interpreted as markup.
+        text = _pdf_text(pdf)
+        assert "onbekende tag" in text
+
     def test_pdf_contains_explorers_category_heading(self, db):
         user = _make_user(db)
         data = export_data(db, user.id)

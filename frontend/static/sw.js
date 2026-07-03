@@ -18,7 +18,7 @@
 // Updates: ``skipWaiting`` + ``clients.claim`` so a new deploy applies on
 // the next reload without forcing the user to close all tabs.
 
-const VERSION = "v6";
+const VERSION = "v7";
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
@@ -76,6 +76,17 @@ self.addEventListener("activate", (event) => {
     );
 });
 
+// On logout the page posts ``{type: "logout"}`` (see base.html). Drop the
+// runtime cache so a next user on a shared device can't pull the previous
+// user's cached authenticated pages out of it (network-first already hides
+// them online; this closes the offline path). The shell cache holds only
+// public static assets, so it's left intact.
+self.addEventListener("message", (event) => {
+    if (event.data && event.data.type === "logout") {
+        event.waitUntil(caches.delete(RUNTIME_CACHE));
+    }
+});
+
 self.addEventListener("fetch", (event) => {
     const req = event.request;
     if (req.method !== "GET") return;  // never cache state-changing requests
@@ -106,6 +117,15 @@ self.addEventListener("fetch", (event) => {
         fetch(req).then((resp) => {
             // Skip redirected responses: Cache.put() throws on them (e.g.
             // /my-speltakken 303s to a single speltak's progress page).
+            //
+            // NOTE: we intentionally DO cache pages the server marks
+            // Cache-Control: no-store (the home page, per-scout progress).
+            // That's what makes the offline read-only mode work — opening the
+            // installed app with no service must still show your last home
+            // page, not the offline fallback. Network-first guarantees a fresh
+            // copy whenever there IS a connection, and the runtime cache is
+            // wiped on logout (see the "logout" message handler), which closes
+            // the shared-device leak without sacrificing offline use.
             if (resp.ok && !resp.redirected && resp.headers.get("content-type")?.includes("text/html")) {
                 const copy = resp.clone();
                 caches.open(RUNTIME_CACHE).then((c) => c.put(req, copy));

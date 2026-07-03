@@ -179,6 +179,18 @@
         document.querySelectorAll('.step-check-wrapper[open]').forEach(el => el.removeAttribute('open'));
     }, { passive: true, capture: true });
     </script>
+    <script>
+    // Tell the service worker to drop its runtime cache on logout, so the next
+    // user on a shared device can't reach the previous user's cached
+    // authenticated pages offline. Fire-and-forget: the SW handles the message
+    // independently of this navigation, so the delete completes even after the
+    // POST redirects.
+    document.addEventListener('submit', (e) => {
+        if (e.target.matches('form[data-logout-form]')) {
+            navigator.serviceWorker?.controller?.postMessage({ type: 'logout' });
+        }
+    });
+    </script>
 </head>
 <body{% if dev %} class="dev"{% endif %}>
     <div class="offline-banner" role="status">Je bent offline — alleen-lezen modus. Gegevens kunnen verouderd zijn. <a href="#" class="offline-banner-retry" onclick="location.reload(); return false;">Opnieuw proberen</a></div>
@@ -210,7 +222,7 @@
                         <a href="/export" class="nav-user-item offline-disabled">Importeren/exporteren</a>
                         <a href="/install" class="nav-user-item">App installeren</a>
                         <a href="/sync" class="nav-user-item offline-disabled">Data synchroniseren</a>
-                        <form method="post" action="/logout" style="margin:0;">
+                        <form method="post" action="/logout" style="margin:0;" data-logout-form>
                             <button type="submit" class="nav-user-item nav-user-item--btn offline-disabled">Uitloggen</button>
                         </form>
                     </div>

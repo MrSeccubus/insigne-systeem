@@ -3,6 +3,7 @@
 import io
 from datetime import datetime, timezone
 from pathlib import Path
+from xml.sax.saxutils import escape as _xml_escape
 
 import yaml
 from sqlalchemy.orm import Session
@@ -259,8 +260,13 @@ def to_pdf(data: dict, catalogue=None, base_url: str = "") -> bytes:
     if base_url:
         site_line += f" van {base_url}"
 
+    # reportlab's Paragraph parses a mini-XML markup language, so any
+    # user-controlled string interpolated into one must be XML-escaped first —
+    # otherwise a '<'/'&' in a name or note breaks the build (500) and an
+    # <img src="file://…"> could coerce a local file read into the user's own
+    # PDF. Catalogue-sourced strings (titles, eis text, labels) are trusted.
     story: list = [
-        Paragraph(f"Voortgangsoverzicht {user_name}", title_st),
+        Paragraph(f"Voortgangsoverzicht {_xml_escape(user_name)}", title_st),
         Paragraph(site_line, sub_st),
     ]
 
@@ -280,9 +286,9 @@ def to_pdf(data: dict, catalogue=None, base_url: str = "") -> bytes:
         if item and item.get("signed_off_at"):
             cell.append(Paragraph(f"Op: {_format_date(item['signed_off_at'])}", sts["detail"]))
         if item and item.get("signed_off_by"):
-            cell.append(Paragraph(f"Door: {item['signed_off_by']}", sts["detail"]))
+            cell.append(Paragraph(f"Door: {_xml_escape(str(item['signed_off_by']))}", sts["detail"]))
         if item and item.get("notes"):
-            cell.append(Paragraph(item["notes"], sts["notes"]))
+            cell.append(Paragraph(_xml_escape(str(item["notes"])), sts["notes"]))
         return cell, status
 
     if catalogue:

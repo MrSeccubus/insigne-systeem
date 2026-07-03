@@ -776,6 +776,13 @@ def create_membership_request(
     from insigne.models import MembershipRequest
 
     if speltak_id:
+        # group_id and speltak_id arrive as independent form fields. Reject a
+        # speltak that belongs to a different group — otherwise a request could
+        # be approved against a group the reviewer manages while writing the
+        # membership into another group's speltak (cross-group injection).
+        speltak = db.get(Speltak, speltak_id)
+        if speltak is None or speltak.group_id != group_id:
+            raise ValueError("speltak_group_mismatch")
         existing_m = db.query(SpeltakMembership).filter_by(
             user_id=user_id, speltak_id=speltak_id, approved=True
         ).first()
@@ -931,6 +938,15 @@ def approve_membership_request(
     reviewer = db.get(User, reviewed_by_id)
     if reviewer is None or not can_manage_group(reviewer, db, req.group_id):
         raise ValueError("forbidden")
+
+    # Defence-in-depth: reject a request whose speltak belongs to a different
+    # group than the one authorized above (create_membership_request already
+    # blocks this at submission, but a legacy/tampered row must not slip a
+    # membership into another group's speltak here).
+    if req.speltak_id:
+        speltak = db.get(Speltak, req.speltak_id)
+        if speltak is None or speltak.group_id != req.group_id:
+            raise ValueError("forbidden")
 
     if req.speltak_id:
         set_speltak_role(db, user_id=req.user_id, speltak_id=req.speltak_id, role="scout")

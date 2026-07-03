@@ -416,6 +416,7 @@ def groups_join_submit(
         msg = {
             "already_member": "Je bent al lid van deze groep/speltak.",
             "request_exists": "Je hebt al een openstaande aanvraag voor deze groep/speltak.",
+            "speltak_group_mismatch": "Deze speltak hoort niet bij de gekozen groep.",
         }.get(str(e), "Er is iets misgegaan.")
         if wants_json:
             return JSONResponse({"error": msg}, status_code=409)

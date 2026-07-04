@@ -191,6 +191,15 @@ class TestProfile:
         r = client.get("/profile")
         assert r.status_code == 200
 
+    def test_profile_form_has_current_password_field(self, client, db):
+        """The step-up 'current password' field must actually render, or a real
+        browser submit would omit it and every password/e-mail change would be
+        refused. (The behaviour tests POST the field directly.)"""
+        user = _register_and_activate(db)
+        client.cookies.set("access_token", create_access_token(user.id)[0])
+        r = client.get("/profile")
+        assert 'name="current_password"' in r.text
+
     def test_post_profile_without_auth_redirects_to_login(self, client, db):
         r = client.post("/profile", data={"email": "x@example.com"},
                         follow_redirects=False)

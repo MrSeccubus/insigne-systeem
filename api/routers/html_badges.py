@@ -26,6 +26,7 @@ from insigne.models import ProgressEntry, SignoffRequest, SpeltakMembership, Use
 
 import re as _re
 
+from ratelimit import signoff_rate_limit
 from routers._query import lenient_int
 from routers.users import _get_current_user
 from templates import templates as _TEMPLATES
@@ -472,6 +473,7 @@ async def log_step(
 # ── Request sign-off ──────────────────────────────────────────────────────────
 
 @router.post("/progress/{entry_id}/request-signoff", response_class=HTMLResponse)
+@signoff_rate_limit
 async def request_signoff(
     request: Request,
     entry_id: str,
@@ -1721,6 +1723,7 @@ async def jaarinsigne_2026_request_signoff_members(
 
 
 @router.post("/badges/jaarinsigne_2026/request-signoff", response_class=HTMLResponse)
+@signoff_rate_limit
 async def jaarinsigne_2026_request_signoff_direct(
     request: Request,
     background_tasks: BackgroundTasks,

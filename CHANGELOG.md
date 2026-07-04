@@ -12,6 +12,8 @@ weer leeg gemaakt.
 
 ### Beveiliging
 
+- **Lengtelimiet op vrije-tekstvelden (naam, notities, mentor-opmerking)** — de weergavenaam, aftekening-notities en mentor-afkeuringstekst waren onbegrensd en komen in e-mailteksten terecht. Ze worden nu op modelniveau afgekapt (naam 100 tekens, notities/opmerking 2000) via SQLAlchemy `@validates`, zodat de limiet geldt ongeacht welk endpoint schrijft (profiel, activatie, import, leider-aangemaakte scout, aftekenverzoek). Beperkt de amplificatie bij misbruik; te lange invoer wordt afgekapt, niet geweigerd. 5 nieuwe tests.
+
 - **Lid-toewijzing/-overplaatsing valideert nu de betrokken gebruiker** — `POST /groups/{groep}/members/{id}/assign-speltak` en `.../speltakken/{speltak}/members/{id}/transfer` schreven een *goedgekeurd* speltaklidmaatschap voor de `member_id` uit de URL zonder te controleren dat die persoon lid is. Een groepsleider kon zo een willekeurige gebruiker (elke UUID) zonder diens toestemming in zijn speltak trekken, en een speltakleider kon via `transfer` een willekeurige gebruiker in een naburige speltak schrijven. `assign-speltak` vereist nu dat `member_id` al lid van de groep is (`is_user_in_group`); `transfer` vereist dat `member_id` daadwerkelijk in de bronspeltak zit. Sluit de laatste variant van de cross-group/consent-klasse uit de tweede reviewronde. 2 nieuwe tests.
 
 ---

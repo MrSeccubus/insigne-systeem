@@ -10,6 +10,10 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Beveiliging
+
+- **Lengtelimiet op vrije-tekstvelden (naam, notities, mentor-opmerking)** — de weergavenaam, aftekening-notities en mentor-afkeuringstekst waren onbegrensd en komen in e-mailteksten terecht. Ze worden nu op modelniveau afgekapt (naam 100 tekens, notities/opmerking 2000) via SQLAlchemy `@validates`, zodat de limiet geldt ongeacht welk endpoint schrijft (profiel, activatie, import, leider-aangemaakte scout, aftekenverzoek). Beperkt de amplificatie bij misbruik; te lange invoer wordt afgekapt, niet geweigerd. 5 nieuwe tests.
+
 ---
 
 ## [v1.2.2] — 2026-07-04

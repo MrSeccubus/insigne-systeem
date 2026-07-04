@@ -2,7 +2,19 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, validates
+
+# Length caps on user-controlled free-text fields. SQLite doesn't enforce
+# column lengths, and these values render into e-mail bodies (display name,
+# sign-off notes, rejection comments), so cap them at the model layer to bound
+# amplification/abuse regardless of which endpoint writes them. Generous enough
+# for any legitimate value; overlong input is truncated (not rejected).
+MAX_NAME_LENGTH = 100
+MAX_FREETEXT_LENGTH = 2000
+
+
+def _cap(value: str | None, limit: int) -> str | None:
+    return value[:limit] if isinstance(value, str) else value
 
 
 def _uuid() -> str:
@@ -29,6 +41,10 @@ class User(Base):
         String(36), ForeignKey("users.id"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+
+    @validates("name")
+    def _cap_name(self, key, value):
+        return _cap(value, MAX_NAME_LENGTH)
 
     @property
     def is_admin(self) -> bool:
@@ -104,6 +120,10 @@ class ProgressEntry(Base):
     )
     signed_off_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+
+    @validates("notes", "mentor_comment")
+    def _cap_freetext(self, key, value):
+        return _cap(value, MAX_FREETEXT_LENGTH)
 
     user: Mapped["User"] = relationship(
         foreign_keys=[user_id], back_populates="progress_entries"

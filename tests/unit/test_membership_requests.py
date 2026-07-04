@@ -363,6 +363,22 @@ class TestAssignSpeltak:
         assert r.status_code == 303
         assert svc.list_speltak_members(db, s_b.id) == []  # nothing written to group B
 
+    def test_assign_speltak_rejects_non_member(self, client, db):
+        """member_id must already belong to the group — a groepsleider can't
+        pull an arbitrary user (any UUID) into their speltak without consent."""
+        leider = _user(db, email="leider@example.com")
+        outsider = _user(db, email="outsider@example.com")  # not a member of the group
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+        s = svc.create_speltak(db, group_id=g.id, name="S", slug="s")
+        self._login(client, leider)
+        r = client.post(
+            f"/groups/{g.slug}/members/{outsider.id}/assign-speltak",
+            data={"to_speltak_id": s.id},
+            follow_redirects=False,
+        )
+        assert r.status_code == 303
+        assert svc.list_speltak_members(db, s.id) == []  # arbitrary user not written
+
 
 class TestTransferMember:
     def _login(self, client, user):
@@ -407,3 +423,21 @@ class TestTransferMember:
         # Scout stays in the source speltak; nothing written to group B.
         assert any(m.user_id == scout.id for m in svc.list_speltak_members(db, s1.id))
         assert svc.list_speltak_members(db, s_b.id) == []
+
+    def test_transfer_rejects_member_not_in_source(self, client, db):
+        """member_id must actually be in the SOURCE speltak — otherwise a
+        speltakleider could write an approved membership for an arbitrary user
+        into a sibling speltak via transfer."""
+        leider = _user(db, email="leider@example.com")
+        outsider = _user(db, email="outsider@example.com")  # not in the source speltak
+        g = svc.create_group(db, name="G", slug="g", created_by_id=leider.id)
+        s1 = svc.create_speltak(db, group_id=g.id, name="A", slug="a")  # empty source
+        s2 = svc.create_speltak(db, group_id=g.id, name="B", slug="b")
+        self._login(client, leider)
+        r = client.post(
+            f"/groups/{g.slug}/speltakken/{s1.slug}/members/{outsider.id}/transfer",
+            data={"to_speltak_id": s2.id},
+            follow_redirects=False,
+        )
+        assert r.status_code == 303
+        assert svc.list_speltak_members(db, s2.id) == []  # nothing written to destination

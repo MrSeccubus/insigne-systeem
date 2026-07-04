@@ -634,6 +634,14 @@ class TestScoutBadgeDetail:
         assert r.status_code == 303
         assert f"/scouts/{scout.id}" in r.headers["location"]
 
+    def test_is_no_store(self, client, db):
+        """Renders another scout's progress — must not be cached (parity with
+        the scout progress home page)."""
+        leider, scout, g, s = _make_speltak_with_leider_and_scout(db)
+        _set_auth(client, leider)
+        r = client.get(f"/scouts/{scout.id}/badges/{_BADGE}")
+        assert "no-store" in r.headers.get("cache-control", "")
+
     def test_read_only_for_peer_signoff(self, client, db):
         leider, scout, g, s = _make_speltak_with_leider_and_scout(db, peer_signoff=True)
         _set_auth(client, leider)

@@ -519,6 +519,12 @@ def group_assign_speltak(
     to_speltak = groups_svc.get_speltak(db, to_speltak_id)
     if to_speltak is None or to_speltak.group_id != group.id:
         return RedirectResponse(f"/groups/{group.slug}", status_code=303)
+    # ``member_id`` must already be a member of this group — otherwise a
+    # groepsleider could write an *approved* speltak membership for an arbitrary
+    # user (any UUID) without their consent, defeating the invite-semantics of
+    # the member-add flow.
+    if not groups_svc.is_user_in_group(db, member_id, group.id):
+        return RedirectResponse(f"/groups/{group.slug}", status_code=303)
     groups_svc.set_speltak_role(db, user_id=member_id, speltak_id=to_speltak_id, role="scout")
     return RedirectResponse(f"/groups/{group.slug}", status_code=303)
 
@@ -1156,7 +1162,12 @@ def speltak_transfer_member(
         # via ``to_speltak_id`` (cross-group IDOR). transfer_scout enforces the
         # same invariant; checking here keeps a blocked attempt a clean redirect.
         to_speltak = groups_svc.get_speltak(db, to_speltak_id)
-        if to_speltak is not None and to_speltak.group_id == speltak.group_id:
+        # ``member_id`` must actually be in the SOURCE speltak. Without this a
+        # speltakleider could write an approved membership for an arbitrary user
+        # into a sibling speltak (transfer_scout sets the destination first and
+        # the source-removal simply no-ops when the user isn't there).
+        source_member = groups_svc.get_speltak_role(db, member_id, speltak.id) is not None
+        if source_member and to_speltak is not None and to_speltak.group_id == speltak.group_id:
             groups_svc.transfer_scout(db, user_id=member_id,
                                       from_speltak_id=speltak.id, to_speltak_id=to_speltak_id)
     return RedirectResponse(f"/groups/{group.slug}/speltakken/{speltak.slug}" if speltak else (f"/groups/{group.slug}" if group else "/groups"), status_code=303)

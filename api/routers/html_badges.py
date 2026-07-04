@@ -1303,7 +1303,7 @@ async def scout_badge_detail(
         for niveau_idx in range(3)
     ]
 
-    return _TEMPLATES.TemplateResponse(
+    response = _TEMPLATES.TemplateResponse(
         request=request,
         name="scout_badge.html",
         context={
@@ -1322,6 +1322,10 @@ async def scout_badge_detail(
             "_post_url": f"/scouts/{scout.id}/set-progress",
         },
     )
+    # This renders another scout's progress; don't let it linger in a shared
+    # cache / the back-forward cache. Parity with scout_progress_home.
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @router.post("/badges/{slug}/set-level", response_class=HTMLResponse)

@@ -25,6 +25,11 @@ proxy. Same trust model as the fail2ban login log.
 The limit strings and ``enabled`` flag are read at *request* time (via the
 callable limit-provider and ``exempt_when``), so tests can flip
 ``config.rate_limit`` without rebuilding the app.
+
+The limiter uses slowapi's default in-memory (``memory://``) storage, so the
+counters live in *this process*. This is correct only under ``--workers 1``
+(see run_prod.sh); with more workers each limit is multiplied by the worker
+count. Move to a shared ``storage_uri`` (e.g. Redis) before scaling out.
 """
 import jwt
 from slowapi import Limiter

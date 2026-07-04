@@ -64,7 +64,11 @@ def create_challenge_dict() -> dict:
     """Build a fresh ALTCHA v1 challenge for the widget to solve."""
     challenge = create_challenge_v1(
         algorithm="SHA-256",
-        max_number=config.captcha.complexity,
+        # Clamp to >= 1: a zero/negative complexity makes ALTCHA's
+        # secrets.randbelow(max_number + 1) raise, which would 500 the challenge
+        # endpoint and make every captcha-gated form unsubmittable (self-DoS via
+        # a misconfigured config value).
+        max_number=max(1, config.captcha.complexity),
         hmac_key=_hmac_key(),
         expires=datetime.now(timezone.utc) + timedelta(seconds=_CHALLENGE_TTL_SECONDS),
     )
@@ -99,8 +103,10 @@ def verify(payload: str) -> bool:
     _prune(now)
     salt = _payload_salt(payload)
     if salt is None:
-        # Verified but unparseable salt: accept once but we can't dedupe it.
-        return True
+        # Verified but no usable salt to record → fail closed. Can't happen for
+        # a signature-valid v1 payload today (the salt is part of what's signed),
+        # but refusing beats accepting a payload we can't mark single-use.
+        return False
     if salt in _spent_salts:
         return False  # replay
     _spent_salts[salt] = now + _CHALLENGE_TTL_SECONDS

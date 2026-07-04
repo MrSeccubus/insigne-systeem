@@ -55,6 +55,24 @@ class TestVerify:
                   "number": sol.number, "salt": d["salt"], "signature": "0" * 64}
         assert captcha.verify(base64.b64encode(json.dumps(forged).encode()).decode()) is False
 
+    def test_fails_closed_when_salt_unparseable(self, client, db, monkeypatch):
+        """If a signature-valid payload has no usable salt to record for
+        single-use, verify() must fail closed (not accept an un-dedupable one)."""
+        config.captcha.enabled = True
+        payload = _solve(client)
+        # Force the salt extraction to fail even though the signature is valid.
+        monkeypatch.setattr(captcha, "_payload_salt", lambda p: None)
+        assert captcha.verify(payload) is False
+
+
+class TestChallengeComplexityClamp:
+    def test_negative_complexity_does_not_crash(self, client, db):
+        """A misconfigured negative complexity must not 500 the challenge
+        endpoint (it's clamped to >= 1)."""
+        config.captcha.complexity = -5
+        d = captcha.create_challenge_dict()
+        assert "challenge" in d and (d.get("maxnumber") or d.get("maxNumber")) >= 1
+
 
 class TestRegisterCaptcha:
     def test_valid_solution_advances_to_step2(self, client, db):

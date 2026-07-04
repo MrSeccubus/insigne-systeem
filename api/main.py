@@ -166,8 +166,13 @@ _SECURITY_HEADERS = {
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
+    # Direct assignment (not setdefault) so this policy is authoritative — a
+    # handler can't accidentally ship a weaker CSP/X-Frame-Options. No handler
+    # sets these today; this keeps it that way. (Unhandled-500 responses from
+    # Starlette's ServerErrorMiddleware sit above this middleware and so don't
+    # get these headers — acceptable: they're generic error pages.)
     for header, value in _SECURITY_HEADERS.items():
-        response.headers.setdefault(header, value)
+        response.headers[header] = value
     return response
 
 

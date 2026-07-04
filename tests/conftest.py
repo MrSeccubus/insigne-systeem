@@ -32,6 +32,7 @@ def reset_config():
         _config.rate_limit.register,
         _config.rate_limit.forgot_password,
         _config.rate_limit.contact,
+        _config.rate_limit.signoff,
     )
     saved_captcha = (_config.captcha.enabled, _config.captcha.complexity)
     yield
@@ -42,6 +43,7 @@ def reset_config():
         _config.rate_limit.register,
         _config.rate_limit.forgot_password,
         _config.rate_limit.contact,
+        _config.rate_limit.signoff,
     ) = saved_rl
     (_config.captcha.enabled, _config.captcha.complexity) = saved_captcha
     # Clear the in-memory limiter counters so one test's requests can't leak

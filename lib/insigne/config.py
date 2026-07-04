@@ -34,6 +34,11 @@ class RateLimitConfig:
     register: str = "5/hour"
     forgot_password: str = "5/hour"
     contact: str = "10/hour"
+    # By-email sign-off requests (authenticated). Keyed per-user, not per-IP.
+    # Caps the "mail an arbitrary address from our domain" abuse. Note the
+    # batch-sign-off panel loops the endpoint once per eis, so bump this if a
+    # large niveau row ever trips the limit.
+    signoff: str = "15/hour"
 
 
 @dataclass
@@ -113,6 +118,7 @@ def _load() -> Config:
             register=str(rl_data.get("register", "5/hour")),
             forgot_password=str(rl_data.get("forgot_password", "5/hour")),
             contact=str(rl_data.get("contact", "10/hour")),
+            signoff=str(rl_data.get("signoff", "15/hour")),
         ),
         captcha=CaptchaConfig(
             enabled=bool(captcha_data.get("enabled", True)),

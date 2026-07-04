@@ -10,6 +10,22 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+---
+
+## [v1.2.2] — 2026-07-04
+
+Een beveiligingsrelease die de bevindingen van een volledige, adversariële
+broncode-audit (2 juli 2026) dicht. De audit splitste de applicatie op in zes
+gebieden en verifieerde elke bevinding tegen de broncode. De kern van de
+problemen zat in het groep/speltak-lidmaatschapsmodel, waar meerdere
+mutatie-endpoints ID's uit de URL of het formulier vertrouwden zonder te
+controleren of ze bij de geautoriseerde resource hoorden; twee daarvan waren —
+geketend met de standaardconfiguratie (`allow_any_user_to_create_groups:
+true`) — te combineren tot een volledige accountovername door elke
+geregistreerde gebruiker. Alle bevindingen boven het laagste niveau zijn nu
+verholpen, met regressietests per fix. Daarnaast enkele losse bugfixes en
+uitgebreide smoke-testdekking.
+
 ### Beveiliging
 
 - **Rate limit op aftekenverzoeken per e-mail** — de endpoints `POST /progress/{id}/request-signoff` en `POST /badges/jaarinsigne_2026/request-signoff` sturen een e-mail naar een *willekeurig* door de scout opgegeven adres (en maken voor een onbekend adres een placeholder-gebruiker aan), zonder enige limiet. Een ingelogde gebruiker kon zo vanaf ons domein onbeperkt mail naar derden sturen (spam/reputatieschade) en de gebruikerstabel volpompen. Beide endpoints hebben nu een rate limit die — anders dan de bestaande per-IP-limieten — keyt op de ingelogde *gebruiker* (JWT uit de cookie), zodat een gedeeld huishouden/clubgebouw-IP nooit één emmer deelt en een misbruiker niet reset door van IP te wisselen. Instelbaar in `config.yml` als `rate_limit.signoff` (standaard `15/hour`; het batch-aftekenpaneel doet één verzoek per eis, dus houd de limiet ruim boven het grootste aantal eisen per niveau). 4 nieuwe tests.

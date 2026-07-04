@@ -208,7 +208,8 @@ class TestProfile:
     def test_post_profile_with_short_password_returns_error(self, client, db):
         user = _register_and_activate(db)
         client.cookies.set("access_token", create_access_token(user.id)[0])
-        r = client.post("/profile", data={"name": "Jan", "email": user.email, "password": "short"})
+        r = client.post("/profile", data={"name": "Jan", "email": user.email,
+                                          "password": "short", "current_password": "validpass1"})
         assert r.status_code == 200
         assert "8" in r.text
 
@@ -216,9 +217,58 @@ class TestProfile:
         _register_and_activate(db, email="jan@example.com")
         user2 = _register_and_activate(db, email="other@example.com")
         client.cookies.set("access_token", create_access_token(user2.id)[0])
-        r = client.post("/profile", data={"name": "Other", "email": "jan@example.com", "password": ""})
+        r = client.post("/profile", data={"name": "Other", "email": "jan@example.com",
+                                          "password": "", "current_password": "validpass1"})
         assert r.status_code == 200
         assert "gebruik" in r.text.lower()
+
+    def test_password_change_requires_current_password(self, client, db):
+        """Step-up auth: a password change without the current password is
+        refused and the password stays unchanged."""
+        user = _register_and_activate(db)
+        client.cookies.set("access_token", create_access_token(user.id)[0])
+        r = client.post("/profile", data={"name": "Jan", "email": user.email,
+                                          "password": "newpassword1"})  # no current_password
+        assert r.status_code == 200
+        assert "huidige wachtwoord" in r.text.lower()
+        # Old password still works; new one does not.
+        assert user_svc.authenticate(db, user.email, "validpass1") is not None
+        assert user_svc.authenticate(db, user.email, "newpassword1") is None
+
+    def test_password_change_with_wrong_current_password_refused(self, client, db):
+        user = _register_and_activate(db)
+        client.cookies.set("access_token", create_access_token(user.id)[0])
+        r = client.post("/profile", data={"name": "Jan", "email": user.email,
+                                          "password": "newpassword1", "current_password": "wrongpass"})
+        assert r.status_code == 200
+        assert "huidige wachtwoord" in r.text.lower()
+        assert user_svc.authenticate(db, user.email, "newpassword1") is None
+
+    def test_password_change_with_correct_current_password_succeeds(self, client, db):
+        user = _register_and_activate(db)
+        client.cookies.set("access_token", create_access_token(user.id)[0])
+        r = client.post("/profile", data={"name": "Jan", "email": user.email,
+                                          "password": "newpassword1", "current_password": "validpass1"})
+        assert r.status_code == 200
+        assert user_svc.authenticate(db, user.email, "newpassword1") is not None
+
+    def test_email_change_requires_current_password(self, client, db):
+        user = _register_and_activate(db)
+        client.cookies.set("access_token", create_access_token(user.id)[0])
+        r = client.post("/profile", data={"name": "Jan", "email": "changed@example.com",
+                                          "password": ""})  # no current_password
+        assert r.status_code == 200
+        assert "huidige wachtwoord" in r.text.lower()
+        # No pending email change was created.
+        assert user_svc.pending_email_change(db, user.id) is None
+
+    def test_name_only_change_does_not_require_current_password(self, client, db):
+        user = _register_and_activate(db)
+        client.cookies.set("access_token", create_access_token(user.id)[0])
+        r = client.post("/profile", data={"name": "Andere Naam", "email": user.email, "password": ""})
+        assert r.status_code == 200
+        db.refresh(user)
+        assert user.name == "Andere Naam"
 
 
 # ── forgot password ───────────────────────────────────────────────────────────
@@ -251,7 +301,8 @@ class TestEmailChange:
     def test_post_profile_with_new_email_does_not_change_email_immediately(self, client, db):
         user = _register_and_activate(db)
         client.cookies.set("access_token", create_access_token(user.id)[0])
-        client.post("/profile", data={"name": user.name, "email": "new@example.com", "password": ""})
+        client.post("/profile", data={"name": user.name, "email": "new@example.com",
+                                      "password": "", "current_password": "validpass1"})
         db.refresh(user)
         assert user.email == "jan@example.com"
 
@@ -259,7 +310,8 @@ class TestEmailChange:
         from insigne.models import EmailChangeRequest
         user = _register_and_activate(db)
         client.cookies.set("access_token", create_access_token(user.id)[0])
-        client.post("/profile", data={"name": user.name, "email": "new@example.com", "password": ""})
+        client.post("/profile", data={"name": user.name, "email": "new@example.com",
+                                      "password": "", "current_password": "validpass1"})
         req = db.query(EmailChangeRequest).filter_by(user_id=user.id).first()
         assert req is not None
         assert req.new_email == "new@example.com"

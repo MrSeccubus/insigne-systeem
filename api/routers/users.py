@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from insigne import progress_export as export_svc
 from insigne import users as user_svc
 from insigne.badges import BadgeCatalogue
-from insigne.auth import create_access_token, decode_access_token
+from insigne.auth import create_access_token, decode_access_token, verify_password
 from insigne.config import config
 from insigne.database import get_db
 from insigne.email import (
@@ -196,6 +196,7 @@ async def profile_update(
     name: str = Form(""),
     email: str = Form(...),
     password: str = Form(""),
+    current_password: str = Form(""),
     db: Session = Depends(get_db),
 ):
     current_user = _get_current_user(request, db)
@@ -203,6 +204,18 @@ async def profile_update(
         return RedirectResponse(url="/login", status_code=303)
 
     email_changing = email and email.strip().lower() != (current_user.email or "").lower()
+    password_changing = bool(password)
+
+    # Step-up auth: changing the password or e-mail requires re-entering the
+    # current password, so a borrowed or hijacked session (the access_token
+    # cookie lives 30 days) can't lock the owner out or start an e-mail
+    # takeover. A name-only edit stays frictionless.
+    if password_changing or email_changing:
+        if not (current_password and current_user.password_hash
+                and verify_password(current_password, current_user.password_hash)):
+            return _page(request, "profile.html", db,
+                         error="Voer je huidige wachtwoord in om je wachtwoord of e-mailadres te wijzigen.",
+                         pending_email_change=user_svc.pending_email_change(db, current_user.id))
 
     try:
         user_svc.update_user(

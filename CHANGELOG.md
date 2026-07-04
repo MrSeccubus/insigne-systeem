@@ -10,6 +10,10 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Beveiliging
+
+- **Huidig wachtwoord vereist bij wijzigen wachtwoord of e-mailadres (step-up auth)** — `POST /profile` wijzigde het wachtwoord en startte een e-mailwijziging op basis van alleen de sessiecookie. Omdat het `access_token` 30 dagen leeft, kon een kortstondig geleende of gekaapte sessie zo de eigenaar buitensluiten (wachtwoord wijzigen) of een e-mailovername starten. Deze twee gevoelige wijzigingen vereisen nu dat het huidige wachtwoord opnieuw wordt ingevoerd (geverifieerd met `verify_password`); een naam-wijziging blijft zonder. Er is een veld "Huidig wachtwoord" aan het profielformulier toegevoegd. 6 nieuwe tests.
+
 ---
 
 ## [v1.2.2] — 2026-07-04

@@ -39,6 +39,15 @@
                 </div>
                 <span class="field-hint">Minimaal 8 tekens.</span>
             </div>
+            <div class="field" x-data="{ show: false }">
+                <label for="current_password">Huidig wachtwoord <span class="optional">(verplicht bij wijzigen wachtwoord of e-mailadres)</span></label>
+                <div class="field-password">
+                    <input :type="show ? 'text' : 'password'" id="current_password" name="current_password"
+                           autocomplete="current-password">
+                    <button type="button" class="btn-show-password" @click="show = !show"
+                            x-text="show ? 'Verbergen' : 'Tonen'"></button>
+                </div>
+            </div>
             <button type="submit" class="btn-primary">Opslaan</button>
         </form>
     </div>

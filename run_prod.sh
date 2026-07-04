@@ -38,6 +38,12 @@ if [ -n "$FORWARDED_ALLOW_IPS" ]; then
     PROXY_FLAGS=(--proxy-headers --forwarded-allow-ips "$FORWARDED_ALLOW_IPS")
 fi
 
+
+# IMPORTANT: keep --workers 1. The rate limiter (api/ratelimit.py) and the
+# ALTCHA single-use replay store (api/captcha.py) both hold state in-process
+# memory. With >1 worker each limit is multiplied by the worker count and a
+# captcha payload can be replayed once per worker. Raising the worker count
+# requires moving both to a shared backend (e.g. Redis) first.
 exec venv/bin/uvicorn main:app \
     --app-dir api \
     --host "$HOST" \

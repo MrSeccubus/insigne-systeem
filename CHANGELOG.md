@@ -10,6 +10,10 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Beveiliging
+
+- **Hardening van de nieuwe beveiligingsinfrastructuur** (tweede reviewronde, latente punten). (1) De ALTCHA-`verify()` faalt nu *dicht* als een geldig ondertekende payload geen bruikbare salt oplevert om als eenmalig te registreren (voorheen `return True` — onbereikbaar vandaag, maar veiliger om te weigeren). (2) De beveiligingsheaders worden nu met directe toewijzing gezet i.p.v. `setdefault`, zodat het CSP/X-Frame-Options-beleid gezaghebbend is en een handler er niet per ongeluk een zwakker beleid onder kan schuiven. (3) `captcha.complexity` wordt geklemd op `max(1, …)`, zodat een negatieve waarde de challenge-endpoint niet laat crashen (zelf-DoS). (4) De in-memory rate-limiter en de captcha-replay-store zijn per-proces; `run_prod.sh` en de moduledocs documenteren nu expliciet dat `--workers 1` vereist is (of een gedeelde backend) voordat er wordt opgeschaald. 2 nieuwe tests.
+
 ---
 
 ## [v1.2.2] — 2026-07-04

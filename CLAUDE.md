@@ -247,16 +247,53 @@ When a new release is made, the `[Unreleased]` section is **consolidated**
 into the new version's section (re-grouped, copy-edited, duplicates merged),
 the `[Unreleased]` header is reset to empty, and the release is tagged.
 
-When a new release is made:
-1. Move `## [Unreleased]` content into a new `## [vX.Y.Z] — YYYY-MM-DD` section
-   (consolidate / copy-edit; keep the standard subsections `### Nieuw`,
-   `### Verbeteringen`, `### Opgelost`, `### Beveiliging`).
-2. Re-add an empty `## [Unreleased]` header at the top.
-3. Tag the release commit (`git tag -a vX.Y.Z ...`).
-4. Fast-forward `releases` to that tag commit.
-5. Merge the tag into `main` (`git checkout main && git merge --no-ff vX.Y.Z`)
-   so the tag is reachable from both `releases` and `main`.
-6. Create the GitHub release.
+The version number itself is **derived from git tags** (`git describe` in
+`lib/insigne/version.py`) — there is no version string to bump in source. The
+tag *is* the version. Pick the bump with semver: security/bugfix-only →
+patch (`Z`), new backwards-compatible features → minor (`Y`), breaking →
+major (`X`).
+
+**The exact, working release procedure** (this is what actually holds — the
+old wording said "fast-forward `releases`", but `releases` carries its own
+merge commits and will NOT fast-forward; it is advanced by *merging the tag
+into it*). Run from `main`, up to date with `origin/main`:
+
+1. Sanity-check: `git checkout main && git merge --ff-only origin/main`, then
+   run the full suite (`venv/bin/python -m pytest tests/ -q`) — a release must
+   be green.
+2. Consolidate `## [Unreleased]` into a new `## [vX.Y.Z] — YYYY-MM-DD` section
+   (copy-edit; keep the standard subsections `### Nieuw`, `### Verbeteringen`,
+   `### Opgelost`, `### Beveiliging`; add a short intro paragraph). Reset
+   `## [Unreleased]` to an empty header at the top.
+3. Commit on `main` and annotate-tag that commit — this commit *is* the
+   release:
+   ```
+   git add CHANGELOG.md && git commit -m "Release vX.Y.Z"
+   git tag -a vX.Y.Z -m "vX.Y.Z — <one-line summary>"
+   ```
+4. Publish (needs explicit user go-ahead — outward-facing + touches
+   `releases`):
+   ```
+   git push origin main
+   git push origin vX.Y.Z
+   git checkout -B releases origin/releases
+   git merge vX.Y.Z -m "Merge vX.Y.Z into releases"   # merge, NOT ff
+   git push origin releases
+   git checkout main
+   ```
+5. Create the GitHub release with the changelog section as notes (extract it
+   into a file first — the section contains backticks, so `--notes-file`, not
+   inline):
+   ```
+   awk '/^## \[vX\.Y\.Z\]/{f=1;next} /^## \[/{if(f)exit} f' CHANGELOG.md > /tmp/notes.md
+   gh release create vX.Y.Z --title "vX.Y.Z — <title>" --notes-file /tmp/notes.md
+   ```
+
+Because the release commit is made directly on `main` and tagged there, the
+tag is reachable from `main` immediately; step 4's merge makes it reachable
+from `releases` too. (`main` and `releases` are protected — pushing needs the
+bypass, which the maintainer's token has.) v1.2.2 was cut this way on
+2026-07-04.
 
 ## JSON API — removed in v1.2.0
 

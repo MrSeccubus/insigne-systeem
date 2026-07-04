@@ -10,6 +10,10 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+### Beveiliging
+
+- **Per-scout insignepagina niet meer cachebaar** — `GET /scouts/{id}/badges/{slug}` toont de voortgang van een andere scout maar stuurde geen `Cache-Control: no-store`, terwijl het scout-voortgangsoverzicht (`/scouts/{id}`) dat wél doet. De pagina krijgt nu dezelfde `no-store`-header, zodat andermans voortgang niet in een gedeelde cache of de back-forward-cache blijft hangen. 1 nieuwe test.
+
 ---
 
 ## [v1.2.2] — 2026-07-04

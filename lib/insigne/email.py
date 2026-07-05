@@ -10,7 +10,7 @@ from urllib.parse import quote_plus
 
 logger = logging.getLogger(__name__)
 
-from jinja2 import ChoiceLoader, Environment, FileSystemLoader
+from jinja2 import ChoiceLoader, Environment, FileSystemLoader, select_autoescape
 from markupsafe import Markup, escape
 
 from .config import config
@@ -132,7 +132,13 @@ def _env() -> Environment:
     if config.email.templates_dir:
         loaders.append(FileSystemLoader(config.email.templates_dir))
     loaders.append(FileSystemLoader(str(_DEFAULT_TEMPLATES)))
-    env = Environment(loader=ChoiceLoader(loaders), autoescape=True)
+    # Autoescape the .html bodies, but NOT the .subject.txt templates: a subject
+    # goes into the Subject: mail header (plain text, not HTML), so escaping
+    # there just garbles "&"/"<"/">" into "&amp;" etc. in the recipient's inbox.
+    # (CRLF header injection via the subject is separately blocked by
+    # EmailMessage, which rejects newlines in header values.)
+    env = Environment(loader=ChoiceLoader(loaders),
+                      autoescape=select_autoescape(enabled_extensions=("html",)))
     env.filters["nl2br"] = _nl2br
     env.filters["render_eis"] = render_eis_email
     return env

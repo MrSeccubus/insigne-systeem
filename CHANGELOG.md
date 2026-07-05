@@ -22,7 +22,15 @@ weer leeg gemaakt.
 
 - **Lid-toewijzing/-overplaatsing valideert nu de betrokken gebruiker** — `POST /groups/{groep}/members/{id}/assign-speltak` en `.../speltakken/{speltak}/members/{id}/transfer` schreven een *goedgekeurd* speltaklidmaatschap voor de `member_id` uit de URL zonder te controleren dat die persoon lid is. Een groepsleider kon zo een willekeurige gebruiker (elke UUID) zonder diens toestemming in zijn speltak trekken, en een speltakleider kon via `transfer` een willekeurige gebruiker in een naburige speltak schrijven. `assign-speltak` vereist nu dat `member_id` al lid van de groep is (`is_user_in_group`); `transfer` vereist dat `member_id` daadwerkelijk in de bronspeltak zit. Sluit de laatste variant van de cross-group/consent-klasse uit de tweede reviewronde. 2 nieuwe tests.
 
+### Opgelost
+
+- **E-mailonderwerpen werden HTML-ge-escaped** — de onderwerp-templates werden door dezelfde autoescape-Jinja-omgeving gerenderd als de HTML-bodies, waardoor `&`, `<` en `>` in een onderwerp als `&amp;`, `&lt;`, `&gt;` in de `Subject:`-header terechtkwamen (bijv. een contactformulier-onderwerp, of een groepsnaam met een `&`). De omgeving escapet nu alleen `.html`-bestanden (`select_autoescape(enabled_extensions=("html",))`); een onderwerp is platte tekst in een header (CR/LF-injectie wordt daarnaast al door `EmailMessage` geblokkeerd). 1 nieuwe test.
+
 ### Onderhoud
+
+- **Verouderde `/api/`-CSRF-uitzondering verwijderd** — de Origin/Referer-middleware sloeg paden onder `/api/` over voor de in v1.2.0 verwijderde bearer-token-JSON-API. De uitzondering is nu weg: elk state-changing verzoek wordt gecontroleerd, en een eventuele toekomstige `/api/`-route omzeilt de CSRF-check niet langer stilzwijgend. Obsolete tests verwijderd.
+
+- **Dubbele `/ping`-route verwijderd** — `api/main.py` definieerde `/ping` tweemaal; de tweede (HTML "Pong") was dode code die nooit werd bereikt.
 
 - **Standaard `mobile-web-app-capable` meta-tag toegevoegd** (sluit #159) — Chrome waarschuwde op elke pagina dat `apple-mobile-web-app-capable` verouderd is en de standaard `<meta name="mobile-web-app-capable" content="yes">` verwacht. Die is nu toegevoegd naast de apple-variant, zodat geen van beide browsers meer klaagt.
 

@@ -80,14 +80,16 @@ async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):
 #
 # Rules:
 #  - GET / HEAD / OPTIONS are not checked (not state-changing).
-#  - Paths under ``/api/`` are exempt — the JSON API uses bearer-token auth,
-#    not cookies, so cross-site requests can't ride on the session.
 #  - If ``Origin`` is present, it must match ``config.base_url`` exactly.
 #  - If ``Origin`` is absent but ``Referer`` is present, ``Referer`` must
 #    start with ``config.base_url`` (same scheme + host + port).
 #  - If neither header is present, the request is rejected. Browsers always
-#    send at least one on POST/PUT/DELETE/PATCH; non-browser clients should
-#    use the bearer-token API under ``/api/``.
+#    send at least one on POST/PUT/DELETE/PATCH.
+#
+# Every cookie-authenticated state-changing route is covered. (The old JSON
+# API under ``/api/`` was bearer-token auth and used to be exempt; it was
+# removed in v1.2.0, so the exemption is gone too — a future ``/api/`` route
+# now gets CSRF-checked like everything else instead of silently bypassing.)
 #
 # Closes issue #99.
 
@@ -104,7 +106,7 @@ def _csrf_reject(detail: str):
 
 @app.middleware("http")
 async def origin_csrf_check(request: Request, call_next):
-    if request.method in _CSRF_STATE_CHANGING_METHODS and not request.url.path.startswith("/api/"):
+    if request.method in _CSRF_STATE_CHANGING_METHODS:
         origin = request.headers.get("origin")
         referer = request.headers.get("referer")
         if origin:
@@ -472,8 +474,3 @@ async def index(request: Request, db: Session = Depends(get_db)):
     )
     response.headers["Cache-Control"] = "no-store"
     return response
-
-
-@app.get("/ping")
-async def ping():
-    return HTMLResponse("<p>Pong from FastAPI.</p>")

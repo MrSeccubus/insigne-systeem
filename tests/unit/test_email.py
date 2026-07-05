@@ -36,6 +36,16 @@ class TestSendDevMode:
                  confirm_url="http://localhost/confirm/abc123")
         mock_smtp.assert_not_called()
 
+    def test_subject_is_not_html_escaped(self, capsys):
+        """The Subject: header is plain text — & / < / > must not be HTML-escaped
+        into &amp; etc. (regression: subject templates render through the same
+        Jinja env as the HTML bodies; only the .html bodies should autoescape)."""
+        send("admin@example.com", "contact_form",
+             email="admin@example.com", sender_email="u@example.com",
+             subject="A & B <x>", body="hallo")
+        out = capsys.readouterr().out
+        assert "Subject: Contactformulier: A & B <x>" in out
+
 
 # ── send() with smtp_host set ─────────────────────────────────────────────────
 

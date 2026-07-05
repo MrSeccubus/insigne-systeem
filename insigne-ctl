@@ -2,6 +2,22 @@
 # Control script for the Insigne Systeem service.
 # Usage: ./insigne-ctl {start|stop|restart|status|logs [journalctl-args]}
 
+# Never run as root / via sudo. This drives the systemd *user* service and
+# operates on the service user's checkout + venv. Running it as root talks to
+# the wrong systemd instance AND — via `update`'s pip/git — leaves root-owned
+# files (e.g. lib/insigne.egg-info) that then break every later update run as
+# the service user with "Cannot update time stamp of directory". Run it as the
+# account that owns this checkout (e.g. `insignes`), without sudo.
+if [ "$(id -u)" -eq 0 ]; then
+    echo "ERROR: don't run insigne-ctl as root/sudo." >&2
+    if [ -n "$SUDO_USER" ]; then
+        echo "       Run it as the service user instead, e.g.:  sudo -u $SUDO_USER $0 ${*:-<command>}" >&2
+    else
+        echo "       Run it as the account that owns this checkout (the service user), without sudo." >&2
+    fi
+    exit 1
+fi
+
 # Required for systemctl --user to work in non-login shells (e.g. SSH)
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=/run/user/$(id -u)/bus}"

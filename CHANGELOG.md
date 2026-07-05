@@ -34,6 +34,8 @@ weer leeg gemaakt.
 
 - **Standaard `mobile-web-app-capable` meta-tag toegevoegd** (sluit #159) — Chrome waarschuwde op elke pagina dat `apple-mobile-web-app-capable` verouderd is en de standaard `<meta name="mobile-web-app-capable" content="yes">` verwacht. Die is nu toegevoegd naast de apple-variant, zodat geen van beide browsers meer klaagt.
 
+- **`insigne-ctl` weigert nu als root/sudo te draaien** — het script bestuurt de systemd *user*-service en werkt op de checkout + venv van de service-gebruiker. Als root gedraaid (bijv. `sudo ./insigne-ctl update`) liet `pip`/`git` root-eigendom achter (o.a. `lib/insigne.egg-info`), waarna elke latere update áls de service-gebruiker faalde met "Cannot update time stamp of directory" — waardoor nieuwe dependencies niet werden geïnstalleerd en de service niet meer startte. Het script stopt nu meteen met een duidelijke melding (en, bij sudo, de juiste `sudo -u <gebruiker>`-suggestie) als het als root wordt aangeroepen.
+
 ---
 
 ## [v1.2.2] — 2026-07-04

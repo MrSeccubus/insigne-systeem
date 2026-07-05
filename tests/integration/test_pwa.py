@@ -275,6 +275,12 @@ class TestBaseHtmlPwaTags:
         assert '<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">' in r.text
         assert '<meta name="apple-mobile-web-app-capable" content="yes">' in r.text
 
+    def test_standard_mobile_web_app_capable_meta_in_head(self, client, db):
+        """#159: Chrome deprecates the apple- prefixed tag and wants the
+        standard one; ship both so neither browser warns."""
+        r = client.get("/login")
+        assert '<meta name="mobile-web-app-capable" content="yes">' in r.text
+
     def test_open_graph_tags_in_head(self, client, db):
         """#140: social scrapers (WhatsApp/Slack/Facebook) render a card from
         Open Graph tags; og:image must be an absolute-URL raster (not the SVG

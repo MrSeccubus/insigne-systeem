@@ -22,6 +22,10 @@ weer leeg gemaakt.
 
 - **Lid-toewijzing/-overplaatsing valideert nu de betrokken gebruiker** — `POST /groups/{groep}/members/{id}/assign-speltak` en `.../speltakken/{speltak}/members/{id}/transfer` schreven een *goedgekeurd* speltaklidmaatschap voor de `member_id` uit de URL zonder te controleren dat die persoon lid is. Een groepsleider kon zo een willekeurige gebruiker (elke UUID) zonder diens toestemming in zijn speltak trekken, en een speltakleider kon via `transfer` een willekeurige gebruiker in een naburige speltak schrijven. `assign-speltak` vereist nu dat `member_id` al lid van de groep is (`is_user_in_group`); `transfer` vereist dat `member_id` daadwerkelijk in de bronspeltak zit. Sluit de laatste variant van de cross-group/consent-klasse uit de tweede reviewronde. 2 nieuwe tests.
 
+### Onderhoud
+
+- **Standaard `mobile-web-app-capable` meta-tag toegevoegd** (sluit #159) — Chrome waarschuwde op elke pagina dat `apple-mobile-web-app-capable` verouderd is en de standaard `<meta name="mobile-web-app-capable" content="yes">` verwacht. Die is nu toegevoegd naast de apple-variant, zodat geen van beide browsers meer klaagt.
+
 ---
 
 ## [v1.2.2] — 2026-07-04

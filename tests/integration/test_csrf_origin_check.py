@@ -3,8 +3,8 @@
 State-changing requests whose Origin header doesn't match ``config.base_url``
 are rejected with 403; Referer is consulted as fallback when Origin is absent.
 Requests missing both headers are rejected (OWASP CSRF Cheat Sheet behaviour).
-JSON-API paths under ``/api/`` are exempt: they use bearer-token auth, not
-cookies, so cross-site requests can't ride on the session.
+The old ``/api/`` exemption was removed with the JSON API (v1.2.0), so every
+state-changing request is now checked.
 
 The default ``client`` fixture sets ``Origin`` so the rest of the suite isn't
 forced to send it on every POST; these tests pop it where the test needs to
@@ -67,8 +67,7 @@ class TestOriginCsrfCheck:
 
     def test_post_without_origin_or_referer_is_rejected(self, client, db):
         """Browsers always send at least one of Origin/Referer on state-changing
-        requests. Missing both → 403. Non-browser clients should use the bearer-
-        token API under ``/api/``."""
+        requests. Missing both → 403."""
         _no_default_origin(client)
         r = client.post(
             "/groups/new",
@@ -82,28 +81,6 @@ class TestOriginCsrfCheck:
         """GET is not state-changing — Origin not checked."""
         r = client.get("/login", headers={"Origin": "http://evil.example.com"})
         assert r.status_code == 200
-
-    def test_api_post_without_origin_passes(self, client, db):
-        """/api/* uses bearer-token auth; not vulnerable to cookie CSRF.
-        Middleware skips it entirely — even with no Origin/Referer."""
-        _no_default_origin(client)
-        r = client.post(
-            "/api/auth/login",
-            json={"email": "x@example.com", "password": "wrong"},
-        )
-        # API returns 401 for bad creds — but NOT 403 from the middleware.
-        assert r.status_code != 403
-
-    def test_api_post_with_mismatched_origin_passes(self, client, db):
-        """/api/* uses bearer-token auth; not vulnerable to cookie CSRF.
-        Middleware skips it."""
-        r = client.post(
-            "/api/auth/login",
-            json={"email": "x@example.com", "password": "wrong"},
-            headers={"Origin": "http://evil.example.com"},
-        )
-        # API returns 401 for bad creds — but NOT 403 from the middleware.
-        assert r.status_code != 403
 
     def test_delete_with_mismatched_origin_is_rejected(self, client, db):
         """DELETE is state-changing — same rule applies."""

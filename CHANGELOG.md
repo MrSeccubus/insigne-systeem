@@ -29,7 +29,10 @@ weer leeg gemaakt.
 ### Onderhoud
 
 - **Verouderde `/api/`-CSRF-uitzondering verwijderd** — de Origin/Referer-middleware sloeg paden onder `/api/` over voor de in v1.2.0 verwijderde bearer-token-JSON-API. De uitzondering is nu weg: elk state-changing verzoek wordt gecontroleerd, en een eventuele toekomstige `/api/`-route omzeilt de CSRF-check niet langer stilzwijgend. Obsolete tests verwijderd.
+
 - **Dubbele `/ping`-route verwijderd** — `api/main.py` definieerde `/ping` tweemaal; de tweede (HTML "Pong") was dode code die nooit werd bereikt.
+
+- **Standaard `mobile-web-app-capable` meta-tag toegevoegd** (sluit #159) — Chrome waarschuwde op elke pagina dat `apple-mobile-web-app-capable` verouderd is en de standaard `<meta name="mobile-web-app-capable" content="yes">` verwacht. Die is nu toegevoegd naast de apple-variant, zodat geen van beide browsers meer klaagt.
 
 ---
 

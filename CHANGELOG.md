@@ -10,6 +10,21 @@ weer leeg gemaakt.
 
 ## [Unreleased]
 
+---
+
+## [v1.2.3] — 2026-07-05
+
+Vervolg-beveiligingsrelease na v1.2.2. Een tweede, adversariële reviewronde over
+de in v1.2.2 doorgevoerde fixes vond nog één cross-group-lek — een
+lidmaatschapsverzoek kon een scout in de speltak van een *andere* groep laten
+belanden — plus een reeks latente hardening-punten; die zijn nu gedicht, met
+regressietests per fix. Daarnaast: verplichte herbevestiging van het huidige
+wachtwoord bij het wijzigen van wachtwoord of e-mailadres, lengtelimieten op
+vrije-tekstvelden die in e-mail terechtkomen, en losse opschoning (e-mail­
+onderwerpen worden niet meer HTML-ge-escaped, de verouderde `/api/`-CSRF-
+uitzondering en een dubbele route zijn verwijderd, en `insigne-ctl` weigert nu
+als root te draaien — de oorzaak van root-eigendom dat updates brak).
+
 ### Beveiliging
 
 - **Huidig wachtwoord vereist bij wijzigen wachtwoord of e-mailadres (step-up auth)** — `POST /profile` wijzigde het wachtwoord en startte een e-mailwijziging op basis van alleen de sessiecookie. Omdat het `access_token` 30 dagen leeft, kon een kortstondig geleende of gekaapte sessie zo de eigenaar buitensluiten (wachtwoord wijzigen) of een e-mailovername starten. Deze twee gevoelige wijzigingen vereisen nu dat het huidige wachtwoord opnieuw wordt ingevoerd (geverifieerd met `verify_password`); een naam-wijziging blijft zonder. Er is een veld "Huidig wachtwoord" aan het profielformulier toegevoegd. 7 nieuwe tests.

@@ -253,10 +253,11 @@ tag *is* the version. Pick the bump with semver: security/bugfix-only →
 patch (`Z`), new backwards-compatible features → minor (`Y`), breaking →
 major (`X`).
 
-**The exact, working release procedure** (this is what actually holds — the
-old wording said "fast-forward `releases`", but `releases` carries its own
-merge commits and will NOT fast-forward; it is advanced by *merging the tag
-into it*). Run from `main`, up to date with `origin/main`:
+**The exact, working release procedure.** `releases` is a linear pointer at the
+latest release tag: it was flattened onto `main` at v1.2.3, so it now
+*fast-forwards* to each new tag — no more per-release merge commits, and `main`
+and `releases` share identical history up to the latest release. Run from
+`main`, up to date with `origin/main`:
 
 1. Sanity-check: `git checkout main && git merge --ff-only origin/main`, then
    run the full suite (`venv/bin/python -m pytest tests/ -q`) — a release must
@@ -276,9 +277,9 @@ into it*). Run from `main`, up to date with `origin/main`:
    ```
    git push origin main
    git push origin vX.Y.Z
-   git checkout -B releases origin/releases
-   git merge vX.Y.Z -m "Merge vX.Y.Z into releases"   # merge, NOT ff
-   git push origin releases
+   git checkout -B releases origin/releases   # sync local releases to the remote
+   git merge --ff-only vX.Y.Z                 # fast-forward to the tag — no merge commit
+   git push origin releases                   # plain push; it's a fast-forward
    git checkout main
    ```
 5. Create the GitHub release with the changelog section as notes (extract it
@@ -290,10 +291,13 @@ into it*). Run from `main`, up to date with `origin/main`:
    ```
 
 Because the release commit is made directly on `main` and tagged there, the
-tag is reachable from `main` immediately; step 4's merge makes it reachable
-from `releases` too. (`main` and `releases` are protected — pushing needs the
-bypass, which the maintainer's token has.) v1.2.2 was cut this way on
-2026-07-04.
+tag is reachable from `main` immediately; step 4 fast-forwards `releases` to
+that same commit, so `main` and `releases` stay identical up to the latest
+release. (`main` and `releases` are protected — pushing needs the bypass, which
+the maintainer's token has.) v1.2.3 was cut this way on 2026-07-05; at that
+point `releases` was flattened onto `main` (a one-time force-push), replacing
+the old merge-per-release history — so the fast-forward in step 4 works from
+here on.
 
 ## JSON API — removed in v1.2.0
 

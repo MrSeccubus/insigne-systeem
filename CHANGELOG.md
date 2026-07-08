@@ -51,6 +51,8 @@ als root te draaien — de oorzaak van root-eigendom dat updates brak).
 
 - **`insigne-ctl` weigert nu als root/sudo te draaien** — het script bestuurt de systemd *user*-service en werkt op de checkout + venv van de service-gebruiker. Als root gedraaid (bijv. `sudo ./insigne-ctl update`) liet `pip`/`git` root-eigendom achter (o.a. `lib/insigne.egg-info`), waarna elke latere update áls de service-gebruiker faalde met "Cannot update time stamp of directory" — waardoor nieuwe dependencies niet werden geïnstalleerd en de service niet meer startte. Het script stopt nu meteen met een duidelijke melding (en, bij sudo, de juiste `sudo -u <gebruiker>`-suggestie) als het als root wordt aangeroepen.
 
+- **`run_prod.sh` installeert requirements na een dependency-wijziging** — na een upgrade die alleen de code wijzigde, ontbraken nieuwe dependencies (dit haalde de productie onderuit toen `altcha`/`slowapi` niet geïnstalleerd waren). `run_prod.sh` draait nu `pip install -r requirements.txt` bij het starten, maar alléén als de SHA-256 van `requirements.txt` is veranderd t.o.v. de laatst geïnstalleerde (stempel in de venv) — een ongewijzigde herstart slaat de trage, netwerk-afhankelijke resolve dus over. Guarded: een tijdelijke netwerk-/PyPI-storing kan de start niet afbreken (`set -e` negeert fouten in een `if`-conditie, het stempel wordt alleen bij succes bijgewerkt zodat de volgende start opnieuw probeert; anders zou `Restart=on-failure` een crash-loop geven), en de editable package wordt daarna sowieso geïnstalleerd. De primaire installatie blijft `insigne-ctl update`; dit is de vangnet-laag.
+
 ---
 
 ## [v1.2.2] — 2026-07-04

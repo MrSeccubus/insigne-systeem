@@ -7,11 +7,32 @@ cd "$SCRIPT_DIR"
 if [ ! -f venv/bin/uvicorn ]; then
     echo "Setting up virtual environment..."
     python3 -m venv venv
-    venv/bin/pip install -r requirements.txt
 fi
 
 rm -rf lib/*.egg-info
 venv/bin/pip uninstall -y insigne 2>/dev/null || true
+
+# Install requirements only when requirements.txt actually changed, so an
+# upgrade still pulls new deps but an unchanged restart skips the (network-
+# hitting, multi-second) resolve. We stamp the installed file's hash in the
+# venv (gitignored) and re-install only on a mismatch.
+#
+# Guarded so a transient PyPI/network failure can't abort startup: `set -e`
+# ignores failures inside an `if` condition, and the stamp is written only on
+# success, so a failed install simply retries next start. The service has
+# Restart=on-failure, so an unguarded failure here would crash-loop.
+_req_sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1"; else shasum -a 256 "$1"; fi | awk '{print $1}'; }
+REQ_STAMP="venv/.requirements.sha256"
+REQ_HASH="$(_req_sha requirements.txt)"
+if [ "$(cat "$REQ_STAMP" 2>/dev/null)" != "$REQ_HASH" ]; then
+    if venv/bin/pip install -r requirements.txt; then
+        echo "$REQ_HASH" > "$REQ_STAMP"
+    else
+        echo "pip install -r requirements.txt failed (network down?); starting with the existing venv" >&2
+    fi
+fi
+# Always ensure the editable package itself is installed (no network needed),
+# even when the requirements install above was skipped or failed.
 venv/bin/pip install -q -e lib/
 
 if [ ! -f config.yml ]; then
